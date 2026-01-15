@@ -1,0 +1,8 @@
+{
+  "name": "prosimex-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node index.js",
+    "start": "node index.js"
+  }
+}
