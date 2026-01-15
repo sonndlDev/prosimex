@@ -23,7 +23,12 @@ jobs:
 
             APP_DIR="/var/www/prosimex-dev"
 
-            # Nếu chưa phải git repo thì clone lại
+            # Trust github.com host
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
+
+            # Clone repo if not exists
             if [ ! -d "$APP_DIR/.git" ]; then
               echo "Git repo not found, re-cloning..."
               rm -rf "$APP_DIR"
