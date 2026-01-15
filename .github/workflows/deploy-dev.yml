@@ -33,7 +33,7 @@ jobs:
               echo "Git repo not found, re-cloning..."
               rm -rf "$APP_DIR"
               mkdir -p "$APP_DIR"
-              git clone -b dev git@github.com:sonndDev/prosimex.git "$APP_DIR"
+              git clone -b dev git@github.com:sonndlDev/prosimex.git "$APP_DIR"
             fi
 
             cd "$APP_DIR"
