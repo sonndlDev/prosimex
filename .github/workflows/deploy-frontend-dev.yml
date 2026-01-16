@@ -1,0 +1,43 @@
+name: Deploy DEV - Frontend
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "frontend/**"
+      - "docker-compose.dev.yml"
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Frontend to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "===== DEPLOY FRONTEND DEV ====="
+
+            APP_DIR="/var/www/prosimex-dev"
+
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone -b dev git@github.com:sonndlDev/prosimex.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin
+            git reset --hard origin/dev
+
+            docker compose -f docker-compose.dev.yml build frontend
+            docker compose -f docker-compose.dev.yml up -d frontend
+
+            echo "===== FRONTEND DEPLOY DONE ====="
