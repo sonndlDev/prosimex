@@ -27,8 +27,7 @@ jobs:
             set -e
             echo "===== DEPLOY DEV START ====="
 
-            APP_DIR="/var/www/prosimex-dev"
-            IMAGE="ghcr.io/sonndlDev/frontend-dev"
+            IMAGE="ghcr.io/sonndldev/frontend-dev"
 
             # Resolve version
             if [ -z "${{ github.event.inputs.version }}" ]; then
@@ -41,8 +40,8 @@ jobs:
 
             echo "Using image: $IMAGE:$VERSION"
 
-            # Login GHCR (if needed)
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u sonndlDev --password-stdin
+            # Login GHCR (image private)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u sonndldev --password-stdin
 
             echo "Pull image"
             docker pull $IMAGE:$VERSION
