@@ -5,6 +5,12 @@ on:
     branches:
       - dev
 
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docker image version to deploy (leave empty for latest dev)"
+        required: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -22,30 +28,33 @@ jobs:
             echo "===== DEPLOY DEV START ====="
 
             APP_DIR="/var/www/prosimex-dev"
+            IMAGE="ghcr.io/sonndlDev/frontend-dev"
 
-            # Trust github.com host
-            mkdir -p ~/.ssh
-            ssh-keyscan github.com >> ~/.ssh/known_hosts
-            chmod 644 ~/.ssh/known_hosts
-
-            # Clone repo if not exists
-            if [ ! -d "$APP_DIR/.git" ]; then
-              echo "Git repo not found, re-cloning..."
-              rm -rf "$APP_DIR"
-              mkdir -p "$APP_DIR"
-              git clone -b dev git@github.com:sonndlDev/prosimex.git "$APP_DIR"
+            # Resolve version
+            if [ -z "${{ github.event.inputs.version }}" ]; then
+              VERSION="latest"
+              echo "Deploying latest dev version"
+            else
+              VERSION="${{ github.event.inputs.version }}"
+              echo "Deploying selected version: $VERSION"
             fi
 
-            cd "$APP_DIR"
+            echo "Using image: $IMAGE:$VERSION"
 
-            echo "Reset source code to origin/dev"
-            git fetch origin
-            git reset --hard origin/dev
+            # Login GHCR (if needed)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u sonndlDev --password-stdin
 
-            echo "Stopping old containers (if any)"
-            docker compose -f docker-compose.dev.yml down || true
+            echo "Pull image"
+            docker pull $IMAGE:$VERSION
 
-            echo "Building & starting containers"
-            docker compose -f docker-compose.dev.yml up -d --build
+            echo "Stopping old container"
+            docker stop frontend-dev || true
+            docker rm frontend-dev || true
+
+            echo "Starting new container"
+            docker run -d \
+              --name frontend-dev \
+              -p 3000:80 \
+              $IMAGE:$VERSION
 
             echo "===== DEPLOY DEV DONE ====="
