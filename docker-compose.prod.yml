@@ -12,8 +12,10 @@ services:
       dockerfile: Dockerfile.prod
     container_name: backend_prod
     env_file: .env.prod
-    expose:
-      - "127.0.0.1:3000:3000"
+    ports:
+      - target: 3000
+        published: 3000
+        host_ip: 127.0.0.1
     depends_on:
       - db
 
