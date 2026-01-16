@@ -1,0 +1,42 @@
+name: Deploy PROD - Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+
+jobs:
+  deploy-backend-prod:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy Backend PROD
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "===== DEPLOY BACKEND PROD ====="
+
+            APP_DIR="/var/www/prosimex-prod"
+
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              git clone -b main git@github.com:sonndlDev/prosimex.git "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin
+            git reset --hard origin/main
+
+            docker compose -f docker-compose.prod.yml build backend
+            docker compose -f docker-compose.prod.yml up -d backend
+
+            echo "===== BACKEND PROD DONE ====="
