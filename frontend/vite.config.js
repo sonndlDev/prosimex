@@ -7,11 +7,11 @@ export default defineConfig({
     react({
       babel: {
         plugins: [["babel-plugin-react-compiler"]],
-        server: {
-          host: true,
-          allowedHosts: "all",
-        },
       },
     }),
   ],
+  server: {
+    host: true,
+    allowedHosts: "all",
+  },
 });
