@@ -1,0 +1,7 @@
+# Docker compose theo môi trường
+docker-compose.dev.yml              merge=ours
+docker-compose.prod.yml             merge=ours
+
+# Github Actions theo môi trường
+.github/workflows/*-dev.yml         merge=ours
+.github/workflows/*-prod.yml        merge=ours
