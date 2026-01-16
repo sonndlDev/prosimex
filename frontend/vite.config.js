@@ -1,17 +1,16 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler"]],
-      },
-    }),
-  ],
+  plugins: [react()],
+
   server: {
     host: true,
-    allowedHosts: "all",
-  },
-});
+    port: 5173,
+    allowedHosts: [
+      'prosimex.pitundev.io.vn',
+      'localhost',
+      '127.0.0.1'
+    ]
+  }
+})
