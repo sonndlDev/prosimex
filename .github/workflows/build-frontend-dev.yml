@@ -1,0 +1,35 @@
+name: Build Frontend DEV Image
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login GHCR
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u sonndldev --password-stdin
+
+      - name: Build & Push image
+        run: |
+          VERSION=dev-$(date +%Y%m%d)-${GITHUB_SHA::7}
+
+          docker build \
+            -f frontend/Dockerfile.dev \
+            -t ghcr.io/sonndldev/frontend-dev:$VERSION \
+            -t ghcr.io/sonndldev/frontend-dev:latest \
+            frontend
+
+          docker push ghcr.io/sonndldev/frontend-dev:$VERSION
+          docker push ghcr.io/sonndldev/frontend-dev:latest
