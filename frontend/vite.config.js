@@ -9,6 +9,7 @@ export default defineConfig({
     port: 5173,
     allowedHosts: [
       'prosimex.pitundev.io.vn',
+      'dev.prosimex.pitundev.io.vn',
       'localhost',
       '127.0.0.1'
     ]
