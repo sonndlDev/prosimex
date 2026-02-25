@@ -41,12 +41,16 @@ app.use((err, req, res, next) => {
 })
 
 const hostname = 'localhost'
-const port = 8017
+const port = 3000
 app.get('/', (req, res) => {
   res.send('<h1>Prosimex MES API</h1><hr>')
 })
 
-app.listen(port, hostname, () => {
-  // eslint-disable-next-line no-console
+// app.listen(port, hostname, () => {
+//   // eslint-disable-next-line no-console
+//   console.log(`Hello PiTunDev, MES API is running at http://${hostname}:${port}/`)
+// })
+
+app.listen(port, '0.0.0.0', () => {
   console.log(`Hello PiTunDev, MES API is running at http://${hostname}:${port}/`)
 })
