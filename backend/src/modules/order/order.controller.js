@@ -45,7 +45,7 @@ export const createOrder = async (req, res) => {
              person_in_charge, note, factory_id, created_by) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
       [order_code, name, customer_id, product_id, po_customer,
-        received_date, delivery_date, quantity, production_location,
+        received_date, delivery_date || null, quantity, production_location,
         person_in_charge, note, factory_id, created_by]
     )
 
@@ -112,7 +112,7 @@ export const updateOrder = async (req, res) => {
                  po_customer = COALESCE($2, po_customer),
                  po_auto_code = $3,
                  received_date = COALESCE($4, received_date),
-                 delivery_date = COALESCE($5, delivery_date),
+                 delivery_date = $5,
                  quantity = COALESCE($6, quantity),
                  production_location = COALESCE($7, production_location),
                  person_in_charge = COALESCE($8, person_in_charge),
@@ -120,7 +120,7 @@ export const updateOrder = async (req, res) => {
                  status = COALESCE($10, status),
                  updated_at = CURRENT_TIMESTAMP 
              WHERE id = $11 AND deleted_at IS NULL RETURNING *`,
-      [name, po_customer, po_auto_code, received_date, delivery_date, quantity, production_location, person_in_charge, note, status, id]
+      [name, po_customer, po_auto_code, received_date, delivery_date || null, quantity, production_location, person_in_charge, note, status, id]
     )
 
     const afterData = result.rows[0]

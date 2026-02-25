@@ -32,23 +32,40 @@ export default function AppRouter() {
                         <Route path="/" element={<DashboardPage />} />
                         
                         {/* Modules protected by Role */}
-                        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'PLANNER']} />}>
+                        {/* Modules protected by Permissions */}
+                        <Route element={<ProtectedRoute requiredPermission="factories" />}>
                             <Route path="/factories" element={<FactoryPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="product_groups" />}>
                             <Route path="/product-groups" element={<ProductGroupPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="products" />}>
                             <Route path="/products" element={<ProductPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="customers" />}>
                             <Route path="/customers" element={<CustomerPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="orders" />}>
                             <Route path="/orders" element={<OrderPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="planning" />}>
                             <Route path="/planning" element={<PlanningPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="schedule" />}>
                             <Route path="/schedule" element={<SchedulePage />} />
                         </Route>
 
-                        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'PLANNER', 'OPERATOR']} />}>
+                        <Route element={<ProtectedRoute requiredPermission="machines" />}>
                             <Route path="/machines" element={<MachinePage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="operations" />}>
                             <Route path="/operations" element={<OperationPage />} />
                         </Route>
                         
-                        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                        <Route element={<ProtectedRoute requiredPermission="users" />}>
                             <Route path="/users" element={<UserPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                             <Route path="/settings" element={<Placeholder title="System Settings" />} />
                         </Route>
                     </Route>

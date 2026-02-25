@@ -23,7 +23,6 @@ export default function OrderPage() {
         product_id: '', 
         po_customer: '', 
         received_date: DateTime.now().toFormat('yyyy-MM-dd'), 
-        delivery_date: '', 
         quantity: '', 
         factory_id: '',
         production_location: '',
@@ -60,11 +59,6 @@ export default function OrderPage() {
         { id: 'customer_name', label: 'Khách hàng' },
         { id: 'product_name', label: 'Sản phẩm' },
         { id: 'quantity', label: 'Số lượng' },
-        { 
-            id: 'delivery_date', 
-            label: 'Ngày giao',
-            format: v => v ? DateTime.fromISO(v).toFormat('yyyy-MM-dd') : ''
-        },
         { id: 'status', label: 'Trạng thái' }
     ];
 
@@ -78,7 +72,6 @@ export default function OrderPage() {
                 product_id: order.product_id,
                 po_customer: order.po_customer, 
                 received_date: DateTime.fromISO(order.received_date).toFormat('yyyy-MM-dd'),
-                delivery_date: DateTime.fromISO(order.delivery_date).toFormat('yyyy-MM-dd'),
                 quantity: order.quantity,
                 factory_id: order.factory_id,
                 production_location: order.production_location || '',
@@ -183,18 +176,12 @@ export default function OrderPage() {
                             />
                         </Box>
                         
-                        <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={2}>
+                        <Box display="grid" gridTemplateColumns="1fr" gap={2} mt={2}>
                             <TextField 
                                 fullWidth label="Ngày nhận" type="date" required size="small"
                                 InputLabelProps={{ shrink: true }}
                                 value={formData.received_date} 
                                 onChange={e => setFormData({...formData, received_date: e.target.value})} 
-                            />
-                            <TextField 
-                                fullWidth label="Ngày giao" type="date" required size="small"
-                                InputLabelProps={{ shrink: true }}
-                                value={formData.delivery_date} 
-                                onChange={e => setFormData({...formData, delivery_date: e.target.value})} 
                             />
                         </Box>
 

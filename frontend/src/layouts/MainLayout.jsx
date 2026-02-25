@@ -21,6 +21,8 @@ import {
     Tooltip
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FactoryIcon from '@mui/icons-material/Factory';
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
@@ -35,13 +37,14 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 import ConstructionIcon from '@mui/icons-material/Construction';
 
-const drawerWidth = 280;
-
 export default function MainLayout() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    const drawerWidth = isCollapsed ? 84 : 280;
 
     const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
@@ -52,43 +55,60 @@ export default function MainLayout() {
 
     const menuItems = [
         { type: 'subheader', text: 'Sản xuất' },
-        { text: 'Bảng điều khiển', icon: <DashboardIcon />, path: '/' },
-        { text: 'Lập kế hoạch', icon: <EventNoteIcon />, path: '/planning', roles: ['ADMIN', 'PLANNER'] },
-        { text: 'Lịch sản xuất', icon: <ViewTimelineIcon />, path: '/schedule', roles: ['ADMIN', 'PLANNER', 'OPERATOR'] },
-        { text: 'Đơn hàng', icon: <ShoppingCartIcon />, path: '/orders', roles: ['ADMIN', 'PLANNER'] },
+        { text: 'Bảng điều khiển', icon: <DashboardIcon />, path: '/', permission: 'dashboard' },
+        { text: 'Lập kế hoạch', icon: <EventNoteIcon />, path: '/planning', permission: 'planning' },
+        { text: 'Lịch sản xuất', icon: <ViewTimelineIcon />, path: '/schedule', permission: 'schedule' },
+        { text: 'Đơn hàng', icon: <ShoppingCartIcon />, path: '/orders', permission: 'orders' },
         
         { type: 'subheader', text: 'Dữ liệu gốc' },
-        { text: 'Khách hàng', icon: <StoreIcon />, path: '/customers', roles: ['ADMIN', 'PLANNER'] },
-        { text: 'Nhà máy', icon: <FactoryIcon />, path: '/factories', roles: ['ADMIN', 'PLANNER'] },
-        { text: 'Máy móc', icon: <PrecisionManufacturingIcon />, path: '/machines', roles: ['ADMIN', 'PLANNER', 'OPERATOR'] },
-        { text: 'Công đoạn', icon: <SettingsIcon />, path: '/operations', roles: ['ADMIN', 'PLANNER', 'OPERATOR'] },
-        { text: 'Nhóm mã hàng', icon: <CategoryIcon />, path: '/product-groups', roles: ['ADMIN', 'PLANNER'] },
-        { text: 'Mã hàng', icon: <InventoryIcon />, path: '/products', roles: ['ADMIN', 'PLANNER'] },
+        { text: 'Khách hàng', icon: <StoreIcon />, path: '/customers', permission: 'customers' },
+        { text: 'Nhà máy', icon: <FactoryIcon />, path: '/factories', permission: 'factories' },
+        { text: 'Máy móc', icon: <PrecisionManufacturingIcon />, path: '/machines', permission: 'machines' },
+        { text: 'Công đoạn', icon: <SettingsIcon />, path: '/operations', permission: 'operations' },
+        { text: 'Nhóm mã hàng', icon: <CategoryIcon />, path: '/product-groups', permission: 'product_groups' },
+        { text: 'Mã hàng', icon: <InventoryIcon />, path: '/products', permission: 'products' },
         
         { type: 'subheader', text: 'Hệ thống' },
-        { text: 'Người dùng & Quyền', icon: <GroupIcon />, path: '/users', roles: ['ADMIN'] },
+        { text: 'Người dùng & Quyền', icon: <GroupIcon />, path: '/users', permission: 'users' },
     ];
 
-    const allowedMenus = menuItems.filter(item => 
-        item.type === 'subheader' || !item.roles || item.roles.includes(user?.role)
-    );
+    const allowedMenus = menuItems.filter((item, index) => {
+        if (item.type === 'subheader') {
+            // Only show subheader if there's at least one visible item below it
+            const nextItems = menuItems.slice(index + 1);
+            const firstSubheader = nextItems.findIndex(i => i.type === 'subheader');
+            const itemsInSection = firstSubheader === -1 ? nextItems : nextItems.slice(0, firstSubheader);
+            
+            return itemsInSection.some(i => {
+                if (user?.role === 'ADMIN') return true;
+                if (user?.permissions) return user.permissions.includes(i.permission);
+                return i.roles?.includes(user?.role);
+            });
+        }
+
+        if (user?.role === 'ADMIN') return true;
+        if (user?.permissions) return user.permissions.includes(item.permission);
+        return !item.roles || item.roles.includes(user?.role);
+    });
 
     const drawer = (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ p: isCollapsed ? 2 : 3, display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'flex-start', gap: 2 }}>
                 <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
                     <ConstructionIcon />
                 </Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.5px', color: 'text.primary' }}>
-                    PROSIMEX <span style={{ color: '#2563eb' }}>MES</span>
-                </Typography>
+                {!isCollapsed && (
+                    <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: '-0.5px', color: 'text.primary' }}>
+                        PROSIMEX <span style={{ color: '#2563eb' }}>MES</span>
+                    </Typography>
+                )}
             </Box>
             
             <Box sx={{ flexGrow: 1, px: 2, pb: 2, overflowY: 'auto' }}>
                 <List disablePadding>
                     {allowedMenus.map((item, index) => {
                         if (item.type === 'subheader') {
-                            return (
+                            return !isCollapsed && (
                                 <Typography 
                                     key={index}
                                     variant="overline" 
@@ -117,22 +137,26 @@ export default function MainLayout() {
                                             '& .MuiListItemIcon-root': { color: 'primary.main' }
                                         },
                                         transition: 'all 0.2s ease-in-out',
+                                        justifyContent: isCollapsed ? 'center' : 'flex-start'
                                     }}
                                 >
                                     <ListItemIcon sx={{ 
-                                        minWidth: 40, 
+                                        minWidth: isCollapsed ? 0 : 40, 
                                         color: isActive ? 'primary.main' : 'text.secondary',
-                                        transition: 'all 0.2s ease-in-out'
+                                        transition: 'all 0.2s ease-in-out',
+                                        mr: isCollapsed ? 0 : 2
                                     }}>
                                         {item.icon}
                                     </ListItemIcon>
-                                    <ListItemText 
-                                        primary={item.text} 
-                                        primaryTypographyProps={{ 
-                                            fontSize: '0.875rem', 
-                                            fontWeight: isActive ? 600 : 500 
-                                        }} 
-                                    />
+                                    {!isCollapsed && (
+                                        <ListItemText 
+                                            primary={item.text} 
+                                            primaryTypographyProps={{ 
+                                                fontSize: '0.875rem', 
+                                                fontWeight: isActive ? 600 : 500 
+                                            }} 
+                                        />
+                                    )}
                                 </ListItemButton>
                             </ListItem>
                         );
@@ -141,42 +165,47 @@ export default function MainLayout() {
             </Box>
 
             <Divider sx={{ mx: 2 }} />
-            <Box sx={{ p: 2 }}>
+            <Box sx={{ p: isCollapsed ? 1 : 2 }}>
                 <Box 
                     sx={{ 
-                        p: 2, 
+                        p: isCollapsed ? 1 : 2, 
                         borderRadius: '16px', 
                         bgcolor: 'background.default',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
                         gap: 1.5
                     }}
                 >
                     <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontSize: '1rem', fontWeight: 600 }}>
                         {user?.username?.[0]?.toUpperCase()}
                     </Avatar>
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
-                            {user?.username}
-                        </Typography>
-                        <Chip 
-                            label={user?.role} 
-                            size="small" 
-                            variant="filled" 
-                            sx={{ 
-                                height: 18, 
-                                fontSize: '0.65rem', 
-                                fontWeight: 700,
-                                bgcolor: 'rgba(37, 99, 235, 0.1)',
-                                color: 'primary.main'
-                            }} 
-                        />
-                    </Box>
-                    <Tooltip title="Đăng xuất">
-                        <IconButton size="small" onClick={handleLogout} sx={{ color: 'error.light' }}>
-                            <LogoutIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                    {!isCollapsed && (
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                            <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
+                                {user?.username}
+                            </Typography>
+                            <Chip 
+                                label={user?.role} 
+                                size="small" 
+                                variant="filled" 
+                                sx={{ 
+                                    height: 18, 
+                                    fontSize: '0.65rem', 
+                                    fontWeight: 700,
+                                    bgcolor: 'rgba(37, 99, 235, 0.1)',
+                                    color: 'primary.main'
+                                }} 
+                            />
+                        </Box>
+                    )}
+                    {!isCollapsed && (
+                        <Tooltip title="Đăng xuất">
+                            <IconButton size="small" onClick={handleLogout} sx={{ color: 'error.light' }}>
+                                <LogoutIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
                 </Box>
             </Box>
         </Box>
@@ -199,18 +228,26 @@ export default function MainLayout() {
                 }}
             >
                 <Toolbar sx={{ justifyContent: 'space-between' }}>
-                    <IconButton
-                        color="inherit"
-                        aria-label="open drawer"
-                        edge="start"
-                        onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { sm: 'none' } }}
-                    >
-                        <MenuIcon />
-                    </IconButton>
-                    <Typography variant="h6" noWrap sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                        {allowedMenus.find(m => m.path === location.pathname)?.text || 'Hệ thống điều hành'}
-                    </Typography>
+                    <Box display="flex" alignItems="center">
+                        <IconButton
+                            color="inherit"
+                            aria-label="open drawer"
+                            edge="start"
+                            onClick={handleDrawerToggle}
+                            sx={{ mr: 2, display: { sm: 'none' } }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                        <IconButton
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            sx={{ mr: 2, display: { xs: 'none', sm: 'flex' } }}
+                        >
+                            {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+                        </IconButton>
+                        <Typography variant="h6" noWrap sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                            {allowedMenus.find(m => m.path === location.pathname)?.text || 'Hệ thống điều hành'}
+                        </Typography>
+                    </Box>
                     
                     <Box display="flex" alignItems="center" gap={2}>
                         <Box sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -270,10 +307,11 @@ export default function MainLayout() {
                 component="main"
                 sx={{ 
                     flexGrow: 1, 
-                    p: 4, 
+                    p: isCollapsed ? '24px' : '32px', 
                     width: { sm: `calc(100% - ${drawerWidth}px)` }, 
                     minHeight: '100vh',
-                    bgcolor: 'background.default'
+                    bgcolor: 'background.default',
+                    transition: 'all 0.2s ease-in-out'
                 }}
             >
                 <Toolbar />
