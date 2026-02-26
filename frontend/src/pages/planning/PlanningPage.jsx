@@ -3,12 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { planningService } from '../../services/planning.service';
 import { orderService } from '../../services/order.service';
 import { productGroupService } from '../../services/product-group.service';
+import { workerService } from '../../services/worker.service';
+import { workerAssignmentService } from '../../services/workerAssignment.service';
 import { 
     Dialog, DialogTitle, DialogContent, DialogActions, 
     Button, TextField, Box, Typography, Divider, CircularProgress, Alert, 
     FormControl, InputLabel, Select, MenuItem, Checkbox, FormControlLabel, Paper, Chip,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Tooltip,
-    TablePagination, InputAdornment, Autocomplete, Snackbar
+    TablePagination, InputAdornment, Autocomplete, Snackbar, Badge, List, ListItem, ListItemText, ListItemSecondaryAction
 } from '@mui/material';
 import { DateTime } from 'luxon';
 import EditIcon from '@mui/icons-material/Edit';
@@ -18,6 +20,8 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PeopleIcon from '@mui/icons-material/People';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 // Styled cell for the Excel look
 const ExcelHeaderCell = ({ children, sx = {}, colSpan = 1, rowSpan = 1 }) => (
@@ -121,6 +125,8 @@ export default function PlanningPage() {
     const [selectedOrderIds, setSelectedOrderIds] = useState([]);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
     const [deleteConfirm, setDeleteConfirm] = useState({ open: false, planId: null });
+    const [assignmentDialog, setAssignmentDialog] = useState({ open: false, planId: null, date: null, dateLabel: '' });
+    const [selectedWorkerIds, setSelectedWorkerIds] = useState([]);
 
     // Data Fetching
     const { data: plansData, isLoading, error } = useQuery({ 
@@ -138,6 +144,8 @@ export default function PlanningPage() {
 
     const { data: allOrdersData } = useQuery({ queryKey: ['orders'], queryFn: orderService.getAll });
     const orders = allOrdersData || [];
+
+    const { data: allWorkers = [] } = useQuery({ queryKey: ['workers'], queryFn: workerService.getAll });
 
     const selectedOrder = orders?.find(o => o.id === selectedOrderId);
     const selectedProduct = selectedOrder?.products?.find(p => p.id === selectedProductId);
@@ -338,6 +346,9 @@ export default function PlanningPage() {
 
     const handleSaveInline = (plan) => {
         const payload = {
+            order_id: plan.order_id,
+            product_id: plan.product_id,
+            product_group_operation_id: plan.product_group_operation_id,
             inventory_input: plan.inventory_input,
             planned_start_date: plan.planned_start_date,
             days: inlineEditDays
@@ -352,6 +363,35 @@ export default function PlanningPage() {
         updateMutation.mutate({ id: plan.id, payload }, {
             onSuccess: () => handleCancelInlineEdit()
         });
+    };
+
+    const handleOpenAssignment = async (planId, date, dateLabel) => {
+        setAssignmentDialog({ open: true, planId, date, dateLabel });
+        try {
+            const currentAssignments = await workerAssignmentService.getAssignments(planId, date);
+            setSelectedWorkerIds(currentAssignments.map(w => w.id));
+        } catch (err) {
+            setSnackbar({ open: true, message: 'Lỗi khi tải danh sách công nhân', severity: 'error' });
+        }
+    };
+
+    const handleSaveAssignments = useMutation({
+        mutationFn: () => workerAssignmentService.updateAssignments({
+            production_plan_id: assignmentDialog.planId,
+            working_date: assignmentDialog.date,
+            worker_ids: selectedWorkerIds
+        }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['plans'] });
+            setAssignmentDialog({ ...assignmentDialog, open: false });
+            setSnackbar({ open: true, message: 'Đã cập nhật công nhân làm việc', severity: 'success' });
+        }
+    });
+
+    const toggleWorker = (id) => {
+        setSelectedWorkerIds(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
     };
 
     const handleClose = () => {
@@ -503,7 +543,7 @@ export default function PlanningPage() {
                                             const editDayData = inlineEditDays.find(d => d.date === date.key);
                                             
                                             return (
-                                                <ExcelDataCell key={date.key} sx={{ bgcolor: isEditing ? '#fff' : (dayData ? '#fef9c3' : 'inherit'), p: isEditing ? 0 : '6px 8px' }}>
+                                                <ExcelDataCell key={date.key} sx={{ bgcolor: isEditing ? '#fff' : (dayData ? '#fef9c3' : 'inherit'), p: isEditing ? 0 : '4px 6px', position: 'relative' }}>
                                                     {isEditing ? (
                                                         <>
                                                             <ManagedTextField
@@ -547,9 +587,32 @@ export default function PlanningPage() {
                                                             />
                                                         </>
                                                     ) : (
-                                                        <Typography variant="caption" sx={{ fontWeight: dayData ? 700 : 400, color: dayData ? '#854d0e' : '#94a3b8' }}>
-                                                            {dayData ? (parseFloat(dayData.planned_work_quantity) / 8).toFixed(2) : '-'}
-                                                        </Typography>
+                                                        <Box display="flex" flexDirection="column" alignItems="center" gap={0.2}>
+                                                            <Typography variant="caption" sx={{ fontWeight: dayData ? 700 : 400, color: dayData ? '#854d0e' : '#94a3b8' }}>
+                                                                {dayData ? (parseFloat(dayData.planned_work_quantity) / 8).toFixed(2) : '-'}
+                                                            </Typography>
+                                                            {dayData && (
+                                                                <Tooltip title={dayData.worker_names || 'Chưa có công nhân'}>
+                                                                    <IconButton 
+                                                                        size="small" 
+                                                                        onClick={() => handleOpenAssignment(plan.id, date.key, date.label)}
+                                                                        sx={{ 
+                                                                            p: 0, 
+                                                                            color: dayData.worker_count > 0 ? 'primary.main' : 'text.disabled',
+                                                                            '&:hover': { color: 'primary.dark' }
+                                                                        }}
+                                                                    >
+                                                                        <Badge 
+                                                                            badgeContent={dayData.worker_count > 0 ? dayData.worker_count : 0} 
+                                                                            color="primary"
+                                                                            sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', height: 14, minWidth: 14, top: 4, right: -2 } }}
+                                                                        >
+                                                                            {dayData.worker_count > 0 ? <PeopleIcon sx={{ fontSize: '1rem' }} /> : <PersonAddIcon sx={{ fontSize: '0.9rem' }} />}
+                                                                        </Badge>
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Box>
                                                     )}
                                                 </ExcelDataCell>
                                             );
@@ -848,6 +911,59 @@ export default function PlanningPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <Dialog 
+                open={assignmentDialog.open} 
+                onClose={() => setAssignmentDialog({ ...assignmentDialog, open: false })}
+                fullWidth
+                maxWidth="xs"
+                PaperProps={{ sx: { borderRadius: '16px' } }}
+            >
+                <DialogTitle sx={{ fontWeight: 800 }}>Phân công công nhân ({assignmentDialog.dateLabel})</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" mb={2}>
+                        Chọn các công nhân sẽ tham gia sản xuất cho ngày này.
+                    </Typography>
+                    <List sx={{ pt: 0, maxHeight: 300, overflow: 'auto' }}>
+                        {allWorkers.map((worker) => (
+                            <ListItem 
+                                key={worker.id} 
+                                button 
+                                onClick={() => toggleWorker(worker.id)}
+                                sx={{ 
+                                    borderRadius: '8px', 
+                                    mb: 0.5,
+                                    bgcolor: selectedWorkerIds.includes(worker.id) ? 'rgba(37, 99, 235, 0.05)' : 'transparent',
+                                    '&:hover': { bgcolor: selectedWorkerIds.includes(worker.id) ? 'rgba(37, 99, 235, 0.1)' : 'rgba(0,0,0,0.02)' }
+                                }}
+                            >
+                                <ListItemText 
+                                    primary={worker.name} 
+                                    secondary={worker.code} 
+                                    primaryTypographyProps={{ fontWeight: selectedWorkerIds.includes(worker.id) ? 700 : 500 }}
+                                />
+                                <Checkbox 
+                                    edge="end" 
+                                    checked={selectedWorkerIds.includes(worker.id)} 
+                                    disableRipple
+                                />
+                            </ListItem>
+                        ))}
+                    </List>
+                </DialogContent>
+                <DialogActions sx={{ p: 2.5 }}>
+                    <Button onClick={() => setAssignmentDialog({ ...assignmentDialog, open: false })} color="inherit">Hủy</Button>
+                    <Button 
+                        variant="contained" 
+                        onClick={() => handleSaveAssignments.mutate()}
+                        disabled={handleSaveAssignments.isPending}
+                        sx={{ borderRadius: '8px', fontWeight: 700 }}
+                    >
+                        {handleSaveAssignments.isPending ? <CircularProgress size={20} /> : 'Lưu phân công'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             <Snackbar 
                 open={snackbar.open} 
                 autoHideDuration={4000} 

@@ -51,10 +51,23 @@ export const getProductionPlans = async (req, res) => {
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
         `, [...queryParams, limit, offset])
     
-    // Fetch days for each plan
+    // Fetch days and worker counts for each plan
     const plansWithDays = await Promise.all(result.rows.map(async (plan) => {
         const daysRes = await pool.query(
-            'SELECT working_date, planned_work_quantity, is_overtime FROM production_plan_days WHERE production_plan_id = $1 ORDER BY working_date ASC',
+            `SELECT 
+                ppd.working_date, 
+                ppd.planned_work_quantity, 
+                ppd.is_overtime,
+                (SELECT COUNT(*) FROM worker_plan_assignments wpa 
+                 WHERE wpa.production_plan_id = ppd.production_plan_id 
+                 AND wpa.working_date = ppd.working_date) as worker_count,
+                (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
+                 JOIN workers w ON wpa.worker_id = w.id
+                 WHERE wpa.production_plan_id = ppd.production_plan_id 
+                 AND wpa.working_date = ppd.working_date) as worker_names
+             FROM production_plan_days ppd 
+             WHERE ppd.production_plan_id = $1 
+             ORDER BY ppd.working_date ASC`,
             [plan.id]
         );
         return {
@@ -188,7 +201,15 @@ export const updateProductionPlan = async (req, res) => {
        SET inventory_input = $1, remaining_quantity = $2, total_required_work = $3, 
            planned_start_date = $4, planned_end_date = $5, product_id = $6, updated_at = CURRENT_TIMESTAMP
        WHERE id = $7 RETURNING *`,
-      [inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, product_id, id]
+      [
+        inventory_input !== undefined ? inventory_input : currentPlan.inventory_input, 
+        remaining_quantity, 
+        total_required_work, 
+        planned_start_date || currentPlan.planned_start_date, 
+        planned_end_date, 
+        product_id || currentPlan.product_id, 
+        id
+      ]
     )
 
     // 5. Delete and Re-insert Days

@@ -17,6 +17,7 @@ import SchedulePage from './pages/schedule/SchedulePage';
 import AttendancePage from './pages/attendance/AttendancePage';
 import AttendanceManagementPage from './pages/attendance/AttendanceManagementPage';
 import ProfilePage from './pages/auth/ProfilePage';
+import WorkerPage from './pages/workers/WorkerPage';
 
 // Placeholder Pages for upcoming modules
 const Placeholder = ({ title }) => <h2 style={{ padding: '20px' }}>{title} Module - Coming Soon</h2>;
@@ -74,6 +75,9 @@ export default function AppRouter() {
                         
                         <Route element={<ProtectedRoute requiredPermission="users" />}>
                             <Route path="/users" element={<UserPage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="workers" />}>
+                            <Route path="/workers" element={<WorkerPage />} />
                         </Route>
                         <Route element={<ProtectedRoute requiredPermission="settings" />}>
                             <Route path="/settings" element={<Placeholder title="System Settings" />} />

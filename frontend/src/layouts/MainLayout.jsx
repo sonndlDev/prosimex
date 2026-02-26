@@ -76,7 +76,8 @@ export default function MainLayout() {
         
         { type: 'subheader', text: 'Hệ thống' },
         { text: 'Chấm công', icon: <AccessTimeFilledIcon />, path: '/attendance', permission: 'attendance' },
-        { text: 'Quản lý chấm công', icon: <GroupIcon />, path: '/attendance/management', permission: 'attendance_management' },
+        { text: 'Quản lý chấm công', icon: <AccessTimeFilledIcon />, path: '/attendance/management', permission: 'attendance_management' },
+        { text: 'Quản lý công nhân', icon: <GroupIcon />, path: '/workers', permission: 'workers' },
         { text: 'Người dùng & Quyền', icon: <GroupIcon />, path: '/users', permission: 'users' },
         { text: 'Cài đặt hệ thống', icon: <SettingsIcon />, path: '/settings', permission: 'settings' },
     ];

@@ -17,7 +17,7 @@ import SearchIcon from '@mui/icons-material/Search';
 // Roles will be fetched from the database
 
 const AVAILABLE_PERMISSIONS = [
-    { key: 'dashboard', label: 'Bảng điều khiển' },
+    // { key: 'dashboard', label: 'Bảng điều khiển' },
     { key: 'planning', label: 'Lập kế hoạch' },
     { key: 'schedule', label: 'Lịch sản xuất' },
     { key: 'orders', label: 'Đơn hàng' },
@@ -27,6 +27,7 @@ const AVAILABLE_PERMISSIONS = [
     { key: 'operations', label: 'Công đoạn' },
     { key: 'product_groups', label: 'Nhóm mã hàng' },
     { key: 'products', label: 'Mã hàng' },
+    { key: 'workers', label: 'Quản lý công nhân' },
     { key: 'attendance', label: 'Chấm công' },
     // { key: 'attendance_management', label: 'Quản lý chấm công' },
     // { key: 'users', label: 'Người dùng & Quyền' },

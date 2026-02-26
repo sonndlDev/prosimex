@@ -4,6 +4,8 @@ import cors from 'cors'
 
 import authRoutes from './modules/auth/auth.routes.js'
 import userRoutes from './modules/user/user.routes.js'
+import workerRoutes from './modules/worker/worker.routes.js'
+import workerAssignmentRoutes from './modules/worker/worker-assignment.routes.js'
 
 import factoryRoutes from './modules/factory/factory.routes.js'
 import machineRoutes from './modules/machine/machine.routes.js'
@@ -25,6 +27,8 @@ app.use(morgan('combined'))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/workers', workerRoutes)
+app.use('/api/worker-assignments', workerAssignmentRoutes)
 app.use('/api/factories', factoryRoutes)
 app.use('/api/machines', machineRoutes)
 app.use('/api/operations', operationRoutes)
