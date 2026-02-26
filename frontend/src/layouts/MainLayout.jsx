@@ -36,6 +36,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
 import ConstructionIcon from '@mui/icons-material/Construction';
+import AccessTimeFilledIcon from '@mui/icons-material/AccessTimeFilled';
 
 export default function MainLayout() {
     const { user, logout } = useAuth();
@@ -43,6 +44,11 @@ export default function MainLayout() {
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { refreshUser } = useAuth();
+
+    React.useEffect(() => {
+        refreshUser();
+    }, [location.pathname]);
 
     const drawerWidth = isCollapsed ? 84 : 280;
 
@@ -69,7 +75,10 @@ export default function MainLayout() {
         { text: 'Mã hàng', icon: <InventoryIcon />, path: '/products', permission: 'products' },
         
         { type: 'subheader', text: 'Hệ thống' },
+        { text: 'Chấm công', icon: <AccessTimeFilledIcon />, path: '/attendance', permission: 'attendance' },
+        { text: 'Quản lý chấm công', icon: <GroupIcon />, path: '/attendance/management', permission: 'attendance_management' },
         { text: 'Người dùng & Quyền', icon: <GroupIcon />, path: '/users', permission: 'users' },
+        { text: 'Cài đặt hệ thống', icon: <SettingsIcon />, path: '/settings', permission: 'settings' },
     ];
 
     const allowedMenus = menuItems.filter((item, index) => {
@@ -174,8 +183,12 @@ export default function MainLayout() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: isCollapsed ? 'center' : 'flex-start',
-                        gap: 1.5
+                        gap: 1.5,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.05)' }
                     }}
+                    onClick={() => navigate('/profile')}
                 >
                     <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main', fontSize: '1rem', fontWeight: 600 }}>
                         {user?.username?.[0]?.toUpperCase()}

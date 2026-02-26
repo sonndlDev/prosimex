@@ -41,7 +41,7 @@ export const getProductionPlans = async (req, res) => {
                 m.name as machine_name
             FROM production_plans pp
             JOIN orders o ON pp.order_id = o.id
-            JOIN products p ON o.product_id = p.id
+            JOIN products p ON pp.product_id = p.id
             JOIN product_groups pg ON p.product_group_id = pg.id
             JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
             JOIN operations op ON pgo.operation_id = op.id
@@ -83,6 +83,7 @@ export const createProductionPlan = async (req, res) => {
 
     const {
       order_id,
+      product_id,
       product_group_operation_id,
       inventory_input,
       planned_start_date,
@@ -109,9 +110,9 @@ export const createProductionPlan = async (req, res) => {
     // 3. Insert Production Plan
     const planInsert = await client.query(
       `INSERT INTO production_plans 
-             (order_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [order_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, created_by]
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, created_by]
     )
     const newPlan = planInsert.rows[0]
 
@@ -160,6 +161,7 @@ export const updateProductionPlan = async (req, res) => {
     const { id } = req.params
     const {
       inventory_input,
+      product_id,
       planned_start_date,
       days // [{date, hours, is_overtime}]
     } = req.body
@@ -184,9 +186,9 @@ export const updateProductionPlan = async (req, res) => {
     const result = await client.query(
       `UPDATE production_plans 
        SET inventory_input = $1, remaining_quantity = $2, total_required_work = $3, 
-           planned_start_date = $4, planned_end_date = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6 RETURNING *`,
-      [inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, id]
+           planned_start_date = $4, planned_end_date = $5, product_id = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 RETURNING *`,
+      [inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, product_id, id]
     )
 
     // 5. Delete and Re-insert Days
@@ -252,7 +254,7 @@ export const deleteProductionPlan = async (req, res) => {
       [order_id, id]
     )
     if (remainingPlansRes.rowCount === 0) {
-      await client.query('UPDATE orders SET status = $1 WHERE id = $2', ['OPEN', order_id])
+      await client.query('UPDATE orders SET status = $1 WHERE id = $2', ['DRAFT', order_id])
     }
 
     // 5. Audit Log

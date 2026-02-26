@@ -14,6 +14,7 @@ import customerRoutes from './modules/customer/customer.routes.js'
 import orderRoutes from './modules/order/order.routes.js'
 import productionPlanningRoutes from './modules/production-planning/production-planning.routes.js'
 import machineScheduleRoutes from './modules/machine-schedule/machine-schedule.routes.js'
+import attendanceRoutes from './modules/attendance/attendance.routes.js'
 
 const app = express()
 
@@ -33,6 +34,7 @@ app.use('/api/customers', customerRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/production-plans', productionPlanningRoutes)
 app.use('/api/machine-schedule', machineScheduleRoutes)
+app.use('/api/attendance', attendanceRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {

@@ -26,8 +26,16 @@ export const productGroupService = {
         const { data } = await api.post(`/product-groups/${groupId}/operations`, payload);
         return data;
     },
-    removeOperation: async (groupId, operationId) => {
-        const { data } = await api.delete(`/product-groups/${groupId}/operations/${operationId}`);
+    removeOperation: async (groupId, mappingId) => {
+        const { data } = await api.delete(`/product-groups/${groupId}/operations/${mappingId}`);
+        return data;
+    },
+    updateOperation: async (groupId, mappingId, payload) => {
+        const { data } = await api.put(`/product-groups/${groupId}/operations/${mappingId}`, payload);
+        return data;
+    },
+    reorderOperations: async (groupId, orders) => {
+        const { data } = await api.put(`/product-groups/${groupId}/operations/reorder`, { orders });
         return data;
     }
 };

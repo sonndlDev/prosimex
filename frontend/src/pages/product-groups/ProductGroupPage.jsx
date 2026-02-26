@@ -5,10 +5,11 @@ import { operationService } from '../../services/operation.service';
 import { machineService } from '../../services/machine.service';
 import GenericTable from '../../components/GenericTable';
 import { 
-    Dialog, DialogTitle, DialogContent, DialogActions, 
+    Dialog, DialogTitle, DialogContent, DialogActions, Paper, 
     Button, TextField, Box, FormControl, InputLabel, Select, MenuItem, Typography, IconButton, Divider
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
+import DraggableSequenceTable from './DraggableSequenceTable';
 
 export default function ProductGroupPage() {
     const queryClient = useQueryClient();
@@ -36,6 +37,9 @@ export default function ProductGroupPage() {
         enabled: !!selectedGroup && manageOpsModal
     });
 
+    // Auto-calculate next sequence order
+    const nextSequenceOrder = (groupOperations?.length || 0) + 1;
+
     // Mutations
     const mutationOpts = {
         onSuccess: () => {
@@ -60,6 +64,16 @@ export default function ProductGroupPage() {
     });
     const removeOpMutation = useMutation({
         mutationFn: (mappingId) => productGroupService.removeOperation(selectedGroup.id, mappingId),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['groupOperations', selectedGroup?.id] })
+    });
+
+    const updateOpMutation = useMutation({
+        mutationFn: ({mappingId, payload}) => productGroupService.updateOperation(selectedGroup.id, mappingId, payload),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['groupOperations', selectedGroup?.id] })
+    });
+
+    const reorderOpMutation = useMutation({
+        mutationFn: (orders) => productGroupService.reorderOperations(selectedGroup.id, orders),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['groupOperations', selectedGroup?.id] })
     });
 
@@ -112,7 +126,7 @@ export default function ProductGroupPage() {
         e.preventDefault();
         addOpMutation.mutate({
             ...opForm, 
-            sequence_order: parseInt(opForm.sequence_order),
+            sequence_order: parseInt(opForm.sequence_order) || nextSequenceOrder,
             dinh_muc: parseFloat(opForm.dinh_muc),
             estimated_hours: parseFloat(opForm.estimated_hours)
         });
@@ -154,44 +168,78 @@ export default function ProductGroupPage() {
             <Dialog open={manageOpsModal} onClose={() => setManageOpsModal(false)} fullWidth maxWidth="md">
                 <DialogTitle>Quy trình sản xuất cho: <b>{selectedGroup?.name}</b></DialogTitle>
                 <DialogContent dividers>
-                    <GenericTable 
-                        title="Thứ tự quy trình"
+                    <DraggableSequenceTable 
                         data={groupOperations}
                         isLoading={opsLoading}
-                        columns={[
-                            { id: 'sequence_order', label: 'Bước' },
-                            { id: 'operation_name', label: 'Công đoạn' },
-                            { id: 'machine_name', label: 'Máy' },
-                            { id: 'dinh_muc', label: 'Định mức (Sản phẩm/Giờ)' },
-                        ]}
-                        onDelete={(row) => removeOpMutation.mutate(row.id)}
+                        onDelete={(id) => removeOpMutation.mutate(id)}
+                        onUpdate={(id, payload) => updateOpMutation.mutate({ mappingId: id, payload })}
+                        onReorder={(newOrders) => reorderOpMutation.mutate(newOrders)}
                     />
                     
-                    <Divider sx={{ my: 3 }} />
-                    <Typography variant="h6" mb={2}>Thêm bước</Typography>
-                    
-                    <form onSubmit={handleAddOp} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                        <TextField required type="number" label="Thứ tự" size="small" style={{width: 80}} value={opForm.sequence_order} onChange={e=>setOpForm({...opForm, sequence_order: e.target.value})} />
+                    <Box sx={{ mt: 4, pt: 3, borderTop: '2px dashed', borderColor: 'divider' }}>
+                        <Typography variant="overline" color="primary" sx={{ fontWeight: 800, mb: 2, display: 'block', letterSpacing: '0.1em' }}>THÊM BƯỚC MỚI</Typography>
                         
-                        <FormControl required size="small" style={{minWidth: 150}}>
-                            <InputLabel>Công đoạn</InputLabel>
-                            <Select value={opForm.operation_id} label="Công đoạn" onChange={e=>setOpForm({...opForm, operation_id: e.target.value})}>
-                                {operationsList?.map(o => <MenuItem key={o.id} value={o.id}>{o.name}</MenuItem>)}
-                            </Select>
-                        </FormControl>
- 
-                        <FormControl required size="small" style={{minWidth: 150}}>
-                            <InputLabel>Máy</InputLabel>
-                            <Select value={opForm.machine_id} label="Máy" onChange={e=>setOpForm({...opForm, machine_id: e.target.value})}>
-                                {machinesList?.map(m => <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}
-                            </Select>
-                        </FormControl>
- 
-                        <TextField required type="number" label="Định mức" size="small" style={{width: 100}} inputProps={{step: "0.1"}} value={opForm.dinh_muc} onChange={e=>setOpForm({...opForm, dinh_muc: e.target.value})} />
-                        <TextField required type="number" label="Giờ dự kiến" size="small" style={{width: 100}} inputProps={{step: "0.1"}} value={opForm.estimated_hours} onChange={e=>setOpForm({...opForm, estimated_hours: e.target.value})} />
- 
-                        <Button type="submit" variant="contained">Thêm bước</Button>
-                    </form>
+                        <Paper 
+                            elevation={0} 
+                            sx={{ 
+                                p: 2.5, 
+                                bgcolor: 'rgba(37, 99, 235, 0.02)', 
+                                border: '1px solid', 
+                                borderColor: 'primary.light',
+                                borderRadius: '16px'
+                            }}
+                        >
+                            <form onSubmit={handleAddOp} style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                <TextField 
+                                    label="Thứ tự" size="small" 
+                                    sx={{ width: 80, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'white' } }} 
+                                    placeholder={String(nextSequenceOrder)}
+                                    value={opForm.sequence_order} 
+                                    onChange={e=>setOpForm({...opForm, sequence_order: e.target.value})} 
+                                />
+                                
+                                <FormControl required size="small" sx={{ minWidth: 180, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'white' } }}>
+                                    <InputLabel>Công đoạn</InputLabel>
+                                    <Select value={opForm.operation_id} label="Công đoạn" onChange={e=>setOpForm({...opForm, operation_id: e.target.value})}>
+                                        {operationsList?.map(o => <MenuItem key={o.id} value={o.id}>{o.name}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
+         
+                                <FormControl required size="small" sx={{ minWidth: 180, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'white' } }}>
+                                    <InputLabel>Máy</InputLabel>
+                                    <Select value={opForm.machine_id} label="Máy" onChange={e=>setOpForm({...opForm, machine_id: e.target.value})}>
+                                        {machinesList?.map(m => <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>)}
+                                    </Select>
+                                </FormControl>
+         
+                                <TextField 
+                                    required type="number" label="Định mức" size="small" 
+                                    sx={{ width: 110, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'white' } }} 
+                                    inputProps={{step: "0.1"}} value={opForm.dinh_muc} 
+                                    onChange={e=>setOpForm({...opForm, dinh_muc: e.target.value})} 
+                                />
+                                <TextField 
+                                    required type="number" label="Giờ dự kiến" size="small" 
+                                    sx={{ width: 110, '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: 'white' } }} 
+                                    inputProps={{step: "0.1"}} value={opForm.estimated_hours} 
+                                    onChange={e=>setOpForm({...opForm, estimated_hours: e.target.value})} 
+                                />
+         
+                                <Button 
+                                    type="submit" 
+                                    variant="contained" 
+                                    sx={{ 
+                                        borderRadius: '10px', 
+                                        height: '40px', 
+                                        px: 3,
+                                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)'
+                                    }}
+                                >
+                                    Thêm bước
+                                </Button>
+                            </form>
+                        </Paper>
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setManageOpsModal(false)}>Đóng</Button>

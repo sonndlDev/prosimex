@@ -14,6 +14,9 @@ import CustomerPage from './pages/customers/CustomerPage';
 import OrderPage from './pages/orders/OrderPage';
 import PlanningPage from './pages/planning/PlanningPage';
 import SchedulePage from './pages/schedule/SchedulePage';
+import AttendancePage from './pages/attendance/AttendancePage';
+import AttendanceManagementPage from './pages/attendance/AttendanceManagementPage';
+import ProfilePage from './pages/auth/ProfilePage';
 
 // Placeholder Pages for upcoming modules
 const Placeholder = ({ title }) => <h2 style={{ padding: '20px' }}>{title} Module - Coming Soon</h2>;
@@ -58,6 +61,13 @@ export default function AppRouter() {
                         <Route element={<ProtectedRoute requiredPermission="machines" />}>
                             <Route path="/machines" element={<MachinePage />} />
                         </Route>
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route element={<ProtectedRoute requiredPermission="attendance" />}>
+                            <Route path="/attendance" element={<AttendancePage />} />
+                        </Route>
+                        <Route element={<ProtectedRoute requiredPermission="attendance_management" />}>
+                            <Route path="/attendance/management" element={<AttendanceManagementPage />} />
+                        </Route>
                         <Route element={<ProtectedRoute requiredPermission="operations" />}>
                             <Route path="/operations" element={<OperationPage />} />
                         </Route>
@@ -65,7 +75,7 @@ export default function AppRouter() {
                         <Route element={<ProtectedRoute requiredPermission="users" />}>
                             <Route path="/users" element={<UserPage />} />
                         </Route>
-                        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                        <Route element={<ProtectedRoute requiredPermission="settings" />}>
                             <Route path="/settings" element={<Placeholder title="System Settings" />} />
                         </Route>
                     </Route>

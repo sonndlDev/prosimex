@@ -106,6 +106,7 @@ export default function PlanningPage() {
     const queryClient = useQueryClient();
     const [openModal, setOpenModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState('');
+    const [selectedProductId, setSelectedProductId] = useState('');
     const [selectedOpId, setSelectedOpId] = useState('');
     const [inventory, setInventory] = useState(0);
     const [startDate, setStartDate] = useState('');
@@ -139,11 +140,12 @@ export default function PlanningPage() {
     const orders = allOrdersData || [];
 
     const selectedOrder = orders?.find(o => o.id === selectedOrderId);
+    const selectedProduct = selectedOrder?.products?.find(p => p.id === selectedProductId);
     
     const { data: operations, isLoading: loadingOps } = useQuery({
-        queryKey: ['orderOps', selectedOrder?.product_group_id],
-        queryFn: () => productGroupService.getOperations(selectedOrder.product_group_id),
-        enabled: !!selectedOrder?.product_group_id
+        queryKey: ['orderOps', selectedProduct?.product_group_id],
+        queryFn: () => productGroupService.getOperations(selectedProduct.product_group_id),
+        enabled: !!selectedProduct?.product_group_id
     });
 
     const selectedOp = operations?.find(op => op.id === selectedOpId);
@@ -256,6 +258,7 @@ export default function PlanningPage() {
     const handleOpenEdit = (plan) => {
         setEditingPlan(plan);
         setSelectedOrderId(plan.order_id);
+        setSelectedProductId(plan.product_id);
         setSelectedOpId(plan.product_group_operation_id);
         setInventory(parseFloat(plan.inventory_input));
         setStartDate(DateTime.fromISO(plan.planned_start_date).toISODate());
@@ -355,6 +358,7 @@ export default function PlanningPage() {
         setOpenModal(false);
         setEditingPlan(null);
         setSelectedOrderId('');
+        setSelectedProductId('');
         setSelectedOpId('');
         setInventory(0);
         setStartDate('');
@@ -364,6 +368,7 @@ export default function PlanningPage() {
     const handleSubmit = () => {
         const payload = {
             order_id: selectedOrderId,
+            product_id: selectedProductId,
             product_group_operation_id: selectedOpId,
             inventory_input: inventory,
             planned_start_date: startDate,
@@ -393,7 +398,7 @@ export default function PlanningPage() {
     if (error) return <Alert severity="error">{error.message}</Alert>;
 
     return (
-        <Box sx={{ p: 2, height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f7fa' }}>
+        <Box sx={{ p: 1, px: 2, height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f5f7fa' }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6" fontWeight={700} color="#1e293b">Lập Kế Hoạch Sản Xuất</Typography>
                 
@@ -647,15 +652,16 @@ export default function PlanningPage() {
                     {editingPlan ? 'Chỉnh sửa kế hoạch sản xuất' : 'Lập kế hoạch sản xuất mới'}
                 </DialogTitle>
                 <DialogContent dividers>
-                    <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={3} mb={4} mt={1}>
+                    <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: 'repeat(3, 1fr)' }} gap={3} mb={4} mt={1}>
                         <FormControl fullWidth size="small">
-                            <InputLabel>Chọn đơn hàng</InputLabel>
+                            <InputLabel>Bước 1: Chọn đơn hàng</InputLabel>
                             <Select 
                                 value={selectedOrderId} 
-                                label="Chọn đơn hàng" 
+                                label="Bước 1: Chọn đơn hàng" 
                                 disabled={!!editingPlan}
                                 onChange={e => {
                                     setSelectedOrderId(e.target.value);
+                                    setSelectedProductId('');
                                     setSelectedOpId(''); 
                                 }}
                             >
@@ -667,17 +673,36 @@ export default function PlanningPage() {
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth size="small" disabled={!selectedOrderId || loadingOps}>
-                            <InputLabel>Chọn công đoạn / Mã hàng công đoạn</InputLabel>
+                        <FormControl fullWidth size="small" disabled={!selectedOrderId}>
+                            <InputLabel>Bước 2: Chọn mã hàng</InputLabel>
+                            <Select 
+                                value={selectedProductId} 
+                                label="Bước 2: Chọn mã hàng" 
+                                disabled={!!editingPlan}
+                                onChange={e => {
+                                    setSelectedProductId(e.target.value);
+                                    setSelectedOpId('');
+                                }}
+                            >
+                                {selectedOrder?.products?.map(p => (
+                                    <MenuItem key={p.id} value={p.id}>
+                                        {p.name}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth size="small" disabled={!selectedProductId || loadingOps}>
+                            <InputLabel>Bước 3: Chọn công đoạn</InputLabel>
                             <Select 
                                 value={selectedOpId} 
-                                label="Chọn công đoạn / Mã hàng công đoạn" 
+                                label="Bước 3: Chọn công đoạn" 
                                 disabled={!!editingPlan}
                                 onChange={e => setSelectedOpId(e.target.value)}
                             >
                                 {operations?.map(op => (
                                     <MenuItem key={op.id} value={op.id}>
-                                        Bước {op.sequence_order}: {op.operation_name} ({op.machine_name})
+                                        CĐ {op.sequence_order}: {op.operation_name} ({op.machine_name})
                                     </MenuItem>
                                 ))}
                             </Select>

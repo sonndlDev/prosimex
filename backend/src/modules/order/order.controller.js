@@ -4,10 +4,16 @@ export const getOrders = async (req, res) => {
   try {
     const { factory_id } = req.query
     let query = `
-            SELECT o.*, c.name as customer_name, p.name as product_name, p.product_group_id, u.username as created_by_username
+            SELECT o.*, c.name as customer_name, u.username as created_by_username,
+                   COALESCE(
+                     (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id))
+                      FROM order_products op
+                      JOIN products p ON op.product_id = p.id
+                      WHERE op.order_id = o.id),
+                     '[]'
+                   ) as products
             FROM orders o
             JOIN customers c ON o.customer_id = c.id
-            JOIN products p ON o.product_id = p.id
             JOIN users u ON o.created_by = u.id
             WHERE o.deleted_at IS NULL
         `
@@ -21,6 +27,7 @@ export const getOrders = async (req, res) => {
     const result = await pool.query(query, params)
     res.json(result.rows)
   } catch (error) {
+    console.error('Get Orders Error:', error)
     res.status(500).json({ message: 'Error retrieving orders', error })
   }
 }
@@ -30,26 +37,37 @@ export const createOrder = async (req, res) => {
   try {
     await client.query('BEGIN')
     const {
-      order_code, name, customer_id, product_id, po_customer,
+      order_code, name, customer_id, product_ids, po_customer,
       received_date, delivery_date, quantity, production_location,
       person_in_charge, note, factory_id
     } = req.body
 
     const created_by = req.user.id // From JWT Auth Middleware
 
-    // 1. Insert Order
+    // 1. Insert Order (legacy product_id filled with the first one)
+    const firstProductId = product_ids && product_ids.length > 0 ? product_ids[0] : null;
     const insertRes = await client.query(
       `INSERT INTO orders 
             (order_code, name, customer_id, product_id, po_customer, 
              received_date, delivery_date, quantity, production_location, 
              person_in_charge, note, factory_id, created_by) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [order_code, name, customer_id, product_id, po_customer,
+      [order_code, name, customer_id, firstProductId, po_customer,
         received_date, delivery_date || null, quantity, production_location,
         person_in_charge, note, factory_id, created_by]
     )
 
     const orderId = insertRes.rows[0].id
+
+    // 2. Insert Order Products
+    if (product_ids && Array.isArray(product_ids)) {
+      for (const pId of product_ids) {
+        await client.query(
+          'INSERT INTO order_products (order_id, product_id) VALUES ($1, $2)',
+          [orderId, pId]
+        )
+      }
+    }
 
     // Business rule: After insert, po_auto_code = PO_{order.id}_{po_customer}
     const po_auto_code = `PO_${orderId}_${po_customer}`
@@ -89,7 +107,7 @@ export const updateOrder = async (req, res) => {
     const { id } = req.params
     const {
       name, po_customer, received_date, delivery_date, quantity,
-      production_location, person_in_charge, note, status
+      production_location, person_in_charge, note, status, product_ids
     } = req.body
 
     // Get Before Data for Audit Log
@@ -104,6 +122,22 @@ export const updateOrder = async (req, res) => {
     let po_auto_code = beforeData.po_auto_code
     if (po_customer && po_customer !== beforeData.po_customer) {
       po_auto_code = `PO_${id}_${po_customer}`
+    }
+
+    // Sync Products
+    if (typeof product_ids !== 'undefined' && Array.isArray(product_ids)) {
+      await client.query('DELETE FROM order_products WHERE order_id = $1', [id])
+      for (const pId of product_ids) {
+        await client.query(
+          'INSERT INTO order_products (order_id, product_id) VALUES ($1, $2)',
+          [id, pId]
+        )
+      }
+      
+      // Update legacy product_id
+      if (product_ids.length > 0) {
+        await client.query('UPDATE orders SET product_id = $1 WHERE id = $2', [product_ids[0], id])
+      }
     }
 
     const result = await client.query(

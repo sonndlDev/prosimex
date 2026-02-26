@@ -25,8 +25,27 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const refreshUser = async () => {
+        try {
+            const response = await api.get('/auth/me');
+            const userData = response.data;
+            localStorage.setItem('user', JSON.stringify(userData));
+            setUser(userData);
+            return userData;
+        } catch (error) {
+            console.error('Failed to refresh user:', error);
+            if (error.response?.status === 401) logout();
+        }
+    };
+
+    useEffect(() => {
+        if (!!user) {
+            refreshUser();
+        }
+    }, []);
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ user, login, logout, refreshUser, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

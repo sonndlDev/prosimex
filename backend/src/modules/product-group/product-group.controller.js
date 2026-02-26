@@ -112,3 +112,62 @@ export const deleteProductGroupOperation = async (req, res) => {
     res.status(500).json({ message: 'Error deleting mapping', error })
   }
 }
+
+export const updateProductGroupOperation = async (req, res) => {
+  try {
+    const { id, operationId } = req.params
+    const { operation_id, machine_id, sequence_order, dinh_muc, estimated_hours } = req.body
+    const result = await pool.query(
+      `UPDATE product_group_operations 
+       SET operation_id = COALESCE($1, operation_id),
+           machine_id = COALESCE($2, machine_id),
+           sequence_order = COALESCE($3, sequence_order),
+           dinh_muc = COALESCE($4, dinh_muc),
+           estimated_hours = COALESCE($5, estimated_hours),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 AND product_group_id = $7 AND deleted_at IS NULL
+       RETURNING *`,
+      [operation_id, machine_id, sequence_order, dinh_muc, estimated_hours, operationId, id]
+    )
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
+    res.json(result.rows[0])
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating mapping', error })
+  }
+}
+
+export const reorderProductGroupOperations = async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const { id } = req.params // product_group_id
+    const { orders } = req.body // Array of { id, sequence_order }
+    
+    await client.query('BEGIN')
+    
+    // To handle the unique constraint, first set them all to negative or high values if they conflict
+    // Or just update them in one go in the transaction if possible.
+    // A robust way is to set them to sequence_order + 1000 first, then set to real values.
+    
+    for (const item of orders) {
+      await client.query(
+        'UPDATE product_group_operations SET sequence_order = $1 WHERE id = $2 AND product_group_id = $3',
+        [item.sequence_order + 1000, item.id, id]
+      )
+    }
+    
+    for (const item of orders) {
+      await client.query(
+        'UPDATE product_group_operations SET sequence_order = $1 WHERE id = $2 AND product_group_id = $3',
+        [item.sequence_order, item.id, id]
+      )
+    }
+    
+    await client.query('COMMIT')
+    res.json({ message: 'Reordered successfully' })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ message: 'Error reordering operations', error: error.message })
+  } finally {
+    client.release()
+  }
+}
