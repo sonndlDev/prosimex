@@ -25,15 +25,22 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { id: user.id, username: user.username, role_name: user.role_name, factory_id: user.factory_id, permissions: user.permissions },
       process.env.JWT_SECRET || 'secretKey',
-      { expiresIn: '1d' }
+      { expiresIn: '15m' }
+    )
+
+    const refreshToken = jwt.sign(
+      { id: user.id },
+      process.env.JWT_REFRESH_SECRET || 'refreshSecretKey',
+      { expiresIn: '7d' }
     )
 
     res.json({
       message: 'Login successful',
-      token,
+      token: accessToken,
+      refreshToken,
       user: {
         id: user.id,
         username: user.username,
@@ -78,8 +85,48 @@ export const getMe = async (req, res) => {
       phone: user.phone,
       email: user.email
     })
-  } catch (error) {
+    } catch (error) {
     console.error('getMe error:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+}
+
+export const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token is required' })
+    }
+
+    jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'refreshSecretKey', async (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ message: 'Invalid refresh token' })
+      }
+
+      // Fetch user to get latest permissions/role
+      const result = await pool.query(
+        `SELECT u.*, r.name as role_name 
+         FROM users u 
+         JOIN roles r ON u.role_id = r.id 
+         WHERE u.id = $1 AND u.is_active = true AND u.deleted_at IS NULL`,
+        [decoded.id]
+      )
+
+      const user = result.rows[0]
+      if (!user) {
+        return res.status(401).json({ message: 'User not found or inactive' })
+      }
+
+      const newAccessToken = jwt.sign(
+        { id: user.id, username: user.username, role_name: user.role_name, factory_id: user.factory_id, permissions: user.permissions },
+        process.env.JWT_SECRET || 'secretKey',
+        { expiresIn: '15m' }
+      )
+
+      res.json({ token: newAccessToken })
+    })
+  } catch (error) {
+    console.error('RefreshToken error:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 }

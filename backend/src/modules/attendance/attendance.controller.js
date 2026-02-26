@@ -5,9 +5,9 @@ export const checkIn = async (req, res) => {
     const userId = req.user.id
     const { note } = req.body
 
-    // Check if already checked in today
+    // Check if already checked in today (ICT)
     const existing = await pool.query(
-      'SELECT * FROM attendance WHERE user_id = $1 AND date = CURRENT_DATE',
+      "SELECT * FROM attendance WHERE user_id = $1 AND date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date",
       [userId]
     )
 
@@ -16,7 +16,7 @@ export const checkIn = async (req, res) => {
     }
 
     const result = await pool.query(
-      'INSERT INTO attendance (user_id, note) VALUES ($1, $2) RETURNING *',
+      "INSERT INTO attendance (user_id, note, date) VALUES ($1, $2, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) RETURNING *",
       [userId, note]
     )
 
@@ -33,7 +33,7 @@ export const checkOut = async (req, res) => {
     const result = await pool.query(
       `UPDATE attendance 
        SET check_out_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $1 AND date = CURRENT_DATE AND check_out_time IS NULL
+       WHERE user_id = $1 AND date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AND check_out_time IS NULL
        RETURNING *`,
       [userId]
     )
@@ -52,7 +52,7 @@ export const getTodayStatus = async (req, res) => {
   try {
     const userId = req.user.id
     const result = await pool.query(
-      'SELECT * FROM attendance WHERE user_id = $1 AND date = CURRENT_DATE',
+      "SELECT * FROM attendance WHERE user_id = $1 AND date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date",
       [userId]
     )
     res.json(result.rows[0] || null)
