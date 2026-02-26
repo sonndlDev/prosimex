@@ -45,13 +45,19 @@ export const getMachineScheduleCalendar = async (req, res) => {
     res.json({
       machines: machinesRes.rows,
       events: eventsRes.rows.map(ev => {
-        // Set end date to end of day (23:59:59) for full-day inclusive display
-        const endDate = new Date(ev.end);
-        endDate.setHours(23, 59, 59, 999);
+        // Force end of day in ICT (UTC+7) to avoid server-side UTC shift
+        // If ev.end is a Date object from pg driver
+        const dateObj = new Date(ev.end);
+        
+        // Use YYYY-MM-DD format from the date object
+        // Note: We need to be careful with UTC shift here too. 
+        // If the date is 2026-03-01 00:00:00 UTC, dateObj.toISOString() is correct.
+        const datePart = dateObj.toISOString().split('T')[0];
         
         return {
           ...ev,
-          end: endDate.toISOString(),
+          start: ev.start, // Keep original start
+          end: `${datePart}T23:59:59+07:00`,
           allDay: true,
           backgroundColor: ev.color_status === 'DONE' ? '#4caf50' : '#2196f3'
         };
