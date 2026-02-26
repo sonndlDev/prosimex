@@ -44,11 +44,18 @@ export const getMachineScheduleCalendar = async (req, res) => {
 
     res.json({
       machines: machinesRes.rows,
-      events: eventsRes.rows.map(ev => ({
-        ...ev,
-        allDay: true, // Typical for this kind of planning
-        backgroundColor: ev.color_status === 'DONE' ? '#4caf50' : '#2196f3'
-      }))
+      events: eventsRes.rows.map(ev => {
+        // Set end date to end of day (23:59:59) for full-day inclusive display
+        const endDate = new Date(ev.end);
+        endDate.setHours(23, 59, 59, 999);
+        
+        return {
+          ...ev,
+          end: endDate.toISOString(),
+          allDay: true,
+          backgroundColor: ev.color_status === 'DONE' ? '#4caf50' : '#2196f3'
+        };
+      })
     })
   } catch (error) {
     console.error('Schedule Error:', error)

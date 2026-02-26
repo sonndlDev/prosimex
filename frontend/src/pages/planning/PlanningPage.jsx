@@ -536,7 +536,11 @@ export default function PlanningPage() {
                                         <ExcelDataCell align="right">0.00</ExcelDataCell>
                                         <ExcelDataCell sx={{ bgcolor: '#f0fdf4', color: '#166534', fontWeight: 700 }}>x</ExcelDataCell>
                                         <ExcelDataCell sx={{ color: '#64748b' }}>{DateTime.fromISO(plan.planned_start_date).toFormat('dd-MM')}</ExcelDataCell>
-                                        <ExcelDataCell sx={{ color: '#64748b' }}>{DateTime.fromISO(plan.planned_end_date).toFormat('dd-MM')}</ExcelDataCell>
+                                        <Tooltip title={`Kết thúc vào cuối ngày ${DateTime.fromISO(plan.planned_end_date).toFormat('dd/MM/yyyy')} (23:59)`}>
+                                            <ExcelDataCell sx={{ color: '#64748b', cursor: 'help' }}>
+                                                {DateTime.fromISO(plan.planned_end_date).toFormat('dd-MM')}
+                                            </ExcelDataCell>
+                                        </Tooltip>
                                         {dateColumns.map((date, colIdx) => {
                                             const isEditing = inlineEditingId === plan.id;
                                             const dayData = plan.days.find(d => DateTime.fromISO(d.working_date).toFormat('yyyy-MM-dd') === date.key);

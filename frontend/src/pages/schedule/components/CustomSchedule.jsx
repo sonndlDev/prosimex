@@ -27,8 +27,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
 
     const totalWidth = days.length * COLUMN_WIDTH;
 
-    const getPosition = (dateStr) => {
-        const date = DateTime.fromISO(dateStr);
+    const getPosition = (date) => {
         const diff = date.diff(start, 'days').days;
         return diff * COLUMN_WIDTH;
     };
@@ -243,7 +242,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                 position: 'absolute',
                                 top: 0,
                                 bottom: 0,
-                                left: getPosition(DateTime.now().toISODate()),
+                                left: getPosition(DateTime.now()),
                                 width: '2px',
                                 bgcolor: 'rgba(37, 99, 235, 0.5)',
                                 zIndex: 3,
@@ -289,8 +288,8 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                 const renderStart = isClippedLeft ? start : eStart;
                                 const renderEnd = isClippedRight ? end : eEnd;
                                 
-                                const left = getPosition(renderStart.toISODate());
-                                const right = getPosition(renderEnd.toISODate());
+                                const left = getPosition(renderStart);
+                                const right = getPosition(renderEnd);
                                 const width = Math.max(right - left, 4);
 
                                 return (
