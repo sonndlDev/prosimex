@@ -1,127 +1,170 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { operationService } from '../../services/operation.service';
-import GenericTable from '../../components/GenericTable';
-import { 
-    Dialog, DialogTitle, DialogContent, DialogActions, 
-    Button, TextField, Box 
-} from '@mui/material';
+import React, { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { operationService } from "../../services/operation.service";
+import GenericTable from "../../components/GenericTable";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Box,
+} from "@mui/material";
 
 export default function OperationPage() {
-    const queryClient = useQueryClient();
-    const [openModal, setOpenModal] = useState(false);
-    const [selectedOperation, setSelectedOperation] = useState(null);
-    const [formData, setFormData] = useState({ name: '', description: '' });
+  const queryClient = useQueryClient();
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedOperation, setSelectedOperation] = useState(null);
+  const {
+    control,
+    handleSubmit: rhfHandleSubmit,
+    reset,
+  } = useForm({
+    defaultValues: { name: "", description: "" },
+  });
 
-    // Fetch Data
-    const { data: operations, isLoading, error } = useQuery({
-        queryKey: ['operations'],
-        queryFn: operationService.getAll,
-    });
+  // Fetch Data
+  const {
+    data: operations,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["operations"],
+    queryFn: operationService.getAll,
+  });
 
-    // Mutations
-    const mutationOpts = {
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['operations'] });
-            handleClose();
+  // Mutations
+  const mutationOpts = {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      handleClose();
+    },
+  };
+  const createMutation = useMutation({
+    mutationFn: operationService.create,
+    ...mutationOpts,
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, payload }) => operationService.update(id, payload),
+    ...mutationOpts,
+  });
+  const deleteMutation = useMutation({
+    mutationFn: operationService.delete,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["operations"] }),
+  });
+
+  const columns = [
+    { id: "name", label: "Tên công đoạn" },
+    { id: "description", label: "Mô tả" },
+  ];
+
+  const handleOpen = (operation = null) => {
+    if (operation) {
+      setSelectedOperation(operation);
+      reset({ name: operation.name, description: operation.description || "" });
+    } else {
+      setSelectedOperation(null);
+      reset({ name: "", description: "" });
+    }
+    setOpenModal(true);
+  };
+
+  const handleClose = () => {
+    setOpenModal(false);
+    setSelectedOperation(null);
+  };
+
+  const onSubmit = (data) => {
+    if (selectedOperation) {
+      updateMutation.mutate({ id: selectedOperation.id, payload: data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleDelete = (operation) => {
+    if (window.confirm(`Xóa công đoạn ${operation.name}?`)) {
+      deleteMutation.mutate(operation.id);
+    }
+  };
+
+  return (
+    <Box>
+      <GenericTable
+        title={
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <h2>Quản lý Công đoạn Tiêu chuẩn</h2>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => handleOpen()}
+            >
+              + Thêm công đoạn
+            </Button>
+          </Box>
         }
-    };
-    const createMutation = useMutation({ mutationFn: operationService.create, ...mutationOpts });
-    const updateMutation = useMutation({ 
-        mutationFn: ({id, payload}) => operationService.update(id, payload), 
-        ...mutationOpts 
-    });
-    const deleteMutation = useMutation({ 
-        mutationFn: operationService.delete, 
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['operations'] })
-    });
+        data={operations}
+        columns={columns}
+        isLoading={isLoading}
+        error={error}
+        onEdit={handleOpen}
+        onDelete={handleDelete}
+      />
 
-    const columns = [
-        { id: 'name', label: 'Tên công đoạn' },
-        { id: 'description', label: 'Mô tả' },
-    ];
-
-    const handleOpen = (operation = null) => {
-        if (operation) {
-            setSelectedOperation(operation);
-            setFormData({ name: operation.name, description: operation.description || '' });
-        } else {
-            setSelectedOperation(null);
-            setFormData({ name: '', description: '' });
-        }
-        setOpenModal(true);
-    };
-
-    const handleClose = () => {
-        setOpenModal(false);
-        setSelectedOperation(null);
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (selectedOperation) {
-            updateMutation.mutate({ id: selectedOperation.id, payload: formData });
-        } else {
-            createMutation.mutate(formData);
-        }
-    };
-
-    const handleDelete = (operation) => {
-        if(window.confirm(`Xóa công đoạn ${operation.name}?`)) {
-            deleteMutation.mutate(operation.id);
-        }
-    };
-
-    return (
-        <Box>
-            <GenericTable 
-                title={
-                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <h2>Quản lý Công đoạn Tiêu chuẩn</h2>
-                        <Button variant="contained" color="secondary" onClick={() => handleOpen()}>
-                            + Thêm công đoạn
-                        </Button>
-                    </Box>
-                }
-                data={operations}
-                columns={columns}
-                isLoading={isLoading}
-                error={error}
-                onEdit={handleOpen}
-                onDelete={handleDelete}
+      {/* Create / Edit Modal */}
+      <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="sm">
+        <form onSubmit={rhfHandleSubmit(onSubmit)}>
+          <DialogTitle>
+            {selectedOperation ? "Chỉnh sửa công đoạn" : "Thêm công đoạn mới"}
+          </DialogTitle>
+          <DialogContent dividers>
+            <Controller
+              name="name"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Tên công đoạn"
+                  margin="normal"
+                  required
+                />
+              )}
             />
-
-            {/* Create / Edit Modal */}
-            <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="sm">
-                <form onSubmit={handleSubmit}>
-                    <DialogTitle>{selectedOperation ? 'Chỉnh sửa công đoạn' : 'Thêm công đoạn mới'}</DialogTitle>
-                    <DialogContent dividers>
-                        <TextField
-                            fullWidth
-                            label="Tên công đoạn"
-                            margin="normal"
-                            required
-                            value={formData.name}
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        />
-                        <TextField
-                            fullWidth
-                            label="Mô tả"
-                            margin="normal"
-                            multiline
-                            rows={3}
-                            value={formData.description}
-                            onChange={(e) => setFormData({...formData, description: e.target.value})}
-                        />
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleClose}>Hủy</Button>
-                        <Button type="submit" variant="contained" disabled={createMutation.isPending || updateMutation.isPending}>
-                            Lưu
-                        </Button>
-                    </DialogActions>
-                </form>
-            </Dialog>
-        </Box>
-    );
+            <Controller
+              name="description"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Mô tả"
+                  margin="normal"
+                  multiline
+                  rows={3}
+                />
+              )}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleClose}>Hủy</Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              Lưu
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </Box>
+  );
 }

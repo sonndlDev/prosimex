@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
 import { customerService } from "../../services/customer.service";
@@ -25,25 +26,39 @@ import AddCircleIcon from "@mui/icons-material/AddCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { DateTime } from "luxon";
 
+const defaultValues = {
+  order_code: "",
+  po_auto_code: "",
+  name: "",
+  customer_id: "",
+  product_items: [],
+  po_customer: "",
+  received_date: DateTime.now().toFormat("yyyy-MM-dd"),
+  production_location: "",
+  person_in_charge: "",
+  note: "",
+  status: "DRAFT",
+};
+
 export default function OrderPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const initialForm = {
-    order_code: "",
-    po_auto_code: "",
-    name: "",
-    customer_id: "",
-    product_items: [],
-    po_customer: "",
-    received_date: DateTime.now().toFormat("yyyy-MM-dd"),
-    production_location: "",
-    person_in_charge: "",
-    note: "",
-    status: "DRAFT",
-  };
-  const [formData, setFormData] = useState(initialForm);
+  const {
+    control,
+    handleSubmit: rhfHandleSubmit,
+    reset,
+    watch,
+  } = useForm({
+    defaultValues,
+  });
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: "product_items",
+  });
+  const formStatus = watch("status");
+  const formPoAutoCode = watch("po_auto_code");
 
   // Queries
   const { data: customers } = useQuery({
@@ -136,7 +151,7 @@ export default function OrderPage() {
   const handleOpen = (order = null) => {
     if (order) {
       setSelectedOrder(order);
-      setFormData({
+      reset({
         order_code: order.order_code,
         po_auto_code: order.po_auto_code || "",
         name: order.name,
@@ -157,7 +172,7 @@ export default function OrderPage() {
       });
     } else {
       setSelectedOrder(null);
-      setFormData(initialForm);
+      reset(defaultValues);
     }
     setOpenModal(true);
   };
@@ -167,11 +182,9 @@ export default function OrderPage() {
     setSelectedOrder(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
+  const onSubmit = (data) => {
     // Filter out items without product or quantity
-    const product_items = formData.product_items.filter(
+    const product_items = data.product_items.filter(
       (item) => item.product_id && parseFloat(item.quantity) > 0,
     );
 
@@ -181,7 +194,7 @@ export default function OrderPage() {
     }
 
     const payload = {
-      ...formData,
+      ...data,
       product_items,
       quantity: product_items.reduce(
         (sum, item) => sum + parseFloat(item.quantity || 0),
@@ -242,7 +255,7 @@ export default function OrderPage() {
         }}
       >
         <form
-          onSubmit={handleSubmit}
+          onSubmit={rhfHandleSubmit(onSubmit)}
           style={{ height: "100%", display: "flex", flexDirection: "column" }}
         >
           <DialogTitle
@@ -264,15 +277,15 @@ export default function OrderPage() {
               </Typography>
               {selectedOrder && (
                 <Chip
-                  label={formData.status}
+                  label={formStatus}
                   color={
-                    formData.status === "PLANNED"
+                    formStatus === "PLANNED"
                       ? "primary"
-                      : formData.status === "DONE"
+                      : formStatus === "DONE"
                         ? "success"
-                        : formData.status === "CANCELLED"
+                        : formStatus === "CANCELLED"
                           ? "error"
-                          : formData.status === "IN_PROGRESS"
+                          : formStatus === "IN_PROGRESS"
                             ? "warning"
                             : "default"
                   }
@@ -339,24 +352,27 @@ export default function OrderPage() {
               >
                 THÔNG TIN CHUNG
               </Typography>
-              <TextField
-                fullWidth
-                label="Tên đơn hàng"
-                required
-                variant="outlined"
-                size="small"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: "12px",
-                    fontSize: "1.1rem",
-                    fontWeight: 700,
-                    bgcolor: "rgba(37, 99, 235, 0.02)",
-                  },
-                }}
+              <Controller
+                name="name"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    label="Tên đơn hàng"
+                    required
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: "12px",
+                        fontSize: "1.1rem",
+                        fontWeight: 700,
+                        bgcolor: "rgba(37, 99, 235, 0.02)",
+                      },
+                    }}
+                  />
+                )}
               />
             </Paper>
 
@@ -390,37 +406,42 @@ export default function OrderPage() {
                   KHÁCH HÀNG & PO
                 </Typography>
                 <Box display="flex" flexDirection="column" gap={2}>
-                  <FormControl fullWidth required size="small">
-                    <InputLabel>Khách hàng</InputLabel>
-                    <Select
-                      value={formData.customer_id}
-                      label="Khách hàng"
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          customer_id: e.target.value,
-                        })
-                      }
-                      sx={{ borderRadius: "8px" }}
-                    >
-                      {customers?.map((c) => (
-                        <MenuItem key={c.id} value={c.id}>
-                          {c.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    fullWidth
-                    label="PO Khách hàng"
-                    required
-                    variant="outlined"
-                    size="small"
-                    value={formData.po_customer}
-                    onChange={(e) =>
-                      setFormData({ ...formData, po_customer: e.target.value })
-                    }
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                  <Controller
+                    name="customer_id"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth required size="small">
+                        <InputLabel>Khách hàng</InputLabel>
+                        <Select
+                          {...field}
+                          label="Khách hàng"
+                          sx={{ borderRadius: "8px" }}
+                        >
+                          {customers?.map((c) => (
+                            <MenuItem key={c.id} value={c.id}>
+                              {c.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  />
+                  <Controller
+                    name="po_customer"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="PO Khách hàng"
+                        required
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                        }}
+                      />
+                    )}
                   />
                   <TextField
                     fullWidth
@@ -429,8 +450,7 @@ export default function OrderPage() {
                     size="small"
                     disabled
                     value={
-                      formData.po_auto_code ||
-                      (selectedOrder ? "" : "Tự động tạo...")
+                      formPoAutoCode || (selectedOrder ? "" : "Tự động tạo...")
                     }
                     sx={{
                       "& .MuiOutlinedInput-root": {
@@ -471,34 +491,38 @@ export default function OrderPage() {
                   CHI TIẾT & SẢN XUẤT
                 </Typography>
                 <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
-                  <TextField
-                    fullWidth
-                    label="Ngày nhận"
-                    type="date"
-                    required
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    value={formData.received_date}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        received_date: e.target.value,
-                      })
-                    }
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                  <Controller
+                    name="received_date"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Ngày nhận"
+                        type="date"
+                        required
+                        size="small"
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                        }}
+                      />
+                    )}
                   />
-                  <TextField
-                    fullWidth
-                    label="Người phụ trách"
-                    size="small"
-                    value={formData.person_in_charge}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        person_in_charge: e.target.value,
-                      })
-                    }
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                  <Controller
+                    name="person_in_charge"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Người phụ trách"
+                        size="small"
+                        sx={{
+                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                        }}
+                      />
+                    )}
                   />
                 </Box>
               </Paper>
@@ -529,43 +553,48 @@ export default function OrderPage() {
                 gridTemplateColumns={{ xs: "1fr", md: "1fr 1fr" }}
                 gap={2}
               >
-                <TextField
-                  fullWidth
-                  label="Địa điểm sản xuất"
-                  size="small"
-                  value={formData.production_location}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      production_location: e.target.value,
-                    })
-                  }
-                  sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
+                <Controller
+                  name="production_location"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      label="Địa điểm sản xuất"
+                      size="small"
+                      sx={{
+                        "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                      }}
+                    />
+                  )}
                 />
                 {selectedOrder ? (
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Trạng thái đơn hàng</InputLabel>
-                    <Select
-                      value={formData.status}
-                      label="Trạng thái đơn hàng"
-                      onChange={(e) =>
-                        setFormData({ ...formData, status: e.target.value })
-                      }
-                      sx={{ borderRadius: "8px" }}
-                    >
-                      {[
-                        "DRAFT",
-                        "PLANNED",
-                        "IN_PROGRESS",
-                        "DONE",
-                        "CANCELLED",
-                      ].map((s) => (
-                        <MenuItem key={s} value={s}>
-                          {s}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Trạng thái đơn hàng</InputLabel>
+                        <Select
+                          {...field}
+                          label="Trạng thái đơn hàng"
+                          sx={{ borderRadius: "8px" }}
+                        >
+                          {[
+                            "DRAFT",
+                            "PLANNED",
+                            "IN_PROGRESS",
+                            "DONE",
+                            "CANCELLED",
+                          ].map((s) => (
+                            <MenuItem key={s} value={s}>
+                              {s}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  />
                 ) : (
                   <Box
                     sx={{
@@ -587,23 +616,26 @@ export default function OrderPage() {
             </Paper>
 
             {/* 4. Notes Section */}
-            <TextField
-              fullWidth
-              label="Ghi chú"
-              size="small"
-              multiline
-              minRows={2}
-              value={formData.note}
-              onChange={(e) =>
-                setFormData({ ...formData, note: e.target.value })
-              }
-              sx={{
-                mb: 2,
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                  bgcolor: "white",
-                },
-              }}
+            <Controller
+              name="note"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Ghi chú"
+                  size="small"
+                  multiline
+                  minRows={2}
+                  sx={{
+                    mb: 2,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "12px",
+                      bgcolor: "white",
+                    },
+                  }}
+                />
+              )}
             />
 
             {/* Multi-Product Selection with Per-Product Quantity */}
@@ -639,15 +671,7 @@ export default function OrderPage() {
                   size="small"
                   variant="outlined"
                   startIcon={<AddCircleIcon />}
-                  onClick={() => {
-                    setFormData({
-                      ...formData,
-                      product_items: [
-                        ...formData.product_items,
-                        { product_id: "", quantity: "" },
-                      ],
-                    });
-                  }}
+                  onClick={() => append({ product_id: "", quantity: "" })}
                   sx={{
                     borderRadius: "8px",
                     textTransform: "none",
@@ -658,7 +682,7 @@ export default function OrderPage() {
                 </Button>
               </Box>
 
-              {formData.product_items.length === 0 && (
+              {fields.length === 0 && (
                 <Box
                   sx={{
                     p: 3,
@@ -679,13 +703,14 @@ export default function OrderPage() {
                 </Box>
               )}
 
-              {formData.product_items.map((item, index) => {
-                const selectedProductIds = formData.product_items
+              {fields.map((field, index) => {
+                const watchedItems = watch("product_items");
+                const selectedProductIds = watchedItems
                   .filter((_, i) => i !== index)
                   .map((it) => it.product_id);
                 return (
                   <Box
-                    key={index}
+                    key={field.id}
                     sx={{
                       display: "flex",
                       alignItems: "center",
@@ -706,63 +731,55 @@ export default function OrderPage() {
                     >
                       {index + 1}.
                     </Typography>
-                    <FormControl size="small" required sx={{ flex: 2 }}>
-                      <InputLabel>Mã hàng</InputLabel>
-                      <Select
-                        value={item.product_id}
-                        label="Mã hàng"
-                        onChange={(e) => {
-                          const newItems = [...formData.product_items];
-                          newItems[index] = {
-                            ...newItems[index],
-                            product_id: e.target.value,
-                          };
-                          setFormData({ ...formData, product_items: newItems });
-                        }}
-                        sx={{ borderRadius: "8px" }}
-                      >
-                        {products
-                          ?.filter(
-                            (p) =>
-                              p.is_active && !selectedProductIds.includes(p.id),
-                          )
-                          .map((p) => (
-                            <MenuItem key={p.id} value={p.id}>
-                              {p.name}
-                            </MenuItem>
-                          ))}
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      label="Số lượng"
-                      type="number"
-                      size="small"
-                      required
-                      value={item.quantity}
-                      onChange={(e) => {
-                        const newItems = [...formData.product_items];
-                        newItems[index] = {
-                          ...newItems[index],
-                          quantity: e.target.value,
-                        };
-                        setFormData({ ...formData, product_items: newItems });
-                      }}
-                      sx={{
-                        flex: 1,
-                        "& .MuiOutlinedInput-root": { borderRadius: "8px" },
-                      }}
+                    <Controller
+                      name={`product_items.${index}.product_id`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <FormControl size="small" required sx={{ flex: 2 }}>
+                          <InputLabel>Mã hàng</InputLabel>
+                          <Select
+                            {...f}
+                            label="Mã hàng"
+                            sx={{ borderRadius: "8px" }}
+                          >
+                            {products
+                              ?.filter(
+                                (p) =>
+                                  p.is_active &&
+                                  !selectedProductIds.includes(p.id),
+                              )
+                              .map((p) => (
+                                <MenuItem key={p.id} value={p.id}>
+                                  {p.name}
+                                </MenuItem>
+                              ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                    <Controller
+                      name={`product_items.${index}.quantity`}
+                      control={control}
+                      render={({ field: f }) => (
+                        <TextField
+                          {...f}
+                          label="Số lượng"
+                          type="number"
+                          size="small"
+                          required
+                          sx={{
+                            flex: 1,
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "8px",
+                            },
+                          }}
+                        />
+                      )}
                     />
                     <IconButton
                       size="small"
                       color="error"
-                      onClick={() => {
-                        setFormData({
-                          ...formData,
-                          product_items: formData.product_items.filter(
-                            (_, i) => i !== index,
-                          ),
-                        });
-                      }}
+                      onClick={() => remove(index)}
                       sx={{
                         border: "1px solid",
                         borderColor: "error.light",

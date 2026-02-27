@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   Table,
@@ -29,7 +30,13 @@ export default function DraggableSequenceTable({
   isLoading,
 }) {
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({});
+  const {
+    control: editControl,
+    reset: resetEdit,
+    handleSubmit: handleEditSubmit,
+  } = useForm({
+    defaultValues: { dinh_muc: "", estimated_hours: "" },
+  });
 
   if (isLoading) {
     return (
@@ -55,11 +62,11 @@ export default function DraggableSequenceTable({
 
   const startEdit = (row) => {
     setEditingId(row.id);
-    setEditForm({ ...row });
+    resetEdit({ dinh_muc: row.dinh_muc, estimated_hours: row.estimated_hours });
   };
 
-  const handleSave = () => {
-    onUpdate(editingId, editForm);
+  const handleSave = (data) => {
+    onUpdate(editingId, data);
     setEditingId(null);
   };
 
@@ -218,43 +225,43 @@ export default function DraggableSequenceTable({
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <TextField
-                                size="small"
-                                variant="outlined"
-                                type="number"
-                                value={editForm.dinh_muc}
-                                onChange={(e) =>
-                                  setEditForm({
-                                    ...editForm,
-                                    dinh_muc: e.target.value,
-                                  })
-                                }
-                                sx={{
-                                  width: 100,
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "8px",
-                                  },
-                                }}
+                              <Controller
+                                name="dinh_muc"
+                                control={editControl}
+                                render={({ field }) => (
+                                  <TextField
+                                    {...field}
+                                    size="small"
+                                    variant="outlined"
+                                    type="number"
+                                    sx={{
+                                      width: 100,
+                                      "& .MuiOutlinedInput-root": {
+                                        borderRadius: "8px",
+                                      },
+                                    }}
+                                  />
+                                )}
                               />
                             </TableCell>
                             <TableCell align="right">
-                              <TextField
-                                size="small"
-                                variant="outlined"
-                                type="number"
-                                value={editForm.estimated_hours}
-                                onChange={(e) =>
-                                  setEditForm({
-                                    ...editForm,
-                                    estimated_hours: e.target.value,
-                                  })
-                                }
-                                sx={{
-                                  width: 100,
-                                  "& .MuiOutlinedInput-root": {
-                                    borderRadius: "8px",
-                                  },
-                                }}
+                              <Controller
+                                name="estimated_hours"
+                                control={editControl}
+                                render={({ field }) => (
+                                  <TextField
+                                    {...field}
+                                    size="small"
+                                    variant="outlined"
+                                    type="number"
+                                    sx={{
+                                      width: 100,
+                                      "& .MuiOutlinedInput-root": {
+                                        borderRadius: "8px",
+                                      },
+                                    }}
+                                  />
+                                )}
                               />
                             </TableCell>
                             <TableCell align="center">
@@ -272,7 +279,7 @@ export default function DraggableSequenceTable({
                                       bgcolor: "rgba(34, 197, 94, 0.2)",
                                     },
                                   }}
-                                  onClick={handleSave}
+                                  onClick={handleEditSubmit(handleSave)}
                                 >
                                   <SaveIcon fontSize="small" />
                                 </IconButton>

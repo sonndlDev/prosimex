@@ -1,171 +1,65 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
-import { productGroupService } from "../../services/product-group.service";
 import { workerService } from "../../services/worker.service";
 import { workerAssignmentService } from "../../services/workerAssignment.service";
-import { factoryService } from "../../services/factory.service";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
-  TextField,
   Box,
   Typography,
-  Divider,
   CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Checkbox,
-  FormControlLabel,
   Paper,
-  Chip,
   Table,
   TableBody,
-  TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
-  Tooltip,
   TablePagination,
-  InputAdornment,
   Autocomplete,
+  TextField,
   Snackbar,
-  Badge,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
 } from "@mui/material";
 import { DateTime } from "luxon";
-import EditIcon from "@mui/icons-material/Edit";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
-import SaveIcon from "@mui/icons-material/Save";
-import CancelIcon from "@mui/icons-material/Cancel";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SearchIcon from "@mui/icons-material/Search";
-import DeleteIcon from "@mui/icons-material/Delete";
-import PeopleIcon from "@mui/icons-material/People";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
 
-// Styled cell for the Excel look
-const ExcelHeaderCell = ({ children, sx = {}, colSpan = 1, rowSpan = 1 }) => (
-  <TableCell
-    colSpan={colSpan}
-    rowSpan={rowSpan}
-    align="center"
-    sx={{
-      border: "1px solid #cbd5e1",
-      bgcolor: "#f1f5f9",
-      color: "#475569",
-      fontWeight: 800,
-      fontSize: "max(0.75rem, 0.8vw)",
-      p: "12px 6px",
-      textTransform: "uppercase",
-      letterSpacing: "0.05em",
-      whiteSpace: "nowrap",
-      ...sx,
-    }}
-  >
-    {children}
-  </TableCell>
-);
-
-const ExcelDataCell = ({ children, align = "center", sx = {} }) => (
-  <TableCell
-    align={align}
-    sx={{
-      border: "1px solid #e2e8f0",
-      p: "10px 12px",
-      fontSize: "max(0.8rem, 0.85vw)",
-      color: "#1e293b",
-      whiteSpace: "nowrap",
-      height: "48px",
-      ...sx,
-    }}
-  >
-    {children}
-  </TableCell>
-);
-
-const NORMAL_CAPACITY = 1;
-const OVERTIME_CAPACITY = 1.43; // Updated as per user request (was 1.43)
-
-// Optimized sub-component for handling numeric inputs with local state to prevent lag
-const ManagedTextField = ({ value, onCommit, ...props }) => {
-  const [localValue, setLocalValue] = React.useState(value);
-  const [isFocused, setIsFocused] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isFocused) {
-      setLocalValue(value);
-    }
-  }, [value, isFocused]);
-
-  const handleBlur = () => {
-    setIsFocused(false);
-    if (localValue !== value) {
-      onCommit(localValue);
-    }
-  };
-
-  const handleFocus = () => {
-    setIsFocused(true);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.target.blur();
-    }
-  };
-
-  return (
-    <TextField
-      {...props}
-      value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-    />
-  );
-};
+// Sub-components
+import { ExcelHeaderCell, rebalanceDays } from "./components/shared";
+import PlanningTableRow from "./components/PlanningTableRow";
+import PlanningFormDialog from "./components/PlanningFormDialog";
+import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
+import WorkerAssignmentDialog from "./components/WorkerAssignmentDialog";
 
 export default function PlanningPage() {
   const queryClient = useQueryClient();
+
+  // UI state
   const [openModal, setOpenModal] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState("");
-  const [selectedOpId, setSelectedOpId] = useState("");
-  const [inventory, setInventory] = useState(0);
-  const [startDate, setStartDate] = useState("");
-  const [plannedDays, setPlannedDays] = useState([]);
   const [editingPlan, setEditingPlan] = useState(null);
-  const [selectedFactoryId, setSelectedFactoryId] = useState("");
-  const [isOutsourced, setIsOutsourced] = useState(false);
   const [inlineEditingId, setInlineEditingId] = useState(null);
   const [inlineEditDays, setInlineEditDays] = useState([]);
 
-  // Pagination & Filter state
+  // Pagination & Filter
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+
+  // Snackbar
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+
+  // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState({
     open: false,
     planId: null,
   });
+
+  // Worker assignment
   const [assignmentDialog, setAssignmentDialog] = useState({
     open: false,
     planId: null,
@@ -174,7 +68,7 @@ export default function PlanningPage() {
   });
   const [selectedWorkerIds, setSelectedWorkerIds] = useState([]);
 
-  // Data Fetching
+  // ─── Data Fetching ─────────────────────────────────────
   const {
     data: plansData,
     isLoading,
@@ -203,40 +97,8 @@ export default function PlanningPage() {
     queryKey: ["workers"],
     queryFn: workerService.getAll,
   });
-  const { data: factories } = useQuery({
-    queryKey: ["factories"],
-    queryFn: factoryService.getAll,
-  });
 
-  const selectedOrder = orders?.find((o) => o.id === selectedOrderId);
-  const selectedProduct = selectedOrder?.products?.find(
-    (p) => p.id === selectedProductId,
-  );
-
-  const { data: operations, isLoading: loadingOps } = useQuery({
-    queryKey: ["orderOps", selectedProduct?.product_group_id],
-    queryFn: () =>
-      productGroupService.getOperations(selectedProduct.product_group_id),
-    enabled: !!selectedProduct?.product_group_id,
-  });
-
-  const selectedOp = operations?.find((op) => op.id === selectedOpId);
-
-  // Derived Calculations - use product-specific quantity from order_products if available
-  const productQtyInOrder = selectedProduct
-    ? parseFloat(selectedProduct.quantity) || 0
-    : 0;
-  const totalOrderQty =
-    productQtyInOrder > 0
-      ? productQtyInOrder
-      : selectedOrder
-        ? parseFloat(selectedOrder.quantity)
-        : 0;
-  const remainingQty = Math.max(0, totalOrderQty - inventory);
-  const dinhMuc = selectedOp ? parseFloat(selectedOp.dinh_muc) : 0;
-  const totalDaysNeeded = dinhMuc > 0 ? remainingQty / dinhMuc / 8 : 0;
-
-  // Detect unique dates for columns
+  // ─── Date Columns ──────────────────────────────────────
   const dateColumns = useMemo(() => {
     if (!plans) return [];
     const dates = new Set();
@@ -253,122 +115,19 @@ export default function PlanningPage() {
       }));
   }, [plans]);
 
-  const autoCalculateSchedule = (totalNeeded, start, currentDays = []) => {
-    if (!start || totalNeeded <= 0) return [];
-
-    let result = [];
-    let remaining = totalNeeded;
-    let currentDate = DateTime.fromISO(start);
-
-    let i = 0;
-    while (remaining > 0.001) {
-      const isOvertime = currentDays[i]?.is_overtime || false;
-      const capacity = isOvertime ? OVERTIME_CAPACITY : NORMAL_CAPACITY;
-      const work = Math.min(remaining, capacity);
-
-      result.push({
-        date: currentDate.toISODate(),
-        hours: work.toFixed(2),
-        is_overtime: isOvertime,
+  // ─── Mutations ─────────────────────────────────────────
+  const createMutation = useMutation({
+    mutationFn: (payload) => planningService.createPlan(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+      handleCloseModal();
+      setSnackbar({
+        open: true,
+        message: "Thêm mới thành công!",
+        severity: "success",
       });
-
-      remaining -= work;
-      currentDate = currentDate.plus({ days: 1 });
-      i++;
-    }
-    return result;
-  };
-
-  const rebalanceDays = (daysArray, changedIndex, newValRaw, targetTotal) => {
-    const newVal = parseFloat(newValRaw) || 0;
-    const updated = [...daysArray];
-    // Clean value and update the specific day
-    updated[changedIndex] = {
-      ...updated[changedIndex],
-      hours: newVal.toFixed(2),
-    };
-
-    // Sum everything BEFORE and INCLUDING the changed day
-    const sumSoFar = updated
-      .slice(0, changedIndex + 1)
-      .reduce((sum, d) => sum + parseFloat(d.hours || 0), 0);
-    let remaining = Math.max(0, targetTotal - sumSoFar);
-
-    const head = updated.slice(0, changedIndex + 1);
-    if (remaining < 0.001) return head; // Goal reached or exceeded (within float precision)
-
-    // Calculate remaining sequence
-    const nextDateStr = DateTime.fromISO(updated[changedIndex].date)
-      .plus({ days: 1 })
-      .toISODate();
-    const tailPrefs = updated.slice(changedIndex + 1);
-    const newTail = autoCalculateSchedule(remaining, nextDateStr, tailPrefs);
-
-    return [...head, ...newTail];
-  };
-
-  // Auto-calculate when totalDaysNeeded or startDate changes
-  React.useEffect(() => {
-    // If we're editing, we only want to auto-recalculate if the core parameters change
-    // (Order, Op, or Inventory/Qty changed)
-    if (startDate && totalDaysNeeded > 0) {
-      const newDays = autoCalculateSchedule(totalDaysNeeded, startDate);
-      setPlannedDays(newDays);
-    }
-  }, [totalDaysNeeded, startDate]);
-
-  // Handlers
-  const handleStartDateChange = (val) => {
-    setStartDate(val);
-  };
-
-  const handleDayChange = (index, value) => {
-    setPlannedDays((prev) =>
-      rebalanceDays(prev, index, value, totalDaysNeeded),
-    );
-  };
-
-  const handleDayValueOnlyChange = (index, value) => {
-    setPlannedDays((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], hours: value };
-      return updated;
-    });
-  };
-
-  const handleAddDay = () => {
-    const lastDay = plannedDays[plannedDays.length - 1];
-    const nextDate = lastDay
-      ? DateTime.fromISO(lastDay.date).plus({ days: 1 }).toISODate()
-      : startDate;
-    setPlannedDays([
-      ...plannedDays,
-      {
-        date: nextDate,
-        hours: "0.00",
-        is_overtime: false,
-      },
-    ]);
-  };
-
-  const handleOpenEdit = (plan) => {
-    setEditingPlan(plan);
-    setSelectedOrderId(plan.order_id);
-    setSelectedProductId(plan.product_id);
-    setSelectedOpId(plan.product_group_operation_id);
-    setSelectedFactoryId(plan.factory_id || "");
-    setIsOutsourced(plan.is_outsourced || false);
-    setInventory(parseFloat(plan.inventory_input));
-    setStartDate(DateTime.fromISO(plan.planned_start_date).toISODate());
-    setPlannedDays(
-      plan.days.map((d) => ({
-        date: DateTime.fromISO(d.working_date).toISODate(),
-        hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2), // Convert hours from DB to days for UI
-        is_overtime: d.is_overtime,
-      })),
-    );
-    setOpenModal(true);
-  };
+    },
+  });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => planningService.update(id, payload),
@@ -377,19 +136,6 @@ export default function PlanningPage() {
       setSnackbar({
         open: true,
         message: "Cập nhật thành công!",
-        severity: "success",
-      });
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (payload) => planningService.createPlan(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plans"] });
-      handleClose();
-      setSnackbar({
-        open: true,
-        message: "Thêm mới thành công!",
         severity: "success",
       });
     },
@@ -416,94 +162,6 @@ export default function PlanningPage() {
     },
   });
 
-  const handleStartInlineEdit = (plan) => {
-    setInlineEditingId(plan.id);
-    setInlineEditDays(
-      plan.days.map((d) => ({
-        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
-        hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
-        is_overtime: d.is_overtime,
-      })),
-    );
-  };
-
-  const handleCancelInlineEdit = () => {
-    setInlineEditingId(null);
-    setInlineEditDays([]);
-  };
-
-  const handleInlineDayChange = (plan, dateISO, value) => {
-    const index = inlineEditDays.findIndex((d) => d.date === dateISO);
-    if (index >= 0) {
-      const planTotalNeeded =
-        (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-        (parseFloat(plan.dinh_muc) || 1) /
-        8;
-      setInlineEditDays((prev) =>
-        rebalanceDays(prev, index, value, planTotalNeeded),
-      );
-    } else {
-      const newVal = parseFloat(value) || 0;
-      setInlineEditDays((prev) => [
-        ...prev,
-        { date: dateISO, hours: newVal.toFixed(2), is_overtime: false },
-      ]);
-    }
-  };
-
-  const handleInlineDayValueOnlyChange = (dateISO, value) => {
-    setInlineEditDays((prev) => {
-      const index = prev.findIndex((d) => d.date === dateISO);
-      if (index >= 0) {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], hours: value };
-        return updated;
-      }
-      return [...prev, { date: dateISO, hours: value, is_overtime: false }];
-    });
-  };
-
-  const handleSaveInline = (plan) => {
-    const payload = {
-      order_id: plan.order_id,
-      product_id: plan.product_id,
-      product_group_operation_id: plan.product_group_operation_id,
-      inventory_input: plan.inventory_input,
-      planned_start_date: plan.planned_start_date,
-      days: inlineEditDays
-        .filter((d) => parseFloat(d.hours) > 0) // Filter out days with 0 work
-        .map((d) => ({
-          date: d.date,
-          hours: (parseFloat(d.hours) * 8).toFixed(2),
-          is_overtime: d.is_overtime,
-        })),
-    };
-
-    updateMutation.mutate(
-      { id: plan.id, payload },
-      {
-        onSuccess: () => handleCancelInlineEdit(),
-      },
-    );
-  };
-
-  const handleOpenAssignment = async (planId, date, dateLabel) => {
-    setAssignmentDialog({ open: true, planId, date, dateLabel });
-    try {
-      const currentAssignments = await workerAssignmentService.getAssignments(
-        planId,
-        date,
-      );
-      setSelectedWorkerIds(currentAssignments.map((w) => w.id));
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: "Lỗi khi tải danh sách công nhân",
-        severity: "error",
-      });
-    }
-  };
-
   const handleSaveAssignments = useMutation({
     mutationFn: () =>
       workerAssignmentService.updateAssignments({
@@ -513,7 +171,7 @@ export default function PlanningPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plans"] });
-      setAssignmentDialog({ ...assignmentDialog, open: false });
+      setAssignmentDialog((prev) => ({ ...prev, open: false }));
       setSnackbar({
         open: true,
         message: "Đã cập nhật công nhân làm việc",
@@ -522,541 +180,303 @@ export default function PlanningPage() {
     },
   });
 
-  const toggleWorker = (id) => {
+  // ─── Handlers ──────────────────────────────────────────
+  const handleCloseModal = useCallback(() => {
+    setOpenModal(false);
+    setEditingPlan(null);
+  }, []);
+
+  const handleOpenEdit = useCallback((plan) => {
+    setEditingPlan(plan);
+    setOpenModal(true);
+  }, []);
+
+  const handleFormSubmit = useCallback(
+    (payload) => {
+      if (editingPlan) {
+        updateMutation.mutate(
+          { id: editingPlan.id, payload },
+          { onSuccess: () => handleCloseModal() },
+        );
+      } else {
+        createMutation.mutate(payload);
+      }
+    },
+    [editingPlan, updateMutation, createMutation, handleCloseModal],
+  );
+
+  // Inline editing
+  const handleStartInlineEdit = useCallback((plan) => {
+    setInlineEditingId(plan.id);
+    setInlineEditDays(
+      plan.days.map((d) => ({
+        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
+        hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
+        is_overtime: d.is_overtime,
+      })),
+    );
+  }, []);
+
+  const handleCancelInlineEdit = useCallback(() => {
+    setInlineEditingId(null);
+    setInlineEditDays([]);
+  }, []);
+
+  const handleInlineDayChange = useCallback(
+    (plan, dateISO, value) => {
+      setInlineEditDays((prev) => {
+        const index = prev.findIndex((d) => d.date === dateISO);
+        if (index >= 0) {
+          const planTotalNeeded =
+            (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
+            (parseFloat(plan.dinh_muc) || 1) /
+            8;
+          return rebalanceDays(prev, index, value, planTotalNeeded);
+        }
+        const newVal = parseFloat(value) || 0;
+        return [
+          ...prev,
+          { date: dateISO, hours: newVal.toFixed(2), is_overtime: false },
+        ];
+      });
+    },
+    [],
+  );
+
+  const handleSaveInline = useCallback(
+    (plan) => {
+      const payload = {
+        order_id: plan.order_id,
+        product_id: plan.product_id,
+        product_group_operation_id: plan.product_group_operation_id,
+        inventory_input: plan.inventory_input,
+        planned_start_date: plan.planned_start_date,
+        days: inlineEditDays
+          .filter((d) => parseFloat(d.hours) > 0)
+          .map((d) => ({
+            date: d.date,
+            hours: (parseFloat(d.hours) * 8).toFixed(2),
+            is_overtime: d.is_overtime,
+          })),
+      };
+      updateMutation.mutate(
+        { id: plan.id, payload },
+        { onSuccess: () => handleCancelInlineEdit() },
+      );
+    },
+    [inlineEditDays, updateMutation, handleCancelInlineEdit],
+  );
+
+  // Assignment
+  const handleOpenAssignment = useCallback(
+    async (planId, date, dateLabel) => {
+      setAssignmentDialog({ open: true, planId, date, dateLabel });
+      try {
+        const currentAssignments =
+          await workerAssignmentService.getAssignments(planId, date);
+        setSelectedWorkerIds(currentAssignments.map((w) => w.id));
+      } catch {
+        setSnackbar({
+          open: true,
+          message: "Lỗi khi tải danh sách công nhân",
+          severity: "error",
+        });
+      }
+    },
+    [],
+  );
+
+  const toggleWorker = useCallback((id) => {
     setSelectedWorkerIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
-  };
+  }, []);
 
-  const handleClose = () => {
-    setOpenModal(false);
-    setEditingPlan(null);
-    setSelectedOrderId("");
-    setSelectedProductId("");
-    setSelectedOpId("");
-    setSelectedFactoryId("");
-    setIsOutsourced(false);
-    setInventory(0);
-    setStartDate("");
-    setPlannedDays([]);
-  };
+  const handleOpenDelete = useCallback((planId) => {
+    setDeleteConfirm({ open: true, planId });
+  }, []);
 
-  const handleSubmit = () => {
-    const payload = {
-      order_id: selectedOrderId,
-      product_id: selectedProductId,
-      product_group_operation_id: selectedOpId,
-      factory_id: isOutsourced ? null : selectedFactoryId || null,
-      is_outsourced: isOutsourced,
-      inventory_input: inventory,
-      planned_start_date: startDate,
-      days: plannedDays
-        .filter((d) => parseFloat(d.hours) > 0) // Filter out days with 0 work
-        .map((d) => ({
-          date: d.date,
-          hours: (parseFloat(d.hours) * 8).toFixed(2), // Convert days from UI back to hours for DB
-          is_overtime: d.is_overtime,
-        })),
-    };
-    if (editingPlan) {
-      updateMutation.mutate(
-        { id: editingPlan.id, payload },
-        {
-          onSuccess: () => handleClose(),
-        },
-      );
-    } else {
-      createMutation.mutate(payload);
-    }
-  };
-
-  if (isLoading)
+  // ─── Render ────────────────────────────────────────────
+  if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" p={10}>
-        <CircularProgress />
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="60vh"
+      >
+        <CircularProgress size={48} />
       </Box>
     );
+  }
 
-  if (error) return <Alert severity="error">{error.message}</Alert>;
+  if (error) {
+    return (
+      <Alert severity="error" sx={{ m: 2, borderRadius: "12px" }}>
+        {error.message}
+      </Alert>
+    );
+  }
 
   return (
-    <Box
-      sx={{
-        p: 1,
-        px: 2,
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "#f5f7fa",
-      }}
-    >
+    <Box sx={{ px: 1 }}>
+      {/* Header */}
       <Box
         display="flex"
         justifyContent="space-between"
         alignItems="center"
         mb={2}
       >
-        <Typography variant="h6" fontWeight={700} color="#1e293b">
-          Lập Kế Hoạch Sản Xuất
+        <Typography variant="h5" fontWeight={800}>
+          Kế hoạch sản xuất
         </Typography>
-
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" gap={2} alignItems="center">
           <Autocomplete
             multiple
             size="small"
             options={orders}
-            getOptionLabel={(option) => `${option.order_code} - ${option.name}`}
+            getOptionLabel={(o) => o.name || ""}
             value={orders.filter((o) => selectedOrderIds.includes(o.id))}
-            onChange={(e, newValue) => {
-              setSelectedOrderIds(newValue.map((v) => v.id));
+            onChange={(_, val) => {
+              setSelectedOrderIds(val.map((o) => o.id));
               setPage(0);
             }}
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Chọn đơn hàng..."
-                sx={{
-                  minWidth: 300,
-                  bgcolor: "white",
-                  borderRadius: "8px",
-                  "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                label="Lọc theo đơn hàng"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: (
+                    <>
+                      <SearchIcon
+                        sx={{ color: "text.disabled", fontSize: 20, mr: 0.5 }}
+                      />
+                      {params.InputProps.startAdornment}
+                    </>
+                  ),
                 }}
               />
             )}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  variant="filled"
-                  size="small"
-                  label={option.order_code}
-                  {...getTagProps({ index })}
-                  sx={{
-                    borderRadius: "4px",
-                    bgcolor: "#e2e8f0",
-                    fontWeight: 600,
-                    fontSize: "0.7rem",
-                  }}
-                />
-              ))
-            }
+            sx={{ minWidth: 320 }}
           />
           <Button
             variant="contained"
-            onClick={() => setOpenModal(true)}
-            sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 700 }}
+            startIcon={<AddCircleIcon />}
+            onClick={() => {
+              setEditingPlan(null);
+              setOpenModal(true);
+            }}
+            sx={{
+              bgcolor: "#4f46e5",
+              fontWeight: 700,
+              borderRadius: "10px",
+              px: 3,
+              "&:hover": { bgcolor: "#4338ca" },
+            }}
           >
-            + Lập kế hoạch mới
+            Lập kế hoạch
           </Button>
         </Box>
       </Box>
 
+      {/* Main Table */}
       <Paper
         elevation={0}
         sx={{
-          flexGrow: 1,
           border: "1px solid #e2e8f0",
-          borderRadius: "8px",
+          borderRadius: "16px",
           overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
         }}
       >
-        <TableContainer sx={{ flexGrow: 1 }}>
+        <TableContainer sx={{ maxHeight: "calc(100vh - 240px)" }}>
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <ExcelHeaderCell>STT</ExcelHeaderCell>
-                <ExcelHeaderCell>STT CĐ</ExcelHeaderCell>
-                <ExcelHeaderCell>Mã mặt hàng</ExcelHeaderCell>
-                <ExcelHeaderCell>Nhóm mã hàng</ExcelHeaderCell>
-                <ExcelHeaderCell>Tên công đoạn</ExcelHeaderCell>
-                <ExcelHeaderCell>Loại máy</ExcelHeaderCell>
-                <ExcelHeaderCell>Số lượng</ExcelHeaderCell>
-                <ExcelHeaderCell>Số lượng tồn kho</ExcelHeaderCell>
-                <ExcelHeaderCell>Số lượng còn lại</ExcelHeaderCell>
-                <ExcelHeaderCell>Định mức/8H</ExcelHeaderCell>
-                <ExcelHeaderCell>Tổng số công cần</ExcelHeaderCell>
-                <ExcelHeaderCell>Còn lại</ExcelHeaderCell>
-                <ExcelHeaderCell>Ghi chú</ExcelHeaderCell>
-                <ExcelHeaderCell>Ngày B</ExcelHeaderCell>
-                <ExcelHeaderCell>Ngày H</ExcelHeaderCell>
-                {dateColumns.map((date) => (
-                  <ExcelHeaderCell key={date.key}>{date.label}</ExcelHeaderCell>
-                ))}
+                <ExcelHeaderCell rowSpan={2}>STT</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Mã mặt hàng</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Nhóm mã hàng</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Công đoạn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Máy</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>SL đơn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} sx={{ color: "#e53935" }}>
+                  Còn lại
+                </ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Định mức</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Tổng công</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Đã SX</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Mẫu</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Bắt đầu</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Kết thúc</ExcelHeaderCell>
+                {dateColumns.length > 0 && (
+                  <ExcelHeaderCell
+                    colSpan={dateColumns.length}
+                    sx={{ bgcolor: "#e0f2fe", color: "#0369a1" }}
+                  >
+                    NGÀY LÀM VIỆC
+                  </ExcelHeaderCell>
+                )}
                 <ExcelHeaderCell
+                  rowSpan={2}
                   sx={{
                     position: "sticky",
                     right: 0,
-                    zIndex: 10,
+                    zIndex: 12,
                     bgcolor: "#f1f5f9",
-                    boxShadow: "-2px 0 5px rgba(0,0,0,0.05)",
+                    borderLeft: "1px solid #cbd5e1",
                   }}
                 >
-                  Action
+                  Hành động
                 </ExcelHeaderCell>
               </TableRow>
+              {dateColumns.length > 0 && (
+                <TableRow>
+                  {dateColumns.map((date) => (
+                    <ExcelHeaderCell
+                      key={date.key}
+                      sx={{
+                        bgcolor: "#f0f9ff",
+                        fontSize: "0.7rem",
+                        p: "4px",
+                        minWidth: "50px",
+                      }}
+                    >
+                      {date.label}
+                    </ExcelHeaderCell>
+                  ))}
+                </TableRow>
+              )}
             </TableHead>
             <TableBody>
-              {plans?.map((plan, idx) => {
-                console.log("🚀 ~ PlanningPage ~ plan:", plan);
-                const isYellow = idx % 3 === 0;
-                const isOrange = idx % 2 === 0;
-
-                return (
-                  <TableRow
-                    key={plan.id}
-                    hover
-                    sx={{ "&:nth-of-type(even)": { bgcolor: "#f8fafc" } }}
-                  >
-                    <ExcelDataCell>{idx + 1}</ExcelDataCell>
-                    <ExcelDataCell>{plan.sequence_order}</ExcelDataCell>
-                    <ExcelDataCell
-                    //   sx={{
-                    //     bgcolor: isYellow
-                    //       ? "#ffeb3b"
-                    //       : isOrange
-                    //         ? "#ffcc80"
-                    //         : "inherit",
-                    //   }}
-                    >
-                      {plan.product_name}
-                    </ExcelDataCell>
-                    <ExcelDataCell
-                      sx={{
-                        bgcolor: isYellow
-                          ? "#ffee58"
-                          : isOrange
-                            ? "#ffe0b2"
-                            : "inherit",
-                      }}
-                    >
-                      {plan.product_group_name}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="left">
-                      {plan.operation_name}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="left">
-                      {plan.machine_name}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="right">
-                      {(
-                        parseFloat(plan.inventory_input) +
-                        parseFloat(plan.remaining_quantity)
-                      ).toLocaleString()}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="right">
-                      {parseFloat(plan.inventory_input).toLocaleString()}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="right" sx={{ fontWeight: 700 }}>
-                      {parseFloat(plan.remaining_quantity).toLocaleString()}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="right">{plan.dinh_muc}</ExcelDataCell>
-                    <ExcelDataCell align="right" sx={{ color: "#e53935" }}>
-                      {(parseFloat(plan.total_required_work) / 8).toFixed(2)}
-                    </ExcelDataCell>
-                    <ExcelDataCell align="right">0.00</ExcelDataCell>
-                    <ExcelDataCell
-                      sx={{
-                        bgcolor: "#f0fdf4",
-                        color: "#166534",
-                        fontWeight: 700,
-                      }}
-                    >
-                      x
-                    </ExcelDataCell>
-                    <ExcelDataCell sx={{ color: "#64748b" }}>
-                      {DateTime.fromISO(plan.planned_start_date).toFormat(
-                        "dd-MM",
-                      )}
-                    </ExcelDataCell>
-                    <Tooltip
-                      title={`Kết thúc vào cuối ngày ${DateTime.fromISO(plan.planned_end_date).toFormat("dd/MM/yyyy")} (23:59)`}
-                    >
-                      <ExcelDataCell sx={{ color: "#64748b", cursor: "help" }}>
-                        {DateTime.fromISO(plan.planned_end_date).toFormat(
-                          "dd-MM",
-                        )}
-                      </ExcelDataCell>
-                    </Tooltip>
-                    {dateColumns.map((date, colIdx) => {
-                      const isEditing = inlineEditingId === plan.id;
-                      const dayData = plan.days.find(
-                        (d) =>
-                          DateTime.fromISO(d.working_date).toFormat(
-                            "yyyy-MM-dd",
-                          ) === date.key,
-                      );
-                      const editDayData = inlineEditDays.find(
-                        (d) => d.date === date.key,
-                      );
-
-                      return (
-                        <ExcelDataCell
-                          key={date.key}
-                          sx={{
-                            bgcolor: isEditing
-                              ? "#fff"
-                              : dayData
-                                ? "#fef9c3"
-                                : "inherit",
-                            p: isEditing ? 0 : "4px 6px",
-                            position: "relative",
-                          }}
-                        >
-                          {isEditing ? (
-                            <>
-                              <ManagedTextField
-                                size="small"
-                                variant="standard"
-                                type="number"
-                                value={editDayData ? editDayData.hours : "0.00"}
-                                onCommit={(val) =>
-                                  handleInlineDayChange(plan, date.key, val)
-                                }
-                                InputProps={{
-                                  disableUnderline: true,
-                                  autoFocus: colIdx === 0, // Auto-focus on the first editable cell
-                                  sx: {
-                                    fontSize: "0.8rem",
-                                    textAlign: "center",
-                                    "& input": {
-                                      textAlign: "center",
-                                      fontWeight: 700,
-                                      p: 0,
-                                    },
-                                  },
-                                }}
-                                sx={{
-                                  width: "100%",
-                                  height: "40px",
-                                  border: "none",
-                                  background: "#ffffff",
-                                  textAlign: "center",
-                                  fontSize: "0.95rem",
-                                  fontWeight: 800,
-                                  outline: "2px solid #3b82f6",
-                                  padding: "4px 8px",
-                                  color: "#2563eb",
-                                  borderRadius: "4px",
-                                  "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
-                                    {
-                                      "-webkit-appearance": "none",
-                                      margin: 0,
-                                    },
-                                  "& input[type=number]": {
-                                    "-moz-appearance": "textfield",
-                                  },
-                                  "&:hover": {
-                                    background: "#f8fafc",
-                                  },
-                                }}
-                              />
-                            </>
-                          ) : (
-                            <Box
-                              display="flex"
-                              flexDirection="column"
-                              alignItems="center"
-                              gap={0.2}
-                            >
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  fontWeight: dayData ? 700 : 400,
-                                  color: dayData ? "#854d0e" : "#94a3b8",
-                                }}
-                              >
-                                {dayData
-                                  ? (
-                                      parseFloat(
-                                        dayData.planned_work_quantity,
-                                      ) / 8
-                                    ).toFixed(2)
-                                  : "-"}
-                              </Typography>
-                              {dayData && (
-                                <Tooltip
-                                  title={
-                                    dayData.worker_names || "Chưa có công nhân"
-                                  }
-                                >
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleOpenAssignment(
-                                        plan.id,
-                                        date.key,
-                                        date.label,
-                                      )
-                                    }
-                                    sx={{
-                                      p: 0,
-                                      color:
-                                        dayData.worker_count > 0
-                                          ? "primary.main"
-                                          : "text.disabled",
-                                      "&:hover": { color: "primary.dark" },
-                                    }}
-                                  >
-                                    <Badge
-                                      badgeContent={
-                                        dayData.worker_count > 0
-                                          ? dayData.worker_count
-                                          : 0
-                                      }
-                                      color="primary"
-                                      sx={{
-                                        "& .MuiBadge-badge": {
-                                          fontSize: "0.6rem",
-                                          height: 14,
-                                          minWidth: 14,
-                                          top: 4,
-                                          right: -2,
-                                        },
-                                      }}
-                                    >
-                                      {dayData.worker_count > 0 ? (
-                                        <PeopleIcon sx={{ fontSize: "1rem" }} />
-                                      ) : (
-                                        <PersonAddIcon
-                                          sx={{ fontSize: "0.9rem" }}
-                                        />
-                                      )}
-                                    </Badge>
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </Box>
-                          )}
-                        </ExcelDataCell>
-                      );
-                    })}
-                    <ExcelDataCell
-                      sx={{
-                        position: "sticky",
-                        right: 0,
-                        zIndex: 5,
-                        bgcolor: "white",
-                        borderLeft: "1px solid #cbd5e1",
-                        boxShadow: "-2px 0 5px rgba(0,0,0,0.02)",
-                      }}
-                    >
-                      <Box
-                        display="flex"
-                        gap={0.5}
-                        justifyContent="center"
-                        bgcolor="white"
-                      >
-                        {inlineEditingId === plan.id ? (
-                          <>
-                            <Tooltip title="Lưu thay đổi">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#22c55e" }}
-                                onClick={() => handleSaveInline(plan)}
-                                disabled={updateMutation.isPending}
-                              >
-                                {updateMutation.isPending ? (
-                                  <CircularProgress size={16} color="inherit" />
-                                ) : (
-                                  <SaveIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Hủy bỏ">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#ef4444" }}
-                                onClick={handleCancelInlineEdit}
-                                disabled={updateMutation.isPending}
-                              >
-                                <CancelIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        ) : (
-                          <>
-                            <Tooltip title="Sửa nhanh hàng này">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#3b82f6" }}
-                                onClick={() => handleStartInlineEdit(plan)}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Chỉnh sửa chi tiết">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#6366f1" }}
-                                onClick={() => handleOpenEdit(plan)}
-                              >
-                                <OpenInNewIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Xóa kế hoạch">
-                              <IconButton
-                                size="small"
-                                sx={{ color: "#f43f5e" }}
-                                onClick={() =>
-                                  setDeleteConfirm({
-                                    open: true,
-                                    planId: plan.id,
-                                  })
-                                }
-                                disabled={
-                                  deleteMutation.isPending &&
-                                  deleteConfirm.planId === plan.id
-                                }
-                              >
-                                {deleteMutation.isPending &&
-                                deleteConfirm.planId === plan.id ? (
-                                  <CircularProgress size={16} color="inherit" />
-                                ) : (
-                                  <DeleteIcon fontSize="small" />
-                                )}
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
-                      </Box>
-                    </ExcelDataCell>
-                  </TableRow>
-                );
-              })}
+              {plans?.map((plan, idx) => (
+                <PlanningTableRow
+                  key={plan.id}
+                  plan={plan}
+                  idx={idx}
+                  dateColumns={dateColumns}
+                  isInlineEditing={inlineEditingId === plan.id}
+                  inlineEditDays={
+                    inlineEditingId === plan.id ? inlineEditDays : []
+                  }
+                  isUpdatePending={updateMutation.isPending}
+                  isDeletePending={
+                    deleteMutation.isPending &&
+                    deleteConfirm.planId === plan.id
+                  }
+                  onStartInlineEdit={handleStartInlineEdit}
+                  onCancelInlineEdit={handleCancelInlineEdit}
+                  onSaveInline={handleSaveInline}
+                  onOpenEdit={handleOpenEdit}
+                  onOpenDelete={handleOpenDelete}
+                  onOpenAssignment={handleOpenAssignment}
+                  onInlineDayChange={handleInlineDayChange}
+                />
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog
-          open={deleteConfirm.open}
-          onClose={() => setDeleteConfirm({ open: false, planId: null })}
-        >
-          <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận xóa</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Bạn có chắc chắn muốn xóa kế hoạch sản xuất này không? Hành động
-              này không thể hoàn tác.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button
-              onClick={() => setDeleteConfirm({ open: false, planId: null })}
-              color="inherit"
-            >
-              Hủy bỏ
-            </Button>
-            <Button
-              onClick={() => deleteMutation.mutate(deleteConfirm.planId)}
-              variant="contained"
-              color="error"
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Đang xóa..." : "Đồng ý xóa"}
-            </Button>
-          </DialogActions>
-        </Dialog>
 
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
@@ -1064,7 +484,7 @@ export default function PlanningPage() {
           count={totalCount}
           rowsPerPage={rowsPerPage}
           page={page}
-          onPageChange={(e, newPage) => setPage(newPage)}
+          onPageChange={(_, newPage) => setPage(newPage)}
           onRowsPerPageChange={(e) => {
             setRowsPerPage(parseInt(e.target.value, 10));
             setPage(0);
@@ -1082,560 +502,44 @@ export default function PlanningPage() {
         />
       </Paper>
 
-      <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="md">
-        <DialogTitle sx={{ fontWeight: 700 }}>
-          {editingPlan
-            ? "Chỉnh sửa kế hoạch sản xuất"
-            : "Lập kế hoạch sản xuất mới"}
-        </DialogTitle>
-        <DialogContent dividers>
-          <Box
-            display="grid"
-            gridTemplateColumns={{ xs: "1fr", md: "repeat(3, 1fr)" }}
-            gap={3}
-            mb={4}
-            mt={1}
-          >
-            <FormControl fullWidth size="small">
-              <InputLabel>Bước 1: Chọn đơn hàng</InputLabel>
-              <Select
-                value={selectedOrderId}
-                label="Bước 1: Chọn đơn hàng"
-                disabled={!!editingPlan}
-                onChange={(e) => {
-                  setSelectedOrderId(e.target.value);
-                  setSelectedProductId("");
-                  setSelectedOpId("");
-                }}
-              >
-                {orders?.map((o) => (
-                  <MenuItem key={o.id} value={o.id}>
-                    {/* {o.order_code ? `${o.order_code} - ` : ""} */}
-                    {o.name} ({o.quantity} SP)
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+      {/* ─── Dialogs ────────────────────────────────────── */}
+      <PlanningFormDialog
+        open={openModal}
+        editingPlan={editingPlan}
+        isCreatePending={createMutation.isPending}
+        isUpdatePending={updateMutation.isPending}
+        onClose={handleCloseModal}
+        onSubmit={handleFormSubmit}
+      />
 
-            <FormControl fullWidth size="small" disabled={!selectedOrderId}>
-              <InputLabel>Bước 2: Chọn mã hàng</InputLabel>
-              <Select
-                value={selectedProductId}
-                label="Bước 2: Chọn mã hàng"
-                disabled={!!editingPlan}
-                onChange={(e) => {
-                  setSelectedProductId(e.target.value);
-                  setSelectedOpId("");
-                }}
-              >
-                {selectedOrder?.products?.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name}{" "}
-                    {p.quantity
-                      ? `(${parseFloat(p.quantity).toLocaleString()} SP)`
-                      : ""}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+      <DeleteConfirmDialog
+        open={deleteConfirm.open}
+        isPending={deleteMutation.isPending}
+        onClose={() => setDeleteConfirm({ open: false, planId: null })}
+        onConfirm={() => deleteMutation.mutate(deleteConfirm.planId)}
+      />
 
-            <FormControl
-              fullWidth
-              size="small"
-              disabled={!selectedProductId || loadingOps}
-            >
-              <InputLabel>Bước 3: Chọn công đoạn</InputLabel>
-              <Select
-                value={selectedOpId}
-                label="Bước 3: Chọn công đoạn"
-                disabled={!!editingPlan}
-                onChange={(e) => {
-                  setSelectedOpId(e.target.value);
-                  setSelectedFactoryId("");
-                  setIsOutsourced(false);
-                }}
-              >
-                {operations?.map((op) => (
-                  <MenuItem key={op.id} value={op.id}>
-                    CĐ {op.sequence_order}: {op.operation_name} (
-                    {op.machine_name})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {selectedOpId && (
-            <Box display="flex" gap={3} mb={3} alignItems="center">
-              <FormControl size="small" sx={{ minWidth: 220 }}>
-                <InputLabel>Bước 4: Chọn nhà máy</InputLabel>
-                <Select
-                  value={selectedFactoryId}
-                  label="Bước 4: Chọn nhà máy"
-                  onChange={(e) => {
-                    setSelectedFactoryId(e.target.value);
-                    setIsOutsourced(false);
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>-- Chọn nhà máy --</em>
-                  </MenuItem>
-                  {factories
-                    ?.filter((f) => f.is_active)
-                    .map((f) => (
-                      <MenuItem key={f.id} value={f.id}>
-                        {f.name}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={isOutsourced}
-                    onChange={(e) => {
-                      setIsOutsourced(e.target.checked);
-                      if (e.target.checked) setSelectedFactoryId("");
-                    }}
-                  />
-                }
-                label={
-                  <Typography
-                    variant="body2"
-                    fontWeight={600}
-                    color={isOutsourced ? "warning.main" : "text.secondary"}
-                  >
-                    Gia công ngoài
-                  </Typography>
-                }
-              />
-              {selectedFactoryId && !isOutsourced && (
-                <Chip
-                  label="Sản xuất tại xưởng"
-                  color="primary"
-                  size="small"
-                  sx={{ fontWeight: 700 }}
-                />
-              )}
-              {isOutsourced && (
-                <Chip
-                  label="Gia công ngoài"
-                  color="warning"
-                  size="small"
-                  sx={{ fontWeight: 700 }}
-                />
-              )}
-            </Box>
-          )}
-
-          {selectedOp && (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 3,
-                mb: 4,
-                borderRadius: "16px",
-                bgcolor: "background.default",
-              }}
-            >
-              <Box
-                display="grid"
-                gridTemplateColumns="repeat(3, 1fr)"
-                gap={2}
-                mb={3}
-              >
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                  >
-                    TỔNG SL ĐƠN
-                  </Typography>
-                  <Typography variant="h6" fontWeight={700}>
-                    {totalOrderQty.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                  >
-                    ĐỊNH MỨC (SP/GIỜ)
-                  </Typography>
-                  <Typography variant="h6" fontWeight={700} color="primary">
-                    {dinhMuc}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                  >
-                    MÁY PHỤ TRÁCH
-                  </Typography>
-                  <Typography variant="h6" fontWeight={700}>
-                    {selectedOp.machine_name}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ my: 2, borderStyle: "dashed" }} />
-
-              <Box
-                display="grid"
-                gridTemplateColumns="repeat(3, 1fr)"
-                gap={3}
-                alignItems="flex-end"
-              >
-                <TextField
-                  label="Tồn kho nhập"
-                  type="number"
-                  size="small"
-                  value={inventory}
-                  onChange={(e) =>
-                    setInventory(parseFloat(e.target.value) || 0)
-                  }
-                  sx={{ bgcolor: "white" }}
-                />
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                  >
-                    SỐ LƯỢNG CÒN LẠI
-                  </Typography>
-                  <Typography variant="h5" fontWeight={800} color="error.main">
-                    {remainingQty.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="textSecondary"
-                    fontWeight={600}
-                  >
-                    TỔNG CÔNG CẦN
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    fontWeight={800}
-                    color="secondary.main"
-                  >
-                    {totalDaysNeeded.toFixed(2)}
-                  </Typography>
-                </Box>
-              </Box>
-            </Paper>
-          )}
-
-          {selectedOp && (
-            <Box mb={3}>
-              <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
-                Thời gian & Lịch biểu:
-              </Typography>
-              <TextField
-                label="Ngày bắt đầu"
-                type="date"
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => handleStartDateChange(e.target.value)}
-                sx={{ mb: 3 }}
-              />
-
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={1.5}
-              >
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Danh sách ngày làm việc:
-                </Typography>
-                <Button
-                  size="small"
-                  startIcon={<AddCircleIcon />}
-                  onClick={handleAddDay}
-                  sx={{ textTransform: "none" }}
-                >
-                  Thêm ngày
-                </Button>
-              </Box>
-
-              {plannedDays.length > 0 && (
-                <Box
-                  sx={{
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    border: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      bgcolor: "grey.50",
-                      p: 1.5,
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%" }}
-                    >
-                      NGÀY LÀM VIỆC
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%", textAlign: "center" }}
-                    >
-                      SỐ CÔNG
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%", textAlign: "right" }}
-                    >
-                      TÙY CHỌN
-                    </Typography>
-                  </Box>
-                  <Box sx={{ maxHeight: 250, overflow: "auto" }}>
-                    {plannedDays.map((day, idx) => (
-                      <Box
-                        key={idx}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          p: 1.5,
-                          borderBottom:
-                            idx === plannedDays.length - 1
-                              ? "none"
-                              : "1px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          gap={1}
-                          sx={{ width: "30%" }}
-                        >
-                          <TextField
-                            type="date"
-                            size="small"
-                            variant="standard"
-                            value={day.date}
-                            onChange={(e) => {
-                              const newDays = [...plannedDays];
-                              newDays[idx].date = e.target.value;
-                              setPlannedDays(newDays);
-                            }}
-                            InputProps={{
-                              disableUnderline: true,
-                              sx: { fontSize: "0.875rem", fontWeight: 600 },
-                            }}
-                          />
-                        </Box>
-                        <Box
-                          sx={{
-                            width: "30%",
-                            display: "flex",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <ManagedTextField
-                            size="small"
-                            type="number"
-                            value={day.hours}
-                            onCommit={(val) => handleDayChange(idx, val)}
-                            InputProps={{
-                              disableUnderline: true,
-                              sx: {
-                                fontSize: "0.875rem",
-                                fontWeight: 700,
-                                textAlign: "center",
-                              },
-                            }}
-                            sx={{ width: 80 }}
-                          />
-                        </Box>
-                        <Box
-                          sx={{
-                            width: "30%",
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            alignItems: "center",
-                          }}
-                        >
-                          <FormControlLabel
-                            sx={{ m: 0 }}
-                            control={
-                              <Checkbox
-                                size="small"
-                                sx={{ p: 0.5 }}
-                                checked={day.is_overtime}
-                                onChange={(e) => {
-                                  const newDays = [...plannedDays];
-                                  newDays[idx].is_overtime = e.target.checked;
-                                  const recalculated = autoCalculateSchedule(
-                                    totalDaysNeeded,
-                                    startDate,
-                                    newDays,
-                                  );
-                                  setPlannedDays(recalculated);
-                                }}
-                              />
-                            }
-                            label={
-                              <Typography variant="caption" fontWeight={600}>
-                                Tăng ca
-                              </Typography>
-                            }
-                          />
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              const newDays = [...plannedDays];
-                              newDays.splice(idx, 1);
-                              setPlannedDays(newDays);
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              sx={{ fontSize: "10px" }}
-                            >
-                              ×
-                            </Typography>
-                          </IconButton>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ p: 3, bgcolor: "grey.50" }}>
-          <Button onClick={handleClose} sx={{ color: "text.secondary" }}>
-            Hủy bỏ
-          </Button>
-          <Button
-            variant="contained"
-            disabled={
-              !startDate ||
-              plannedDays.length === 0 ||
-              createMutation.isPending ||
-              updateMutation.isPending
-            }
-            onClick={handleSubmit}
-            sx={{ px: 4, py: 1, borderRadius: "10px", fontWeight: 700 }}
-          >
-            {createMutation.isPending || updateMutation.isPending ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Xác nhận kế hoạch"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
+      <WorkerAssignmentDialog
         open={assignmentDialog.open}
+        dateLabel={assignmentDialog.dateLabel}
+        allWorkers={allWorkers}
+        selectedWorkerIds={selectedWorkerIds}
+        isPending={handleSaveAssignments.isPending}
+        onToggleWorker={toggleWorker}
         onClose={() =>
-          setAssignmentDialog({ ...assignmentDialog, open: false })
+          setAssignmentDialog((prev) => ({ ...prev, open: false }))
         }
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{ sx: { borderRadius: "16px" } }}
-      >
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          Phân công công nhân ({assignmentDialog.dateLabel})
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            Chọn các công nhân sẽ tham gia sản xuất cho ngày này.
-          </Typography>
-          <List sx={{ pt: 0, maxHeight: 300, overflow: "auto" }}>
-            {allWorkers.map((worker) => (
-              <ListItem
-                key={worker.id}
-                button
-                onClick={() => toggleWorker(worker.id)}
-                sx={{
-                  borderRadius: "8px",
-                  mb: 0.5,
-                  bgcolor: selectedWorkerIds.includes(worker.id)
-                    ? "rgba(37, 99, 235, 0.05)"
-                    : "transparent",
-                  "&:hover": {
-                    bgcolor: selectedWorkerIds.includes(worker.id)
-                      ? "rgba(37, 99, 235, 0.1)"
-                      : "rgba(0,0,0,0.02)",
-                  },
-                }}
-              >
-                <ListItemText
-                  primary={worker.name}
-                  secondary={worker.code}
-                  primaryTypographyProps={{
-                    fontWeight: selectedWorkerIds.includes(worker.id)
-                      ? 700
-                      : 500,
-                  }}
-                />
-                <Checkbox
-                  edge="end"
-                  checked={selectedWorkerIds.includes(worker.id)}
-                  disableRipple
-                />
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button
-            onClick={() =>
-              setAssignmentDialog({ ...assignmentDialog, open: false })
-            }
-            color="inherit"
-          >
-            Hủy
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => handleSaveAssignments.mutate()}
-            disabled={handleSaveAssignments.isPending}
-            sx={{ borderRadius: "8px", fontWeight: 700 }}
-          >
-            {handleSaveAssignments.isPending ? (
-              <CircularProgress size={20} />
-            ) : (
-              "Lưu phân công"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSave={() => handleSaveAssignments.mutate()}
+      />
 
       <Snackbar
         open={snackbar.open}
         autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
           severity={snackbar.severity}
           sx={{ width: "100%", borderRadius: "8px", fontWeight: 600 }}
           variant="filled"

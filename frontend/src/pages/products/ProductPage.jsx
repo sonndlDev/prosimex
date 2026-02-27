@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
@@ -26,10 +27,16 @@ export default function ProductPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [filterFactoryId, setFilterFactoryId] = useState("");
 
-  const [formData, setFormData] = useState({
-    name: "",
-    product_group_id: "",
-    is_active: true,
+  const {
+    control,
+    handleSubmit: rhfHandleSubmit,
+    reset,
+  } = useForm({
+    defaultValues: {
+      name: "",
+      product_group_id: "",
+      is_active: true,
+    },
   });
 
   // Queries
@@ -88,14 +95,14 @@ export default function ProductPage() {
   const handleOpen = (product = null) => {
     if (product) {
       setSelectedProduct(product);
-      setFormData({
+      reset({
         name: product.name,
         product_group_id: product.product_group_id || "",
         is_active: product.is_active,
       });
     } else {
       setSelectedProduct(null);
-      setFormData({ name: "", product_group_id: "", is_active: true });
+      reset({ name: "", product_group_id: "", is_active: true });
     }
     setOpenModal(true);
   };
@@ -105,11 +112,10 @@ export default function ProductPage() {
     setSelectedProduct(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const onSubmit = (data) => {
     if (selectedProduct)
-      updateMutation.mutate({ id: selectedProduct.id, payload: formData });
-    else createMutation.mutate(formData);
+      updateMutation.mutate({ id: selectedProduct.id, payload: data });
+    else createMutation.mutate(data);
   };
 
   const handleDelete = (product) => {
@@ -168,50 +174,57 @@ export default function ProductPage() {
 
       {/* Create/Edit Modal */}
       <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="sm">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={rhfHandleSubmit(onSubmit)}>
           <DialogTitle>
             {selectedProduct ? "Chỉnh sửa mã hàng" : "Thêm mã hàng mới"}
           </DialogTitle>
           <DialogContent dividers>
-            <FormControl fullWidth margin="normal" required>
-              <InputLabel>Nhóm mã hàng</InputLabel>
-              <Select
-                value={formData.product_group_id}
-                label="Nhóm mã hàng"
-                onChange={(e) =>
-                  setFormData({ ...formData, product_group_id: e.target.value })
-                }
-              >
-                {availableGroupsInForm?.map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label="Mã mặt hàng"
-              margin="normal"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
+            <Controller
+              name="product_group_id"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth margin="normal" required>
+                  <InputLabel>Nhóm mã hàng</InputLabel>
+                  <Select {...field} label="Nhóm mã hàng">
+                    {availableGroupsInForm?.map((g) => (
+                      <MenuItem key={g.id} value={g.id}>
+                        {g.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             />
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.is_active}
-                  onChange={(e) =>
-                    setFormData({ ...formData, is_active: e.target.checked })
-                  }
+            <Controller
+              name="name"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  fullWidth
+                  label="Mã mặt hàng"
+                  margin="normal"
+                  required
                 />
-              }
-              label="Trạng thái hoạt động"
-              sx={{ mt: 2 }}
+              )}
+            />
+
+            <Controller
+              name="is_active"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                  }
+                  label="Trạng thái hoạt động"
+                  sx={{ mt: 2 }}
+                />
+              )}
             />
           </DialogContent>
           <DialogActions>

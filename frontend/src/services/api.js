@@ -1,82 +1,144 @@
-import axios from 'axios';
+import axios from "axios";
 
 const api = axios.create({
-    baseURL: `${import.meta.env.VITE_API_URL}/api`,
-    timeout: 10000,
+  baseURL: `${import.meta.env.VITE_API_URL}/api`,
+  timeout: 15000,
 });
 
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+// Decode JWT payload without a library
+const parseJwt = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+};
+
+// Check if token expires within the next 5 minutes
+const isTokenExpiringSoon = (token) => {
+  const payload = parseJwt(token);
+  if (!payload?.exp) return true;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp - now < 300; // 5 minutes buffer
+};
+
+// Proactive refresh — refresh token before it expires
+let proactiveRefreshPromise = null;
+
+const proactiveRefresh = async () => {
+  if (proactiveRefreshPromise) return proactiveRefreshPromise;
+
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) return null;
+
+  proactiveRefreshPromise = axios
+    .post(`${import.meta.env.VITE_API_URL}/api/auth/refresh-token`, {
+      refreshToken,
+    })
+    .then(({ data }) => {
+      localStorage.setItem("token", data.token);
+      return data.token;
+    })
+    .catch(() => {
+      return null; // Let the 401 interceptor handle the failure
+    })
+    .finally(() => {
+      proactiveRefreshPromise = null;
+    });
+
+  return proactiveRefreshPromise;
+};
+
+api.interceptors.request.use(async (config) => {
+  let token = localStorage.getItem("token");
+
+  // Proactively refresh if token is about to expire (skip for refresh-token endpoint itself)
+  if (
+    token &&
+    isTokenExpiringSoon(token) &&
+    !config.url?.includes("refresh-token")
+  ) {
+    const newToken = await proactiveRefresh();
+    if (newToken) token = newToken;
+  }
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 let isRefreshing = false;
 let failedQueue = [];
 
 const processQueue = (error, token = null) => {
-    failedQueue.forEach(prom => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(token);
-        }
-    });
-    failedQueue = [];
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
 };
 
 api.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            if (isRefreshing) {
-                return new Promise(function(resolve, reject) {
-                    failedQueue.push({ resolve, reject });
-                }).then(token => {
-                    originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                    return api(originalRequest);
-                }).catch(err => {
-                    return Promise.reject(err);
-                });
-            }
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers["Authorization"] = "Bearer " + token;
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
 
-            originalRequest._retry = true;
-            isRefreshing = true;
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-            const refreshToken = localStorage.getItem('refreshToken');
-            if (refreshToken) {
-                try {
-                    const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/refresh-token`, { refreshToken });
-                    const { token } = data;
-                    
-                    localStorage.setItem('token', token);
-                    api.defaults.headers.common['Authorization'] = 'Bearer ' + token;
-                    originalRequest.headers['Authorization'] = 'Bearer ' + token;
-                    
-                    processQueue(null, token);
-                    return api(originalRequest);
-                } catch (refreshError) {
-                    processQueue(refreshError, null);
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refreshToken');
-                    localStorage.removeItem('user');
-                    window.location.href = '/login';
-                    return Promise.reject(refreshError);
-                } finally {
-                    isRefreshing = false;
-                }
-            } else {
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                window.location.href = '/login';
-            }
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        try {
+          const { data } = await axios.post(
+            `${import.meta.env.VITE_API_URL}/api/auth/refresh-token`,
+            { refreshToken },
+          );
+          const { token } = data;
+
+          localStorage.setItem("token", token);
+          api.defaults.headers.common["Authorization"] = "Bearer " + token;
+          originalRequest.headers["Authorization"] = "Bearer " + token;
+
+          processQueue(null, token);
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          localStorage.removeItem("token");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
+          window.location.href = "/login";
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
         }
-        return Promise.reject(error);
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+      }
     }
+    return Promise.reject(error);
+  },
 );
 
 export default api;
