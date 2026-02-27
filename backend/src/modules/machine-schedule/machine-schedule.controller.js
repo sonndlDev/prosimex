@@ -1,21 +1,24 @@
-import pool from '../../config/db.js'
+import pool from "../../config/db.js";
 
 export const getMachineScheduleCalendar = async (req, res) => {
   try {
-    const { factory_id, start_date, end_date } = req.query
+    const { factory_id, start_date, end_date } = req.query;
 
     if (!start_date || !end_date) {
-      return res.status(400).json({ message: 'Missing parameters: start_date, end_date required' })
+      return res
+        .status(400)
+        .json({ message: "Missing parameters: start_date, end_date required" });
     }
 
     // 1. Fetch Machines for the Resource Axis
-    let machineQuery = 'SELECT id, name as title FROM machines WHERE deleted_at IS NULL'
-    const machineParams = []
-    if (factory_id && factory_id !== 'all') {
-      machineQuery += ' AND factory_id = $1'
-      machineParams.push(factory_id)
+    let machineQuery =
+      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
+    const machineParams = [];
+    if (factory_id && factory_id !== "all") {
+      machineQuery += " AND factory_id = $1";
+      machineParams.push(factory_id);
     }
-    const machinesRes = await pool.query(machineQuery, machineParams)
+    const machinesRes = await pool.query(machineQuery, machineParams);
 
     // 2. Fetch Schedule Events
     let scheduleQuery = `
@@ -33,38 +36,38 @@ export const getMachineScheduleCalendar = async (req, res) => {
             WHERE ms.deleted_at IS NULL
               AND ms.start_date <= $2
               AND ms.end_date >= $1
-        `
-    const scheduleParams = [start_date, end_date]
-    if (factory_id && factory_id !== 'all') {
-      scheduleQuery += ' AND m.factory_id = $3'
-      scheduleParams.push(factory_id)
+        `;
+    const scheduleParams = [start_date, end_date];
+    if (factory_id && factory_id !== "all") {
+      scheduleQuery += " AND m.factory_id = $3";
+      scheduleParams.push(factory_id);
     }
 
-    const eventsRes = await pool.query(scheduleQuery, scheduleParams)
+    const eventsRes = await pool.query(scheduleQuery, scheduleParams);
 
     res.json({
       machines: machinesRes.rows,
-      events: eventsRes.rows.map(ev => {
-        // Force end of day in ICT (UTC+7) to avoid server-side UTC shift
-        // If ev.end is a Date object from pg driver
-        const dateObj = new Date(ev.end);
-        
-        // Use YYYY-MM-DD format from the date object
-        // Note: We need to be careful with UTC shift here too. 
-        // If the date is 2026-03-01 00:00:00 UTC, dateObj.toISOString() is correct.
-        const datePart = dateObj.toISOString().split('T')[0];
-        
+      events: eventsRes.rows.map((ev) => {
+        // Format start as 07:00 and end as 16:30 in ICT (UTC+7)
+        const startDate = new Date(ev.start);
+        const endDate = new Date(ev.end);
+
+        const startPart = startDate.toISOString().split("T")[0];
+        const endPart = endDate.toISOString().split("T")[0];
+
         return {
           ...ev,
-          start: ev.start, // Keep original start
-          end: `${datePart}T23:59:59+07:00`,
+          start: `${startPart}T07:00:00+07:00`,
+          end: `${endPart}T16:30:00+07:00`,
           allDay: true,
-          backgroundColor: ev.color_status === 'DONE' ? '#4caf50' : '#2196f3'
+          backgroundColor: ev.color_status === "DONE" ? "#4caf50" : "#2196f3",
         };
-      })
-    })
+      }),
+    });
   } catch (error) {
-    console.error('Schedule Error:', error)
-    res.status(500).json({ message: 'Error retrieving timeline schedule', error })
+    console.error("Schedule Error:", error);
+    res
+      .status(500)
+      .json({ message: "Error retrieving timeline schedule", error });
   }
-}
+};
