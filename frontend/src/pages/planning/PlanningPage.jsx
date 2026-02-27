@@ -719,7 +719,7 @@ export default function PlanningPage() {
                     //         : "inherit",
                     //   }}
                     >
-                      {plan.name}
+                      {plan.product_name}
                     </ExcelDataCell>
                     <ExcelDataCell
                       sx={{

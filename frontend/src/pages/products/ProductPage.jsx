@@ -71,7 +71,7 @@ export default function ProductPage() {
   });
 
   const columns = [
-    { id: "name", label: "Tên sản phẩm" },
+    { id: "name", label: "Mã mặt hàng" },
     { id: "product_group_name", label: "Nhóm mã hàng" },
     {
       id: "is_active",
@@ -192,7 +192,7 @@ export default function ProductPage() {
 
             <TextField
               fullWidth
-              label="Tên sản phẩm"
+              label="Mã mặt hàng"
               margin="normal"
               required
               value={formData.name}
