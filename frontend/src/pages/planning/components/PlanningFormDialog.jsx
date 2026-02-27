@@ -300,34 +300,6 @@ const PlanningFormDialog = React.memo(
           {selectedOpId && (
             <Box display="flex" gap={3} mb={3} alignItems="center">
               <Controller
-                name="selectedFactoryId"
-                control={control}
-                render={({ field }) => (
-                  <FormControl size="small" sx={{ minWidth: 220 }}>
-                    <InputLabel>Bước 4: Chọn nhà máy</InputLabel>
-                    <Select
-                      {...field}
-                      label="Bước 4: Chọn nhà máy"
-                      onChange={(e) => {
-                        field.onChange(e.target.value);
-                        setValue("isOutsourced", false);
-                      }}
-                    >
-                      <MenuItem value="">
-                        <em>-- Chọn nhà máy --</em>
-                      </MenuItem>
-                      {factories
-                        ?.filter((f) => f.is_active)
-                        .map((f) => (
-                          <MenuItem key={f.id} value={f.id}>
-                            {f.name}
-                          </MenuItem>
-                        ))}
-                    </Select>
-                  </FormControl>
-                )}
-              />
-              <Controller
                 name="isOutsourced"
                 control={control}
                 render={({ field }) => (
@@ -354,15 +326,36 @@ const PlanningFormDialog = React.memo(
                   />
                 )}
               />
-              {selectedFactoryId && !isOutsourced && (
-                <Chip
-                  label="Sản xuất tại xưởng"
-                  color="primary"
-                  size="small"
-                  sx={{ fontWeight: 700 }}
+              {isOutsourced && (
+                <Controller
+                  name="selectedFactoryId"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
+                      <InputLabel>Bước 4: Chọn nhà máy</InputLabel>
+                      <Select
+                        {...field}
+                        label="Bước 4: Chọn nhà máy"
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                        }}
+                      >
+                        <MenuItem value="">
+                          <em>-- Chọn nhà máy --</em>
+                        </MenuItem>
+                        {factories
+                          ?.filter((f) => f.is_active)
+                          .map((f) => (
+                            <MenuItem key={f.id} value={f.id}>
+                              {f.name}
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </FormControl>
+                  )}
                 />
               )}
-              {isOutsourced && (
+              {selectedFactoryId && isOutsourced && (
                 <Chip
                   label="Gia công ngoài"
                   color="warning"
@@ -408,7 +401,7 @@ const PlanningFormDialog = React.memo(
                     color="textSecondary"
                     fontWeight={600}
                   >
-                    ĐỊNH MỨC (SP/GIỜ)
+                    ĐỊNH MỨC (SP/8H)
                   </Typography>
                   <Typography variant="h6" fontWeight={700} color="primary">
                     {dinhMuc}

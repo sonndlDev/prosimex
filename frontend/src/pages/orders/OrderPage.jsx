@@ -375,7 +375,6 @@ export default function OrderPage() {
                 )}
               />
             </Paper>
-
             {/* 2. Primary Details in 2 columns */}
             <Box
               display="grid"
@@ -467,7 +466,6 @@ export default function OrderPage() {
                   />
                 </Box>
               </Paper>
-
               <Paper
                 sx={{
                   p: 3,
@@ -488,9 +486,14 @@ export default function OrderPage() {
                     letterSpacing: "0.05em",
                   }}
                 >
-                  CHI TIẾT & SẢN XUẤT
+                  CHI TIẾT SẢN XUẤT
                 </Typography>
-                <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2}>
+                <Box
+                  display="grid"
+                  gridTemplateColumns="1fr 1fr"
+                  gap={2}
+                  mb={2}
+                >
                   <Controller
                     name="received_date"
                     control={control}
@@ -524,119 +527,89 @@ export default function OrderPage() {
                       />
                     )}
                   />
+                  <Controller
+                    name="production_location"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Địa điểm sản xuất"
+                        size="small"
+                        sx={{
+                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                        }}
+                      />
+                    )}
+                  />
+                  {selectedOrder ? (
+                    <Controller
+                      name="status"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Trạng thái đơn hàng</InputLabel>
+                          <Select
+                            {...field}
+                            label="Trạng thái đơn hàng"
+                            sx={{ borderRadius: "8px" }}
+                          >
+                            {[
+                              "DRAFT",
+                              "PLANNED",
+                              "IN_PROGRESS",
+                              "DONE",
+                              "CANCELLED",
+                            ].map((s) => (
+                              <MenuItem key={s} value={s}>
+                                {s}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        p: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        bgcolor: "rgba(0,0,0,0.02)",
+                        borderRadius: "8px",
+                        border: "1px dashed",
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary">
+                        Trạng thái: <b>DRAFT</b>
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
-              </Paper>
-            </Box>
-
-            {/* 3. Location & Status */}
-            <Paper
-              sx={{
-                p: 3,
-                mb: 2,
-                borderRadius: "16px",
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-              elevation={0}
-            >
-              <Typography
-                variant="caption"
-                fontWeight={800}
-                mb={1.5}
-                color="primary"
-                sx={{ display: "block", opacity: 0.8, letterSpacing: "0.05em" }}
-              >
-                ĐỊA ĐIỂM & TRẠNG THÁI
-              </Typography>
-              <Box
-                display="grid"
-                gridTemplateColumns={{ xs: "1fr", md: "1fr 1fr" }}
-                gap={2}
-              >
                 <Controller
-                  name="production_location"
+                  name="note"
                   control={control}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       fullWidth
-                      label="Địa điểm sản xuất"
+                      label="Chi tiết sản xuất / Ghi chú"
                       size="small"
+                      multiline
+                      minRows={2}
                       sx={{
-                        "& .MuiOutlinedInput-root": { borderRadius: "8px" },
+                        mb: 2,
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: "12px",
+                          bgcolor: "white",
+                        },
                       }}
                     />
                   )}
                 />
-                {selectedOrder ? (
-                  <Controller
-                    name="status"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth size="small">
-                        <InputLabel>Trạng thái đơn hàng</InputLabel>
-                        <Select
-                          {...field}
-                          label="Trạng thái đơn hàng"
-                          sx={{ borderRadius: "8px" }}
-                        >
-                          {[
-                            "DRAFT",
-                            "PLANNED",
-                            "IN_PROGRESS",
-                            "DONE",
-                            "CANCELLED",
-                          ].map((s) => (
-                            <MenuItem key={s} value={s}>
-                              {s}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    )}
-                  />
-                ) : (
-                  <Box
-                    sx={{
-                      p: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      bgcolor: "rgba(0,0,0,0.02)",
-                      borderRadius: "8px",
-                      border: "1px dashed",
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Typography variant="caption" color="text.secondary">
-                      Trạng thái: <b>DRAFT</b>
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </Paper>
-
-            {/* 4. Notes Section */}
-            <Controller
-              name="note"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Ghi chú"
-                  size="small"
-                  multiline
-                  minRows={2}
-                  sx={{
-                    mb: 2,
-                    "& .MuiOutlinedInput-root": {
-                      borderRadius: "12px",
-                      bgcolor: "white",
-                    },
-                  }}
-                />
-              )}
-            />
+              </Paper>
+            </Box>
 
             {/* Multi-Product Selection with Per-Product Quantity */}
             <Paper

@@ -167,9 +167,16 @@ const PlanningTableRow = React.memo(
                     }}
                   >
                     {dayData
-                      ? (parseFloat(dayData.planned_work_quantity) / 8).toFixed(
-                          2,
-                        )
+                      ? (() => {
+                          const qty =
+                            parseFloat(dayData.planned_work_quantity) || 0;
+                          const dinhMuc = parseFloat(plan.dinh_muc) || 0;
+
+                          const base = qty / 8;
+                          const total = base * dinhMuc;
+
+                          return `${base.toFixed(2)} (${total.toFixed(2)})`;
+                        })()
                       : "-"}
                   </Typography>
                   {dayData && (
