@@ -81,6 +81,43 @@ export default function PlanningPage() {
   });
   const orders = allOrdersData || [];
 
+  // Calculates aggregate hours per machine per day
+  const dailyMachineMetrics = useMemo(() => {
+    if (!plans) return {};
+    const metrics = {}; // { [dateISO]: { [machineId]: { totalHours: number, hasOvertime: boolean } } }
+
+    plans.forEach((plan) => {
+      // If this plan is being edited inline, use the current edit state instead of saved days
+      const daysToUse =
+        inlineEditingId === plan.id ? inlineEditDays : plan.days;
+
+      daysToUse?.forEach((day) => {
+        // Handle different day structures (plan.days vs inlineEditDays)
+        const dateISO = day.working_date
+          ? DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd")
+          : day.date; // inlineEditDays uses .date
+        
+        const machineId = plan.machine_id || "unknown";
+        
+        // inlineEditDays uses .hours directly (normalized to 8h blocks), while plan.days uses .planned_work_quantity (/8)
+        const hours = day.hours 
+          ? parseFloat(day.hours) 
+          : parseFloat(day.planned_work_quantity) / 8;
+
+        if (!metrics[dateISO]) metrics[dateISO] = {};
+        if (!metrics[dateISO][machineId]) {
+          metrics[dateISO][machineId] = { totalHours: 0, hasOvertime: false };
+        }
+
+        metrics[dateISO][machineId].totalHours += hours;
+        if (day.is_overtime) {
+          metrics[dateISO][machineId].hasOvertime = true;
+        }
+      });
+    });
+    return metrics;
+  }, [plans, inlineEditingId, inlineEditDays]);
+
   // ─── Date Columns ──────────────────────────────────────
   const dateColumns = useMemo(() => {
     if (!plans) return [];
@@ -124,6 +161,19 @@ export default function PlanningPage() {
     },
   });
 
+  const batchOrderMutation = useMutation({
+    mutationFn: (payload) => planningService.createBatchOrder(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+      handleCloseModal();
+      setSnackbar({
+        open: true,
+        message: "Tạo kế hoạch theo đơn chung thành công!",
+        severity: "success",
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => planningService.delete(id),
     onSuccess: () => {
@@ -145,6 +195,26 @@ export default function PlanningPage() {
     },
   });
 
+  const cloneMutation = useMutation({
+    mutationFn: (id) => planningService.clone(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+      setSnackbar({
+        open: true,
+        message: "Nhân bản kế hoạch thành công!",
+        severity: "success",
+      });
+    },
+    onError: (error) => {
+      setSnackbar({
+        open: true,
+        message:
+          "Lỗi khi nhân bản: " + (error.response?.data?.message || error.message),
+        severity: "error",
+      });
+    },
+  });
+
   // ─── Handlers ──────────────────────────────────────────
   const handleCloseModal = useCallback(() => {
     setOpenModal(false);
@@ -158,6 +228,17 @@ export default function PlanningPage() {
 
   const handleFormSubmit = useCallback(
     (payload) => {
+      if (payload.isFullOrderMode) {
+        batchOrderMutation.mutate({
+           order_id: payload.order_id,
+           start_date: payload.planned_start_date,
+           end_date: payload.endDate,
+           factory_id: payload.factory_id,
+           is_outsourced: payload.is_outsourced
+        });
+        return;
+      }
+
       if (editingPlan) {
         updateMutation.mutate(
           { id: editingPlan.id, payload },
@@ -167,7 +248,7 @@ export default function PlanningPage() {
         createMutation.mutate(payload);
       }
     },
-    [editingPlan, updateMutation, createMutation, handleCloseModal],
+    [editingPlan, updateMutation, createMutation, batchOrderMutation, handleCloseModal],
   );
 
   // Inline editing
@@ -190,19 +271,43 @@ export default function PlanningPage() {
   const handleInlineDayChange = useCallback(
     (plan, dateISO, value) => {
       setInlineEditDays((prev) => {
-        const index = prev.findIndex((d) => d.date === dateISO);
-        if (index >= 0) {
-          const planTotalNeeded =
-            (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-            (parseFloat(plan.dinh_muc) || 1) /
-            8;
-          return rebalanceDays(prev, index, value, planTotalNeeded);
+        const planTotalNeeded =
+          (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
+          (parseFloat(plan.dinh_muc) || 1);
+
+        let newDays = [...prev];
+        let index = newDays.findIndex((d) => d.date === dateISO);
+
+        if (index === -1) {
+          // If the date doesn't exist in the current plan days, add it and sort
+          newDays.push({
+            date: dateISO,
+            hours: "0.00",
+            is_overtime: false,
+          });
+          newDays.sort((a, b) => a.date.localeCompare(b.date));
+          index = newDays.findIndex((d) => d.date === dateISO);
         }
-        const newVal = parseFloat(value) || 0;
-        return [
-          ...prev,
-          { date: dateISO, hours: newVal.toFixed(2), is_overtime: false },
-        ];
+
+        return rebalanceDays(newDays, index, value, planTotalNeeded);
+      });
+    },
+    [],
+  );
+
+  const handleInlineOTToggle = useCallback(
+    (plan, dateISO) => {
+      setInlineEditDays((prev) => {
+        const planTotalNeeded =
+          (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
+          (parseFloat(plan.dinh_muc) || 1);
+
+        const newDays = prev.map((d) =>
+          d.date === dateISO ? { ...d, is_overtime: !d.is_overtime } : d,
+        );
+        const index = newDays.findIndex((d) => d.date === dateISO);
+        // We MUST rebalance after toggling OT because the capacity changed
+        return rebalanceDays(newDays, index, newDays[index].hours, planTotalNeeded);
       });
     },
     [],
@@ -235,6 +340,10 @@ export default function PlanningPage() {
   const handleOpenDelete = useCallback((planId) => {
     setDeleteConfirm({ open: true, planId });
   }, []);
+
+  const handleClone = useCallback((planId) => {
+    cloneMutation.mutate(planId);
+  }, [cloneMutation]);
 
   // ─── Render ────────────────────────────────────────────
   if (isLoading) {
@@ -410,7 +519,9 @@ export default function PlanningPage() {
                   onSaveInline={handleSaveInline}
                   onOpenEdit={handleOpenEdit}
                   onOpenDelete={handleOpenDelete}
+                  onClone={handleClone}
                   onInlineDayChange={handleInlineDayChange}
+                  dailyMachineMetrics={dailyMachineMetrics}
                 />
               ))}
             </TableBody>
@@ -445,7 +556,7 @@ export default function PlanningPage() {
       <PlanningFormDialog
         open={openModal}
         editingPlan={editingPlan}
-        isCreatePending={createMutation.isPending}
+        isCreatePending={createMutation.isPending || batchOrderMutation.isPending}
         isUpdatePending={updateMutation.isPending}
         onClose={handleCloseModal}
         onSubmit={handleFormSubmit}

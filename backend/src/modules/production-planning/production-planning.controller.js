@@ -40,22 +40,23 @@ export const getProductionPlans = async (req, res) => {
                 pp.*, 
                 o.order_code, 
                 o.po_customer,
-                o.quantity,
-                COALESCE(op_qty.quantity, o.quantity) as product_quantity,
+                COALESCE(op_qty.quantity, o.quantity, 0) as quantity,
+                COALESCE(op_qty.quantity, o.quantity, 0) as product_quantity,
                 p.name as product_name,
                 pg.name as product_group_name,
                 pgo.sequence_order, 
-                pgo.dinh_muc,
+                COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 op.name as operation_name, 
+                COALESCE(pp.machine_id, pgo.machine_id) as machine_id,
                 m.name as machine_name,
                 f.name as factory_name
             FROM production_plans pp
-            JOIN orders o ON pp.order_id = o.id
-            JOIN products p ON pp.product_id = p.id
-            JOIN product_groups pg ON p.product_group_id = pg.id
-            JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
-            JOIN operations op ON pgo.operation_id = op.id
-            JOIN machines m ON pgo.machine_id = m.id
+            LEFT JOIN orders o ON pp.order_id = o.id
+            LEFT JOIN products p ON pp.product_id = p.id
+            LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+            LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
+            LEFT JOIN operations op ON pgo.operation_id = op.id
+            LEFT JOIN machines m ON COALESCE(pp.machine_id, pgo.machine_id) = m.id
             LEFT JOIN factories f ON pp.factory_id = f.id
             LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
             ${whereClause}
@@ -120,6 +121,8 @@ export const createProductionPlan = async (req, res) => {
       is_outsourced,
       inventory_input,
       planned_start_date,
+      dinh_muc,
+      machine_id: provided_machine_id,
       days, // [{date, hours, is_overtime}]
     } = req.body;
 
@@ -146,14 +149,20 @@ export const createProductionPlan = async (req, res) => {
       order_quantity = parseFloat(orderRes.rows[0].quantity);
     }
 
-    const pgoRes = await client.query(
-      "SELECT machine_id, dinh_muc FROM product_group_operations WHERE id = $1",
-      [product_group_operation_id],
-    );
-    if (pgoRes.rowCount === 0)
-      throw new Error("Product Group Operation not found");
-    const pgo = pgoRes.rows[0];
-    const machine_id = pgo.machine_id;
+    let machine_id = provided_machine_id;
+    let final_dinh_muc = dinh_muc;
+
+    if (product_group_operation_id) {
+      const pgoRes = await client.query(
+        "SELECT machine_id, dinh_muc FROM product_group_operations WHERE id = $1",
+        [product_group_operation_id],
+      );
+      if (pgoRes.rowCount > 0) {
+        const pgo = pgoRes.rows[0];
+        if (!machine_id) machine_id = pgo.machine_id;
+        if (!final_dinh_muc) final_dinh_muc = pgo.dinh_muc;
+      }
+    }
 
     // 2. Business Logic Calculations
     const remaining_quantity = order_quantity - parseFloat(inventory_input);
@@ -165,12 +174,12 @@ export const createProductionPlan = async (req, res) => {
     // 3. Insert Production Plan
     const planInsert = await client.query(
       `INSERT INTO production_plans 
-             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [
         order_id,
-        product_id,
-        product_group_operation_id,
+        product_id || null,
+        product_group_operation_id || null,
         inventory_input,
         remaining_quantity,
         total_required_work,
@@ -178,6 +187,8 @@ export const createProductionPlan = async (req, res) => {
         planned_end_date,
         factory_id || null,
         is_outsourced || false,
+        final_dinh_muc || null,
+        machine_id || null,
         created_by,
       ],
     );
@@ -193,11 +204,13 @@ export const createProductionPlan = async (req, res) => {
     }
 
     // 5. Insert Machine Schedule Block (Summary block for the timeline)
-    await client.query(
-      `INSERT INTO machine_schedules (machine_id, order_id, production_plan_id, start_date, end_date)
-             VALUES ($1, $2, $3, $4, $5)`,
-      [machine_id, order_id, newPlan.id, planned_start_date, planned_end_date],
-    );
+    if (machine_id) {
+      await client.query(
+        `INSERT INTO machine_schedules (machine_id, order_id, production_plan_id, start_date, end_date)
+               VALUES ($1, $2, $3, $4, $5)`,
+        [machine_id, order_id, newPlan.id, planned_start_date, planned_end_date],
+      );
+    }
 
     // 6. Update Order Status
     await client.query("UPDATE orders SET status = $1 WHERE id = $2", [
@@ -234,6 +247,8 @@ export const updateProductionPlan = async (req, res) => {
       inventory_input,
       product_id,
       planned_start_date,
+      dinh_muc,
+      machine_id,
       days, // [{date, hours, is_overtime}]
     } = req.body;
 
@@ -265,8 +280,9 @@ export const updateProductionPlan = async (req, res) => {
     const result = await client.query(
       `UPDATE production_plans 
        SET inventory_input = $1, remaining_quantity = $2, total_required_work = $3, 
-           planned_start_date = $4, planned_end_date = $5, product_id = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7 RETURNING *`,
+           planned_start_date = $4, planned_end_date = $5, product_id = $6, 
+           dinh_muc = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8 RETURNING *`,
       [
         inventory_input !== undefined
           ? inventory_input
@@ -276,6 +292,7 @@ export const updateProductionPlan = async (req, res) => {
         planned_start_date || currentPlan.planned_start_date,
         planned_end_date,
         product_id || currentPlan.product_id,
+        dinh_muc || currentPlan.dinh_muc,
         id,
       ],
     );
@@ -294,12 +311,14 @@ export const updateProductionPlan = async (req, res) => {
     }
 
     // 6. Update Machine Schedule
-    await client.query(
-      `UPDATE machine_schedules 
-       SET start_date = $1, end_date = $2 
-       WHERE production_plan_id = $3`,
-      [planned_start_date, planned_end_date, id],
-    );
+    if (machine_id || currentPlan.machine_id) {
+      await client.query(
+        `UPDATE machine_schedules 
+         SET machine_id = COALESCE($1, machine_id), start_date = $2, end_date = $3 
+         WHERE production_plan_id = $4`,
+        [machine_id || null, planned_start_date, planned_end_date, id],
+      );
+    }
 
     // 7. Audit Log
     await client.query(
@@ -376,6 +395,208 @@ export const deleteProductionPlan = async (req, res) => {
     res
       .status(500)
       .json({ message: error.message || "Error deleting production plan" });
+  } finally {
+    client.release();
+  }
+};
+
+export const cloneProductionPlan = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const created_by = req.user.id;
+
+    // 1. Fetch current plan
+    const currentPlanRes = await client.query(
+      "SELECT * FROM production_plans WHERE id = $1 AND deleted_at IS NULL",
+      [id],
+    );
+    if (currentPlanRes.rowCount === 0) throw new Error("Plan not found");
+    const plan = currentPlanRes.rows[0];
+
+    // 2. Insert as new Plan
+    const planInsert = await client.query(
+      `INSERT INTO production_plans 
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [
+        plan.order_id,
+        plan.product_id,
+        plan.product_group_operation_id,
+        plan.inventory_input,
+        plan.remaining_quantity,
+        plan.total_required_work,
+        plan.planned_start_date,
+        plan.planned_end_date,
+        plan.factory_id,
+        plan.is_outsourced,
+        plan.dinh_muc,
+        created_by,
+      ],
+    );
+    const newPlan = planInsert.rows[0];
+
+    // 3. Clone Days
+    const daysRes = await client.query(
+      "SELECT * FROM production_plan_days WHERE production_plan_id = $1",
+      [id],
+    );
+    for (const day of daysRes.rows) {
+      await client.query(
+        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
+                 VALUES ($1, $2, $3, $4)`,
+        [newPlan.id, day.working_date, day.planned_work_quantity, day.is_overtime],
+      );
+    }
+
+    // 4. Clone Machine Schedule
+    const schedRes = await client.query(
+      "SELECT * FROM machine_schedules WHERE production_plan_id = $1",
+      [id],
+    );
+    if (schedRes.rowCount > 0) {
+      const ms = schedRes.rows[0];
+      await client.query(
+        `INSERT INTO machine_schedules (machine_id, order_id, production_plan_id, start_date, end_date)
+               VALUES ($1, $2, $3, $4, $5)`,
+        [ms.machine_id, ms.order_id, newPlan.id, ms.start_date, ms.end_date],
+      );
+    }
+
+    // 5. Audit Log
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
+             VALUES ($1, 'CLONE', 'ProductionPlan', $2, $3)`,
+      [created_by, newPlan.id, newPlan],
+    );
+
+    await client.query("COMMIT");
+    res.status(201).json({ plan: newPlan });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Clone Plan Error:", error);
+    res
+      .status(500)
+      .json({ message: error.message || "Error cloning production plan" });
+  } finally {
+    client.release();
+  }
+};
+
+export const createOrderGeneralPlan = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { 
+      order_id, 
+      start_date, 
+      end_date, 
+      factory_id,
+      is_outsourced,
+      items // [{productId, quantity, norm, startDate, endDate}]
+    } = req.body;
+    const created_by = req.user.id;
+
+    // 1. Get order details
+    const orderRes = await client.query("SELECT * FROM orders WHERE id = $1", [order_id]);
+    if (orderRes.rowCount === 0) throw new Error("Order not found");
+
+    let productsToPlan = [];
+    if (items && items.length > 0) {
+      productsToPlan = items;
+    } else {
+      const productsRes = await client.query(
+        `SELECT op.*, p.name 
+         FROM order_products op 
+         JOIN products p ON op.product_id = p.id 
+         WHERE op.order_id = $1`,
+        [order_id]
+      );
+      const products = productsRes.rows;
+      if (products.length === 0) throw new Error("No products in order");
+
+      const totalOrderQty = products.reduce((sum, p) => sum + parseFloat(p.quantity), 0);
+      const start = new Date(start_date);
+      const end = new Date(end_date);
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays <= 0) throw new Error("Invalid date range");
+
+      const avgOrderNormPerDay = totalOrderQty / diffDays;
+      const avgItemNormPerDay = avgOrderNormPerDay; // User requested: take the norm directly, no division by count
+
+      let sequentialStart = new Date(start);
+      productsToPlan = products.map(p => {
+        const pQty = parseFloat(p.quantity);
+        const pDaysNeeded = Math.ceil(pQty / avgItemNormPerDay);
+        const pStart = new Date(sequentialStart);
+        const pEnd = new Date(sequentialStart);
+        pEnd.setDate(pEnd.getDate() + pDaysNeeded - 1);
+        
+        sequentialStart = new Date(pEnd);
+        sequentialStart.setDate(sequentialStart.getDate() + 1);
+
+        return {
+          productId: p.product_id,
+          quantity: pQty,
+          norm: avgItemNormPerDay,
+          startDate: pStart,
+          endDate: pEnd
+        };
+      });
+    }
+
+    const createdPlans = [];
+    for (const p of productsToPlan) {
+      const pQty = parseFloat(p.quantity);
+      const pStart = new Date(p.startDate || p.working_date);
+      const pEnd = new Date(p.endDate || p.working_date);
+      const pNorm = parseFloat(p.norm);
+      const pDaysNeeded = Math.ceil((pEnd - pStart) / (1000 * 60 * 60 * 24)) + 1;
+
+      // Insert Plan
+      const planInsert = await client.query(
+        `INSERT INTO production_plans 
+         (order_id, product_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [
+          order_id,
+          p.productId || p.product_id,
+          0,
+          pQty,
+          pDaysNeeded * 8,
+          pStart,
+          pEnd,
+          factory_id || null,
+          is_outsourced || false,
+          pNorm,
+          req.body.machine_id || null,
+          created_by
+        ]
+      );
+      const newPlan = planInsert.rows[0];
+
+      // Insert Days (Standard 8h per day)
+      for (let i = 0; i < pDaysNeeded; i++) {
+        const d = new Date(pStart);
+        d.setDate(d.getDate() + i);
+        if (d > pEnd) break;
+        await client.query(
+          `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
+           VALUES ($1, $2, $3, $4)`,
+          [newPlan.id, d, 8, false]
+        );
+      }
+      createdPlans.push(newPlan);
+    }
+
+    await client.query("UPDATE orders SET status = 'PLANNED' WHERE id = $1", [order_id]);
+    await client.query("COMMIT");
+    res.status(201).json({ success: true, count: createdPlans.length });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Create General Order Plan Error:", error);
+    res.status(500).json({ message: error.message });
   } finally {
     client.release();
   }

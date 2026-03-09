@@ -10,6 +10,10 @@ export const planningService = {
         const { data } = await api.post('/production-plans', payload);
         return data;
     },
+    createBatchOrder: async (payload) => {
+        const { data } = await api.post('/production-plans/batch-order', payload);
+        return data;
+    },
     update: async (id, payload) => {
         const { data } = await api.put(`/production-plans/${id}`, payload);
         return data;
@@ -20,6 +24,10 @@ export const planningService = {
     },
     delete: async (id) => {
         const { data } = await api.delete(`/production-plans/${id}`);
+        return data;
+    },
+    clone: async (id) => {
+        const { data } = await api.post(`/production-plans/clone/${id}`);
         return data;
     },
 };

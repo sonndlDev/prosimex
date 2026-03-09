@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { orderService } from "../../../services/order.service";
 import { productGroupService } from "../../../services/product-group.service";
 import { factoryService } from "../../../services/factory.service";
+import { machineService } from "../../../services/machine.service";
 import {
   Dialog,
   DialogTitle,
@@ -24,6 +25,9 @@ import {
   Paper,
   Chip,
   IconButton,
+  Switch,
+  Tab,
+  Tabs,
 } from "@mui/material";
 import { DateTime } from "luxon";
 import AddCircleIcon from "@mui/icons-material/AddCircle";
@@ -51,13 +55,23 @@ const PlanningFormDialog = React.memo(
         isOutsourced: false,
         inventory: 0,
         startDate: "",
+        endDate: "", // For no-stage calculation
+        manualDinhMuc: "",
+        selectedMachineId: "",
+        isFullOrderMode: false,
         plannedDays: [],
+        case2Items: [], // [{productId, name, quantity, norm, startDate, endDate, isSelected}]
       },
     });
 
-    const { fields, replace } = useFieldArray({
+    const { fields: dayFields, replace: replaceDays } = useFieldArray({
       control,
       name: "plannedDays",
+    });
+
+    const { fields: case2Fields, replace: replaceCase2, update: updateCase2 } = useFieldArray({
+      control,
+      name: "case2Items",
     });
 
     // Watch form values
@@ -68,7 +82,12 @@ const PlanningFormDialog = React.memo(
     const isOutsourced = watch("isOutsourced");
     const inventory = watch("inventory");
     const startDate = watch("startDate");
+    const endDate = watch("endDate");
+    const manualDinhMuc = watch("manualDinhMuc");
+    const selectedMachineId = watch("selectedMachineId");
+    const isFullOrderMode = watch("isFullOrderMode");
     const plannedDays = watch("plannedDays");
+    const case2Items = watch("case2Items");
 
     // Data fetching
     const { data: allOrdersData } = useQuery({
@@ -80,6 +99,11 @@ const PlanningFormDialog = React.memo(
     const { data: factories } = useQuery({
       queryKey: ["factories"],
       queryFn: factoryService.getAll,
+    });
+
+    const { data: machines } = useQuery({
+      queryKey: ["machines", selectedFactoryId],
+      queryFn: () => machineService.getAll(selectedFactoryId),
     });
 
     const selectedOrder = orders?.find((o) => o.id === selectedOrderId);
@@ -107,7 +131,22 @@ const PlanningFormDialog = React.memo(
           ? parseFloat(selectedOrder.quantity)
           : 0;
     const remainingQty = Math.max(0, totalOrderQty - inventory);
-    const dinhMuc = selectedOp ? parseFloat(selectedOp.dinh_muc) : 0;
+    const dinhMuc = useMemo(() => {
+      if (selectedOp) return parseFloat(selectedOp.dinh_muc) || 0;
+      if (manualDinhMuc) return parseFloat(manualDinhMuc) || 0;
+      
+      // Auto-calculate if no stage and dates are present
+      if (!selectedOpId && startDate && endDate && remainingQty > 0) {
+        const start = DateTime.fromISO(startDate);
+        const end = DateTime.fromISO(endDate);
+        const diff = end.diff(start, 'days').days + 1;
+        if (diff > 0) {
+          return remainingQty / diff / 8;
+        }
+      }
+      return 0;
+    }, [selectedOp, manualDinhMuc, selectedOpId, startDate, endDate, remainingQty]);
+
     const totalDaysNeeded = dinhMuc > 0 ? remainingQty / dinhMuc / 8 : 0;
 
     // Reset form when opening/closing or switching between create/edit
@@ -120,9 +159,15 @@ const PlanningFormDialog = React.memo(
           selectedFactoryId: editingPlan.factory_id || "",
           isOutsourced: editingPlan.is_outsourced || false,
           inventory: parseFloat(editingPlan.inventory_input),
+          manualDinhMuc: editingPlan.dinh_muc || "",
           startDate: DateTime.fromISO(
             editingPlan.planned_start_date,
           ).toISODate(),
+          endDate: DateTime.fromISO(
+            editingPlan.planned_end_date,
+          ).toISODate(),
+          selectedMachineId: editingPlan.machine_id || "",
+          isFullOrderMode: false,
           plannedDays: editingPlan.days.map((d) => ({
             date: DateTime.fromISO(d.working_date).toISODate(),
             hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
@@ -138,22 +183,87 @@ const PlanningFormDialog = React.memo(
           isOutsourced: false,
           inventory: 0,
           startDate: "",
+          endDate: "",
+          manualDinhMuc: "",
+          endDate: "",
+          manualDinhMuc: "",
+          selectedMachineId: "",
+          isFullOrderMode: false,
           plannedDays: [],
+          case2Items: [],
         });
       }
     }, [open, editingPlan, reset]);
 
+    // Initialize Case 2 items when order changes
+    useEffect(() => {
+      if (isFullOrderMode && selectedOrder?.products) {
+        const items = selectedOrder.products.map(p => ({
+          productId: p.id,
+          name: p.name,
+          quantity: parseFloat(p.quantity) || 0,
+          norm: 0,
+          startDate: "",
+          endDate: "",
+          isSelected: true
+        }));
+        replaceCase2(items);
+      }
+    }, [isFullOrderMode, selectedOrderId, selectedOrder, replaceCase2]);
+
+    // Case 2 Auto-calculation
+    useEffect(() => {
+      if (!isFullOrderMode || !startDate || !endDate || case2Items.length === 0) return;
+      
+      const selectedItems = case2Items.filter(item => item.isSelected);
+      if (selectedItems.length === 0) return;
+
+      const totalSelectedQty = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+      const start = DateTime.fromISO(startDate);
+      const end = DateTime.fromISO(endDate);
+      const diffDays = end.diff(start, "days").days + 1;
+
+      if (diffDays <= 0) return;
+
+      const avgOrderNormPerDay = totalSelectedQty / diffDays;
+      const avgItemNormPerDay = avgOrderNormPerDay; // User requested: take the norm directly, no division by count
+
+      let currentStart = start;
+      const newItems = case2Items.map(item => {
+        if (!item.isSelected) return item;
+        
+        const pDays = Math.ceil(item.quantity / avgItemNormPerDay);
+        const pStart = currentStart;
+        const pEnd = currentStart.plus({ days: pDays - 1 });
+        
+        const updated = {
+          ...item,
+          norm: parseFloat(avgItemNormPerDay.toFixed(2)),
+          startDate: pStart.toISODate(),
+          endDate: pEnd.toISODate(),
+        };
+        currentStart = pEnd.plus({ days: 1 });
+        return updated;
+      });
+
+      // Prevent infinite loop by checking if values actually changed
+      const isDifferent = JSON.stringify(newItems) !== JSON.stringify(case2Items);
+      if (isDifferent) {
+         replaceCase2(newItems);
+      }
+    }, [startDate, endDate, isFullOrderMode]);
+
     // Auto-calculate schedule when totalDaysNeeded or startDate changes
     useEffect(() => {
-      if (startDate && totalDaysNeeded > 0 && !editingPlan) {
+      if (startDate && totalDaysNeeded > 0 && !editingPlan && !isFullOrderMode) {
         const newDays = autoCalculateSchedule(totalDaysNeeded, startDate);
-        replace(newDays);
+        replaceDays(newDays);
       }
-    }, [totalDaysNeeded, startDate]);
+    }, [totalDaysNeeded, startDate, isFullOrderMode]);
 
     const handleDayChange = (index, value) => {
       const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded);
-      replace(newDays);
+      replaceDays(newDays);
     };
 
     const handleAddDay = () => {
@@ -161,7 +271,7 @@ const PlanningFormDialog = React.memo(
       const nextDate = lastDay
         ? DateTime.fromISO(lastDay.date).plus({ days: 1 }).toISODate()
         : startDate;
-      replace([
+      replaceDays([
         ...plannedDays,
         { date: nextDate, hours: "0.00", is_overtime: false },
       ]);
@@ -169,21 +279,40 @@ const PlanningFormDialog = React.memo(
 
     const handleStartDateChange = (val) => {
       setValue("startDate", val);
-      if (val && totalDaysNeeded > 0) {
+      if (val && totalDaysNeeded > 0 && !isFullOrderMode) {
         const newDays = autoCalculateSchedule(totalDaysNeeded, val);
-        replace(newDays);
+        replaceDays(newDays);
       }
     };
 
     const handleFormSubmit = () => {
+      if (isFullOrderMode) {
+        const selectedProducts = case2Items.filter((i) => i.isSelected);
+        onSubmit({
+          isFullOrderMode: true,
+          order_id: selectedOrderId,
+          planned_start_date: startDate,
+          endDate: endDate,
+          machine_id: selectedMachineId || null,
+          factory_id: isOutsourced ? null : selectedFactoryId || null,
+          is_outsourced: isOutsourced,
+          items: selectedProducts,
+        });
+        return;
+      }
+
       onSubmit({
         order_id: selectedOrderId,
-        product_id: selectedProductId,
-        product_group_operation_id: selectedOpId,
+        product_id: selectedProductId || null,
+        product_group_operation_id: selectedOpId || null,
+        machine_id: selectedMachineId || null,
         factory_id: isOutsourced ? null : selectedFactoryId || null,
         is_outsourced: isOutsourced,
         inventory_input: inventory,
+        dinh_muc: dinhMuc,
         planned_start_date: startDate,
+        endDate: endDate,
+        isFullOrderMode: false,
         days: plannedDays
           .filter((d) => parseFloat(d.hours) > 0)
           .map((d) => ({
@@ -202,6 +331,24 @@ const PlanningFormDialog = React.memo(
             : "Lập kế hoạch sản xuất mới"}
         </DialogTitle>
         <DialogContent dividers>
+          <Box mb={2}>
+            <Tabs
+              value={isFullOrderMode ? 1 : 0}
+              onChange={(_, val) => {
+                const isFull = val === 1;
+                setValue("isFullOrderMode", isFull);
+                if (isFull) {
+                  setValue("selectedProductId", "");
+                  setValue("selectedOpId", "");
+                }
+              }}
+              indicatorColor="primary"
+              textColor="primary"
+            >
+              <Tab label="Tạo theo từng mã" />
+              <Tab label="Tạo theo đơn chung (Case 2)" />
+            </Tabs>
+          </Box>
           {/* Steps 1-3: Order, Product, Operation selection */}
           <Box
             display="grid"
@@ -240,64 +387,109 @@ const PlanningFormDialog = React.memo(
               name="selectedProductId"
               control={control}
               render={({ field }) => (
-                <FormControl fullWidth size="small" disabled={!selectedOrderId}>
-                  <InputLabel>Bước 2: Chọn mã hàng</InputLabel>
+                <FormControl
+                  fullWidth
+                  size="small"
+                  disabled={!selectedOrderId || isFullOrderMode}
+                >
+                  <InputLabel>
+                    {isFullOrderMode
+                      ? "Bước 2: (Đã chọn cả đơn)"
+                      : "Bước 2: Chọn mã hàng"}
+                  </InputLabel>
                   <Select
                     {...field}
-                    label="Bước 2: Chọn mã hàng"
-                    disabled={!!editingPlan}
+                    label={
+                      isFullOrderMode
+                        ? "Bước 2: (Đã chọn cả đơn)"
+                        : "Bước 2: Chọn mã hàng"
+                    }
+                    disabled={!!editingPlan || isFullOrderMode}
                     onChange={(e) => {
                       field.onChange(e.target.value);
                       setValue("selectedOpId", "");
                     }}
                   >
-                    {selectedOrder?.products?.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>
-                        {p.name}{" "}
-                        {p.quantity
-                          ? `(${parseFloat(p.quantity).toLocaleString()} SP)`
-                          : ""}
+                    {!isFullOrderMode &&
+                      selectedOrder?.products?.map((p) => (
+                        <MenuItem key={p.id} value={p.id}>
+                          {p.name}{" "}
+                          {p.quantity
+                            ? `(${parseFloat(p.quantity).toLocaleString()} SP)`
+                            : ""}
+                        </MenuItem>
+                      ))}
+                    {isFullOrderMode && (
+                      <MenuItem value="">
+                        <em>-- Toàn bộ đơn hàng --</em>
                       </MenuItem>
-                    ))}
+                    )}
                   </Select>
                 </FormControl>
               )}
             />
 
-            <Controller
-              name="selectedOpId"
-              control={control}
-              render={({ field }) => (
-                <FormControl
-                  fullWidth
-                  size="small"
-                  disabled={!selectedProductId || loadingOps}
-                >
-                  <InputLabel>Bước 3: Chọn công đoạn</InputLabel>
-                  <Select
-                    {...field}
-                    label="Bước 3: Chọn công đoạn"
-                    disabled={!!editingPlan}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                      setValue("selectedFactoryId", "");
-                      setValue("isOutsourced", false);
-                    }}
+            {!isFullOrderMode && (
+              <Controller
+                name="selectedOpId"
+                control={control}
+                render={({ field }) => (
+                  <FormControl
+                    fullWidth
+                    size="small"
+                    disabled={!selectedProductId || loadingOps}
                   >
-                    {operations?.map((op) => (
-                      <MenuItem key={op.id} value={op.id}>
-                        CĐ {op.sequence_order}: {op.operation_name} (
-                        {op.machine_name})
+                    <InputLabel>Bước 3: Chọn công đoạn</InputLabel>
+                    <Select
+                      {...field}
+                      label="Bước 3: Chọn công đoạn"
+                      disabled={!!editingPlan}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        setValue("selectedFactoryId", "");
+                        setValue("isOutsourced", false);
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>-- Không có công đoạn --</em>
                       </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
+                      {operations?.map((op) => (
+                        <MenuItem key={op.id} value={op.id}>
+                          CĐ {op.sequence_order}: {op.operation_name} (
+                          {op.machine_name})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              />
+            )}
+
+            {(isFullOrderMode || !selectedOpId) && (
+              <Controller
+                name="selectedMachineId"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Bước 3b: Chọn máy sản xuất</InputLabel>
+                    <Select {...field} label="Bước 3b: Chọn máy sản xuất">
+                      <MenuItem value="">
+                        <em>-- Chọn máy (Tùy chọn) --</em>
+                      </MenuItem>
+                      {machines?.map((m) => (
+                        <MenuItem key={m.id} value={m.id}>
+                          {m.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              />
+            )}
           </Box>
 
           {/* Step 4: Factory selection */}
-          {selectedOpId && (
+          {(selectedOpId || isFullOrderMode) && (
             <Box display="flex" gap={3} mb={3} alignItems="center">
               <Controller
                 name="isOutsourced"
@@ -366,8 +558,8 @@ const PlanningFormDialog = React.memo(
             </Box>
           )}
 
-          {/* Operation details */}
-          {selectedOp && (
+          {/* Operation details or No-Stage Summary */}
+          {selectedOrderId && (selectedOp || (!selectedOpId && !isFullOrderMode)) && (
             <Paper
               variant="outlined"
               sx={{
@@ -389,7 +581,7 @@ const PlanningFormDialog = React.memo(
                     color="textSecondary"
                     fontWeight={600}
                   >
-                    TỔNG SL ĐƠN
+                    TỔNG SL ĐƠN/MÃ
                   </Typography>
                   <Typography variant="h6" fontWeight={700}>
                     {totalOrderQty.toLocaleString()}
@@ -403,9 +595,37 @@ const PlanningFormDialog = React.memo(
                   >
                     ĐỊNH MỨC (SP/8H)
                   </Typography>
-                  <Typography variant="h6" fontWeight={700} color="primary">
-                    {dinhMuc}
-                  </Typography>
+                  <Controller
+                    name="manualDinhMuc"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        placeholder={dinhMuc.toString()}
+                        type="number"
+                        size="small"
+                        sx={{ mt: 0.5, bgcolor: "white" }}
+                        variant="standard"
+                        InputProps={{
+                          disableUnderline: true,
+                          sx: {
+                            fontWeight: 700,
+                            fontSize: "1.25rem",
+                            color: "primary.main",
+                          },
+                        }}
+                      />
+                    )}
+                  />
+                  {!selectedOp && (
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="warning.main"
+                    >
+                      (Nhập thủ công hoặc tự tính)
+                    </Typography>
+                  )}
                 </Box>
                 <Box>
                   <Typography
@@ -416,7 +636,7 @@ const PlanningFormDialog = React.memo(
                     MÁY PHỤ TRÁCH
                   </Typography>
                   <Typography variant="h6" fontWeight={700}>
-                    {selectedOp.machine_name}
+                    {selectedOp?.machine_name || (selectedOpId === "" ? "N/A" : "Chưa chọn")}
                   </Typography>
                 </Box>
               </Box>
@@ -477,207 +697,330 @@ const PlanningFormDialog = React.memo(
             </Paper>
           )}
 
-          {/* Schedule section */}
-          {selectedOp && (
-            <Box mb={3}>
-              <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
-                Thời gian & Lịch biểu:
+          {/* Case 2: Product List Preview with Calculations and Controls */}
+          {isFullOrderMode && selectedOrderId && (
+            <Paper
+              variant="outlined"
+              sx={{ p: 3, mb: 4, borderRadius: "16px", bgcolor: "#f8fafc" }}
+            >
+              <Typography
+                variant="subtitle2"
+                fontWeight={800}
+                color="text.secondary"
+                mb={2}
+                sx={{ textTransform: "uppercase", letterSpacing: 1 }}
+              >
+                Cấu hình chi tiết mã hàng (Case 2):
               </Typography>
-              <TextField
-                label="Ngày bắt đầu"
-                type="date"
-                fullWidth
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => handleStartDateChange(e.target.value)}
-                sx={{ mb: 3 }}
-              />
-
+              <Box sx={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", fontSize: "11px", color: "#64748b" }}>
+                      <th style={{ padding: "8px" }}>CHỌN</th>
+                      <th style={{ padding: "8px" }}>MÃ HÀNG</th>
+                      <th style={{ padding: "8px" }}>SỐ LƯỢNG</th>
+                      <th style={{ padding: "8px" }}>ĐỊNH MỨC</th>
+                      <th style={{ padding: "8px" }}>BẮT ĐẦU</th>
+                      <th style={{ padding: "8px" }}>KẾT THÚC</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {case2Fields.map((field, idx) => (
+                      <tr key={field.id} style={{ borderTop: "1px solid #e2e8f0" }}>
+                        <td style={{ padding: "4px" }}>
+                          <Checkbox
+                            size="small"
+                            checked={field.isSelected}
+                            onChange={(e) => updateCase2(idx, { ...field, isSelected: e.target.checked })}
+                          />
+                        </td>
+                        <td style={{ padding: "8px", fontWeight: 600 }}>{field.name}</td>
+                        <td style={{ padding: "8px" }}>{field.quantity.toLocaleString()}</td>
+                        <td style={{ padding: "8px" }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            variant="standard"
+                            value={field.norm}
+                            onChange={(e) => updateCase2(idx, { ...field, norm: parseFloat(e.target.value) || 0 })}
+                            InputProps={{ disableUnderline: true, sx: { fontSize: "13px", fontWeight: 700, color: "#2563eb" } }}
+                            sx={{ width: 70 }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px" }}>
+                           <TextField
+                            size="small"
+                            type="date"
+                            variant="standard"
+                            value={field.startDate}
+                            onChange={(e) => updateCase2(idx, { ...field, startDate: e.target.value })}
+                            InputProps={{ disableUnderline: true, sx: { fontSize: "12px" } }}
+                            sx={{ width: 110 }}
+                          />
+                        </td>
+                        <td style={{ padding: "8px" }}>
+                          <TextField
+                            size="small"
+                            type="date"
+                            variant="standard"
+                            value={field.endDate}
+                            onChange={(e) => updateCase2(idx, { ...field, endDate: e.target.value })}
+                            InputProps={{ disableUnderline: true, sx: { fontSize: "12px" } }}
+                            sx={{ width: 110 }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+              
               <Box
                 display="flex"
                 justifyContent="space-between"
                 alignItems="center"
-                mb={1.5}
+                mt={3}
+                pt={2}
+                borderTop="2px solid"
+                borderColor="primary.light"
               >
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Danh sách ngày làm việc:
+                <Typography variant="subtitle1" fontWeight={800}>
+                  TỔNG SỐ LƯỢNG CHỌN:
                 </Typography>
-                <Button
+                <Typography variant="h5" color="primary.main" fontWeight={900}>
+                  {case2Items
+                    .filter(i => i.isSelected)
+                    .reduce((sum, p) => sum + p.quantity, 0)
+                    .toLocaleString()}{" "}
+                  SP
+                </Typography>
+              </Box>
+            </Paper>
+          )}
+
+          {/* Schedule section */}
+          {selectedOrderId && (selectedOpId !== "" || !selectedProductId || isFullOrderMode) && (
+            <Box mb={3}>
+              <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+                Thời gian & Lịch biểu:
+              </Typography>
+              <Box display="flex" gap={2}>
+                <TextField
+                  label={isFullOrderMode ? "Ngày bắt đầu (A)" : "Ngày bắt đầu"}
+                  type="date"
+                  fullWidth
                   size="small"
-                  startIcon={<AddCircleIcon />}
-                  onClick={handleAddDay}
-                  sx={{ textTransform: "none" }}
-                >
-                  Thêm ngày
-                </Button>
+                  InputLabelProps={{ shrink: true }}
+                  value={startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  sx={{ mb: 3 }}
+                />
+                {(!selectedOp || isFullOrderMode) && (
+                  <TextField
+                    label={isFullOrderMode ? "Ngày kết thúc (B)" : "Ngày kết thúc (để tính ĐM)"}
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    value={endDate}
+                    onChange={(e) => setValue("endDate", e.target.value)}
+                    sx={{ mb: 3 }}
+                  />
+                )}
               </Box>
 
-              {plannedDays.length > 0 && (
-                <Box
-                  sx={{
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    border: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
+              {!isFullOrderMode && (
+                <>
                   <Box
-                    sx={{
-                      bgcolor: "grey.50",
-                      p: 1.5,
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
+                    display="flex"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    mb={1.5}
                   >
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%" }}
-                    >
-                      NGÀY LÀM VIỆC
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Danh sách ngày làm việc:
                     </Typography>
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%", textAlign: "center" }}
+                    <Button
+                      size="small"
+                      startIcon={<AddCircleIcon />}
+                      onClick={handleAddDay}
+                      sx={{ textTransform: "none" }}
                     >
-                      SỐ CÔNG
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      fontWeight={700}
-                      sx={{ width: "30%", textAlign: "right" }}
-                    >
-                      TÙY CHỌN
-                    </Typography>
+                      Thêm ngày
+                    </Button>
                   </Box>
-                  <Box sx={{ maxHeight: 250, overflow: "auto" }}>
-                    {plannedDays.map((day, idx) => (
+
+                  {plannedDays.length > 0 && (
+                    <Box
+                      sx={{
+                        borderRadius: "12px",
+                        overflow: "hidden",
+                        border: "1px solid",
+                        borderColor: "divider",
+                      }}
+                    >
                       <Box
-                        key={idx}
                         sx={{
+                          bgcolor: "grey.50",
+                          p: 1.5,
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
                           display: "flex",
                           justifyContent: "space-between",
-                          alignItems: "center",
-                          p: 1.5,
-                          borderBottom:
-                            idx === plannedDays.length - 1
-                              ? "none"
-                              : "1px solid",
-                          borderColor: "divider",
                         }}
                       >
-                        <Box
-                          display="flex"
-                          alignItems="center"
-                          gap={1}
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
                           sx={{ width: "30%" }}
                         >
-                          <TextField
-                            type="date"
-                            size="small"
-                            variant="standard"
-                            value={day.date}
-                            onChange={(e) => {
-                              const newDays = [...plannedDays];
-                              newDays[idx] = {
-                                ...newDays[idx],
-                                date: e.target.value,
-                              };
-                              replace(newDays);
-                            }}
-                            InputProps={{
-                              disableUnderline: true,
-                              sx: {
-                                fontSize: "0.875rem",
-                                fontWeight: 600,
-                              },
-                            }}
-                          />
-                        </Box>
-                        <Box
-                          sx={{
-                            width: "30%",
-                            display: "flex",
-                            justifyContent: "center",
-                          }}
+                          NGÀY LÀM VIỆC
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          sx={{ width: "30%", textAlign: "center" }}
                         >
-                          <ManagedTextField
-                            size="small"
-                            type="number"
-                            value={day.hours}
-                            onCommit={(val) => handleDayChange(idx, val)}
-                            InputProps={{
-                              disableUnderline: true,
-                              sx: {
-                                fontSize: "0.875rem",
-                                fontWeight: 700,
-                                textAlign: "center",
-                              },
-                            }}
-                            sx={{ width: 80 }}
-                          />
-                        </Box>
-                        <Box
-                          sx={{
-                            width: "30%",
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            alignItems: "center",
-                          }}
+                          SỐ CÔNG
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          fontWeight={700}
+                          sx={{ width: "30%", textAlign: "right" }}
                         >
-                          <FormControlLabel
-                            sx={{ m: 0 }}
-                            control={
-                              <Checkbox
+                          TÙY CHỌN
+                        </Typography>
+                      </Box>
+                      <Box sx={{ maxHeight: 250, overflow: "auto" }}>
+                        {plannedDays.map((day, idx) => (
+                          <Box
+                            key={idx}
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              p: 1.5,
+                              borderBottom:
+                                idx === plannedDays.length - 1
+                                  ? "none"
+                                  : "1px solid",
+                              borderColor: "divider",
+                            }}
+                          >
+                            <Box
+                              display="flex"
+                              alignItems="center"
+                              gap={1}
+                              sx={{ width: "30%" }}
+                            >
+                              <TextField
+                                type="date"
                                 size="small"
-                                sx={{ p: 0.5 }}
-                                checked={day.is_overtime}
+                                variant="standard"
+                                value={day.date}
                                 onChange={(e) => {
                                   const newDays = [...plannedDays];
                                   newDays[idx] = {
                                     ...newDays[idx],
-                                    is_overtime: e.target.checked,
+                                    date: e.target.value,
                                   };
-                                  const recalculated = autoCalculateSchedule(
-                                    totalDaysNeeded,
-                                    startDate,
-                                    newDays,
-                                  );
-                                  replace(recalculated);
+                                  replaceDays(newDays);
+                                }}
+                                InputProps={{
+                                  disableUnderline: true,
+                                  sx: {
+                                    fontSize: "0.875rem",
+                                    fontWeight: 600,
+                                  },
                                 }}
                               />
-                            }
-                            label={
-                              <Typography variant="caption" fontWeight={600}>
-                                Tăng ca
-                              </Typography>
-                            }
-                          />
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              const newDays = [...plannedDays];
-                              newDays.splice(idx, 1);
-                              replace(newDays);
-                            }}
-                          >
-                            <Typography
-                              variant="caption"
-                              sx={{ fontSize: "10px" }}
+                            </Box>
+                            <Box
+                              sx={{
+                                width: "30%",
+                                display: "flex",
+                                justifyContent: "center",
+                              }}
                             >
-                              ×
-                            </Typography>
-                          </IconButton>
-                        </Box>
+                              <ManagedTextField
+                                size="small"
+                                type="number"
+                                value={day.hours}
+                                onCommit={(val) => handleDayChange(idx, val)}
+                                InputProps={{
+                                  disableUnderline: true,
+                                  sx: {
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    textAlign: "center",
+                                  },
+                                }}
+                                sx={{ width: 80 }}
+                              />
+                            </Box>
+                            <Box
+                              sx={{
+                                width: "30%",
+                                display: "flex",
+                                justifyContent: "flex-end",
+                                alignItems: "center",
+                              }}
+                            >
+                              <FormControlLabel
+                                sx={{ m: 0 }}
+                                control={
+                                  <Checkbox
+                                    size="small"
+                                    sx={{ p: 0.5 }}
+                                    checked={day.is_overtime}
+                                    onChange={(e) => {
+                                      const newDays = [...plannedDays];
+                                      newDays[idx] = {
+                                        ...newDays[idx],
+                                        is_overtime: e.target.checked,
+                                      };
+                                      const recalculated =
+                                        autoCalculateSchedule(
+                                          totalDaysNeeded,
+                                          startDate,
+                                          newDays,
+                                        );
+                                      replaceDays(recalculated);
+                                    }}
+                                  />
+                                }
+                                label={
+                                  <Typography
+                                    variant="caption"
+                                    fontWeight={600}
+                                  >
+                                    Tăng ca
+                                  </Typography>
+                                }
+                              />
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => {
+                                  const newDays = [...plannedDays];
+                                  newDays.splice(idx, 1);
+                                  replaceDays(newDays);
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: "10px" }}
+                                >
+                                  ×
+                                </Typography>
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        ))}
                       </Box>
-                    ))}
-                  </Box>
-                </Box>
+                    </Box>
+                  )}
+                </>
               )}
             </Box>
           )}
@@ -690,7 +1033,7 @@ const PlanningFormDialog = React.memo(
             variant="contained"
             disabled={
               !startDate ||
-              plannedDays.length === 0 ||
+              (isFullOrderMode ? !endDate : plannedDays.length === 0) ||
               isCreatePending ||
               isUpdatePending
             }

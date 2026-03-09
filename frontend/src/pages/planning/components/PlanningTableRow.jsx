@@ -5,6 +5,7 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import { DateTime } from "luxon";
 import EditIcon from "@mui/icons-material/Edit";
@@ -12,6 +13,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { ExcelDataCell, ManagedTextField } from "./shared";
 
 const PlanningTableRow = React.memo(
@@ -28,7 +30,9 @@ const PlanningTableRow = React.memo(
     onSaveInline,
     onOpenEdit,
     onOpenDelete,
+    onClone,
     onInlineDayChange,
+    dailyMachineMetrics,
   }) => {
     const isYellow = idx % 3 === 0;
     const isOrange = idx % 2 === 0;
@@ -89,15 +93,28 @@ const PlanningTableRow = React.memo(
           );
           const editDayData = inlineEditDays.find((d) => d.date === date.key);
 
+          const metrics = dailyMachineMetrics?.[date.key]?.[plan.machine_id || "unknown"];
+          const totalHours = metrics?.totalHours || 0;
+          const hasOvertime = metrics?.hasOvertime || false;
+
+          let cellBg = "inherit";
+          if (dayData) {
+            if (totalHours > 1.43) {
+              cellBg = "#f44336"; // Red (Always over absolute max)
+            } else if (hasOvertime) {
+              cellBg = "#4caf50"; // Green (Within OT capacity 1.43)
+            } else if (totalHours > 1) {
+              cellBg = "#ffeb3b"; // Yellow (Over standard 1.0 capacity, no OT)
+            } else {
+              cellBg = "#4caf50"; // Green (Within standard 1.0 capacity)
+            }
+          }
+
           return (
             <ExcelDataCell
               key={date.key}
               sx={{
-                bgcolor: isInlineEditing
-                  ? "#fff"
-                  : dayData
-                    ? "#fef9c3"
-                    : "inherit",
+                bgcolor: isInlineEditing ? "#fff" : cellBg,
                 p: isInlineEditing ? 0 : "4px 6px",
                 position: "relative",
               }}
@@ -158,7 +175,7 @@ const PlanningTableRow = React.memo(
                     variant="caption"
                     sx={{
                       fontWeight: dayData ? 700 : 400,
-                      color: dayData ? "#854d0e" : "#94a3b8",
+                      color: dayData ? (cellBg === "#ffeb3b" ? "#856404" : "#fff") : "#94a3b8",
                     }}
                   >
                     {dayData
@@ -237,6 +254,15 @@ const PlanningTableRow = React.memo(
                     onClick={() => onOpenEdit(plan)}
                   >
                     <OpenInNewIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Nhân bản (Clone)">
+                  <IconButton
+                    size="small"
+                    sx={{ color: "#10b981" }}
+                    onClick={() => onClone(plan.id)}
+                  >
+                    <ContentCopyIcon fontSize="small" sx={{ scale: "0.85" }} />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Xóa kế hoạch">
