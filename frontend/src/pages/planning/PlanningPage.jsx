@@ -2,8 +2,6 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
-import { workerService } from "../../services/worker.service";
-import { workerAssignmentService } from "../../services/workerAssignment.service";
 import {
   Button,
   Box,
@@ -30,7 +28,6 @@ import { ExcelHeaderCell, rebalanceDays } from "./components/shared";
 import PlanningTableRow from "./components/PlanningTableRow";
 import PlanningFormDialog from "./components/PlanningFormDialog";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
-import WorkerAssignmentDialog from "./components/WorkerAssignmentDialog";
 
 export default function PlanningPage() {
   const queryClient = useQueryClient();
@@ -59,15 +56,6 @@ export default function PlanningPage() {
     planId: null,
   });
 
-  // Worker assignment
-  const [assignmentDialog, setAssignmentDialog] = useState({
-    open: false,
-    planId: null,
-    date: null,
-    dateLabel: "",
-  });
-  const [selectedWorkerIds, setSelectedWorkerIds] = useState([]);
-
   // ─── Data Fetching ─────────────────────────────────────
   const {
     data: plansData,
@@ -92,11 +80,6 @@ export default function PlanningPage() {
     queryFn: orderService.getAll,
   });
   const orders = allOrdersData || [];
-
-  const { data: allWorkers = [] } = useQuery({
-    queryKey: ["workers"],
-    queryFn: workerService.getAll,
-  });
 
   // ─── Date Columns ──────────────────────────────────────
   const dateColumns = useMemo(() => {
@@ -158,24 +141,6 @@ export default function PlanningPage() {
         message:
           "Lỗi khi xóa: " + (error.response?.data?.message || error.message),
         severity: "error",
-      });
-    },
-  });
-
-  const handleSaveAssignments = useMutation({
-    mutationFn: () =>
-      workerAssignmentService.updateAssignments({
-        production_plan_id: assignmentDialog.planId,
-        working_date: assignmentDialog.date,
-        worker_ids: selectedWorkerIds,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plans"] });
-      setAssignmentDialog((prev) => ({ ...prev, open: false }));
-      setSnackbar({
-        open: true,
-        message: "Đã cập nhật công nhân làm việc",
-        severity: "success",
       });
     },
   });
@@ -266,31 +231,6 @@ export default function PlanningPage() {
     },
     [inlineEditDays, updateMutation, handleCancelInlineEdit],
   );
-
-  // Assignment
-  const handleOpenAssignment = useCallback(
-    async (planId, date, dateLabel) => {
-      setAssignmentDialog({ open: true, planId, date, dateLabel });
-      try {
-        const currentAssignments =
-          await workerAssignmentService.getAssignments(planId, date);
-        setSelectedWorkerIds(currentAssignments.map((w) => w.id));
-      } catch {
-        setSnackbar({
-          open: true,
-          message: "Lỗi khi tải danh sách công nhân",
-          severity: "error",
-        });
-      }
-    },
-    [],
-  );
-
-  const toggleWorker = useCallback((id) => {
-    setSelectedWorkerIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  }, []);
 
   const handleOpenDelete = useCallback((planId) => {
     setDeleteConfirm({ open: true, planId });
@@ -470,7 +410,6 @@ export default function PlanningPage() {
                   onSaveInline={handleSaveInline}
                   onOpenEdit={handleOpenEdit}
                   onOpenDelete={handleOpenDelete}
-                  onOpenAssignment={handleOpenAssignment}
                   onInlineDayChange={handleInlineDayChange}
                 />
               ))}
@@ -517,19 +456,6 @@ export default function PlanningPage() {
         isPending={deleteMutation.isPending}
         onClose={() => setDeleteConfirm({ open: false, planId: null })}
         onConfirm={() => deleteMutation.mutate(deleteConfirm.planId)}
-      />
-
-      <WorkerAssignmentDialog
-        open={assignmentDialog.open}
-        dateLabel={assignmentDialog.dateLabel}
-        allWorkers={allWorkers}
-        selectedWorkerIds={selectedWorkerIds}
-        isPending={handleSaveAssignments.isPending}
-        onToggleWorker={toggleWorker}
-        onClose={() =>
-          setAssignmentDialog((prev) => ({ ...prev, open: false }))
-        }
-        onSave={() => handleSaveAssignments.mutate()}
       />
 
       <Snackbar

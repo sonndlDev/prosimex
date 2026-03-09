@@ -5,8 +5,6 @@ import {
   Typography,
   IconButton,
   Tooltip,
-  CircularProgress,
-  Badge,
 } from "@mui/material";
 import { DateTime } from "luxon";
 import EditIcon from "@mui/icons-material/Edit";
@@ -14,8 +12,6 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import DeleteIcon from "@mui/icons-material/Delete";
-import PeopleIcon from "@mui/icons-material/People";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { ExcelDataCell, ManagedTextField } from "./shared";
 
 const PlanningTableRow = React.memo(
@@ -32,7 +28,6 @@ const PlanningTableRow = React.memo(
     onSaveInline,
     onOpenEdit,
     onOpenDelete,
-    onOpenAssignment,
     onInlineDayChange,
   }) => {
     const isYellow = idx % 3 === 0;
@@ -179,48 +174,6 @@ const PlanningTableRow = React.memo(
                         })()
                       : "-"}
                   </Typography>
-                  {dayData && (
-                    <Tooltip
-                      title={dayData.worker_names || "Chưa có công nhân"}
-                    >
-                      <IconButton
-                        size="small"
-                        onClick={() =>
-                          onOpenAssignment(plan.id, date.key, date.label)
-                        }
-                        sx={{
-                          p: 0,
-                          color:
-                            dayData.worker_count > 0
-                              ? "primary.main"
-                              : "text.disabled",
-                          "&:hover": { color: "primary.dark" },
-                        }}
-                      >
-                        <Badge
-                          badgeContent={
-                            dayData.worker_count > 0 ? dayData.worker_count : 0
-                          }
-                          color="primary"
-                          sx={{
-                            "& .MuiBadge-badge": {
-                              fontSize: "0.6rem",
-                              height: 14,
-                              minWidth: 14,
-                              top: 4,
-                              right: -2,
-                            },
-                          }}
-                        >
-                          {dayData.worker_count > 0 ? (
-                            <PeopleIcon sx={{ fontSize: "1rem" }} />
-                          ) : (
-                            <PersonAddIcon sx={{ fontSize: "0.9rem" }} />
-                          )}
-                        </Badge>
-                      </IconButton>
-                    </Tooltip>
-                  )}
                 </Box>
               )}
             </ExcelDataCell>

@@ -2,7 +2,20 @@ import pool from '../../config/db.js'
 
 export const getOperations = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM operations WHERE deleted_at IS NULL')
+    const query = `
+      SELECT 
+        o.*,
+        COALESCE(
+          json_agg(DISTINCT pg.name) FILTER (WHERE pg.name IS NOT NULL),
+          '[]'
+        ) as product_groups
+      FROM operations o
+      LEFT JOIN product_group_operations pgo ON o.id = pgo.operation_id AND pgo.deleted_at IS NULL
+      LEFT JOIN product_groups pg ON pgo.product_group_id = pg.id AND pg.deleted_at IS NULL
+      WHERE o.deleted_at IS NULL
+      GROUP BY o.id
+    `
+    const result = await pool.query(query)
     res.json(result.rows)
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving operations', error })

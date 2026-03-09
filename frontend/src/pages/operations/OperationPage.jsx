@@ -11,6 +11,7 @@ import {
   Button,
   TextField,
   Box,
+  Chip,
 } from "@mui/material";
 
 export default function OperationPage() {
@@ -58,7 +59,22 @@ export default function OperationPage() {
 
   const columns = [
     { id: "name", label: "Tên công đoạn" },
-    { id: "description", label: "Nhóm mã" },
+    {
+      id: "product_groups",
+      label: "Nhóm mã hàng",
+      format: (value) => (
+        <Box display="flex" flexWrap="wrap" gap={0.5}>
+          {Array.isArray(value) && value.length > 0 ? (
+            value.map((pg, index) => (
+              <Chip key={index} label={pg} size="small" variant="outlined" color="primary" />
+            ))
+          ) : (
+            <span style={{ color: '#ccc' }}>-</span>
+          )}
+        </Box>
+      ),
+    },
+    { id: "description", label: "Mô tả" },
   ];
 
   const handleOpen = (operation = null) => {

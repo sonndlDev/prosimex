@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
 import { customerService } from "../../services/customer.service";
 import { productService } from "../../services/product.service";
+import { productGroupService } from "../../services/product-group.service";
 import GenericTable from "../../components/GenericTable";
 import {
   Dialog,
@@ -68,6 +69,10 @@ export default function OrderPage() {
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: () => productService.getAll(),
+  });
+  const { data: productGroups } = useQuery({
+    queryKey: ["productGroups"],
+    queryFn: () => productGroupService.getAll(),
   });
   const {
     data: orders,
@@ -158,6 +163,7 @@ export default function OrderPage() {
         customer_id: order.customer_id,
         product_items:
           order.products?.map((p) => ({
+            product_group_id: p.product_group_id || "",
             product_id: p.id,
             quantity: p.quantity || "",
           })) || [],
@@ -651,7 +657,7 @@ export default function OrderPage() {
                   size="small"
                   variant="outlined"
                   startIcon={<AddCircleIcon />}
-                  onClick={() => append({ product_id: "", quantity: "" })}
+                  onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
                   sx={{
                     borderRadius: "8px",
                     textTransform: "none",
@@ -712,30 +718,64 @@ export default function OrderPage() {
                       {index + 1}.
                     </Typography>
                     <Controller
-                      name={`product_items.${index}.product_id`}
+                      name={`product_items.${index}.product_group_id`}
                       control={control}
                       render={({ field: f }) => (
-                        <FormControl size="small" required sx={{ flex: 2 }}>
-                          <InputLabel>Mã hàng</InputLabel>
+                        <FormControl size="small" required sx={{ flex: 1.5 }}>
+                          <InputLabel>Nhóm mã</InputLabel>
                           <Select
                             {...f}
-                            label="Mã hàng"
+                            label="Nhóm mã"
+                            disabled={!!selectedOrder}
+                            onChange={(e) => {
+                              f.onChange(e);
+                              // Reset product_id when changing group
+                              const items = watch("product_items");
+                              const updatedItems = [...items];
+                              updatedItems[index].product_id = "";
+                              reset({ ...watch(), product_items: updatedItems });
+                            }}
                             sx={{ borderRadius: "8px" }}
                           >
-                            {products
-                              ?.filter(
-                                (p) =>
-                                  p.is_active &&
-                                  !selectedProductIds.includes(p.id),
-                              )
-                              .map((p) => (
-                                <MenuItem key={p.id} value={p.id}>
-                                  {p.name}
-                                </MenuItem>
-                              ))}
+                            {productGroups?.map((g) => (
+                              <MenuItem key={g.id} value={g.id}>
+                                {g.name}
+                              </MenuItem>
+                            ))}
                           </Select>
                         </FormControl>
                       )}
+                    />
+                    <Controller
+                      name={`product_items.${index}.product_id`}
+                      control={control}
+                      render={({ field: f }) => {
+                        const groupId = watch(`product_items.${index}.product_group_id`);
+                        return (
+                          <FormControl size="small" required sx={{ flex: 2 }}>
+                            <InputLabel>Mã hàng</InputLabel>
+                            <Select
+                              {...f}
+                              label="Mã hàng"
+                              disabled={!groupId || !!selectedOrder}
+                              sx={{ borderRadius: "8px" }}
+                            >
+                              {products
+                                ?.filter(
+                                  (p) =>
+                                    p.is_active &&
+                                    p.product_group_id === groupId &&
+                                    !selectedProductIds.includes(p.id)
+                                )
+                                .map((p) => (
+                                  <MenuItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </MenuItem>
+                                ))}
+                            </Select>
+                          </FormControl>
+                        );
+                      }}
                     />
                     <Controller
                       name={`product_items.${index}.quantity`}
