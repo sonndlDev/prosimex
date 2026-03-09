@@ -35,7 +35,7 @@ export default function DraggableSequenceTable({
     reset: resetEdit,
     handleSubmit: handleEditSubmit,
   } = useForm({
-    defaultValues: { dinh_muc: "", estimated_hours: "" },
+    defaultValues: { dinh_muc: "" },
   });
 
   if (isLoading) {
@@ -62,7 +62,7 @@ export default function DraggableSequenceTable({
 
   const startEdit = (row) => {
     setEditingId(row.id);
-    resetEdit({ dinh_muc: row.dinh_muc, estimated_hours: row.estimated_hours });
+    resetEdit({ dinh_muc: row.dinh_muc });
   };
 
   const handleSave = (data) => {
@@ -132,18 +132,6 @@ export default function DraggableSequenceTable({
                 }}
               >
                 Định mức (sp/8h)
-              </TableCell>
-              <TableCell
-                align="right"
-                sx={{
-                  fontWeight: 800,
-                  color: "text.secondary",
-                  fontSize: "0.75rem",
-                  textTransform: "uppercase",
-                  py: 2,
-                }}
-              >
-                Giờ dự kiến
               </TableCell>
               <TableCell
                 align="center"
@@ -244,26 +232,6 @@ export default function DraggableSequenceTable({
                                 )}
                               />
                             </TableCell>
-                            <TableCell align="right">
-                              <Controller
-                                name="estimated_hours"
-                                control={editControl}
-                                render={({ field }) => (
-                                  <TextField
-                                    {...field}
-                                    size="small"
-                                    variant="outlined"
-                                    type="number"
-                                    sx={{
-                                      width: 100,
-                                      "& .MuiOutlinedInput-root": {
-                                        borderRadius: "8px",
-                                      },
-                                    }}
-                                  />
-                                )}
-                              />
-                            </TableCell>
                             <TableCell align="center">
                               <Box
                                 display="flex"
@@ -315,14 +283,6 @@ export default function DraggableSequenceTable({
                             <TableCell align="right">
                               <Typography variant="body2" fontWeight={600}>
                                 {row.dinh_muc}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                {row.estimated_hours || "-"}
                               </Typography>
                             </TableCell>
                             <TableCell align="center">

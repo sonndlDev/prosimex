@@ -107,6 +107,12 @@ export default function WorkerPage() {
     }
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} công nhân đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   const columns = [
     { id: "code", label: "Mã nhân công" },
     { id: "name", label: "Họ và tên" },
@@ -169,6 +175,7 @@ export default function WorkerPage() {
           data={workers}
           onEdit={handleOpenModal}
           onDelete={(row) => handleDelete(row.id)}
+          onBulkDelete={handleBulkDelete}
           isLoading={isLoading}
         />
       </Paper>

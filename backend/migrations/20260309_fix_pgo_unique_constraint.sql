@@ -1,0 +1,3 @@
+ALTER TABLE product_group_operations DROP CONSTRAINT IF EXISTS product_group_operations_product_group_id_sequence_order_key;
+DROP INDEX IF EXISTS product_group_operations_product_group_id_sequence_order_idx;
+CREATE UNIQUE INDEX product_group_operations_product_group_id_sequence_order_idx ON product_group_operations(product_group_id, sequence_order) WHERE deleted_at IS NULL;

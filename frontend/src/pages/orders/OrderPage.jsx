@@ -212,6 +212,12 @@ export default function OrderPage() {
       deleteMutation.mutate(order.id);
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} đơn hàng đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       <GenericTable
@@ -237,6 +243,7 @@ export default function OrderPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       <Dialog

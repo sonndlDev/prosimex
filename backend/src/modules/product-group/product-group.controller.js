@@ -68,8 +68,8 @@ export const getProductGroupOperations = async (req, res) => {
     const result = await pool.query(
       `SELECT pgo.*, o.name as operation_name, m.name as machine_name 
              FROM product_group_operations pgo
-             JOIN operations o ON pgo.operation_id = o.id
-             JOIN machines m ON pgo.machine_id = m.id
+             LEFT JOIN operations o ON pgo.operation_id = o.id
+             LEFT JOIN machines m ON pgo.machine_id = m.id
              WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
              ORDER BY pgo.sequence_order ASC`,
       [id]
@@ -83,12 +83,12 @@ export const getProductGroupOperations = async (req, res) => {
 export const createProductGroupOperation = async (req, res) => {
   try {
     const { id } = req.params // product_group_id
-    const { operation_id, machine_id, sequence_order, dinh_muc, estimated_hours } = req.body
+    const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
     const result = await pool.query(
       `INSERT INTO product_group_operations 
-             (product_group_id, operation_id, machine_id, sequence_order, dinh_muc, estimated_hours) 
-             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [id, operation_id, machine_id, sequence_order, dinh_muc, estimated_hours]
+             (product_group_id, operation_id, machine_id, sequence_order, dinh_muc) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id, operation_id, machine_id || null, sequence_order, dinh_muc || null]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -116,18 +116,17 @@ export const deleteProductGroupOperation = async (req, res) => {
 export const updateProductGroupOperation = async (req, res) => {
   try {
     const { id, operationId } = req.params
-    const { operation_id, machine_id, sequence_order, dinh_muc, estimated_hours } = req.body
+    const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
     const result = await pool.query(
       `UPDATE product_group_operations 
        SET operation_id = COALESCE($1, operation_id),
-           machine_id = COALESCE($2, machine_id),
+           machine_id = $2,
            sequence_order = COALESCE($3, sequence_order),
-           dinh_muc = COALESCE($4, dinh_muc),
-           estimated_hours = COALESCE($5, estimated_hours),
+           dinh_muc = $4,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6 AND product_group_id = $7 AND deleted_at IS NULL
+       WHERE id = $5 AND product_group_id = $6 AND deleted_at IS NULL
        RETURNING *`,
-      [operation_id, machine_id, sequence_order, dinh_muc, estimated_hours, operationId, id]
+      [operation_id, machine_id || null, sequence_order, dinh_muc || null, operationId, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
     res.json(result.rows[0])

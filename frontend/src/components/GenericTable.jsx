@@ -16,7 +16,8 @@ import {
     Alert,
     Tooltip,
     TextField,
-    InputAdornment
+    InputAdornment,
+    Checkbox
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -32,9 +33,42 @@ export default function GenericTable({
     onAdd, 
     onEdit, 
     onDelete,
+    onBulkDelete,
     actionColWidth = 100 
 }) {
     const [searchTerm, setSearchTerm] = useState('');
+    const [selected, setSelected] = useState([]);
+
+    const handleSelectAllClick = (event) => {
+        if (event.target.checked) {
+            const newSelecteds = filteredData.map((n) => n.id);
+            setSelected(newSelecteds);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleClick = (event, id) => {
+        event.stopPropagation();
+        const selectedIndex = selected.indexOf(id);
+        let newSelected = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selected, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selected.slice(1));
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = newSelected.concat(selected.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selected.slice(0, selectedIndex),
+                selected.slice(selectedIndex + 1),
+            );
+        }
+        setSelected(newSelected);
+    };
+
+    const isSelected = (id) => selected.indexOf(id) !== -1;
 
     if (isLoading) {
         return (
@@ -112,6 +146,25 @@ export default function GenericTable({
                             }
                         }}
                     />
+                    {onBulkDelete && selected.length > 0 && (
+                        <Button 
+                            variant="outlined" 
+                            color="error" 
+                            startIcon={<DeleteIcon />} 
+                            onClick={() => {
+                                onBulkDelete(selected);
+                                setSelected([]);
+                            }}
+                            sx={{ 
+                                whiteSpace: 'nowrap', 
+                                px: 3,
+                                py: 1,
+                                borderRadius: '10px'
+                            }}
+                        >
+                            Xóa {selected.length} mục
+                        </Button>
+                    )}
                     {onAdd && (
                         <Button 
                             variant="contained" 
@@ -135,6 +188,16 @@ export default function GenericTable({
                 <Table stickyHeader size="medium">
                     <TableHead>
                         <TableRow>
+                            {onBulkDelete && (
+                                <TableCell padding="checkbox" sx={{ bgcolor: 'background.paper' }}>
+                                    <Checkbox
+                                        color="primary"
+                                        indeterminate={selected.length > 0 && selected.length < (filteredData?.length || 0)}
+                                        checked={filteredData?.length > 0 && selected.length === filteredData?.length}
+                                        onChange={handleSelectAllClick}
+                                    />
+                                </TableCell>
+                            )}
                             <TableCell width={60} sx={{ fontWeight: 700, bgcolor: 'background.paper' }}>STT</TableCell>
                             {columns.map((column) => (
                                 <TableCell 
@@ -181,16 +244,28 @@ export default function GenericTable({
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredData?.map((row, index) => (
+                            filteredData?.map((row, index) => {
+                                const isItemSelected = isSelected(row.id);
+                                return (
                                 <TableRow 
                                     hover 
                                     key={row.id || index}
+                                    selected={isItemSelected}
                                     sx={{ 
                                         '&:last-child td, &:last-child th': { border: 0 },
                                         transition: 'background-color 0.2s ease',
                                         cursor: 'pointer'
                                     }}
                                 >
+                                    {onBulkDelete && (
+                                        <TableCell padding="checkbox">
+                                            <Checkbox
+                                                color="primary"
+                                                checked={isItemSelected}
+                                                onChange={(event) => handleClick(event, row.id)}
+                                            />
+                                        </TableCell>
+                                    )}
                                     <TableCell sx={{ color: 'text.secondary', fontWeight: 500 }}>{index + 1}</TableCell>
                                     {columns.map((column) => {
                                         const value = row[column.id];
@@ -237,7 +312,8 @@ export default function GenericTable({
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>

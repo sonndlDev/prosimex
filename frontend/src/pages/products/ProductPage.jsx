@@ -78,7 +78,7 @@ export default function ProductPage() {
   });
 
   const columns = [
-    { id: "name", label: "Mã mặt hàng" },
+    { id: "name", label: "Tên mã hàng" },
     { id: "product_group_name", label: "Nhóm mã hàng" },
     {
       id: "is_active",
@@ -121,6 +121,12 @@ export default function ProductPage() {
   const handleDelete = (product) => {
     if (window.confirm(`Xóa sản phẩm ${product.name}?`))
       deleteMutation.mutate(product.id);
+  };
+
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} sản phẩm đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
   };
 
   const availableGroupsInForm = productGroups || [];
@@ -170,6 +176,7 @@ export default function ProductPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create/Edit Modal */}
@@ -203,7 +210,7 @@ export default function ProductPage() {
                 <TextField
                   {...field}
                   fullWidth
-                  label="Mã mặt hàng"
+                  label="Tên mã hàng"
                   margin="normal"
                   required
                 />

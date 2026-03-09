@@ -45,7 +45,6 @@ export default function ProductGroupPage() {
     machine_id: "",
     sequence_order: "",
     dinh_muc: "",
-    estimated_hours: "",
   };
   const {
     control: opControl,
@@ -81,7 +80,10 @@ export default function ProductGroupPage() {
   });
 
   // Auto-calculate next sequence order
-  const nextSequenceOrder = (groupOperations?.length || 0) + 1;
+  const nextSequenceOrder =
+    groupOperations && groupOperations.length > 0
+      ? Math.max(...groupOperations.map((o) => o.sequence_order)) + 1
+      : 1;
 
   // Mutations
   const mutationOpts = {
@@ -113,6 +115,16 @@ export default function ProductGroupPage() {
         queryKey: ["groupOperations", selectedGroup?.id],
       });
       resetOp(opInitial);
+    },
+  });
+
+  const quickAddOpMutation = useMutation({
+    mutationFn: (name) => operationService.create({ name }),
+    onSuccess: (newOp) => {
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      // Set the newly created operation in the form
+      opControl._defaultValues.operation_id = newOp.id;
+      resetOp({ ...opControl._formValues, operation_id: newOp.id });
     },
   });
   const removeOpMutation = useMutation({
@@ -188,17 +200,30 @@ export default function ProductGroupPage() {
       deleteMutation.mutate(group.id);
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} nhóm sản phẩm đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   const handleManageOps = (group) => {
     setSelectedGroup(group);
     setManageOpsModal(true);
+  };
+
+  const handleQuickAddOperation = () => {
+    const opName = window.prompt("Nhập tên công đoạn mới:");
+    if (opName && opName.trim()) {
+      quickAddOpMutation.mutate(opName.trim());
+    }
   };
 
   const onAddOp = (data) => {
     addOpMutation.mutate({
       ...data,
       sequence_order: parseInt(data.sequence_order) || nextSequenceOrder,
-      dinh_muc: parseFloat(data.dinh_muc),
-      estimated_hours: parseFloat(data.estimated_hours),
+      dinh_muc: data.dinh_muc ? parseFloat(data.dinh_muc) : null,
+      machine_id: data.machine_id || null,
     });
   };
 
@@ -228,6 +253,7 @@ export default function ProductGroupPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
         actionColWidth={150}
       />
 
@@ -346,26 +372,41 @@ export default function ProductGroupPage() {
                   name="operation_id"
                   control={opControl}
                   render={({ field }) => (
-                    <FormControl
-                      required
-                      size="small"
-                      sx={{
-                        minWidth: 180,
-                        "& .MuiOutlinedInput-root": {
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <FormControl
+                        required
+                        size="small"
+                        sx={{
+                          minWidth: 180,
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "10px",
+                            bgcolor: "white",
+                          },
+                        }}
+                      >
+                        <InputLabel>Công đoạn</InputLabel>
+                        <Select {...field} label="Công đoạn">
+                          {operationsList?.map((o) => (
+                            <MenuItem key={o.id} value={o.id}>
+                              {o.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleQuickAddOperation}
+                        sx={{
+                          minWidth: "auto",
+                          p: "7px 10px",
                           borderRadius: "10px",
                           bgcolor: "white",
-                        },
-                      }}
-                    >
-                      <InputLabel>Công đoạn</InputLabel>
-                      <Select {...field} label="Công đoạn">
-                        {operationsList?.map((o) => (
-                          <MenuItem key={o.id} value={o.id}>
-                            {o.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                        }}
+                      >
+                        + Mới
+                      </Button>
+                    </Box>
                   )}
                 />
 
@@ -374,7 +415,6 @@ export default function ProductGroupPage() {
                   control={opControl}
                   render={({ field }) => (
                     <FormControl
-                      required
                       size="small"
                       sx={{
                         minWidth: 180,
@@ -386,6 +426,9 @@ export default function ProductGroupPage() {
                     >
                       <InputLabel>Máy</InputLabel>
                       <Select {...field} label="Máy">
+                        <MenuItem value="">
+                          <em>None</em>
+                        </MenuItem>
                         {machinesList?.map((m) => (
                           <MenuItem key={m.id} value={m.id}>
                             {m.name}
@@ -402,30 +445,8 @@ export default function ProductGroupPage() {
                   render={({ field }) => (
                     <TextField
                       {...field}
-                      required
                       type="number"
                       label="Định mức"
-                      size="small"
-                      sx={{
-                        width: 110,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "10px",
-                          bgcolor: "white",
-                        },
-                      }}
-                      inputProps={{ step: "0.1" }}
-                    />
-                  )}
-                />
-                <Controller
-                  name="estimated_hours"
-                  control={opControl}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      required
-                      type="number"
-                      label="Giờ dự kiến"
                       size="small"
                       sx={{
                         width: 110,

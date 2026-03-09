@@ -101,6 +101,12 @@ export default function FactoryPage() {
     }
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} nhà máy đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       {/* Action Toolbar built-in via GenericTable wrapper, passing down title/props */}
@@ -127,6 +133,7 @@ export default function FactoryPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create / Edit Modal */}

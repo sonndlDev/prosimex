@@ -95,6 +95,12 @@ export default function CustomerPage() {
     }
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} khách hàng đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       <GenericTable
@@ -120,6 +126,7 @@ export default function CustomerPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create / Edit Modal */}

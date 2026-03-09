@@ -223,6 +223,12 @@ export default function UserPage() {
       deleteMutation.mutate(user.id);
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} người dùng đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       <GenericTable
@@ -265,6 +271,7 @@ export default function UserPage() {
         error={usersError}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create/Edit Modal */}

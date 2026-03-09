@@ -130,6 +130,12 @@ export default function MachinePage() {
     }
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} máy đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       <GenericTable
@@ -175,6 +181,7 @@ export default function MachinePage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create/Edit Modal */}

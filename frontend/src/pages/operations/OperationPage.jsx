@@ -58,7 +58,7 @@ export default function OperationPage() {
 
   const columns = [
     { id: "name", label: "Tên công đoạn" },
-    { id: "description", label: "Mô tả" },
+    { id: "description", label: "Nhóm mã" },
   ];
 
   const handleOpen = (operation = null) => {
@@ -91,6 +91,12 @@ export default function OperationPage() {
     }
   };
 
+  const handleBulkDelete = (selectedIds) => {
+    if (window.confirm(`Xóa ${selectedIds.length} công đoạn đã chọn?`)) {
+      selectedIds.forEach((id) => deleteMutation.mutate(id));
+    }
+  };
+
   return (
     <Box>
       <GenericTable
@@ -116,6 +122,7 @@ export default function OperationPage() {
         error={error}
         onEdit={handleOpen}
         onDelete={handleDelete}
+        onBulkDelete={handleBulkDelete}
       />
 
       {/* Create / Edit Modal */}

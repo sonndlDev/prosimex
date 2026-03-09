@@ -395,7 +395,7 @@ export default function PlanningPage() {
               <TableRow>
                 <ExcelHeaderCell rowSpan={2}>STT</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Mã mặt hàng</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Tên mã hàng</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Nhóm mã hàng</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Công đoạn</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Máy</ExcelHeaderCell>
