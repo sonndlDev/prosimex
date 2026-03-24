@@ -22,6 +22,7 @@ const UserPage = React.lazy(() => import("./pages/auth/UserPage"));
 const CustomerPage = React.lazy(() => import("./pages/customers/CustomerPage"));
 const OrderPage = React.lazy(() => import("./pages/orders/OrderPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
+const DailyTicketPage = React.lazy(() => import("./pages/daily-tickets/DailyTicketPage"));
 const SchedulePage = React.lazy(() => import("./pages/schedule/SchedulePage"));
 const AttendancePage = React.lazy(
   () => import("./pages/attendance/AttendancePage"),
@@ -95,6 +96,9 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="planning" />}>
                 <Route path="/planning" element={<PlanningPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+                <Route path="/daily-tickets" element={<DailyTicketPage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="schedule" />}>
                 <Route path="/schedule" element={<SchedulePage />} />

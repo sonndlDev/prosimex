@@ -21,6 +21,9 @@ import {
   Typography,
   IconButton,
   Divider,
+  Autocomplete,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DraggableSequenceTable from "./DraggableSequenceTable";
@@ -30,6 +33,11 @@ export default function ProductGroupPage() {
   const [openModal, setOpenModal] = useState(false);
   const [manageOpsModal, setManageOpsModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
 
   const {
     control: groupControl,
@@ -116,6 +124,13 @@ export default function ProductGroupPage() {
       });
       resetOp(opInitial);
     },
+    onError: (err) => {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Lỗi khi thêm công đoạn",
+        severity: "error",
+      });
+    }
   });
 
   const quickAddOpMutation = useMutation({
@@ -126,6 +141,13 @@ export default function ProductGroupPage() {
       opControl._defaultValues.operation_id = newOp.id;
       resetOp({ ...opControl._formValues, operation_id: newOp.id });
     },
+    onError: (err) => {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Lỗi khi tạo công đoạn nhanh",
+        severity: "error",
+      });
+    }
   });
   const removeOpMutation = useMutation({
     mutationFn: (mappingId) =>
@@ -143,6 +165,13 @@ export default function ProductGroupPage() {
       queryClient.invalidateQueries({
         queryKey: ["groupOperations", selectedGroup?.id],
       }),
+    onError: (err) => {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Lỗi khi cập nhật công đoạn",
+        severity: "error",
+      });
+    }
   });
 
   const reorderOpMutation = useMutation({
@@ -219,9 +248,32 @@ export default function ProductGroupPage() {
   };
 
   const onAddOp = (data) => {
+    const selectedOp = operationsList?.find(
+      (o) => String(o.id) === String(data.operation_id)
+    );
+    const selectedOpName = selectedOp?.name;
+
+    // Check for duplicate operation (thorough name comparison)
+    const isDuplicate = groupOperations?.some(
+      (op) =>
+        String(op.operation_name).trim().toLowerCase() ===
+        String(selectedOpName).trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setSnackbar({
+        open: true,
+        message: `Công đoạn "${selectedOpName}" đã tồn tại trong quy trình. Vui lòng không thêm trùng.`,
+        severity: "error",
+      });
+      return;
+    }
+
+    const seqOrder = parseInt(data.sequence_order) || nextSequenceOrder;
+
     addOpMutation.mutate({
       ...data,
-      sequence_order: parseInt(data.sequence_order) || nextSequenceOrder,
+      sequence_order: seqOrder,
       dinh_muc: data.dinh_muc ? parseFloat(data.dinh_muc) : null,
       machine_id: data.machine_id || null,
     });
@@ -300,6 +352,7 @@ export default function ProductGroupPage() {
         <DialogContent dividers>
           <DraggableSequenceTable
             data={groupOperations}
+            machinesList={machinesList}
             isLoading={opsLoading}
             onDelete={(id) => removeOpMutation.mutate(id)}
             onUpdate={(id, payload) =>
@@ -373,26 +426,27 @@ export default function ProductGroupPage() {
                   control={opControl}
                   render={({ field }) => (
                     <Box display="flex" alignItems="center" gap={1}>
-                      <FormControl
-                        required
-                        size="small"
-                        sx={{
-                          minWidth: 180,
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "10px",
-                            bgcolor: "white",
-                          },
-                        }}
-                      >
-                        <InputLabel>Công đoạn</InputLabel>
-                        <Select {...field} label="Công đoạn">
-                          {operationsList?.map((o) => (
-                            <MenuItem key={o.id} value={o.id}>
-                              {o.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <Autocomplete
+                        sx={{ minWidth: 220 }}
+                        options={operationsList || []}
+                        getOptionLabel={(option) => option.name || ""}
+                        value={operationsList?.find(o => o.id === field.value) || null}
+                        onChange={(_, newValue) => field.onChange(newValue ? newValue.id : "")}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Công đoạn"
+                            size="small"
+                            required
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                borderRadius: "10px",
+                                bgcolor: "white",
+                              },
+                            }}
+                          />
+                        )}
+                      />
                       <Button
                         variant="outlined"
                         size="small"
@@ -414,28 +468,26 @@ export default function ProductGroupPage() {
                   name="machine_id"
                   control={opControl}
                   render={({ field }) => (
-                    <FormControl
-                      size="small"
-                      sx={{
-                        minWidth: 180,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "10px",
-                          bgcolor: "white",
-                        },
-                      }}
-                    >
-                      <InputLabel>Máy</InputLabel>
-                      <Select {...field} label="Máy">
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {machinesList?.map((m) => (
-                          <MenuItem key={m.id} value={m.id}>
-                            {m.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                    <Autocomplete
+                      sx={{ minWidth: 220 }}
+                      options={machinesList || []}
+                      getOptionLabel={(option) => option.name || ""}
+                      value={machinesList?.find(m => m.id === field.value) || null}
+                      onChange={(_, newValue) => field.onChange(newValue ? newValue.id : "")}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Máy"
+                          size="small"
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "10px",
+                              bgcolor: "white",
+                            },
+                          }}
+                        />
+                      )}
+                    />
                   )}
                 />
 
@@ -480,6 +532,23 @@ export default function ProductGroupPage() {
           <Button onClick={() => setManageOpsModal(false)}>Đóng</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%", borderRadius: "12px", fontWeight: 600 }}
+          variant="filled"
+          elevation={6}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

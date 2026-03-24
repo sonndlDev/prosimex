@@ -521,6 +521,7 @@ export default function PlanningPage() {
                   onOpenDelete={handleOpenDelete}
                   onClone={handleClone}
                   onInlineDayChange={handleInlineDayChange}
+                  onInlineOTToggle={handleInlineOTToggle}
                   dailyMachineMetrics={dailyMachineMetrics}
                 />
               ))}

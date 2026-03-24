@@ -14,6 +14,7 @@ import {
   Tooltip,
   Box,
   Typography,
+  Autocomplete,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -24,6 +25,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 export default function DraggableSequenceTable({
   data = [],
+  machinesList = [],
   onReorder,
   onDelete,
   onUpdate,
@@ -35,7 +37,7 @@ export default function DraggableSequenceTable({
     reset: resetEdit,
     handleSubmit: handleEditSubmit,
   } = useForm({
-    defaultValues: { dinh_muc: "" },
+    defaultValues: { sequence_order: "", dinh_muc: "", machine_id: "" },
   });
 
   if (isLoading) {
@@ -62,7 +64,11 @@ export default function DraggableSequenceTable({
 
   const startEdit = (row) => {
     setEditingId(row.id);
-    resetEdit({ dinh_muc: row.dinh_muc });
+    resetEdit({ 
+      sequence_order: row.sequence_order,
+      dinh_muc: row.dinh_muc,
+      machine_id: row.machine_id || ""
+    });
   };
 
   const handleSave = (data) => {
@@ -188,13 +194,34 @@ export default function DraggableSequenceTable({
                           </Box>
                         </TableCell>
                         <TableCell width={60}>
-                          <Typography
-                            variant="body2"
-                            fontWeight={600}
-                            color="text.secondary"
-                          >
-                            {index + 1}
-                          </Typography>
+                          {editingId === row.id ? (
+                            <Controller
+                              name="sequence_order"
+                              control={editControl}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  variant="outlined"
+                                  type="number"
+                                  sx={{
+                                    width: 60,
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: "8px",
+                                    },
+                                  }}
+                                />
+                              )}
+                            />
+                          ) : (
+                            <Typography
+                              variant="body2"
+                              fontWeight={600}
+                              color="text.secondary"
+                            >
+                              {row.sequence_order}
+                            </Typography>
+                          )}
                         </TableCell>
 
                         {editingId === row.id ? (
@@ -205,12 +232,33 @@ export default function DraggableSequenceTable({
                               </Typography>
                             </TableCell>
                             <TableCell>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                {row.machine_name}
-                              </Typography>
+                              <Controller
+                                name="machine_id"
+                                control={editControl}
+                                render={({ field }) => (
+                                  <Autocomplete
+                                    size="small"
+                                    options={machinesList || []}
+                                    getOptionLabel={(option) => option.name || ""}
+                                    value={machinesList?.find(m => m.id === field.value) || null}
+                                    onChange={(_, newValue) => field.onChange(newValue ? newValue.id : "")}
+                                    renderInput={(params) => (
+                                      <TextField
+                                        {...params}
+                                        label="Máy"
+                                        variant="outlined"
+                                        sx={{ 
+                                          width: 150,
+                                          "& .MuiOutlinedInput-root": {
+                                            borderRadius: "8px",
+                                            fontSize: "0.8rem"
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  />
+                                )}
+                              />
                             </TableCell>
                             <TableCell align="right">
                               <Controller

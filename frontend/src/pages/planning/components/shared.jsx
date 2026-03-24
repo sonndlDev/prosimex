@@ -123,9 +123,22 @@ export function autoCalculateSchedule(totalNeeded, start, currentDays = []) {
 export function rebalanceDays(daysArray, changedIndex, newValRaw, targetTotal) {
   const newVal = parseFloat(newValRaw) || 0;
   const updated = [...daysArray];
+  
+  // Auto-toggle overtime if hours > 1.0
+  let isOvertime = updated[changedIndex]?.is_overtime;
+  if (newVal > NORMAL_CAPACITY) {
+    isOvertime = true;
+  } else if (newVal <= NORMAL_CAPACITY && newVal > 0 && updated[changedIndex].hours > NORMAL_CAPACITY) {
+     // If reducing from >1.0 to <=1.0, we can optionally untick, 
+     // but let's keep it if the user might still consider it overtime (e.g. weekend)
+     // Actually, if it was auto-ticked, they'd expect it to untick.
+     isOvertime = false;
+  }
+
   updated[changedIndex] = {
     ...updated[changedIndex],
     hours: newVal.toFixed(2),
+    is_overtime: isOvertime,
   };
 
   const sumSoFar = updated

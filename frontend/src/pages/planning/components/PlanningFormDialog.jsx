@@ -974,17 +974,25 @@ const PlanningFormDialog = React.memo(
                                     sx={{ p: 0.5 }}
                                     checked={day.is_overtime}
                                     onChange={(e) => {
+                                      const checked = e.target.checked;
                                       const newDays = [...plannedDays];
                                       newDays[idx] = {
                                         ...newDays[idx],
-                                        is_overtime: e.target.checked,
+                                        is_overtime: checked,
                                       };
-                                      const recalculated =
-                                        autoCalculateSchedule(
-                                          totalDaysNeeded,
-                                          startDate,
-                                          newDays,
-                                        );
+                                      
+                                      // If toggled ON and was at normal cap, jump to overtime cap
+                                      // If toggled OFF and was above normal cap, back to normal cap
+                                      let nextVal = parseFloat(newDays[idx].hours);
+                                      if (checked && nextVal >= 1.0) nextVal = 1.43;
+                                      if (!checked && nextVal > 1.0) nextVal = 1.0;
+
+                                      const recalculated = rebalanceDays(
+                                        newDays,
+                                        idx,
+                                        nextVal.toString(),
+                                        totalDaysNeeded,
+                                      );
                                       replaceDays(recalculated);
                                     }}
                                   />

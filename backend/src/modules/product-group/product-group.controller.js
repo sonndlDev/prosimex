@@ -84,6 +84,29 @@ export const createProductGroupOperation = async (req, res) => {
   try {
     const { id } = req.params // product_group_id
     const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
+
+    // 1. Check for duplicate operation_id in the same group
+    const duplicateCheck = await pool.query(
+      'SELECT id FROM product_group_operations WHERE product_group_id = $1 AND operation_id = $2 AND deleted_at IS NULL',
+      [id, operation_id]
+    )
+    if (duplicateCheck.rowCount > 0) {
+      return res.status(400).json({ message: 'Công đoạn này đã tồn tại trong quy trình của nhóm này.' })
+    }
+
+    // 2. Check for duplicate operation NAME in the same group (in case of multiple IDs with same name)
+    const nameCheck = await pool.query(
+      `SELECT pgo.id FROM product_group_operations pgo
+       JOIN operations o ON pgo.operation_id = o.id
+       WHERE pgo.product_group_id = $1 
+       AND o.name = (SELECT name FROM operations WHERE id = $2)
+       AND pgo.deleted_at IS NULL`,
+      [id, operation_id]
+    )
+    if (nameCheck.rowCount > 0) {
+      return res.status(400).json({ message: 'Công đoạn có tên này đã tồn tại trong quy trình. Vui lòng không thêm trùng tên.' })
+    }
+
     const result = await pool.query(
       `INSERT INTO product_group_operations 
              (product_group_id, operation_id, machine_id, sequence_order, dinh_muc) 
@@ -117,6 +140,31 @@ export const updateProductGroupOperation = async (req, res) => {
   try {
     const { id, operationId } = req.params
     const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
+
+    // If changing operation_id, check for duplicate ID and NAME
+    if (operation_id) {
+      const duplicateCheck = await pool.query(
+        'SELECT id FROM product_group_operations WHERE product_group_id = $1 AND operation_id = $2 AND id != $3 AND deleted_at IS NULL',
+        [id, operation_id, operationId]
+      )
+      if (duplicateCheck.rowCount > 0) {
+        return res.status(400).json({ message: 'Công đoạn này đã tồn tại trong quy trình của nhóm này.' })
+      }
+
+      const nameCheck = await pool.query(
+        `SELECT pgo.id FROM product_group_operations pgo
+         JOIN operations o ON pgo.operation_id = o.id
+         WHERE pgo.product_group_id = $1 
+         AND o.name = (SELECT name FROM operations WHERE id = $2)
+         AND pgo.id != $3
+         AND pgo.deleted_at IS NULL`,
+        [id, operation_id, operationId]
+      )
+      if (nameCheck.rowCount > 0) {
+        return res.status(400).json({ message: 'Công đoạn có tên này đã tồn tại trong quy trình. Vui lòng không thêm trùng tên.' })
+      }
+    }
+
     const result = await pool.query(
       `UPDATE product_group_operations 
        SET operation_id = COALESCE($1, operation_id),

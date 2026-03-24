@@ -32,6 +32,7 @@ const PlanningTableRow = React.memo(
     onOpenDelete,
     onClone,
     onInlineDayChange,
+    onInlineOTToggle,
     dailyMachineMetrics,
   }) => {
     const isYellow = idx % 3 === 0;
@@ -120,50 +121,53 @@ const PlanningTableRow = React.memo(
               }}
             >
               {isInlineEditing ? (
-                <ManagedTextField
-                  size="small"
-                  variant="standard"
-                  type="number"
-                  value={editDayData ? editDayData.hours : "0.00"}
-                  onCommit={(val) => onInlineDayChange(plan, date.key, val)}
-                  InputProps={{
-                    disableUnderline: true,
-                    autoFocus: colIdx === 0,
-                    sx: {
-                      fontSize: "0.8rem",
-                      textAlign: "center",
-                      "& input": {
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Typography
+                    variant="caption"
+                    onClick={() => onInlineOTToggle(plan, date.key)}
+                    sx={{
+                      cursor: "pointer",
+                      fontSize: "9px",
+                      fontWeight: 900,
+                      color: editDayData?.is_overtime ? "#ef4444" : "#94a3b8",
+                      mb: -0.5,
+                      "&:hover": { color: "#ef4444" },
+                    }}
+                  >
+                    {editDayData?.is_overtime ? "TĂNG CA" : "chuẩn"}
+                  </Typography>
+                  <ManagedTextField
+                    size="small"
+                    variant="standard"
+                    type="number"
+                    value={editDayData ? editDayData.hours : "0.00"}
+                    onCommit={(val) => onInlineDayChange(plan, date.key, val)}
+                    InputProps={{
+                      disableUnderline: true,
+                      autoFocus: colIdx === 0,
+                      sx: {
+                        fontSize: "0.8rem",
                         textAlign: "center",
-                        fontWeight: 700,
-                        p: 0,
+                        "& input": {
+                          textAlign: "center",
+                          fontWeight: 700,
+                          p: 0,
+                        },
                       },
-                    },
-                  }}
-                  sx={{
-                    width: "100%",
-                    height: "40px",
-                    border: "none",
-                    background: "#ffffff",
-                    textAlign: "center",
-                    fontSize: "0.95rem",
-                    fontWeight: 800,
-                    outline: "2px solid #3b82f6",
-                    padding: "4px 8px",
-                    color: "#2563eb",
-                    borderRadius: "4px",
-                    "& input::-webkit-outer-spin-button, & input::-webkit-inner-spin-button":
-                      {
-                        "-webkit-appearance": "none",
-                        margin: 0,
-                      },
-                    "& input[type=number]": {
-                      "-moz-appearance": "textfield",
-                    },
-                    "&:hover": {
-                      background: "#f8fafc",
-                    },
-                  }}
-                />
+                    }}
+                    sx={{
+                      width: "100%",
+                      height: "30px",
+                      border: "none",
+                      background: "#ffffff",
+                      textAlign: "center",
+                      fontSize: "0.95rem",
+                      fontWeight: 800,
+                      padding: "0px 4px",
+                      color: "#2563eb",
+                    }}
+                  />
+                </Box>
               ) : (
                 <Box
                   display="flex"
@@ -171,6 +175,17 @@ const PlanningTableRow = React.memo(
                   alignItems="center"
                   gap={0.2}
                 >
+                   <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "8px",
+                      fontWeight: 900,
+                      color: dayData?.is_overtime ? "#fff" : "transparent",
+                      mb: -0.5
+                    }}
+                  >
+                    TC
+                  </Typography>
                   <Typography
                     variant="caption"
                     sx={{

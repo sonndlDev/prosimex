@@ -37,6 +37,7 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import ViewTimelineIcon from "@mui/icons-material/ViewTimeline";
 import ConstructionIcon from "@mui/icons-material/Construction";
 import AccessTimeFilledIcon from "@mui/icons-material/AccessTimeFilled";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 
 export default function MainLayout() {
   const { user, logout } = useAuth();
@@ -67,6 +68,12 @@ export default function MainLayout() {
       icon: <EventNoteIcon />,
       path: "/planning",
       permission: "planning",
+    },
+    {
+      text: "Phiếu SX hàng ngày",
+      icon: <AssignmentIcon />,
+      path: "/daily-tickets",
+      permission: "planning", // Temporary reuse permission
     },
     {
       text: "Lịch sản xuất",
@@ -381,14 +388,6 @@ export default function MainLayout() {
           </Box>
 
           <Box display="flex" alignItems="center" gap={2}>
-            <Box sx={{ display: { xs: "none", md: "block" } }}>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 500, color: "text.secondary" }}
-              >
-                Phiên bản v1.0.4
-              </Typography>
-            </Box>
             <Tooltip title="Đăng xuất">
               <IconButton
                 color="error"

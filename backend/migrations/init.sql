@@ -105,8 +105,7 @@ CREATE TABLE IF NOT EXISTS product_group_operations (
     estimated_hours NUMERIC(10, 2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    UNIQUE (product_group_id, sequence_order)
+    deleted_at TIMESTAMP
 );
 
 -- ==========================================

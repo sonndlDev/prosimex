@@ -3,7 +3,9 @@ import pool from "../../config/db.js";
 export const getProductionPlans = async (req, res) => {
   try {
     const { page = 1, limit = 10, order_ids } = req.query;
-    const offset = (page - 1) * limit;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
 
     let whereClause = "WHERE pp.deleted_at IS NULL";
     const queryParams = [];
@@ -19,6 +21,10 @@ export const getProductionPlans = async (req, res) => {
       queryParams.push(orderIdsArray);
       whereClause += ` AND pp.order_id = ANY($${queryParams.length})`;
     }
+
+    const { working_date } = req.query;
+    // Removed date-based filtering as per user request to be less restrictive
+    // Previously used to limit by order range or plan date range
 
     // Get total count for pagination
     const countResult = await pool.query(
@@ -39,6 +45,7 @@ export const getProductionPlans = async (req, res) => {
             SELECT 
                 pp.*, 
                 o.order_code, 
+                o.name as order_name,
                 o.po_customer,
                 COALESCE(op_qty.quantity, o.quantity, 0) as quantity,
                 COALESCE(op_qty.quantity, o.quantity, 0) as product_quantity,
@@ -63,7 +70,7 @@ export const getProductionPlans = async (req, res) => {
             ORDER BY pp.created_at DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
         `,
-      [...queryParams, limit, offset],
+      [...queryParams, limitInt, offsetInt],
     );
 
     // Fetch days and worker counts for each plan

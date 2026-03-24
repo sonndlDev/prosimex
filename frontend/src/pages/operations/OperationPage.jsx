@@ -12,12 +12,19 @@ import {
   TextField,
   Box,
   Chip,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 
 export default function OperationPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
   const {
     control,
     handleSubmit: rhfHandleSubmit,
@@ -46,10 +53,24 @@ export default function OperationPage() {
   const createMutation = useMutation({
     mutationFn: operationService.create,
     ...mutationOpts,
+    onError: (err) => {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Lỗi khi tạo công đoạn",
+        severity: "error",
+      });
+    }
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => operationService.update(id, payload),
     ...mutationOpts,
+    onError: (err) => {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Lỗi khi cập nhật công đoạn",
+        severity: "error",
+      });
+    }
   });
   const deleteMutation = useMutation({
     mutationFn: operationService.delete,
@@ -188,6 +209,23 @@ export default function OperationPage() {
           </DialogActions>
         </form>
       </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: "100%", borderRadius: "12px", fontWeight: 600 }}
+          variant="filled"
+          elevation={6}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

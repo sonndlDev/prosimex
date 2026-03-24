@@ -25,9 +25,20 @@ export const getOperations = async (req, res) => {
 export const createOperation = async (req, res) => {
   try {
     const { name, description } = req.body
+    if (!name) return res.status(400).json({ message: 'Tên công đoạn là bắt buộc' })
+    
+    const trimmedName = name.trim()
+    const duplicateCheck = await pool.query(
+      'SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL',
+      [trimmedName]
+    )
+    if (duplicateCheck.rowCount > 0) {
+      return res.status(400).json({ message: 'Công đoạn này đã tồn tại trong danh mục.' })
+    }
+
     const result = await pool.query(
       'INSERT INTO operations (name, description) VALUES ($1, $2) RETURNING *',
-      [name, description]
+      [trimmedName, description]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -39,9 +50,21 @@ export const updateOperation = async (req, res) => {
   try {
     const { id } = req.params
     const { name, description } = req.body
+
+    if (name) {
+      const trimmedName = name.trim()
+      const duplicateCheck = await pool.query(
+        'SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND id != $2 AND deleted_at IS NULL',
+        [trimmedName, id]
+      )
+      if (duplicateCheck.rowCount > 0) {
+        return res.status(400).json({ message: 'Tên công đoạn này đã tồn tại trong danh mục.' })
+      }
+    }
+
     const result = await pool.query(
       'UPDATE operations SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND deleted_at IS NULL RETURNING *',
-      [name, description, id]
+      [name?.trim(), description, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Operation not found' })
     res.json(result.rows[0])
