@@ -43,6 +43,16 @@ export const dailyTicketService = {
         }
     },
 
+    update: async (id, payload) => {
+        try {
+            const { data } = await api.put(`/daily-tickets/${id}`, payload);
+            return data;
+        } catch (error) {
+            console.error('Error updating daily ticket:', error);
+            throw error;
+        }
+    },
+
     updateResults: async (id, items) => {
         try {
             const { data } = await api.put(`/daily-tickets/${id}/results`, { items });

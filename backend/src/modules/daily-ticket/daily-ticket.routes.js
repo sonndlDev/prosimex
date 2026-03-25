@@ -5,6 +5,7 @@ import {
   getTickets,
   getTicketById,
   createTicket,
+  updateTicket,
   updateTicketResults,
   deleteTicket,
   getPlanVsActualReport
@@ -18,6 +19,7 @@ router.get("/", getTickets);
 router.get("/report/plan-vs-actual", getPlanVsActualReport);
 router.get("/:id", getTicketById);
 router.post("/", authorize(["ADMIN", "PLANNER"]), createTicket);
+router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"]), updateTicket);
 router.put("/:id/results", authorize(["ADMIN", "PLANNER", "MANAGER"]), updateTicketResults);
 router.delete("/:id", authorize(["ADMIN", "PLANNER"]), deleteTicket);
 

@@ -36,7 +36,6 @@ export default function DailyTicketPage() {
   const rowsPerPage = 10;
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isResultOpen, setIsResultOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
@@ -76,10 +75,6 @@ export default function DailyTicketPage() {
     });
   };
 
-  const handleOpenResult = (id) => {
-    setSelectedTicketId(id);
-    setIsResultOpen(true);
-  };
 
   const handleOpenPrint = (id) => {
     setSelectedTicketId(id);
@@ -103,7 +98,10 @@ export default function DailyTicketPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => setIsFormOpen(true)}
+            onClick={() => {
+              setSelectedTicketId(null);
+              setIsFormOpen(true);
+            }}
             sx={{ borderRadius: "12px", textTransform: "none", fontWeight: 700 }}
           >
             Tạo Phiếu Mới
@@ -116,7 +114,7 @@ export default function DailyTicketPage() {
           <Table>
             <TableHead sx={{ bgcolor: "background.default" }}>
               <TableRow>
-                <TableCell width={80}>ID</TableCell>
+                <TableCell width={160}>Mã số phiếu</TableCell>
                 <TableCell>Ngày sản xuất</TableCell>
                 <TableCell>Trạng thái</TableCell>
                 <TableCell>Người lập</TableCell>
@@ -140,7 +138,9 @@ export default function DailyTicketPage() {
               ) : (
                 data?.data?.map((item) => (
                   <TableRow key={item.id} hover>
-                    <TableCell>#{item.id}</TableCell>
+                    <TableCell sx={{ fontWeight: 800, color: "primary.main" }}>
+                      {DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}_#{item.id}
+                    </TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>
                       {DateTime.fromISO(item.ticket_date).toFormat("dd/MM/yyyy")}
                     </TableCell>
@@ -162,8 +162,11 @@ export default function DailyTicketPage() {
                           <PrintIcon />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Nhập Kết Quả / Xem CT">
-                        <IconButton color="primary" onClick={() => handleOpenResult(item.id)}>
+                      <Tooltip title="Chỉnh Sửa (Thêm/Sửa Đơn)">
+                        <IconButton color="primary" onClick={() => {
+                          setSelectedTicketId(item.id);
+                          setIsFormOpen(true);
+                        }}>
                           <EditNoteIcon />
                         </IconButton>
                       </Tooltip>
@@ -188,16 +191,9 @@ export default function DailyTicketPage() {
       {isFormOpen && (
         <DailyTicketFormDialog
           open={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-        />
-      )}
-
-      {isResultOpen && selectedTicketId && (
-        <DailyTicketResultDialog
-          open={isResultOpen}
           ticketId={selectedTicketId}
           onClose={() => {
-            setIsResultOpen(false);
+            setIsFormOpen(false);
             setSelectedTicketId(null);
           }}
         />

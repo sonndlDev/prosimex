@@ -726,7 +726,6 @@ export default function OrderPage() {
                           <Select
                             {...f}
                             label="Nhóm mã"
-                            disabled={!!selectedOrder}
                             onChange={(e) => {
                               f.onChange(e);
                               // Reset product_id when changing group
@@ -757,7 +756,7 @@ export default function OrderPage() {
                             <Select
                               {...f}
                               label="Mã hàng"
-                              disabled={!groupId || !!selectedOrder}
+                              disabled={!groupId}
                               sx={{ borderRadius: "8px" }}
                             >
                               {products

@@ -23,7 +23,7 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
   const handlePrint = () => {
     const printContent = printRef.current;
     const originalContents = document.body.innerHTML;
-    
+
     // Add some print-specific styles temporarily
     const printStyle = document.createElement('style');
     printStyle.innerHTML = `
@@ -36,10 +36,10 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
       }
     `;
     document.head.appendChild(printStyle);
-    
+
     document.body.innerHTML = printContent.innerHTML;
     window.print();
-    
+
     // Restore original contents
     document.body.innerHTML = originalContents;
     document.head.removeChild(printStyle);
@@ -62,22 +62,25 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
       <DialogContent dividers>
         {/* Printable Area */}
         <Box ref={printRef} sx={{ p: 2, bgcolor: "white", color: "black", minHeight: "800px", fontFamily: "'Times New Roman', serif" }}>
-          
+
           <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
             <colgroup>
-               <col style={{width: "14%"}}/>
-               <col style={{width: "12%"}}/>
-               <col style={{width: "12%"}}/>
-               <col style={{width: "22%"}}/>
-               <col style={{width: "16%"}}/>
-               <col style={{width: "12%"}}/>
-               <col style={{width: "12%"}}/>
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "22%" }} />
+              <col style={{ width: "16%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
             </colgroup>
             <tbody>
               {/* Row 1 */}
               <tr>
-                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>SLK: Qli điền tay</td>
-                <td colSpan={3} style={{ border: "1px solid black", padding: "4px", textAlign: "center", fontWeight: "bold", fontSize: "16pt" }}>PHIẾU SẢN XUẤT</td>
+                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>SLK:</td>
+                <td colSpan={3} style={{ border: "1px solid black", padding: "4px", textAlign: "center", fontWeight: "bold", fontSize: "16pt", lineHeight: "1.2" }}>
+                  PHIẾU SẢN XUẤT<br />
+                  <span style={{ fontSize: "12pt", fontWeight: "normal" }}>Mã số phiếu: {ticket ? `${DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}_#${ticket.id}` : ""}</span>
+                </td>
                 <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "center", fontWeight: "bold" }}>VINTERPROS</td>
               </tr>
               {/* Row 2 */}
@@ -85,15 +88,15 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>NGÀY SẢN XUẤT:</td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center", fontWeight: "bold" }}>{ticketDate}</td>
                 <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "right", fontWeight: "bold", paddingRight: "50px" }}>CA SX:</td>
-                <td style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>MÃ SỐ CN<br/>(Q/ly điền tay)</td>
-                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>dùng mã này để<br/>nhập slsx thực tế</td>
+                <td style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>MÃ SỐ CN</td>
+                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>dùng mã này để<br />nhập slsx thực tế</td>
               </tr>
               {/* Row 3 */}
               <tr>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold" }}>MÁY MÓC:</td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center", fontWeight: "bold" }}>{firstMachine}</td>
                 <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "right", fontWeight: "bold", paddingRight: "50px" }}>SỐ THẺ:</td>
-                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold", borderRight: "none" }}>HỌ VÀ TÊN<br/><span style={{fontWeight: "normal"}}>(Q/ly điền tay)</span></td>
+                <td colSpan={2} style={{ border: "1px solid black", padding: "4px", textAlign: "left", fontWeight: "bold", borderRight: "none" }}>HỌ VÀ TÊN</td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center", borderLeft: "none" }}></td>
               </tr>
               {/* Headers */}
@@ -101,10 +104,10 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>KHÁCH HÀNG</td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>PO</td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>NHÓM MÃ</td>
-                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>MÃ HÀNG<br/><span style={{fontSize:"9pt", fontWeight: "normal"}}>Đi kèm mã hàng sẽ có mộ<br/>t ả mã hàng ở phía dưới</span></td>
+                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>MÃ HÀNG<br /><span style={{ fontSize: "9pt", fontWeight: "normal" }}>Đi kèm mã hàng sẽ có mộ<br />t ả mã hàng ở phía dưới</span></td>
                 <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>CÔNG ĐOẠN</td>
-                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>SẢN LƯỢNG<br/>CẦN SX (CÁI)</td>
-                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>SỐ LƯỢNG<br/>THỰC TẾ SẢN<br/>XUẤT</td>
+                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>SẢN LƯỢNG<br />CẦN SX (CÁI)</td>
+                <td style={{ border: "1px solid black", padding: "4px", textAlign: "center" }}>SỐ LƯỢNG<br />THỰC TẾ SẢN XUẤT</td>
               </tr>
               {/* Items */}
               {ticket?.items?.map((item, index) => (
@@ -166,6 +169,6 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
           In Phiếu Này
         </Button>
       </DialogActions>
-    </Dialog>
+    </Dialog >
   );
 }

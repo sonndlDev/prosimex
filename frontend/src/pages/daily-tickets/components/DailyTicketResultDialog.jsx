@@ -91,6 +91,8 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
     );
   }
 
+  const isCompleted = ticket?.status === "COMPLETED";
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle sx={{ fontWeight: 700 }}>
@@ -147,7 +149,8 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
                           size="small"
                           fullWidth
                           variant="outlined"
-                          inputProps={{ style: { textAlign: "right", fontWeight: 700, color: "#2563eb" } }}
+                          disabled={isCompleted}
+                          inputProps={{ style: { textAlign: "right", fontWeight: 700, color: isCompleted ? "inherit" : "#2563eb" } }}
                         />
                       )}
                     />
@@ -165,17 +168,25 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
 
       </DialogContent>
       <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} color="inherit">
-          Đóng
-        </Button>
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          variant="contained"
-          color="primary"
-          disabled={updateMutation.isPending}
-        >
-          {updateMutation.isPending ? "Đang lưu..." : "Lưu Kết Quả"}
-        </Button>
+        {isCompleted ? (
+          <Button onClick={onClose} variant="contained" color="primary">
+            Đóng
+          </Button>
+        ) : (
+          <>
+            <Button onClick={onClose} color="inherit">
+              Hủy
+            </Button>
+            <Button
+              onClick={handleSubmit(onSubmit)}
+              variant="contained"
+              color="primary"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Đang lưu..." : "Lưu Kết Quả"}
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );

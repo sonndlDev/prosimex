@@ -145,6 +145,71 @@ export const createTicket = async (req, res) => {
   }
 };
 
+// PUT /api/daily-tickets/:id
+export const updateTicket = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const { ticket_date, items } = req.body;
+    const user_id = req.user.id;
+
+    const ticketRes = await client.query(
+      "SELECT * FROM daily_production_tickets WHERE id = $1 AND deleted_at IS NULL",
+      [id]
+    );
+    if (ticketRes.rowCount === 0) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    if (ticketRes.rows[0].status === "COMPLETED") {
+      return res.status(400).json({ message: "Cannot edit a completed ticket!" });
+    }
+
+    // Update ticket header
+    await client.query(
+      "UPDATE daily_production_tickets SET ticket_date = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+      [ticket_date, id]
+    );
+
+    // Re-create items (since logic is to only edit un-completed tickets)
+    await client.query("DELETE FROM daily_production_ticket_items WHERE ticket_id = $1", [id]);
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO daily_production_ticket_items 
+           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            id,
+            item.order_id || null,
+            item.product_id || null,
+            item.product_group_operation_id || null,
+            item.operation_name || null,
+            item.planned_quantity || 0,
+          ]
+        );
+      }
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id)
+       VALUES ($1, 'UPDATE', 'DailyProductionTicket', $2)`,
+      [user_id, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Ticket updated successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Ticket Error:", error);
+    res.status(500).json({ message: "Error updating ticket", error });
+  } finally {
+    client.release();
+  }
+};
+
 // PUT /api/daily-tickets/:id/results
 export const updateTicketResults = async (req, res) => {
   const client = await pool.connect();

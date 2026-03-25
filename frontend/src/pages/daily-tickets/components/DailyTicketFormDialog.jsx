@@ -161,7 +161,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, ticketDate, watchI
   );
 };
 
-export default function DailyTicketFormDialog({ open, onClose }) {
+export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
@@ -171,6 +171,14 @@ export default function DailyTicketFormDialog({ open, onClose }) {
       items: [],
     },
   });
+
+  const { data: ticket, isLoading: ticketLoading } = useQuery({
+    queryKey: ["daily-ticket", ticketId],
+    queryFn: () => dailyTicketService.getById(ticketId),
+    enabled: !!ticketId && open,
+  });
+
+  const isCompleted = ticket?.status === "COMPLETED";
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -201,12 +209,44 @@ export default function DailyTicketFormDialog({ open, onClose }) {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data) => dailyTicketService.update(ticketId, data),
+    onSuccess: () => {
+      enqueueSnackbar("Đã cập nhật phiếu thành công!", { variant: "success" });
+      queryClient.invalidateQueries(["daily-tickets"]);
+      queryClient.invalidateQueries(["daily-ticket", ticketId]);
+      onClose();
+    },
+    onError: (err) => {
+      enqueueSnackbar(err.response?.data?.message || "Lỗi khi cập nhật phiếu!", {
+        variant: "error",
+      });
+    },
+  });
+
   const watchItems = watch("items");
 
   useEffect(() => {
     if (!open) {
-      reset();
+      reset({ ticket_date: DateTime.local().toISODate(), items: [] });
+    } else if (ticketId && ticket) {
+      reset({
+        ticket_date: DateTime.fromISO(ticket.ticket_date).toISODate(),
+        items: ticket.items?.map(item => ({
+          order_id: item.order_id || "",
+          product_id: item.product_id || "",
+          product_group_operation_id: item.product_group_operation_id || "",
+          operation_name: item.operation_name || item.pgo_operation_name || "",
+          planned_quantity: item.planned_quantity ? parseFloat(item.planned_quantity) : "",
+        })) || []
+      });
+    } else if (!ticketId) {
+      reset({ ticket_date: DateTime.local().toISODate(), items: [] });
     }
+  }, [open, ticket, ticketId, reset]);
+
+  useEffect(() => {
+    // handled effectively in the hook above
   }, [open, reset]);
 
   const onSubmit = (data) => {
@@ -214,12 +254,20 @@ export default function DailyTicketFormDialog({ open, onClose }) {
       enqueueSnackbar("Vui lòng thêm ít nhất một công đoạn!", { variant: "warning" });
       return;
     }
-    createMutation.mutate(data);
+    if (ticketId) updateMutation.mutate(data);
+    else createMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle sx={{ fontWeight: 700 }}>Tạo Phiếu Sản Xuất Hàng Ngày</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700 }}>
+        {ticketId ? `Chỉnh Sửa Phiếu Sản Xuất #${ticketId}` : "Tạo Phiếu Sản Xuất Hàng Ngày"}
+        {isCompleted && (
+           <Typography component="span" color="error" sx={{ml: 2}}>
+             (Đã chốt - Không thể sửa)
+           </Typography>
+        )}
+      </DialogTitle>
       <DialogContent dividers>
         <Box mb={4} width={300}>
           <Controller
@@ -231,6 +279,7 @@ export default function DailyTicketFormDialog({ open, onClose }) {
                 label="Ngày sản xuất"
                 type="date"
                 fullWidth
+                disabled={isCompleted}
                 InputLabelProps={{ shrink: true }}
               />
             )}
@@ -247,7 +296,7 @@ export default function DailyTicketFormDialog({ open, onClose }) {
                index={index} 
                control={control} 
                setValue={setValue} 
-               remove={remove} 
+               remove={isCompleted ? () => {} : remove} 
                plans={plans} 
                ticketDate={ticketDate}
                watchItems={watchItems}
@@ -267,7 +316,8 @@ export default function DailyTicketFormDialog({ open, onClose }) {
               planned_quantity: "",
             })
           }
-          sx={{ mt: 2, fontWeight: 700 }}
+          disabled={isCompleted}
+          sx={{ mt: 2, fontWeight: 700, display: isCompleted ? "none" : "inline-flex" }}
         >
           Thêm Công Việc Tiết
         </Button>
@@ -276,13 +326,17 @@ export default function DailyTicketFormDialog({ open, onClose }) {
         <Button onClick={onClose} color="inherit">
           Huỷ
         </Button>
-        <Button
-          onClick={handleSubmit(onSubmit)}
-          variant="contained"
-          disabled={createMutation.isPending}
-        >
-          {createMutation.isPending ? "Đang lưu..." : "Tạo Phiếu"}
-        </Button>
+        {isCompleted ? (
+           <Button onClick={onClose} variant="contained" color="primary">Đóng</Button>
+        ) : (
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            variant="contained"
+            disabled={createMutation.isPending || updateMutation.isPending}
+          >
+            {createMutation.isPending || updateMutation.isPending ? "Đang lưu..." : (ticketId ? "Cập Nhật Phiếu" : "Tạo Phiếu")}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

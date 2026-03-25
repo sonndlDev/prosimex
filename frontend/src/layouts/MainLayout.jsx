@@ -76,6 +76,12 @@ export default function MainLayout() {
       permission: "planning", // Temporary reuse permission
     },
     {
+      text: "Nhập sản lượng",
+      icon: <AssignmentIcon />,
+      path: "/production-output",
+      permission: "planning",
+    },
+    {
       text: "Lịch sản xuất",
       icon: <ViewTimelineIcon />,
       path: "/schedule",
