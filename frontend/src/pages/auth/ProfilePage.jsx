@@ -3,38 +3,34 @@ import { useForm, Controller } from "react-hook-form";
 import { useAuth } from "../../context/AuthContext";
 import { useMutation } from "@tanstack/react-query";
 import { userService } from "../../services/user.service";
+import { toast } from "sonner";
 import {
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Avatar,
-  Divider,
-  Grid,
   Card,
   CardContent,
-  Alert,
-  Snackbar,
-  IconButton,
-  InputAdornment,
-} from "@mui/material";
-import PersonIcon from "@mui/icons-material/Person";
-import EmailIcon from "@mui/icons-material/Email";
-import PhoneIcon from "@mui/icons-material/Phone";
-import LockIcon from "@mui/icons-material/Lock";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import SaveIcon from "@mui/icons-material/Save";
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  Save,
+  ShieldCheck,
+  Activity,
+} from "lucide-react";
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [notification, setNotification] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
   const { control: profileControl, handleSubmit: handleProfileFormSubmit } =
     useForm({
@@ -56,38 +52,22 @@ export default function ProfilePage() {
   const profileMutation = useMutation({
     mutationFn: userService.updateProfile,
     onSuccess: () => {
-      setNotification({
-        open: true,
-        message: "Cập nhật thông tin thành công!",
-        severity: "success",
-      });
+      toast.success("Cập nhật thông tin thành công!");
       refreshUser();
     },
     onError: (error) => {
-      setNotification({
-        open: true,
-        message: error.response?.data?.message || "Lỗi khi cập nhật thông tin",
-        severity: "error",
-      });
+      toast.error(error.response?.data?.message || "Lỗi khi cập nhật thông tin");
     },
   });
 
   const passwordMutation = useMutation({
     mutationFn: userService.updateProfile,
     onSuccess: () => {
-      setNotification({
-        open: true,
-        message: "Đổi mật khẩu thành công!",
-        severity: "success",
-      });
+      toast.success("Đổi mật khẩu thành công!");
       resetPassword({ new_password: "", confirm_password: "" });
     },
     onError: (error) => {
-      setNotification({
-        open: true,
-        message: error.response?.data?.message || "Lỗi khi đổi mật khẩu",
-        severity: "error",
-      });
+      toast.error(error.response?.data?.message || "Lỗi khi đổi mật khẩu");
     },
   });
 
@@ -97,310 +77,236 @@ export default function ProfilePage() {
 
   const onPasswordSubmit = (data) => {
     if (data.new_password !== data.confirm_password) {
-      return setNotification({
-        open: true,
-        message: "Mật khẩu xác nhận không khớp",
-        severity: "error",
-      });
+      return toast.error("Mật khẩu xác nhận không khớp");
     }
     if (data.new_password.length < 6) {
-      return setNotification({
-        open: true,
-        message: "Mật khẩu phải có ít nhất 6 ký tự",
-        severity: "error",
-      });
+      return toast.error("Mật khẩu phải có nhất 6 ký tự");
     }
     passwordMutation.mutate({ password: data.new_password });
   };
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: "auto", py: 4 }}>
-      <Typography variant="h4" fontWeight={800} gutterBottom sx={{ mb: 4 }}>
-        Hồ sơ cá nhân
-      </Typography>
+    <div className="max-w-5xl mx-auto py-8 px-4 space-y-8">
+      <div>
+        <h1 className="text-3xl font-extrabold tracking-tight text-zinc-950">
+          Hồ sơ cá nhân
+        </h1>
+        <p className="text-zinc-500 mt-1">Quản lý thông tin tài khoản và bảo mật của bạn</p>
+      </div>
 
-      <Grid container spacing={4}>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Left side: Avatar & Summary */}
-        <Grid item xs={12} md={4}>
-          <Card
-            sx={{
-              borderRadius: "24px",
-              textAlign: "center",
-              p: 2,
-              height: "100%",
-            }}
-          >
-            <CardContent>
-              <Avatar
-                sx={{
-                  width: 120,
-                  height: 120,
-                  mx: "auto",
-                  mb: 2,
-                  bgcolor: "primary.main",
-                  fontSize: "3rem",
-                  fontWeight: 700,
-                  boxShadow: "0 8px 16px rgba(37, 99, 235, 0.2)",
-                }}
-              >
-                {user?.username?.[0]?.toUpperCase()}
+        <div className="md:col-span-4 space-y-6">
+          <Card className="overflow-hidden border-zinc-200 shadow-sm">
+            <CardContent className="pt-8 pb-6 text-center">
+              <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-white shadow-lg">
+                <AvatarFallback className="bg-zinc-950 text-white text-4xl font-bold">
+                  {user?.username?.[0]?.toUpperCase()}
+                </AvatarFallback>
               </Avatar>
-              <Typography variant="h5" fontWeight={700}>
+              <h2 className="text-xl font-bold text-zinc-950">
                 {user?.full_name || user?.username}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                @{user?.username}
-              </Typography>
+              </h2>
+              <p className="text-sm text-zinc-500 font-medium">@{user?.username}</p>
 
-              <Box
-                sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 1 }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    px: 2,
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    Vai trò:
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="primary">
+              <div className="mt-8 space-y-4 px-2">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-zinc-500">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Vai trò:</span>
+                  </div>
+                  <span className="font-bold text-zinc-950 px-2 py-0.5 bg-zinc-100 rounded text-xs">
                     {user?.role}
-                  </Typography>
-                </Box>
-                <Divider sx={{ my: 1 }} />
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    px: 2,
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    Trạng thái:
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    fontWeight={600}
-                    color="success.main"
-                  >
+                  </span>
+                </div>
+                <Separator className="bg-zinc-100" />
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 text-zinc-500">
+                    <Activity className="w-4 h-4" />
+                    <span>Trạng thái:</span>
+                  </div>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Hoạt động
-                  </Typography>
-                </Box>
-              </Box>
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </Grid>
+        </div>
 
         {/* Right side: Forms */}
-        <Grid item xs={12} md={8}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {/* Basic Info Form */}
-            <Paper sx={{ p: 4, borderRadius: "24px" }}>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}
-              >
-                <PersonIcon color="primary" />
-                <Typography variant="h6" fontWeight={700}>
-                  Thông tin cơ bản
-                </Typography>
-              </Box>
-
-              <form onSubmit={handleProfileFormSubmit(onProfileSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
+        <div className="md:col-span-8 space-y-8">
+          {/* Basic Info Form */}
+          <Card className="border-zinc-200 shadow-sm">
+            <CardHeader>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <User className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Thông tin cơ bản</CardTitle>
+                  <CardDescription>Cập nhật thông tin liên hệ và tên hiển thị</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileFormSubmit(onProfileSubmit)} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Họ và tên</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     <Controller
                       name="full_name"
                       control={profileControl}
                       render={({ field }) => (
-                        <TextField
+                        <Input
                           {...field}
-                          fullWidth
-                          label="Họ và tên"
+                          id="full_name"
+                          className="pl-10"
                           placeholder="Nhập tên hiển thị"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PersonIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                          }}
                         />
                       )}
                     />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="phone"
-                      control={profileControl}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Số điện thoại"
-                          placeholder="0xxx xxx xxx"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PhoneIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="email"
-                      control={profileControl}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Email"
-                          placeholder="example@prosimex.com"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <EmailIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sx={{ mt: 1 }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      startIcon={<SaveIcon />}
-                      disabled={profileMutation.isPending}
-                      sx={{
-                        borderRadius: "12px",
-                        px: 4,
-                        py: 1.2,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {profileMutation.isPending
-                        ? "Đang lưu..."
-                        : "Lưu thay đổi"}
-                    </Button>
-                  </Grid>
-                </Grid>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Số điện thoại</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Controller
+                        name="phone"
+                        control={profileControl}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="phone"
+                            className="pl-10"
+                            placeholder="0xxx xxx xxx"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Controller
+                        name="email"
+                        control={profileControl}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="email"
+                            className="pl-10"
+                            placeholder="example@prosimex.com"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={profileMutation.isPending}
+                  className="gap-2 font-bold px-6 h-11"
+                >
+                  {profileMutation.isPending ? (
+                    <Activity className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Lưu thay đổi
+                </Button>
               </form>
-            </Paper>
+            </CardContent>
+          </Card>
 
-            {/* Security Form */}
-            <Paper sx={{ p: 4, borderRadius: "24px" }}>
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3 }}
-              >
-                <LockIcon color="error" />
-                <Typography variant="h6" fontWeight={700}>
-                  Bảo mật & Mật khẩu
-                </Typography>
-              </Box>
+          {/* Security Form */}
+          <Card className="border-zinc-200 shadow-sm border-l-4 border-l-red-500">
+            <CardHeader>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-red-50 rounded-lg">
+                  <Lock className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <CardTitle>Bảo mật & Mật khẩu</CardTitle>
+                  <CardDescription>Thay đổi mật khẩu đăng nhập hệ thống</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordFormSubmit(onPasswordSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new_password">Mật khẩu mới</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Controller
+                        name="new_password"
+                        control={passwordControl}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="new_password"
+                            type={showPassword ? "text" : "password"}
+                            className="pl-10 pr-10"
+                            placeholder="••••••••"
+                          />
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm_password">Xác nhận mật khẩu</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Controller
+                        name="confirm_password"
+                        control={passwordControl}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="confirm_password"
+                            type={showPassword ? "text" : "password"}
+                            className="pl-10"
+                            placeholder="••••••••"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
 
-              <form onSubmit={handlePasswordFormSubmit(onPasswordSubmit)}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="new_password"
-                      control={passwordControl}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Mật khẩu mới"
-                          type={showPassword ? "text" : "password"}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LockIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                            endAdornment: (
-                              <InputAdornment position="end">
-                                <IconButton
-                                  onClick={() => setShowPassword(!showPassword)}
-                                >
-                                  {showPassword ? (
-                                    <VisibilityOff />
-                                  ) : (
-                                    <Visibility />
-                                  )}
-                                </IconButton>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <Controller
-                      name="confirm_password"
-                      control={passwordControl}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          fullWidth
-                          label="Xác nhận mật khẩu"
-                          type={showPassword ? "text" : "password"}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <LockIcon fontSize="small" />
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      )}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sx={{ mt: 1 }}>
-                    <Button
-                      type="submit"
-                      variant="outlined"
-                      color="error"
-                      disabled={passwordMutation.isPending}
-                      sx={{
-                        borderRadius: "12px",
-                        px: 4,
-                        py: 1.2,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {passwordMutation.isPending
-                        ? "Đang xử lý..."
-                        : "Đổi mật khẩu"}
-                    </Button>
-                  </Grid>
-                </Grid>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={passwordMutation.isPending}
+                  className="gap-2 font-bold px-6 h-11"
+                >
+                  {passwordMutation.isPending ? (
+                    <Activity className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
+                  Đổi mật khẩu
+                </Button>
               </form>
-            </Paper>
-          </Box>
-        </Grid>
-      </Grid>
-
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={4000}
-        onClose={() => setNotification({ ...notification, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          onClose={() => setNotification({ ...notification, open: false })}
-          severity={notification.severity}
-          sx={{ borderRadius: "12px" }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }

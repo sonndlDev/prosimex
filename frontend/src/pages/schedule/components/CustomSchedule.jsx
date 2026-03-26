@@ -1,6 +1,12 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { Box, Typography, Paper, Tooltip, Divider } from '@mui/material';
-import { DateTime, Interval } from 'luxon';
+import { DateTime } from 'luxon';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 
 const COLUMN_WIDTH = 50; // px
 const ROW_HEIGHT = 60;
@@ -60,7 +66,6 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                 for (let i = 0; i < lanes.length; i++) {
                     const lastEventInLane = lanes[i][lanes[i].length - 1];
                     const laneEnd = DateTime.fromISO(lastEventInLane.end).toMillis();
-                    // Simple overlap: if start is after previous end
                     if (eventStart >= laneEnd) {
                         assignedLaneIndex = i;
                         break;
@@ -102,267 +107,154 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
     };
 
     return (
-        <Box sx={{ 
-            height: '100%', 
-            display: 'flex', 
-            flexDirection: 'column',
-            border: '1px solid #cbd5e1',
-            borderRadius: '12px',
-            overflow: 'hidden',
-            bgcolor: '#ffffff',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-        }}>
+        <div className="h-full flex flex-col border border-zinc-200 rounded-xl overflow-hidden bg-white shadow-sm">
             {/* Header */}
-            <Box sx={{ display: 'flex', borderBottom: '1px solid #cbd5e1', bgcolor: '#f8fafc' }}>
-                <Box sx={{ 
-                    width: RESOURCE_WIDTH, 
-                    minWidth: RESOURCE_WIDTH, 
-                    p: 2, 
-                    borderRight: '1px solid #cbd5e1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    color: '#475569',
-                    fontSize: '0.75rem',
-                    letterSpacing: '0.05em'
-                }}>
-                    MÁY MÓC
-                </Box>
-                <Box 
+            <div className="flex border-b border-zinc-200 bg-zinc-50 shrink-0">
+                <div className="w-[250px] min-w-[250px] p-4 border-r border-zinc-200 flex items-center justify-center font-black text-[10px] text-zinc-400 uppercase tracking-widest bg-zinc-50">
+                    MÁY MÓC / THIẾT BỊ
+                </div>
+                <div 
                     ref={headerRef}
-                    sx={{ 
-                        flexGrow: 1, 
-                        overflow: 'hidden',
-                        display: 'flex',
-                        bgcolor: '#f1f5f9'
-                    }}
+                    className="flex-1 overflow-hidden flex bg-zinc-100"
                 >
-                    <Box sx={{ width: totalWidth, display: 'flex', position: 'relative' }}>
+                    <div style={{ width: totalWidth }} className="flex relative">
                         {days.map((day, i) => (
-                            <Box 
+                            <div 
                                 key={i} 
-                                sx={{ 
-                                    width: COLUMN_WIDTH, 
-                                    minWidth: COLUMN_WIDTH,
-                                    height: HEADER_HEIGHT,
-                                    borderRight: '1px solid #cbd5e1',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    bgcolor: day.isWeekend ? '#cbd5e1' : (day.hasSame(DateTime.now(), 'day') ? '#dbeafe' : 'transparent'),
-                                    transition: 'background 0.2s'
-                                }}
+                                style={{ width: COLUMN_WIDTH, height: HEADER_HEIGHT }}
+                                className={`min-w-[50px] border-r border-zinc-200 flex flex-col items-center justify-center transition-colors ${
+                                    day.isWeekend ? 'bg-zinc-200/50' : (day.hasSame(DateTime.now(), 'day') ? 'bg-blue-50' : 'transparent')
+                                }`}
                             >
-                                <Typography variant="caption" sx={{ fontWeight: 800, color: day.isWeekend ? '#94a3b8' : '#64748b', fontSize: '0.6rem' }}>
-                                    {day.toFormat('ccc').toUpperCase()}
-                                </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 900, color: day.hasSame(DateTime.now(), 'day') ? 'primary.main' : '#1e293b' }}>
+                                <span className={`text-[8px] font-black uppercase ${day.isWeekend ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                                    {day.toFormat('ccc')}
+                                </span>
+                                <span className={`text-base font-black ${day.hasSame(DateTime.now(), 'day') ? 'text-blue-600' : 'text-zinc-900'}`}>
                                     {day.day}
-                                </Typography>
-                            </Box>
+                                </span>
+                            </div>
                         ))}
-                    </Box>
-                </Box>
-            </Box>
+                    </div>
+                </div>
+            </div>
 
             {/* Body */}
-            <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+            <div className="flex flex-1 overflow-hidden">
                 {/* Resource Labels */}
-                <Box sx={{ 
-                    width: RESOURCE_WIDTH, 
-                    minWidth: RESOURCE_WIDTH, 
-                    borderRight: '1px solid #cbd5e1',
-                    bgcolor: '#ffffff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 2,
-                    boxShadow: '4px 0 8px rgba(0,0,0,0.02)'
-                }}>
+                <div className="w-[250px] min-w-[250px] border-r border-zinc-200 bg-white flex flex-col z-10 shadow-[4px_0_8px_rgba(0,0,0,0.02)] overflow-y-auto">
                     {layouts.length === 0 ? (
-                        <Box sx={{ p: 4, textAlign: 'center' }}>
-                            <Typography variant="caption" color="text.secondary">Không có máy móc nào</Typography>
-                        </Box>
+                        <div className="p-8 text-center">
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không có dữ liệu</span>
+                        </div>
                     ) : (
                         layouts.map((layout, i) => (
-                            <Box 
-                                key={layout.resourceId} 
-                                sx={{ 
-                                    height: layout.height, 
-                                    minHeight: layout.height,
-                                    p: '0 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    borderBottom: '1px solid #cbd5e1',
-                                    bgcolor: i % 2 === 0 ? '#ffffff' : '#f8fafc',
-                                    transition: 'height 0.3s ease'
-                                }}
-                            >
-                                <Typography variant="body2" noWrap sx={{ fontWeight: 700, color: '#334155', fontSize: '0.85rem' }}>
-                                    {layout.resource.title}
-                                </Typography>
-                            </Box>
-                        ))
+                          <div 
+                              key={layout.resourceId} 
+                              style={{ height: layout.height }}
+                              className={`px-4 flex items-center border-b border-zinc-100 transition-all duration-300 ${i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'}`}
+                          >
+                              <span className="text-xs font-black text-zinc-800 truncate leading-tight uppercase tracking-tight">
+                                  {layout.resource.title}
+                              </span>
+                          </div>
+                      ))
                     )}
-                </Box>
+                </div>
 
                 {/* Timeline Grid */}
-                <Box 
+                <div 
                     ref={scrollContainerRef}
                     onScroll={handleScroll}
-                    sx={{ 
-                        flexGrow: 1, 
-                        overflow: 'auto',
-                        position: 'relative',
-                        bgcolor: '#ffffff'
-                    }}
+                    className="flex-1 overflow-auto relative bg-white"
                 >
-                    <Box sx={{ width: totalWidth, height: totalHeight, position: 'relative' }}>
+                    <div style={{ width: totalWidth, height: totalHeight }} className="relative">
                         {/* Vertical Lines */}
                         {days.map((day, i) => (
-                            <Box 
+                            <div 
                                 key={i} 
-                                sx={{ 
-                                    position: 'absolute',
-                                    top: 0,
-                                    bottom: 0,
-                                    left: i * COLUMN_WIDTH,
-                                    width: COLUMN_WIDTH,
-                                    borderRight: '1px solid #cbd5e1',
-                                    pointerEvents: 'none',
-                                    bgcolor: day.isWeekend ? 'rgba(203, 213, 225, 0.4)' : 'transparent'
-                                }}
+                                style={{ left: i * COLUMN_WIDTH, width: COLUMN_WIDTH }}
+                                className={`absolute top-0 bottom-0 border-r border-zinc-100 pointer-events-none ${
+                                    day.isWeekend ? 'bg-zinc-50/50' : 'transparent'
+                                }`}
                             />
                         ))}
 
                         {/* Today Marker */}
                         {days.some(d => d.hasSame(DateTime.now(), 'day')) && (
-                            <Box sx={{
-                                position: 'absolute',
-                                top: 0,
-                                bottom: 0,
-                                left: getPosition(DateTime.now()),
-                                width: '2px',
-                                bgcolor: 'rgba(37, 99, 235, 0.5)',
-                                zIndex: 3,
-                                pointerEvents: 'none',
-                                '&::after': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: '-4px',
-                                    width: '10px',
-                                    height: '10px',
-                                    bgcolor: 'primary.main',
-                                    borderRadius: '50%'
-                                }
-                            }} />
+                            <div style={{ left: getPosition(DateTime.now()) }} className="absolute top-0 bottom-0 w-[2px] bg-blue-500/40 z-20 pointer-events-none">
+                                <div className="absolute top-0 left-[-4px] w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm shadow-blue-200" />
+                            </div>
                         )}
 
                         {/* Horizontal Lines */}
                         {layouts.map((layout, i) => (
-                            <Box 
+                            <div 
                                 key={i} 
-                                sx={{ 
-                                    position: 'absolute',
-                                    left: 0,
-                                    right: 0,
-                                    top: layout.top + layout.height,
-                                    height: '1px',
-                                    bgcolor: '#cbd5e1',
-                                    pointerEvents: 'none'
-                                }}
+                                style={{ top: layout.top + layout.height }}
+                                className="absolute left-0 right-0 h-[1px] bg-zinc-100 pointer-events-none"
                             />
                         ))}
 
-                        {/* Events grouped by layout to avoid redundant looping */}
-                        {layouts.map(layout => 
-                            layout.events.map(event => {
-                                const eStart = DateTime.fromISO(event.start);
-                                const eEnd = DateTime.fromISO(event.end);
-                                
-                                const isClippedLeft = eStart < start;
-                                const isClippedRight = eEnd > end;
-                                
-                                const renderStart = isClippedLeft ? start : eStart;
-                                const renderEnd = isClippedRight ? end : eEnd;
-                                
-                                const left = getPosition(renderStart);
-                                const right = getPosition(renderEnd);
-                                const width = Math.max(right - left, 4);
+                        {/* Events */}
+                        <TooltipProvider>
+                            {layouts.map(layout => 
+                                layout.events.map(event => {
+                                    const eStart = DateTime.fromISO(event.start);
+                                    const eEnd = DateTime.fromISO(event.end);
+                                    
+                                    const isClippedLeft = eStart < start;
+                                    const isClippedRight = eEnd > end;
+                                    
+                                    const renderStart = isClippedLeft ? start : eStart;
+                                    const renderEnd = isClippedRight ? end : eEnd;
+                                    
+                                    const left = getPosition(renderStart);
+                                    const right = getPosition(renderEnd);
+                                    const width = Math.max(right - left, 4);
 
-                                return (
-                                    <Tooltip key={event.id} title={
-                                        <Box sx={{ p: 1 }}>
-                                            <Typography variant="subtitle2" fontWeight={800} color="primary.light">{event.title}</Typography>
-                                            <Divider sx={{ my: 0.5, bgcolor: 'rgba(255,255,255,0.1)' }} />
-                                            <Typography variant="caption" display="block">Bắt đầu: {eStart.toFormat('dd/MM/yyyy HH:mm')}</Typography>
-                                            <Typography variant="caption" display="block">Kết thúc: {eEnd.toFormat('dd/MM/yyyy HH:mm')}</Typography>
-                                        </Box>
-                                    } arrow>
-                                        <Box 
-                                            sx={{ 
-                                                position: 'absolute',
-                                                top: layout.top + (event.laneIndex * ROW_HEIGHT) + 8,
-                                                left: left + (isClippedLeft ? 0 : 2),
-                                                width: width - (isClippedLeft ? 0 : 2) - (isClippedRight ? 0 : 2),
-                                                height: ROW_HEIGHT - 16,
-                                                background: `linear-gradient(90deg, 
-                                                    ${isClippedLeft ? 'rgba(0,0,0,0.1)' : 'transparent'} 0%, 
-                                                    ${event.backgroundColor || '#2563eb'} ${isClippedLeft ? '10%' : '0%'}, 
-                                                    ${event.backgroundColor || '#2563eb'} ${isClippedRight ? '90%' : '100%'}, 
-                                                    ${isClippedRight ? 'rgba(0,0,0,0.1)' : 'transparent'} 100%)`,
-                                                borderRadius: `${isClippedLeft ? '0' : '6px'} ${isClippedRight ? '0' : '6px'} ${isClippedRight ? '0' : '6px'} ${isClippedLeft ? '0' : '6px'}`,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                px: isClippedLeft ? 1 : 1.5,
-                                                color: '#ffffff',
-                                                fontSize: '0.75rem',
-                                                fontWeight: 700,
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                cursor: 'pointer',
-                                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                                border: '1px solid rgba(255,255,255,0.2)',
-                                                borderLeft: isClippedLeft ? 'none' : '1px solid rgba(255,255,255,0.2)',
-                                                borderRight: isClippedRight ? 'none' : '1px solid rgba(255,255,255,0.2)',
-                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                zIndex: 1,
-                                                '&:hover': {
-                                                    transform: 'translateY(-2px)',
-                                                    zIndex: 10,
-                                                    boxShadow: '0 8px 16px -4px rgba(0,0,0,0.2)',
-                                                    border: '1px solid rgba(255,255,255,0.4)',
-                                                }
-                                            }}
-                                        >
-                                            {isClippedLeft && (
-                                                <Box sx={{ mr: 0.5, display: 'flex', alignItems: 'center', opacity: 0.8 }}>
-                                                    <svg width="6" height="10" viewBox="0 0 6 10">
-                                                        <path d="M5 1L1 5L5 9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
-                                                </Box>
-                                            )}
-                                            <Typography variant="caption" noWrap sx={{ fontWeight: 700, fontSize: '0.7rem' }}>
-                                                {event.title}
-                                            </Typography>
-                                            {isClippedRight && (
-                                                <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', opacity: 0.8 }}>
-                                                    <svg width="6" height="10" viewBox="0 0 6 10">
-                                                        <path d="M1 1L5 5L1 9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                                                    </svg>
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    </Tooltip>
-                                );
-                            })
-                        )}
-                    </Box>
-                </Box>
-            </Box>
-        </Box>
+                                    return (
+                                        <Tooltip key={event.id}>
+                                            <TooltipTrigger asChild>
+                                                <div 
+                                                    style={{ 
+                                                        top: layout.top + (event.laneIndex * ROW_HEIGHT) + 8,
+                                                        left: left + (isClippedLeft ? 0 : 2),
+                                                        width: width - (isClippedLeft ? 0 : 2) - (isClippedRight ? 0 : 2),
+                                                        height: ROW_HEIGHT - 16,
+                                                        backgroundColor: event.backgroundColor || '#2563eb',
+                                                        borderRadius: `${isClippedLeft ? '0' : '8px'} ${isClippedRight ? '0' : '8px'} ${isClippedRight ? '0' : '8px'} ${isClippedLeft ? '0' : '8px'}`,
+                                                    }}
+                                                    className={`absolute flex items-center px-3 text-white text-[10px] font-black shadow-sm border border-white/20 cursor-pointer overflow-hidden transition-all duration-200 hover:scale-[1.02] hover:z-30 hover:shadow-lg active:scale-100 z-10 ${isClippedLeft ? 'border-l-0' : ''} ${isClippedRight ? 'border-r-0' : ''}`}
+                                                >
+                                                    {isClippedLeft && <span className="mr-1 opacity-60">◀</span>}
+                                                    <span className="truncate uppercase tracking-tighter">{event.title}</span>
+                                                    {isClippedRight && <span className="ml-auto opacity-60">▶</span>}
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent className="p-3 border-zinc-200 shadow-xl max-w-xs">
+                                                <div className="space-y-2">
+                                                    <p className="font-black text-indigo-600 uppercase tracking-tight leading-tight">{event.title}</p>
+                                                    <Separator className="bg-zinc-100" />
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-bold text-zinc-500 flex justify-between">
+                                                            <span>BẮT ĐẦU:</span>
+                                                            <span className="text-zinc-950 font-black">{eStart.toFormat('dd/MM/yyyy HH:mm')}</span>
+                                                        </p>
+                                                        <p className="text-[10px] font-bold text-zinc-500 flex justify-between">
+                                                            <span>KẾT THÚC:</span>
+                                                            <span className="text-zinc-950 font-black">{eEnd.toFormat('dd/MM/yyyy HH:mm')}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    );
+                                })
+                            )}
+                        </TooltipProvider>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }

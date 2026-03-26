@@ -2,14 +2,29 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { scheduleService } from '../../services/schedule.service';
 import { factoryService } from '../../services/factory.service';
-import { 
-    Box, Typography, Paper, CircularProgress, Alert, 
-    FormControl, InputLabel, Select, MenuItem,
-    IconButton, Button, ButtonGroup
-} from '@mui/material';
 import { DateTime } from 'luxon';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { 
+    ChevronLeft, 
+    ChevronRight, 
+    Calendar as CalendarIcon, 
+    Loader2, 
+    AlertCircle,
+    LayoutDashboard,
+    Filter
+} from 'lucide-react';
+
+// Shadcn UI
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSchedule from './components/CustomSchedule';
 
 export default function SchedulePage() {
@@ -37,7 +52,6 @@ export default function SchedulePage() {
     const { data: scheduleData, isLoading, error } = useQuery({
         queryKey: ['schedule', dateRange, factoryId],
         queryFn: () => scheduleService.getCalendarData(dateRange.start, dateRange.end, factoryId),
-        keepPreviousData: true
     });
 
     const handlePrev = () => {
@@ -65,84 +79,96 @@ export default function SchedulePage() {
     }, [currentDate, viewType]);
 
     return (
-        <Box height="calc(100vh - 100px)" display="flex" flexDirection="column">
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5" fontWeight="bold" color="primary">
-                    Lịch sản xuất theo máy
-                </Typography>
+        <div className="h-[calc(100vh-100px)] flex flex-col gap-4 px-2 py-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-100">
+                        <CalendarIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-black tracking-tight text-zinc-950">Lịch sản xuất</h1>
+                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Gantt chart điều phối máy móc</p>
+                    </div>
+                </div>
                 
-                <FormControl size="small" sx={{ width: 250 }}>
-                    <InputLabel>Lọc theo nhà máy</InputLabel>
-                    <Select value={factoryId} label="Lọc theo nhà máy" onChange={e => setFactoryId(e.target.value)}>
-                        <MenuItem value="all"><em>Tất cả nhà máy</em></MenuItem>
-                        {factories?.map(f => <MenuItem key={f.id} value={f.id}>{f.name}</MenuItem>)}
-                    </Select>
-                </FormControl>
-            </Box>
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <div className="relative flex-1 md:flex-none">
+                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 z-10" />
+                        <Select value={factoryId} onValueChange={setFactoryId}>
+                            <SelectTrigger className="pl-10 h-10 w-[240px] bg-white border-zinc-200 font-semibold shadow-sm">
+                                <SelectValue placeholder="Lọc theo nhà máy" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tất cả nhà máy</SelectItem>
+                                {factories?.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </div>
 
-            <Paper sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* Calendar Header Controls */}
-                <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box display="flex" alignItems="center" gap={1}>
-                        <ButtonGroup size="small" variant="contained" sx={{ bgcolor: '#334155' }}>
-                            <IconButton onClick={handlePrev} sx={{ color: 'white', borderRadius: '4px 0 0 4px', bgcolor: 'rgba(255,255,255,0.1)' }}>
-                                <ChevronLeftIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton onClick={handleNext} sx={{ color: 'white', borderRadius: '0 4px 4px 0', bgcolor: 'rgba(255,255,255,0.1)' }}>
-                                <ChevronRightIcon fontSize="small" />
-                            </IconButton>
-                        </ButtonGroup>
-                        <Button 
-                            variant="outlined" 
-                            size="small" 
-                            onClick={handleToday}
-                            sx={{ color: '#64748b', borderColor: '#e2e8f0', textTransform: 'none', fontWeight: 600 }}
-                        >
-                            today
-                        </Button>
-                    </Box>
-
-                    <Typography variant="h5" sx={{ fontWeight: 800, color: '#1e293b' }}>
-                        {title}
-                    </Typography>
-
-                    <ButtonGroup size="small" sx={{ border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-                        {['day', 'week', 'month'].map((view) => (
-                            <Button
-                                key={view}
-                                onClick={() => setViewType(view)}
-                                sx={{
-                                    textTransform: 'none',
-                                    fontWeight: 700,
-                                    bgcolor: viewType === view ? '#334155' : 'transparent',
-                                    color: viewType === view ? 'white' : '#64748b',
-                                    '&:hover': { bgcolor: viewType === view ? '#1e293b' : '#f8fafc' },
-                                    borderColor: '#e2e8f0 !important'
-                                }}
-                            >
-                                {view}
+            <Card className="flex-1 flex flex-col border-zinc-200 shadow-sm overflow-hidden bg-white">
+                <CardHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-200 flex flex-row items-center justify-between space-y-0">
+                    <div className="flex items-center gap-2">
+                        <div className="flex rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
+                            <Button variant="ghost" size="icon" onClick={handlePrev} className="h-9 w-9 border-r border-zinc-100 rounded-none hover:bg-zinc-50">
+                                <ChevronLeft className="h-4 w-4" />
                             </Button>
-                        ))}
-                    </ButtonGroup>
-                </Box>
+                            <Button variant="ghost" size="icon" onClick={handleNext} className="h-9 w-9 rounded-none hover:bg-zinc-50">
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={handleToday}
+                            className="h-9 font-bold px-4 border-zinc-200 bg-white hover:bg-zinc-50"
+                        >
+                            Hôm nay
+                        </Button>
+                    </div>
 
-                {error && <Alert severity="error">{error.message || 'Lỗi khi tải lịch sản xuất'}</Alert>}
+                    <CardTitle className="text-xl font-black text-zinc-950 uppercase tracking-tighter">
+                        {title}
+                    </CardTitle>
 
-                <Box flexGrow={1} sx={{ position: 'relative', minHeight: 0 }}>
-                    {isLoading && (
-                        <Box sx={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: 'rgba(255,255,255,0.7)', zIndex: 5 }}>
-                            <CircularProgress size={32} />
-                        </Box>
+                    <Tabs value={viewType} onValueChange={setViewType} className="w-auto">
+                        <TabsList className="bg-zinc-100 border border-zinc-200 h-9 p-1 rounded-lg">
+                            <TabsTrigger value="day" className="px-4 text-xs font-bold rounded-md">Ngày</TabsTrigger>
+                            <TabsTrigger value="week" className="px-4 text-xs font-bold rounded-md">Tuần</TabsTrigger>
+                            <TabsTrigger value="month" className="px-4 text-xs font-bold rounded-md">Tháng</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </CardHeader>
+
+                <CardContent className="flex-1 p-0 relative min-h-0 bg-zinc-50/20">
+                    {error && (
+                        <Alert variant="destructive" className="m-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Lỗi</AlertTitle>
+                            <AlertDescription>{error.message || 'Lỗi khi tải dữ liệu lịch'}</AlertDescription>
+                        </Alert>
                     )}
-                    
-                    <CustomSchedule 
-                        resources={scheduleData?.machines || []} 
-                        events={scheduleData?.events || []} 
-                        dateRange={dateRange}
-                        viewType={viewType}
-                    />
-                </Box>
-            </Paper>
-        </Box>
+
+                    <div className="absolute inset-0 flex flex-col overflow-hidden">
+                        {isLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 z-50 backdrop-blur-[1px]">
+                                <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-2" />
+                                <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Đang cập nhật biểu đồ...</p>
+                            </div>
+                        )}
+                        
+                        <div className="flex-1">
+                            <CustomSchedule 
+                                resources={scheduleData?.machines || []} 
+                                events={scheduleData?.events || []} 
+                                dateRange={dateRange}
+                                viewType={viewType}
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
     );
 }

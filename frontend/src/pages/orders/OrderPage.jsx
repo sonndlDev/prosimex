@@ -6,25 +6,43 @@ import { customerService } from "../../services/customer.service";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
 import GenericTable from "../../components/GenericTable";
+import { toast } from "sonner";
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  Paper,
-  Chip,
-  IconButton,
-  Button,
-  TextField,
-  Box,
-  FormControl,
-  InputLabel,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   Select,
-  MenuItem,
-  Typography,
-} from "@mui/material";
-import AddCircleIcon from "@mui/icons-material/AddCircle";
-import DeleteIcon from "@mui/icons-material/Delete";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Plus, 
+  Trash2, 
+  Package, 
+  User, 
+  Calendar, 
+  MapPin, 
+  FileText,
+  AlertCircle,
+  Loader2,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Timer
+} from "lucide-react";
 import { DateTime } from "luxon";
 
 const defaultValues = {
@@ -54,7 +72,7 @@ export default function OrderPage() {
   } = useForm({
     defaultValues,
   });
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "product_items",
   });
@@ -62,23 +80,30 @@ export default function OrderPage() {
   const formPoAutoCode = watch("po_auto_code");
 
   // Queries
-  const { data: customers } = useQuery({
+  const { data: customersData } = useQuery({
     queryKey: ["customers"],
     queryFn: customerService.getAll,
   });
-  const { data: products } = useQuery({
+  const customers = customersData?.data || customersData || [];
+
+  const { data: productsData } = useQuery({
     queryKey: ["products"],
     queryFn: () => productService.getAll(),
   });
-  const { data: productGroups } = useQuery({
+  const products = productsData?.data || productsData || [];
+
+  const { data: productGroupsData } = useQuery({
     queryKey: ["productGroups"],
     queryFn: () => productGroupService.getAll(),
   });
+  const productGroups = productGroupsData?.data || productGroupsData || [];
+
   const {
-    data: orders,
+    data: ordersData,
     isLoading,
     error,
   } = useQuery({ queryKey: ["orders"], queryFn: orderService.getAll });
+  const orders = ordersData?.data || ordersData || [];
 
   // Mutations
   const mutationOpts = {
@@ -90,40 +115,76 @@ export default function OrderPage() {
   const createMutation = useMutation({
     mutationFn: orderService.create,
     ...mutationOpts,
+    onSuccess: () => {
+      toast.success("Đã tạo đơn hàng thành công!");
+      mutationOpts.onSuccess();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo đơn hàng"),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }) => orderService.update(id, payload),
     ...mutationOpts,
+    onSuccess: () => {
+      toast.success("Đã cập nhật đơn hàng thành công!");
+      mutationOpts.onSuccess();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật đơn hàng"),
   });
   const deleteMutation = useMutation({
     mutationFn: orderService.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: () => {
+      toast.success("Đã xóa đơn hàng!");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa đơn hàng"),
   });
 
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "PLANNED":
+        return <Badge variant="primary" className="gap-1"><Timer className="w-3 h-3"/> PLANNED</Badge>;
+      case "IN_PROGRESS":
+        return <Badge variant="warning" className="gap-1"><Clock className="w-3 h-3"/> IN PROGRESS</Badge>;
+      case "DONE":
+        return <Badge variant="success" className="gap-1"><CheckCircle2 className="w-3 h-3"/> DONE</Badge>;
+      case "CANCELLED":
+        return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3"/> CANCELLED</Badge>;
+      default:
+        return <Badge variant="outline">DRAFT</Badge>;
+    }
+  };
+
   const columns = [
-    { id: "po_auto_code", label: "Mã đơn hàng" },
+    { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
     { id: "po_customer", label: "PO Khách hàng" },
-    { id: "name", label: "Tên đơn hàng" },
+    { id: "name", label: "Tên đơn hàng", className: "font-medium" },
     { id: "customer_name", label: "Khách hàng" },
     {
       id: "products",
       label: "Sản phẩm",
       format: (value, row) => (
-        <Box display="flex" flexWrap="wrap" gap={0.5}>
-          {row.products?.map((p) => (
-            <Chip
+        <div className="flex flex-wrap gap-1 max-w-xs">
+          {row.products?.slice(0, 3).map((p) => (
+            <Badge
               key={p.id}
-              label={`${p.name} (${p.quantity || 0})`}
-              size="small"
-              variant="outlined"
-            />
+              variant="outline"
+              className="text-[10px] bg-zinc-50 border-zinc-200"
+            >
+              {p.name} ({p.quantity || 0})
+            </Badge>
           ))}
-        </Box>
+          {row.products?.length > 3 && (
+            <Badge variant="outline" className="text-[10px] bg-zinc-50 border-zinc-200">
+              +{row.products.length - 3}...
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
       id: "total_quantity",
       label: "Tổng SL",
+      className: "text-right font-bold tabular-nums",
       format: (value, row) =>
         row.products
           ?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
@@ -132,24 +193,7 @@ export default function OrderPage() {
     {
       id: "status",
       label: "Trạng thái",
-      format: (value) => (
-        <Chip
-          label={value}
-          size="small"
-          color={
-            value === "PLANNED"
-              ? "primary"
-              : value === "IN_PROGRESS"
-                ? "warning"
-                : value === "DONE"
-                  ? "success"
-                  : value === "CANCELLED"
-                    ? "error"
-                    : "default"
-          }
-          sx={{ fontWeight: 700, borderRadius: "6px" }}
-        />
-      ),
+      format: (value) => getStatusBadge(value),
     },
   ];
 
@@ -160,11 +204,11 @@ export default function OrderPage() {
         order_code: order.order_code,
         po_auto_code: order.po_auto_code || "",
         name: order.name,
-        customer_id: order.customer_id,
+        customer_id: String(order.customer_id),
         product_items:
           order.products?.map((p) => ({
-            product_group_id: p.product_group_id || "",
-            product_id: p.id,
+            product_group_id: String(p.product_group_id || ""),
+            product_id: String(p.id),
             quantity: p.quantity || "",
           })) || [],
         po_customer: order.po_customer,
@@ -189,13 +233,12 @@ export default function OrderPage() {
   };
 
   const onSubmit = (data) => {
-    // Filter out items without product or quantity
     const product_items = data.product_items.filter(
       (item) => item.product_id && parseFloat(item.quantity) > 0,
     );
 
     if (product_items.length === 0) {
-      alert("Vui lòng chọn ít nhất một mã hàng và nhập số lượng.");
+      toast.warning("Vui lòng chọn ít nhất một mã hàng và nhập số lượng.");
       return;
     }
 
@@ -225,23 +268,19 @@ export default function OrderPage() {
   };
 
   return (
-    <Box>
+    <div className="space-y-4">
       <GenericTable
         title={
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <h2>Quản lý Đơn hàng</h2>
+          <div className="flex justify-between items-center w-full">
+            <h2 className="text-2xl font-extrabold tracking-tight">Quản lý Đơn hàng</h2>
             <Button
-              variant="contained"
-              color="secondary"
+              variant="default"
               onClick={() => handleOpen()}
+              className="font-bold gap-2 h-10 px-6 shadow-sm"
             >
-              + Thêm đơn hàng
+              <Plus className="w-4 h-4" /> Thêm đơn hàng
             </Button>
-          </Box>
+          </div>
         }
         data={orders}
         columns={columns}
@@ -252,569 +291,400 @@ export default function OrderPage() {
         onBulkDelete={handleBulkDelete}
       />
 
-      <Dialog
-        open={openModal}
-        onClose={handleClose}
-        maxWidth={false}
-        PaperProps={{
-          sx: {
-            width: "90vw",
-            height: "90vh",
-            borderRadius: "24px",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          },
-        }}
-      >
-        <form
-          onSubmit={rhfHandleSubmit(onSubmit)}
-          style={{ height: "100%", display: "flex", flexDirection: "column" }}
-        >
-          <DialogTitle
-            sx={{
-              bgcolor: "background.paper",
-              color: "text.primary",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              p: 2.5,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              boxShadow: "0 2px 4px -1px rgb(0 0 0 / 0.05)",
-            }}
+      <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
+        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl">
+          <form
+            onSubmit={rhfHandleSubmit(onSubmit)}
+            className="flex flex-col h-full bg-zinc-50/50"
           >
-            <Box display="flex" alignItems="center" gap={1.5}>
-              <Typography variant="h6" fontWeight={900} letterSpacing="-0.02em">
-                {selectedOrder ? `Chỉnh sửa đơn hàng` : "Tạo đơn hàng mới"}
-              </Typography>
-              {selectedOrder && (
-                <Chip
-                  label={formStatus}
-                  color={
-                    formStatus === "PLANNED"
-                      ? "primary"
-                      : formStatus === "DONE"
-                        ? "success"
-                        : formStatus === "CANCELLED"
-                          ? "error"
-                          : formStatus === "IN_PROGRESS"
-                            ? "warning"
-                            : "default"
-                  }
-                  sx={{ fontWeight: 800, borderRadius: "8px" }}
-                />
-              )}
-              {selectedOrder && (
-                <Typography
-                  variant="h6"
-                  color="text.secondary"
-                  fontWeight={500}
-                >
-                  #{selectedOrder.order_code}
-                </Typography>
-              )}
-            </Box>
-            <Box display="flex" gap={2}>
-              <Button
-                onClick={handleClose}
-                sx={{
-                  color: "text.secondary",
-                  fontWeight: 700,
-                  textTransform: "none",
-                  "&:hover": { bgcolor: "rgba(0,0,0,0.05)" },
-                }}
-              >
-                Hủy bỏ
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                sx={{
-                  fontWeight: 800,
-                  px: 4,
-                  borderRadius: "10px",
-                  textTransform: "none",
-                  boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
-                }}
-              >
-                Lưu đơn hàng
-              </Button>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ p: 3, bgcolor: "#f8fafc" }}>
-            {/* 1. Full-Width Name field at the top */}
-            <Paper
-              sx={{
-                p: 3,
-                mb: 2,
-                borderRadius: "20px",
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "white",
-              }}
-              elevation={0}
-            >
-              <Typography
-                variant="caption"
-                fontWeight={800}
-                mb={1.5}
-                color="primary"
-                sx={{ display: "block", opacity: 0.8, letterSpacing: "0.05em" }}
-              >
-                THÔNG TIN CHUNG
-              </Typography>
-              <Controller
-                name="name"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Tên đơn hàng"
-                    required
-                    variant="outlined"
-                    size="small"
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: "12px",
-                        fontSize: "1.1rem",
-                        fontWeight: 700,
-                        bgcolor: "rgba(37, 99, 235, 0.02)",
-                      },
-                    }}
-                  />
-                )}
-              />
-            </Paper>
-            {/* 2. Primary Details in 2 columns */}
-            <Box
-              display="grid"
-              gridTemplateColumns={{ xs: "1fr", lg: "1fr 1fr" }}
-              gap={2}
-              mb={2}
-            >
-              <Paper
-                sx={{
-                  p: 3,
-                  borderRadius: "16px",
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-                elevation={0}
-              >
-                <Typography
-                  variant="caption"
-                  fontWeight={800}
-                  mb={1.5}
-                  color="primary"
-                  sx={{
-                    display: "block",
-                    opacity: 0.8,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  KHÁCH HÀNG & PO
-                </Typography>
-                <Box display="flex" flexDirection="column" gap={2}>
-                  <Controller
-                    name="customer_id"
-                    control={control}
-                    render={({ field }) => (
-                      <FormControl fullWidth required size="small">
-                        <InputLabel>Khách hàng</InputLabel>
-                        <Select
-                          {...field}
-                          label="Khách hàng"
-                          sx={{ borderRadius: "8px" }}
-                        >
-                          {customers?.map((c) => (
-                            <MenuItem key={c.id} value={c.id}>
-                              {c.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+            <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-4">
+                  <DialogTitle className="text-xl font-black tracking-tighter text-zinc-950 uppercase">
+                    {selectedOrder ? `Chỉnh sửa đơn hàng` : "Tạo đơn hàng mới"}
+                  </DialogTitle>
+                  {selectedOrder && (
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(formStatus)}
+                      <span className="text-lg font-black text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
+                        #{selectedOrder.order_code}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleClose}
+                    className="font-bold text-zinc-500 hover:text-zinc-950 px-6"
+                  >
+                    Hủy bỏ
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    className="font-bold px-8 shadow-md h-10 min-w-[140px]"
+                  >
+                    {createMutation.isPending || updateMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      "Lưu đơn hàng"
                     )}
-                  />
-                  <Controller
-                    name="po_customer"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="PO Khách hàng"
-                        required
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
-                        }}
-                      />
-                    )}
-                  />
-                  <TextField
-                    fullWidth
-                    label="Mã PO Hệ thống (Tự động)"
-                    variant="outlined"
-                    size="small"
-                    disabled
-                    value={
-                      formPoAutoCode || (selectedOrder ? "" : "Tự động tạo...")
-                    }
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: "8px",
-                        bgcolor: "rgba(0,0,0,0.02)",
-                        "&.Mui-disabled": {
-                          color: "primary.main",
-                          opacity: 0.8,
-                          fontWeight: 700,
-                          fontSize: "0.9rem",
-                        },
-                      },
-                    }}
-                  />
-                </Box>
-              </Paper>
-              <Paper
-                sx={{
-                  p: 3,
-                  borderRadius: "16px",
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-                elevation={0}
-              >
-                <Typography
-                  variant="caption"
-                  fontWeight={800}
-                  mb={1.5}
-                  color="primary"
-                  sx={{
-                    display: "block",
-                    opacity: 0.8,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  CHI TIẾT SẢN XUẤT
-                </Typography>
-                <Box
-                  display="grid"
-                  gridTemplateColumns="1fr 1fr"
-                  gap={2}
-                  mb={2}
-                >
-                  <Controller
-                    name="received_date"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Ngày nhận"
-                        type="date"
-                        required
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
-                        }}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="person_in_charge"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Người phụ trách"
-                        size="small"
-                        sx={{
-                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
-                        }}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="production_location"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Địa điểm sản xuất"
-                        size="small"
-                        sx={{
-                          "& .MuiOutlinedInput-root": { borderRadius: "8px" },
-                        }}
-                      />
-                    )}
-                  />
-                  {selectedOrder ? (
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* 1. Full-Width Name field at the top */}
+              <Card className="border-zinc-200 shadow-sm overflow-hidden border-t-4 border-t-blue-600">
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">THÔNG TIN CHUNG</Label>
+                    </div>
                     <Controller
-                      name="status"
+                      name="name"
                       control={control}
                       render={({ field }) => (
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Trạng thái đơn hàng</InputLabel>
-                          <Select
+                        <div className="space-y-1.5">
+                          <Label htmlFor="name" className="text-sm font-bold">Tên đơn hàng <span className="text-red-500">*</span></Label>
+                          <Input
                             {...field}
-                            label="Trạng thái đơn hàng"
-                            sx={{ borderRadius: "8px" }}
-                          >
-                            {[
-                              "DRAFT",
-                              "PLANNED",
-                              "IN_PROGRESS",
-                              "DONE",
-                              "CANCELLED",
-                            ].map((s) => (
-                              <MenuItem key={s} value={s}>
-                                {s}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                            id="name"
+                            className="bg-white text-lg font-bold border-zinc-200 focus-visible:ring-blue-600 h-12 px-4 shadow-sm"
+                            placeholder="VD: Đơn hàng gia công khuôn mẫu ABC"
+                          />
+                        </div>
                       )}
                     />
-                  ) : (
-                    <Box
-                      sx={{
-                        p: 1,
-                        display: "flex",
-                        alignItems: "center",
-                        bgcolor: "rgba(0,0,0,0.02)",
-                        borderRadius: "8px",
-                        border: "1px dashed",
-                        borderColor: "divider",
-                      }}
-                    >
-                      <Typography variant="caption" color="text.secondary">
-                        Trạng thái: <b>DRAFT</b>
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-                <Controller
-                  name="note"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth
-                      label="Chi tiết sản xuất / Ghi chú"
-                      size="small"
-                      multiline
-                      minRows={2}
-                      sx={{
-                        mb: 2,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "12px",
-                          bgcolor: "white",
-                        },
-                      }}
-                    />
-                  )}
-                />
-              </Paper>
-            </Box>
+                  </div>
+                </CardContent>
+              </Card>
 
-            {/* Multi-Product Selection with Per-Product Quantity */}
-            <Paper
-              sx={{
-                p: 3,
-                borderRadius: "20px",
-                border: "1px solid",
-                borderColor: "divider",
-                bgcolor: "white",
-              }}
-              elevation={0}
-            >
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
-              >
-                <Typography
-                  variant="caption"
-                  fontWeight={800}
-                  color="primary"
-                  sx={{
-                    display: "block",
-                    opacity: 0.8,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  CHỌN MÃ HÀNG & SỐ LƯỢNG
-                </Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AddCircleIcon />}
-                  onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
-                  sx={{
-                    borderRadius: "8px",
-                    textTransform: "none",
-                    fontWeight: 700,
-                  }}
-                >
-                  Thêm mã hàng
-                </Button>
-              </Box>
-
-              {fields.length === 0 && (
-                <Box
-                  sx={{
-                    p: 3,
-                    textAlign: "center",
-                    border: "1px dashed",
-                    borderColor: "divider",
-                    borderRadius: "12px",
-                    bgcolor: "rgba(0,0,0,0.01)",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    color="text.disabled"
-                    fontWeight={500}
-                  >
-                    Chưa có mã hàng nào. Nhấn "Thêm mã hàng" để bắt đầu.
-                  </Typography>
-                </Box>
-              )}
-
-              {fields.map((field, index) => {
-                const watchedItems = watch("product_items");
-                const selectedProductIds = watchedItems
-                  .filter((_, i) => i !== index)
-                  .map((it) => it.product_id);
-                return (
-                  <Box
-                    key={field.id}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1.5,
-                      p: 1.5,
-                      mb: 1,
-                      borderRadius: "12px",
-                      border: "1px solid",
-                      borderColor: "divider",
-                      bgcolor: "rgba(37, 99, 235, 0.02)",
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      fontWeight={700}
-                      color="text.secondary"
-                      sx={{ minWidth: 28 }}
-                    >
-                      {index + 1}.
-                    </Typography>
-                    <Controller
-                      name={`product_items.${index}.product_group_id`}
-                      control={control}
-                      render={({ field: f }) => (
-                        <FormControl size="small" required sx={{ flex: 1.5 }}>
-                          <InputLabel>Nhóm mã</InputLabel>
-                          <Select
-                            {...f}
-                            label="Nhóm mã"
-                            onChange={(e) => {
-                              f.onChange(e);
-                              // Reset product_id when changing group
-                              const items = watch("product_items");
-                              const updatedItems = [...items];
-                              updatedItems[index].product_id = "";
-                              reset({ ...watch(), product_items: updatedItems });
-                            }}
-                            sx={{ borderRadius: "8px" }}
-                          >
-                            {productGroups?.map((g) => (
-                              <MenuItem key={g.id} value={g.id}>
-                                {g.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      )}
-                    />
-                    <Controller
-                      name={`product_items.${index}.product_id`}
-                      control={control}
-                      render={({ field: f }) => {
-                        const groupId = watch(`product_items.${index}.product_group_id`);
-                        return (
-                          <FormControl size="small" required sx={{ flex: 2 }}>
-                            <InputLabel>Mã hàng</InputLabel>
+              {/* 2. Details in 2 columns */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card className="border-zinc-200 shadow-sm bg-white">
+                  <CardContent className="p-6 space-y-5">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-blue-600" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">KHÁCH HÀNG & PO</Label>
+                    </div>
+                    
+                    <div className="grid gap-5">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Khách hàng <span className="text-red-500">*</span></Label>
+                        <Controller
+                          name="customer_id"
+                          control={control}
+                          render={({ field }) => (
                             <Select
-                              {...f}
-                              label="Mã hàng"
-                              disabled={!groupId}
-                              sx={{ borderRadius: "8px" }}
+                              value={String(field.value || "")}
+                              onValueChange={field.onChange}
                             >
-                              {products
-                                ?.filter(
-                                  (p) =>
-                                    p.is_active &&
-                                    p.product_group_id === groupId &&
-                                    !selectedProductIds.includes(p.id)
-                                )
-                                .map((p) => (
-                                  <MenuItem key={p.id} value={p.id}>
-                                    {p.name}
-                                  </MenuItem>
+                              <SelectTrigger className="bg-white border-zinc-200 h-10">
+                                <SelectValue placeholder="Chọn khách hàng" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {customers?.map((c) => (
+                                  <SelectItem key={c.id} value={String(c.id)}>
+                                    {c.name}
+                                  </SelectItem>
                                 ))}
+                              </SelectContent>
                             </Select>
-                          </FormControl>
-                        );
-                      }}
-                    />
-                    <Controller
-                      name={`product_items.${index}.quantity`}
-                      control={control}
-                      render={({ field: f }) => (
-                        <TextField
-                          {...f}
-                          label="Số lượng"
-                          type="number"
-                          size="small"
-                          required
-                          sx={{
-                            flex: 1,
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "8px",
-                            },
-                          }}
+                          )}
                         />
-                      )}
-                    />
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => remove(index)}
-                      sx={{
-                        border: "1px solid",
-                        borderColor: "error.light",
-                        borderRadius: "8px",
-                        "&:hover": { bgcolor: "error.light", color: "white" },
-                      }}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold">PO Khách hàng <span className="text-red-500">*</span></Label>
+                          <Controller
+                            name="po_customer"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                {...field}
+                                className="bg-white border-zinc-200 h-10"
+                                placeholder="Mã PO từ KH"
+                              />
+                            )}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-bold text-zinc-400">Mã PO Hệ thống (Tự động)</Label>
+                          <div className="bg-zinc-50 border border-zinc-200 rounded-md h-10 flex items-center px-3 font-bold text-blue-700 opacity-80 text-sm">
+                            {formPoAutoCode || (selectedOrder ? "N/A" : "Tự động tạo...")}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-zinc-200 shadow-sm bg-white">
+                  <CardContent className="p-6 space-y-5">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-blue-600" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">CHI TIẾT SẢN XUẤT</Label>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Ngày nhận <span className="text-red-500">*</span></Label>
+                        <Controller
+                          name="received_date"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="relative">
+                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                              <Input
+                                {...field}
+                                type="date"
+                                className="pl-10 bg-white border-zinc-200 h-10"
+                              />
+                            </div>
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Người phụ trách</Label>
+                        <Controller
+                          name="person_in_charge"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                              <Input
+                                {...field}
+                                className="pl-10 bg-white border-zinc-200 h-10"
+                                placeholder="Tên nhân viên"
+                              />
+                            </div>
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Địa điểm SX</Label>
+                        <Controller
+                          name="production_location"
+                          control={control}
+                          render={({ field }) => (
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                              <Input
+                                {...field}
+                                className="pl-10 bg-white border-zinc-200 h-10"
+                                placeholder="Ghi chú địa điểm"
+                              />
+                            </div>
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Trạng thái</Label>
+                        {selectedOrder ? (
+                          <Controller
+                            name="status"
+                            control={control}
+                            render={({ field }) => (
+                              <Select
+                                value={String(field.value || "")}
+                                onValueChange={field.onChange}
+                              >
+                                <SelectTrigger className="bg-white border-zinc-200 h-10 uppercase font-bold text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {["DRAFT", "PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"].map((s) => (
+                                    <SelectItem key={s} value={s} className="uppercase font-bold text-xs">
+                                      {s}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <div className="bg-zinc-100 border border-zinc-200 rounded-md h-10 flex items-center px-3 font-bold text-zinc-500 text-xs">
+                            DRAFT
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Ghi chú chi tiết</Label>
+                      <Controller
+                        name="note"
+                        control={control}
+                        render={({ field }) => (
+                          <Textarea
+                            {...field}
+                            className="bg-white border-zinc-200 min-h-[80px] resize-none"
+                            placeholder="Thông tin bổ sung..."
+                          />
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 3. Product Selection */}
+              <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-200 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-blue-600" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">DANH MỤC MÃ HÀNG & SỐ LƯỢNG</Label>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
+                      className="gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-bold h-8"
                     >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Box>
-                );
-              })}
-            </Paper>
-          </DialogContent>
-        </form>
+                      <Plus className="w-3.5 h-3.5" /> Thêm mã hàng
+                    </Button>
+                  </div>
+                  
+                    <div className="p-6">
+                      {fields.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
+                          <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
+                          <p className="text-sm font-medium text-zinc-400">Chưa có mã hàng nào được thêm.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 px-2 mb-2">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">STT</span>
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Nhóm mã</span>
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Mã hàng</span>
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right">Số lượng</span>
+                            <div />
+                          </div>
+                          {(() => {
+                            const watchedItems = watch("product_items") || [];
+                            return fields.map((field, index) => {
+                              const selectedProductIds = watchedItems
+                                .filter((_, i) => i !== index)
+                                .map((it) => String(it.product_id));
+                              
+                              const currentGroupId = watchedItems[index]?.product_group_id;
+
+                              return (
+                                <div
+                                  key={field.id}
+                                  className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 items-center p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
+                                >
+                                  <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors pl-1">
+                                    {String(index + 1).padStart(2, '0')}
+                                  </span>
+                              
+                              <Controller
+                                name={`product_items.${index}.product_group_id`}
+                                control={control}
+                                render={({ field: f }) => (
+                                  <Select
+                                    value={String(f.value || "")}
+                                    onValueChange={(val) => {
+                                      f.onChange(val);
+                                      // Clear target product on group change
+                                      setValue(`product_items.${index}.product_id`, "");
+                                    }}
+                                  >
+                                    <SelectTrigger className="bg-white h-10 border-zinc-200 text-xs font-semibold">
+                                      <SelectValue placeholder="Chọn nhóm">
+                                        {productGroups.find(g => String(g.id) === String(f.value))?.name || f.value}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {productGroups.map((g) => (
+                                        <SelectItem key={g.id} value={String(g.id)} className="text-xs font-semibold">
+                                          {g.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                              />
+
+                              <Controller
+                                name={`product_items.${index}.product_id`}
+                                control={control}
+                                render={({ field: f }) => {
+                                  // Find current product if it's inactive or filtered out, so name still shows
+                                  const currentProduct = products.find(p => String(p.id) === String(f.value));
+                                  const filteredProducts = products.filter(
+                                    (p) =>
+                                      (p.is_active || String(p.id) === String(f.value)) &&
+                                      String(p.product_group_id) === String(currentGroupId) &&
+                                      (!selectedProductIds.includes(String(p.id)) || String(p.id) === String(f.value))
+                                  );
+
+                                  return (
+                                    <Select
+                                      disabled={!currentGroupId}
+                                      value={String(f.value || "")}
+                                      onValueChange={f.onChange}
+                                    >
+                                      <SelectTrigger className="bg-white h-10 border-zinc-200 text-xs font-semibold">
+                                        <SelectValue placeholder="Chọn mã hàng">
+                                          {currentProduct?.name || f.value}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {filteredProducts.map((p) => (
+                                          <SelectItem key={p.id} value={String(p.id)} className="text-xs font-semibold">
+                                            {p.name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  );
+                                }}
+                              />
+
+                              <Controller
+                                name={`product_items.${index}.quantity`}
+                                control={control}
+                                render={({ field: f }) => (
+                                  <Input
+                                    {...f}
+                                    type="number"
+                                    className="h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white"
+                                    placeholder="0"
+                                  />
+                                )}
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => remove(index)}
+                                className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+            </div>
+          </form>
+        </DialogContent>
       </Dialog>
-    </Box>
+    </div>
   );
 }

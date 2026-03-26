@@ -1,33 +1,23 @@
 import React, { useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Box,
-  Typography,
-  Paper,
-  Button,
-  TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Grid,
-} from "@mui/material";
 import { DateTime } from "luxon";
-import { useSnackbar } from "notistack";
 import { dailyTicketService } from "../../services/daily-ticket.service";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default function ProductionOutputPage() {
-  const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
 
   // Search form
-  const [searchDate, setSearchDate] = useState(
-    DateTime.now().toFormat("yyyy-MM-dd")
-  );
+  const [searchDate, setSearchDate] = useState(DateTime.now().toFormat("yyyy-MM-dd"));
   const [searchTicketId, setSearchTicketId] = useState("");
   const [activeTicketId, setActiveTicketId] = useState(null);
 
@@ -40,9 +30,7 @@ export default function ProductionOutputPage() {
   });
 
   const { control, handleSubmit, reset } = useForm({
-    defaultValues: {
-      items: [],
-    },
+    defaultValues: { items: [] },
   });
 
   const { fields, replace } = useFieldArray({
@@ -50,21 +38,15 @@ export default function ProductionOutputPage() {
     name: "items",
   });
 
-  // When ticket data is loaded, populate form and verify date
+  // Populate form
   React.useEffect(() => {
     if (ticket) {
-      // Check date
-      const rcvDate = DateTime.fromISO(ticket.ticket_date).toFormat(
-        "yyyy-MM-dd"
-      );
+      const rcvDate = DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd");
       if (rcvDate !== searchDate) {
-        enqueueSnackbar("Không tìm thấy phiếu trong ngày này!", {
-          variant: "error",
-        });
+        toast.error("Không tìm thấy phiếu trong ngày này!");
         setActiveTicketId(null);
         return;
       }
-
       if (ticket.items) {
         replace(
           ticket.items.map((item) => ({
@@ -78,16 +60,13 @@ export default function ProductionOutputPage() {
         );
       }
     }
-  }, [ticket, replace, searchDate, enqueueSnackbar]);
+  }, [ticket, replace, searchDate]);
 
   const handleSearch = () => {
     if (!searchTicketId || !searchDate) {
-      enqueueSnackbar("Vui lòng nhập Ngày và Mã số phiếu!", {
-        variant: "warning",
-      });
+      toast.warning("Vui lòng nhập Ngày và Mã số phiếu!");
       return;
     }
-    // Extract ID if user pastes formatted text like 20260325_#5
     const parts = searchTicketId.split("_#");
     const idToFetch = parts.length > 1 ? parts[1] : searchTicketId;
     setActiveTicketId(idToFetch);
@@ -96,14 +75,12 @@ export default function ProductionOutputPage() {
   const updateMutation = useMutation({
     mutationFn: (data) => dailyTicketService.updateResults(activeTicketId, data),
     onSuccess: () => {
-      enqueueSnackbar("Đã cập nhật kết quả sản xuất!", { variant: "success" });
+      toast.success("Đã cập nhật kết quả sản xuất!");
       queryClient.invalidateQueries(["daily-tickets"]);
       queryClient.invalidateQueries(["daily-ticket", activeTicketId]);
     },
     onError: (err) => {
-      enqueueSnackbar(err.response?.data?.message || "Lỗi khi lưu kết quả!", {
-        variant: "error",
-      });
+      toast.error(err.response?.data?.message || "Lỗi khi lưu kết quả!");
     },
   });
 
@@ -118,155 +95,129 @@ export default function ProductionOutputPage() {
   const isCompleted = ticket?.status === "COMPLETED";
 
   return (
-    <Box>
-      <Box mb={3}>
-        <Typography variant="h5" fontWeight={800} color="text.primary">
-          Nhập Sản Lượng / Kết Quả Sản Xuất
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Vui lòng nhập Ngày và Mã số phiếu sản xuất để lấy danh sách công đoạn.
-        </Typography>
-      </Box>
+    <div className="space-y-6">
+      <Toaster position="top-right" richColors />
+      
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-zinc-950">Nhập Sản Lượng / Kết Quả Sản Xuất</h2>
+        <p className="text-zinc-500 font-medium">Vui lòng nhập Ngày và Mã số phiếu sản xuất để lấy danh sách công đoạn.</p>
+      </div>
 
-      {/* SEARCH FORM */}
-      <Paper sx={{ p: 3, mb: 3, borderRadius: "16px", borderColor: "divider" }} variant="outlined">
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4} md={3}>
-            <TextField
-              label="Ngày sản xuất"
-              type="date"
-              fullWidth
-              size="small"
-              value={searchDate}
-              onChange={(e) => setSearchDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4} md={3}>
-            <TextField
-              label="Mã số phiếu"
-              type="text"
-              placeholder="VD: 20260325_#5"
-              fullWidth
-              size="small"
-              value={searchTicketId}
-              onChange={(e) => setSearchTicketId(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearch();
-              }}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px" } }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4} md={3}>
-            <Button
-              variant="contained"
-              onClick={handleSearch}
-              disabled={isLoading}
-              sx={{ borderRadius: "8px", fontWeight: 700, px: 4 }}
-            >
-              {isLoading ? "Đang tìm..." : "Tìm Kiếm"}
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className="w-full md:w-1/4 space-y-2">
+              <Label htmlFor="date">Ngày sản xuất</Label>
+              <Input
+                id="date"
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+              />
+            </div>
+            <div className="w-full md:w-1/4 space-y-2">
+              <Label htmlFor="ticketId">Mã số phiếu</Label>
+              <Input
+                id="ticketId"
+                placeholder="VD: 20260325_#5"
+                value={searchTicketId}
+                onChange={(e) => setSearchTicketId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSearch();
+                }}
+              />
+            </div>
+            <div className="w-full md:w-auto">
+              <Button onClick={handleSearch} disabled={isLoading} className="w-full md:w-auto px-8 font-semibold">
+                {isLoading ? "Đang tìm..." : "Tìm Kiếm"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {isError && (
-        <Paper sx={{ p: 3, textAlign: "center", borderRadius: "16px", color: "error.main" }} variant="outlined">
-          <Typography fontWeight={700}>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center text-red-600 font-semibold">
             Không tìm thấy dữ liệu hoặc có lỗi xảy ra! {error?.message}
-          </Typography>
-        </Paper>
+          </CardContent>
+        </Card>
       )}
 
-      {/* RESULTS TABLE */}
       {!isLoading && !isError && ticket && DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd") === searchDate && (
-        <Paper variant="outlined" sx={{ borderRadius: "16px", overflow: "hidden" }}>
-          <Box p={3} borderBottom="1px solid" borderColor="divider" display="flex" justifyContent="space-between" alignItems="center">
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700}>
+        <Card className="overflow-hidden">
+          <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
+            <div>
+              <h3 className="font-bold text-lg text-zinc-950">
                 Phiếu Sản Xuất {DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}_#{ticket.id}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Người lập: {ticket.created_by_name}
-              </Typography>
-            </Box>
-            <Chip
-              label={isCompleted ? "Đã chốt (Không thể sửa)" : "Đang thực hiện"}
-              color={isCompleted ? "success" : "warning"}
-              sx={{ fontWeight: 700 }}
-            />
-          </Box>
+              </h3>
+              <p className="text-sm text-zinc-500 font-medium">Người lập: {ticket.created_by_name}</p>
+            </div>
+            <Badge variant={isCompleted ? "default" : "secondary"} className={isCompleted ? "bg-green-600 hover:bg-green-700 font-bold" : "bg-orange-100 text-orange-800 hover:bg-orange-200 font-bold"}>
+              {isCompleted ? "Đã chốt (Không thể sửa)" : "Đang thực hiện"}
+            </Badge>
+          </div>
 
-          <TableContainer>
-            <Table>
-              <TableHead sx={{ bgcolor: "background.default" }}>
-                <TableRow>
-                  <TableCell>STT</TableCell>
-                  <TableCell>Đơn hàng</TableCell>
-                  <TableCell>Mã hàng</TableCell>
-                  <TableCell>Công đoạn</TableCell>
-                  <TableCell align="right">SL Kế Hoạch</TableCell>
-                  <TableCell align="right" width={200}>SL Thực Tế</TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+                <TableHead className="w-[80px]">STT</TableHead>
+                <TableHead>Đơn hàng</TableHead>
+                <TableHead>Mã hàng</TableHead>
+                <TableHead>Công đoạn</TableHead>
+                <TableHead className="text-right">SL Kế Hoạch</TableHead>
+                <TableHead className="text-right w-[200px]">SL Thực Tế</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fields.map((field, index) => (
+                <TableRow key={field.id} className="cursor-default">
+                  <TableCell className="font-medium text-zinc-500">{index + 1}</TableCell>
+                  <TableCell>{field.order_code || "N/A"}</TableCell>
+                  <TableCell>{field.product_name || "N/A"}</TableCell>
+                  <TableCell className="font-semibold text-zinc-700">{field.operation_name}</TableCell>
+                  <TableCell className="text-right font-bold text-zinc-900">
+                    {field.planned_quantity}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Controller
+                      name={`items.${index}.actual_quantity`}
+                      control={control}
+                      render={({ field: inputField }) => (
+                        <Input
+                          {...inputField}
+                          type="number"
+                          disabled={isCompleted || updateMutation.isPending}
+                          className={`text-right font-bold w-full ${!isCompleted ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
+                          min={0}
+                        />
+                      )}
+                    />
+                  </TableCell>
                 </TableRow>
-              </TableHead>
-              <TableBody>
-                {fields.map((field, index) => (
-                  <TableRow key={field.id} hover>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{field.order_code || "N/A"}</TableCell>
-                    <TableCell>{field.product_name || "N/A"}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{field.operation_name}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 700 }}>
-                      {field.planned_quantity}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Controller
-                        name={`items.${index}.actual_quantity`}
-                        control={control}
-                        render={({ field: inputField }) => (
-                          <TextField
-                            {...inputField}
-                            type="number"
-                            size="small"
-                            fullWidth
-                            variant="outlined"
-                            disabled={isCompleted || updateMutation.isPending}
-                            inputProps={{
-                              style: { textAlign: "right", fontWeight: 700, color: isCompleted ? "inherit" : "#2563eb" },
-                              min: 0,
-                            }}
-                          />
-                        )}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {fields.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      Không có sản phẩm nào
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              ))}
+              {fields.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-zinc-500 font-medium">
+                    Không có sản phẩm nào
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
 
-          <Box p={3} display="flex" justifyContent="flex-end" bgcolor="background.default" borderTop="1px solid" borderColor="divider">
+          <CardFooter className="p-6 bg-zinc-50/50 border-t border-zinc-200 justify-end">
             <Button
-              variant="contained"
-              color="primary"
-              size="large"
+              size="lg"
               onClick={handleSubmit(onSubmit)}
               disabled={isCompleted || updateMutation.isPending || fields.length === 0}
-              sx={{ fontWeight: 800, borderRadius: "8px", px: 5 }}
+              className="px-8 font-bold"
             >
               {updateMutation.isPending ? "Đang lưu..." : "Ghi Nhận Sản Lượng"}
             </Button>
-          </Box>
-        </Paper>
+          </CardFooter>
+        </Card>
       )}
-    </Box>
+    </div>
   );
 }

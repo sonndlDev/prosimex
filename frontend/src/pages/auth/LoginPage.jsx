@@ -2,22 +2,11 @@ import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  Alert,
-  InputAdornment,
-  IconButton,
-  CircularProgress,
-  Avatar,
-} from "@mui/material";
-import Visibility from "@mui/icons-material/Visibility";
-import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import ConstructionIcon from "@mui/icons-material/Construction";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Hammer, Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { control, handleSubmit: rhfHandleSubmit } = useForm({
@@ -26,233 +15,110 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
     setError("");
     setLoading(true);
-
     try {
       await login(data.username, data.password);
       navigate("/");
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
-      );
+      setError(err.response?.data?.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        overflow: "hidden",
-        background: "#0f172a",
-      }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          top: "-10%",
-          left: "-10%",
-          width: "40%",
-          height: "40%",
-          background:
-            "radial-gradient(circle, rgba(37, 99, 235, 0.4) 0%, transparent 70%)",
-          filter: "blur(100px)",
-          zIndex: 0,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: "-10%",
-          right: "-10%",
-          width: "50%",
-          height: "50%",
-          background:
-            "radial-gradient(circle, rgba(124, 58, 237, 0.3) 0%, transparent 70%)",
-          filter: "blur(100px)",
-          zIndex: 0,
-        }}
-      />
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-[#0f172a]">
+      {/* Glow blobs */}
+      <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-blue-600/30 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute -bottom-[10%] -right-[10%] w-[50%] h-[50%] bg-violet-600/20 rounded-full blur-[100px] pointer-events-none" />
 
-      <Card
-        className="glass-effect"
-        sx={{
-          maxWidth: 450,
-          width: "100%",
-          mx: 2,
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-          borderRadius: "32px",
-          zIndex: 1,
-          border: "1px solid rgba(255, 255, 255, 0.12)",
-          background: "rgba(255, 255, 255, 0.05) !important",
-        }}
-      >
-        <CardContent sx={{ p: { xs: 4, sm: 6 } }}>
-          <Box textAlign="center" mb={5}>
-            <Avatar
-              sx={{
-                width: 64,
-                height: 64,
-                bgcolor: "primary.main",
-                mx: "auto",
-                mb: 2,
-                boxShadow: "0 8px 16px rgba(37, 99, 235, 0.4)",
-              }}
-            >
-              <ConstructionIcon fontSize="large" />
-            </Avatar>
-            <Typography
-              variant="h4"
-              fontWeight={800}
-              sx={{ color: "white", letterSpacing: "-0.5px" }}
-              gutterBottom
-            >
-              PROSIMEX <span style={{ color: "#60a5fa" }}>MES</span>
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: "rgba(255, 255, 255, 0.6)", fontWeight: 500 }}
-            >
-              Hệ thống điều hành sản xuất chuyên nghiệp
-            </Typography>
-          </Box>
+      <div className="relative z-10 w-full max-w-md mx-4">
+        {/* Glassmorphism card */}
+        <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-8 md:p-10">
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-8 gap-3">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/40">
+              <Hammer className="w-8 h-8 text-white" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-3xl font-extrabold text-white tracking-tight">
+                PROSIMEX <span className="text-blue-400">MES</span>
+              </h1>
+              <p className="text-sm text-white/50 font-medium mt-1">Hệ thống điều hành sản xuất chuyên nghiệp</p>
+            </div>
+          </div>
 
           {error && (
-            <Alert
-              severity="error"
-              variant="filled"
-              sx={{
-                mb: 3,
-                borderRadius: "12px",
-                bgcolor: "rgba(239, 68, 68, 0.8)",
-              }}
-            >
-              {error}
+            <Alert variant="destructive" className="mb-5 border-red-500/50 bg-red-500/10 text-red-300">
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={rhfHandleSubmit(onSubmit)}>
-            <Controller
-              name="username"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Tên đăng nhập"
-                  variant="outlined"
-                  margin="normal"
-                  disabled={loading}
-                  required
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      color: "white",
-                      borderRadius: "16px",
-                      bgcolor: "rgba(255, 255, 255, 0.03)",
-                      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(255,255,255,0.2)",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "rgba(255,255,255,0.5)",
-                      "&.Mui-focused": { color: "primary.light" },
-                    },
-                  }}
+          <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-white/60 text-sm font-medium">Tên đăng nhập</Label>
+              <Controller
+                name="username"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    placeholder="Nhập tên đăng nhập"
+                    disabled={loading}
+                    required
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-blue-500 focus-visible:border-blue-500 h-11"
+                  />
+                )}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-white/60 text-sm font-medium">Mật khẩu</Label>
+              <div className="relative">
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Nhập mật khẩu"
+                      disabled={loading}
+                      required
+                      className="bg-white/5 border-white/10 text-white placeholder:text-white/30 focus-visible:ring-blue-500 pr-10 h-11"
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              name="password"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Mật khẩu"
-                  type={showPassword ? "text" : "password"}
-                  variant="outlined"
-                  margin="normal"
-                  disabled={loading}
-                  required
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      color: "white",
-                      borderRadius: "16px",
-                      bgcolor: "rgba(255, 255, 255, 0.03)",
-                      "& fieldset": { borderColor: "rgba(255,255,255,0.1)" },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(255,255,255,0.2)",
-                      },
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "rgba(255,255,255,0.5)",
-                      "&.Mui-focused": { color: "primary.light" },
-                    },
-                  }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                          sx={{ color: "rgba(255,255,255,0.3)" }}
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              )}
-            />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
             <Button
               type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              size="large"
               disabled={loading}
-              sx={{
-                mt: 4,
-                mb: 2,
-                py: 1.8,
-                borderRadius: "16px",
-                fontWeight: 700,
-                fontSize: "1rem",
-                boxShadow: "0 10px 20px -5px rgba(37, 99, 235, 0.4)",
-                background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
-              }}
+              className="w-full h-11 mt-2 font-bold text-base bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all"
             >
               {loading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                "Đăng nhập"
-              )}
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang đăng nhập...</>
+              ) : "Đăng nhập"}
             </Button>
-
-            <Typography
-              variant="body2"
-              textAlign="center"
-              sx={{ color: "rgba(255, 255, 255, 0.4)", mt: 3 }}
-            >
-              © 2026 Prosimex. All rights reserved.
-            </Typography>
           </form>
-        </CardContent>
-      </Card>
-    </Box>
+
+          <p className="text-center text-white/25 text-xs mt-6">© 2026 Prosimex. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
   );
 }

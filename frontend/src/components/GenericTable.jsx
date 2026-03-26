@@ -1,323 +1,213 @@
 import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Paper,
-    Button,
-    IconButton,
-    Typography,
-    Box,
-    Toolbar,
-    CircularProgress,
-    Alert,
-    Tooltip,
-    TextField,
-    InputAdornment,
-    Checkbox
-} from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
+import { Pencil, Trash2, Plus, Search } from 'lucide-react';
 
-export default function GenericTable({ 
-    title, 
-    data, 
-    columns, 
-    isLoading, 
-    error, 
-    onAdd, 
-    onEdit, 
-    onDelete,
-    onBulkDelete,
-    actionColWidth = 100 
+export default function GenericTable({
+  title,
+  data,
+  columns,
+  isLoading,
+  error,
+  onAdd,
+  onEdit,
+  onDelete,
+  onBulkDelete,
+  actionColWidth = 120,
 }) {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selected, setSelected] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selected, setSelected] = useState([]);
 
-    const handleSelectAllClick = (event) => {
-        if (event.target.checked) {
-            const newSelecteds = filteredData.map((n) => n.id);
-            setSelected(newSelecteds);
-            return;
-        }
-        setSelected([]);
-    };
+  const filteredData = data?.filter(row =>
+    Object.values(row).some(val =>
+      String(val).toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
 
-    const handleClick = (event, id) => {
-        event.stopPropagation();
-        const selectedIndex = selected.indexOf(id);
-        let newSelected = [];
+  const allSelected = filteredData?.length > 0 && selected.length === filteredData?.length;
+  const someSelected = selected.length > 0 && selected.length < (filteredData?.length || 0);
 
-        if (selectedIndex === -1) {
-            newSelected = newSelected.concat(selected, id);
-        } else if (selectedIndex === 0) {
-            newSelected = newSelected.concat(selected.slice(1));
-        } else if (selectedIndex === selected.length - 1) {
-            newSelected = newSelected.concat(selected.slice(0, -1));
-        } else if (selectedIndex > 0) {
-            newSelected = newSelected.concat(
-                selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1),
-            );
-        }
-        setSelected(newSelected);
-    };
+  const handleSelectAll = (e) => {
+    setSelected(e.target.checked ? filteredData.map(r => r.id) : []);
+  };
 
-    const isSelected = (id) => selected.indexOf(id) !== -1;
-
-    if (isLoading) {
-        return (
-            <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" p={8} gap={2}>
-                <CircularProgress size={40} thickness={4} />
-                <Typography color="textSecondary" variant="body2">Đang tải dữ liệu...</Typography>
-            </Box>
-        );
-    }
-
-    if (error) {
-        return (
-            <Alert 
-                severity="error" 
-                variant="outlined"
-                sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'error.light', bgcolor: 'rgba(239, 68, 68, 0.02)' }}
-            >
-                {error.message || 'Lỗi khi tải dữ liệu'}
-            </Alert>
-        );
-    }
-
-    const filteredData = data?.filter(row => 
-        Object.values(row).some(val => 
-            String(val).toLowerCase().includes(searchTerm.toLowerCase())
-        )
+  const handleSelect = (e, id) => {
+    e.stopPropagation();
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
+  };
 
+  if (error) {
     return (
-        <Paper elevation={0} sx={{ 
-            width: '100%', 
-            overflow: 'hidden', 
-            borderRadius: '20px', 
-            border: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper'
-        }}>
-            <Toolbar sx={{ 
-                py: 2, 
-                px: 3, 
-                display: 'flex', 
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'stretch', sm: 'center' },
-                gap: 2,
-                justifyContent: 'space-between'
-            }}>
-                <Box sx={{ flex: '1 1 auto' }}>
-                    {typeof title === 'string' ? (
-                        <Typography sx={{ fontWeight: 700 }} variant="h5" component="div">
-                            {title}
-                        </Typography>
-                    ) : (
-                        title
-                    )}
-                </Box>
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                    <TextField
-                        size="small"
-                        placeholder="Tìm kiếm..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon fontSize="small" color="disabled" />
-                                </InputAdornment>
-                            ),
-                        }}
-                        sx={{ 
-                            minWidth: { xs: '100%', sm: 240 },
-                            '& .MuiOutlinedInput-root': {
-                                borderRadius: '10px',
-                                bgcolor: 'background.default'
-                            }
-                        }}
-                    />
-                    {onBulkDelete && selected.length > 0 && (
-                        <Button 
-                            variant="outlined" 
-                            color="error" 
-                            startIcon={<DeleteIcon />} 
-                            onClick={() => {
-                                onBulkDelete(selected);
-                                setSelected([]);
-                            }}
-                            sx={{ 
-                                whiteSpace: 'nowrap', 
-                                px: 3,
-                                py: 1,
-                                borderRadius: '10px'
-                            }}
-                        >
-                            Xóa {selected.length} mục
-                        </Button>
-                    )}
-                    {onAdd && (
-                        <Button 
-                            variant="contained" 
-                            color="primary" 
-                            startIcon={<AddIcon />} 
-                            onClick={onAdd}
-                            sx={{ 
-                                whiteSpace: 'nowrap', 
-                                px: 3,
-                                py: 1,
-                                borderRadius: '10px'
-                            }}
-                        >
-                            Thêm mới
-                        </Button>
-                    )}
-                </Box>
-            </Toolbar>
-            
-            <TableContainer sx={{ maxHeight: 'calc(100vh - 280px)' }}>
-                <Table stickyHeader size="medium">
-                    <TableHead>
-                        <TableRow>
-                            {onBulkDelete && (
-                                <TableCell padding="checkbox" sx={{ bgcolor: 'background.paper' }}>
-                                    <Checkbox
-                                        color="primary"
-                                        indeterminate={selected.length > 0 && selected.length < (filteredData?.length || 0)}
-                                        checked={filteredData?.length > 0 && selected.length === filteredData?.length}
-                                        onChange={handleSelectAllClick}
-                                    />
-                                </TableCell>
-                            )}
-                            <TableCell width={60} sx={{ fontWeight: 700, bgcolor: 'background.paper' }}>STT</TableCell>
-                            {columns.map((column) => (
-                                <TableCell 
-                                    key={column.id} 
-                                    align={column.align || 'left'} 
-                                    sx={{ 
-                                        minWidth: column.minWidth,
-                                        fontWeight: 700,
-                                        bgcolor: 'background.paper',
-                                        color: 'text.secondary',
-                                        fontSize: '0.8rem',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.05em'
-                                    }}
-                                >
-                                    {column.label}
-                                </TableCell>
-                            ))}
-                            {(onEdit || onDelete) && (
-                                <TableCell 
-                                    align="center" 
-                                    width={actionColWidth}
-                                    sx={{ 
-                                        fontWeight: 700, 
-                                        bgcolor: 'background.paper',
-                                        color: 'text.secondary',
-                                        fontSize: '0.8rem',
-                                        textTransform: 'uppercase'
-                                    }}
-                                >
-                                    Thao tác
-                                </TableCell>
-                            )}
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {filteredData?.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={columns.length + 2} align="center" sx={{ py: 10 }}>
-                                    <Box sx={{ color: 'text.disabled', textAlign: 'center' }}>
-                                        <SearchIcon sx={{ fontSize: 48, mb: 1, opacity: 0.5 }} />
-                                        <Typography variant="body1">Không có dữ liệu phù hợp</Typography>
-                                    </Box>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            filteredData?.map((row, index) => {
-                                const isItemSelected = isSelected(row.id);
-                                return (
-                                <TableRow 
-                                    hover 
-                                    key={row.id || index}
-                                    selected={isItemSelected}
-                                    sx={{ 
-                                        '&:last-child td, &:last-child th': { border: 0 },
-                                        transition: 'background-color 0.2s ease',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    {onBulkDelete && (
-                                        <TableCell padding="checkbox">
-                                            <Checkbox
-                                                color="primary"
-                                                checked={isItemSelected}
-                                                onChange={(event) => handleClick(event, row.id)}
-                                            />
-                                        </TableCell>
-                                    )}
-                                    <TableCell sx={{ color: 'text.secondary', fontWeight: 500 }}>{index + 1}</TableCell>
-                                    {columns.map((column) => {
-                                        const value = row[column.id];
-                                        return (
-                                            <TableCell key={column.id} align={column.align || 'left'} sx={{ fontWeight: 500 }}>
-                                                {column.format ? column.format(value, row) : value}
-                                            </TableCell>
-                                        );
-                                    })}
-                                    {(onEdit || onDelete) && (
-                                        <TableCell align="center">
-                                            <Box display="flex" justifyContent="center" gap={1}>
-                                                {onEdit && (
-                                                    <Tooltip title="Chỉnh sửa">
-                                                        <IconButton 
-                                                            size="small" 
-                                                            onClick={(e) => { e.stopPropagation(); onEdit(row); }}
-                                                            sx={{ 
-                                                                color: 'primary.main',
-                                                                bgcolor: 'rgba(37, 99, 235, 0.05)',
-                                                                '&:hover': { bgcolor: 'rgba(37, 99, 235, 0.12)' }
-                                                            }}
-                                                        >
-                                                            <EditIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                )}
-                                                {onDelete && (
-                                                    <Tooltip title="Xóa">
-                                                        <IconButton 
-                                                            size="small" 
-                                                            onClick={(e) => { e.stopPropagation(); onDelete(row); }}
-                                                            sx={{ 
-                                                                color: 'error.main',
-                                                                bgcolor: 'rgba(239, 68, 68, 0.05)',
-                                                                '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.12)' }
-                                                            }}
-                                                        >
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                )}
-                                            </Box>
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                                );
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Paper>
+      <Alert variant="destructive" className="border-red-200 bg-red-50">
+        <AlertDescription className="text-red-700">{error.message || 'Lỗi khi tải dữ liệu'}</AlertDescription>
+      </Alert>
     );
+  }
+
+  return (
+    <div className="w-full space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex-1">
+          {typeof title === 'string' ? (
+            <div>
+              <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">{title}</h2>
+            </div>
+          ) : title}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Input
+              placeholder="Tìm kiếm..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-9 bg-zinc-50"
+            />
+          </div>
+          {onBulkDelete && selected.length > 0 && (
+            <Button
+              variant="outline"
+              className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 font-semibold"
+              onClick={() => { onBulkDelete(selected); setSelected([]); }}
+            >
+              <Trash2 className="w-4 h-4" />
+              Xóa {selected.length} mục
+            </Button>
+          )}
+          {onAdd && (
+            <Button onClick={onAdd} className="gap-1.5 font-semibold">
+              <Plus className="w-4 h-4" />
+              Thêm mới
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border border-zinc-200 overflow-hidden bg-white shadow-sm">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+              {onBulkDelete && (
+                <TableHead className="w-10 px-3">
+                  <input
+                    type="checkbox"
+                    className="rounded border-zinc-300 accent-zinc-950"
+                    checked={allSelected}
+                    ref={el => el && (el.indeterminate = someSelected)}
+                    onChange={handleSelectAll}
+                  />
+                </TableHead>
+              )}
+              <TableHead className="w-[60px] font-semibold">STT</TableHead>
+              {columns.map(col => (
+                <TableHead
+                  key={col.id}
+                  className={cn("font-semibold text-[11px] uppercase tracking-wider text-zinc-500", col.minWidth ? `min-w-[${col.minWidth}px]` : '')}
+                  style={{ textAlign: col.align || 'left' }}
+                >
+                  {col.label}
+                </TableHead>
+              ))}
+              {(onEdit || onDelete) && (
+                <TableHead className="w-24 text-center font-semibold text-[11px] uppercase tracking-wider text-zinc-500">
+                  Thao tác
+                </TableHead>
+              )}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  {Array.from({ length: columns.length + 2 }).map((_, j) => (
+                    <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : filteredData?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + (onBulkDelete ? 3 : 2)} className="h-32 text-center text-zinc-400 font-medium">
+                  <div className="flex flex-col items-center gap-2">
+                    <Search className="w-8 h-8 text-zinc-300" />
+                    <span>Không có dữ liệu phù hợp</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData?.map((row, index) => {
+                const isSelected = selected.includes(row.id);
+                return (
+                  <TableRow key={row.id || index} className={cn("cursor-default", isSelected && "bg-zinc-50")}>
+                    {onBulkDelete && (
+                      <TableCell className="px-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-zinc-300 accent-zinc-950"
+                          checked={isSelected}
+                          onChange={e => handleSelect(e, row.id)}
+                        />
+                      </TableCell>
+                    )}
+                    <TableCell className="text-zinc-400 font-medium">{index + 1}</TableCell>
+                    {columns.map(col => {
+                      const value = row[col.id];
+                      return (
+                        <TableCell key={col.id} className="font-medium" style={{ textAlign: col.align || 'left' }}>
+                          {col.format ? col.format(value, row) : value}
+                        </TableCell>
+                      );
+                    })}
+                    {(onEdit || onDelete) && (
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          {onEdit && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={e => { e.stopPropagation(); onEdit(row); }}
+                                  className="p-1.5 rounded-md text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Chỉnh sửa</p></TooltipContent>
+                            </Tooltip>
+                          )}
+                          {onDelete && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={e => { e.stopPropagation(); onDelete(row); }}
+                                  className="p-1.5 rounded-md text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent><p>Xóa</p></TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 }

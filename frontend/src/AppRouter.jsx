@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Box, CircularProgress } from "@mui/material";
+import { Loader2, Hammer } from "lucide-react";
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -36,14 +36,32 @@ const WorkerPage = React.lazy(() => import("./pages/workers/WorkerPage"));
 
 // Loading fallback
 const PageLoader = () => (
-  <Box
-    display="flex"
-    justifyContent="center"
-    alignItems="center"
-    sx={{ height: "60vh" }}
-  >
-    <CircularProgress />
-  </Box>
+  <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-zinc-50/80 backdrop-blur-md transition-all duration-500">
+    <div className="relative flex flex-col items-center">
+      {/* Glow Effect */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-indigo-500/20 blur-[60px] animate-pulse"></div>
+      
+      {/* Animated Logo Container */}
+      <div className="relative z-10 w-20 h-20 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl flex items-center justify-center shadow-[0_20px_50px_rgba(79,70,229,0.3)] animate-bounce-subtle">
+        <Hammer className="w-10 h-10 text-white animate-pulse-gentle" />
+        
+        {/* Orbiting Spinner */}
+        <div className="absolute -inset-2 border-2 border-transparent border-t-indigo-500/30 border-r-indigo-500/30 rounded-[32px] animate-spin-slow"></div>
+      </div>
+
+      {/* Loading Text */}
+      <div className="mt-8 flex flex-col items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-150">
+        <h3 className="text-sm font-black text-zinc-800 uppercase tracking-[0.3em] pl-[0.3em] font-['Outfit']">
+          PROSIMEX <span className="text-indigo-600">MES</span>
+        </h3>
+        <div className="flex items-center gap-2">
+           <div className="h-[2px] w-8 bg-gradient-to-r from-transparent via-indigo-200 to-transparent"></div>
+           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest whitespace-nowrap">Hệ thống đang tải...</p>
+           <div className="h-[2px] w-8 bg-gradient-to-r from-indigo-200 via-indigo-200 to-transparent scale-x-[-1]"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 );
 
 // Placeholder Pages for upcoming modules

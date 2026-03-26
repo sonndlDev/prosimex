@@ -3,57 +3,28 @@ import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerService } from "../../services/customer.service";
 import GenericTable from "../../components/GenericTable";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Box,
-} from "@mui/material";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function CustomerPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const {
-    control,
-    handleSubmit: rhfHandleSubmit,
-    reset,
-  } = useForm({
+  const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { code: "", name: "", contact_info: "" },
   });
 
-  // Fetch Data
-  const {
-    data: customers,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: customers, isLoading, error } = useQuery({
     queryKey: ["customers"],
     queryFn: customerService.getAll,
   });
 
-  // Mutations
-  const mutationOpts = {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      handleClose();
-    },
-  };
-  const createMutation = useMutation({
-    mutationFn: customerService.create,
-    ...mutationOpts,
-  });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }) => customerService.update(id, payload),
-    ...mutationOpts,
-  });
-  const deleteMutation = useMutation({
-    mutationFn: customerService.delete,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
-  });
+  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["customers"] }); handleClose(); } };
+  const createMutation = useMutation({ mutationFn: customerService.create, ...mutationOpts });
+  const updateMutation = useMutation({ mutationFn: ({ id, payload }) => customerService.update(id, payload), ...mutationOpts });
+  const deleteMutation = useMutation({ mutationFn: customerService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }) });
 
   const columns = [
     { id: "code", label: "Mã công ty" },
@@ -62,133 +33,57 @@ export default function CustomerPage() {
   ];
 
   const handleOpen = (customer = null) => {
-    if (customer) {
-      setSelectedCustomer(customer);
-      reset({
-        code: customer.code,
-        name: customer.name,
-        contact_info: customer.contact_info || "",
-      });
-    } else {
-      setSelectedCustomer(null);
-      reset({ code: "", name: "", contact_info: "" });
-    }
+    setSelectedCustomer(customer);
+    reset(customer ? { code: customer.code, name: customer.name, contact_info: customer.contact_info || "" } : { code: "", name: "", contact_info: "" });
     setOpenModal(true);
   };
-
-  const handleClose = () => {
-    setOpenModal(false);
-    setSelectedCustomer(null);
-  };
-
+  const handleClose = () => { setOpenModal(false); setSelectedCustomer(null); };
   const onSubmit = (data) => {
-    if (selectedCustomer) {
-      updateMutation.mutate({ id: selectedCustomer.id, payload: data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  const handleDelete = (customer) => {
-    if (window.confirm(`Xóa khách hàng ${customer.name}?`)) {
-      deleteMutation.mutate(customer.id);
-    }
-  };
-
-  const handleBulkDelete = (selectedIds) => {
-    if (window.confirm(`Xóa ${selectedIds.length} khách hàng đã chọn?`)) {
-      selectedIds.forEach((id) => deleteMutation.mutate(id));
-    }
+    if (selectedCustomer) updateMutation.mutate({ id: selectedCustomer.id, payload: data });
+    else createMutation.mutate(data);
   };
 
   return (
-    <Box>
+    <div>
       <GenericTable
-        title={
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <h2>Quản lý Khách hàng</h2>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => handleOpen()}
-            >
-              + Thêm khách hàng
-            </Button>
-          </Box>
-        }
-        data={customers}
-        columns={columns}
-        isLoading={isLoading}
-        error={error}
+        title="Quản lý Khách hàng"
+        data={customers} columns={columns} isLoading={isLoading} error={error}
+        onAdd={() => handleOpen()}
         onEdit={handleOpen}
-        onDelete={handleDelete}
-        onBulkDelete={handleBulkDelete}
+        onDelete={(c) => { if (window.confirm(`Xóa khách hàng "${c.name}"?`)) deleteMutation.mutate(c.id); }}
+        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} khách hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
       />
 
-      {/* Create / Edit Modal */}
-      <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="sm">
-        <form onSubmit={rhfHandleSubmit(onSubmit)}>
-          <DialogTitle>
-            {selectedCustomer ? "Chỉnh sửa khách hàng" : "Thêm khách hàng mới"}
-          </DialogTitle>
-          <DialogContent dividers>
-            <Controller
-              name="code"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Mã khách hàng"
-                  margin="normal"
-                  required
-                />
-              )}
-            />
-            <Controller
-              name="name"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Tên công ty"
-                  margin="normal"
-                  required
-                />
-              )}
-            />
-            <Controller
-              name="contact_info"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Thông tin liên hệ"
-                  margin="normal"
-                  multiline
-                  rows={3}
-                />
-              )}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Hủy</Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              Lưu
-            </Button>
-          </DialogActions>
-        </form>
+      <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={rhfHandleSubmit(onSubmit)}>
+            <DialogHeader>
+              <DialogTitle>{selectedCustomer ? "Chỉnh sửa khách hàng" : "Thêm khách hàng mới"}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div className="space-y-2">
+                <Label>Mã khách hàng <span className="text-red-500">*</span></Label>
+                <Controller name="code" control={control} render={({ field }) => <Input {...field} required />} />
+              </div>
+              <div className="space-y-2">
+                <Label>Tên công ty <span className="text-red-500">*</span></Label>
+                <Controller name="name" control={control} render={({ field }) => <Input {...field} required />} />
+              </div>
+              <div className="space-y-2">
+                <Label>Thông tin liên hệ</Label>
+                <Controller name="contact_info" control={control} render={({ field }) => (
+                  <textarea {...field} rows={3} placeholder="SĐT, email, địa chỉ..."
+                    className="w-full rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none" />
+                )} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>Hủy</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>Lưu</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
-    </Box>
+    </div>
   );
 }

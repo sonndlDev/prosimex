@@ -1,6 +1,6 @@
 import React from "react";
-import { TableCell, TextField } from "@mui/material";
 import { DateTime } from "luxon";
+import { Input } from "@/components/ui/input";
 
 // Constants
 export const NORMAL_CAPACITY = 1;
@@ -8,52 +8,33 @@ export const OVERTIME_CAPACITY = 1.43;
 
 // Styled cell for the Excel look
 export const ExcelHeaderCell = React.memo(
-  ({ children, sx = {}, colSpan = 1, rowSpan = 1 }) => (
-    <TableCell
+  ({ children, className = "", colSpan = 1, rowSpan = 1, style = {} }) => (
+    <th
       colSpan={colSpan}
       rowSpan={rowSpan}
-      align="center"
-      sx={{
-        border: "1px solid #cbd5e1",
-        bgcolor: "#f1f5f9",
-        color: "#475569",
-        fontWeight: 800,
-        fontSize: "max(0.75rem, 0.8vw)",
-        p: "12px 6px",
-        textTransform: "uppercase",
-        letterSpacing: "0.05em",
-        whiteSpace: "nowrap",
-        ...sx,
-      }}
+      style={style}
+      className={`border border-zinc-300 bg-zinc-100 text-zinc-600 font-black text-[10px] sm:text-[11px] p-2 uppercase tracking-wider whitespace-nowrap text-center align-middle ${className}`}
     >
       {children}
-    </TableCell>
+    </th>
   ),
 );
 ExcelHeaderCell.displayName = "ExcelHeaderCell";
 
 export const ExcelDataCell = React.memo(
-  ({ children, align = "center", sx = {} }) => (
-    <TableCell
-      align={align}
-      sx={{
-        border: "1px solid #e2e8f0",
-        p: "10px 12px",
-        fontSize: "max(0.8rem, 0.85vw)",
-        color: "#1e293b",
-        whiteSpace: "nowrap",
-        height: "48px",
-        ...sx,
-      }}
+  ({ children, className = "", style = {} }) => (
+    <td
+      style={style}
+      className={`border border-zinc-200 p-2 text-xs sm:text-sm text-zinc-900 whitespace-nowrap h-12 text-center align-middle ${className}`}
     >
       {children}
-    </TableCell>
+    </td>
   ),
 );
 ExcelDataCell.displayName = "ExcelDataCell";
 
 // Optimized sub-component for handling numeric inputs with local state to prevent lag
-export const ManagedTextField = React.memo(({ value, onCommit, ...props }) => {
+export const ManagedTextField = React.memo(({ value, onCommit, className = "", ...props }) => {
   const [localValue, setLocalValue] = React.useState(value);
   const [isFocused, setIsFocused] = React.useState(false);
 
@@ -81,13 +62,14 @@ export const ManagedTextField = React.memo(({ value, onCommit, ...props }) => {
   };
 
   return (
-    <TextField
+    <Input
       {...props}
       value={localValue}
       onChange={(e) => setLocalValue(e.target.value)}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
+      className={`h-8 text-center font-bold px-1 ${className}`}
     />
   );
 });
@@ -129,9 +111,6 @@ export function rebalanceDays(daysArray, changedIndex, newValRaw, targetTotal) {
   if (newVal > NORMAL_CAPACITY) {
     isOvertime = true;
   } else if (newVal <= NORMAL_CAPACITY && newVal > 0 && updated[changedIndex].hours > NORMAL_CAPACITY) {
-     // If reducing from >1.0 to <=1.0, we can optionally untick, 
-     // but let's keep it if the user might still consider it overtime (e.g. weekend)
-     // Actually, if it was auto-ticked, they'd expect it to untick.
      isOvertime = false;
   }
 

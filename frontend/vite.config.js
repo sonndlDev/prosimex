@@ -1,8 +1,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
 
   build: {
     rollupOptions: {
@@ -10,12 +16,8 @@ export default defineConfig({
         manualChunks: {
           // Core React runtime
           "vendor-react": ["react", "react-dom", "react-router-dom"],
-          // MUI core (largest dependency)
-          "vendor-mui": ["@mui/material", "@emotion/react", "@emotion/styled"],
-          // MUI Icons (very large, used across many pages)
-          "vendor-mui-icons": ["@mui/icons-material"],
           // Data fetching & utilities
-          "vendor-utils": ["@tanstack/react-query", "axios", "luxon"],
+          "vendor-utils": ["@tanstack/react-query", "axios", "luxon", "sonner"],
           // Calendar (only used in SchedulePage)
           "vendor-calendar": [
             "@fullcalendar/core",

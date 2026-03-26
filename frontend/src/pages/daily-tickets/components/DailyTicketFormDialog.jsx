@@ -1,235 +1,125 @@
 import React, { useEffect, useMemo } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Box,
-  Typography,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Divider,
-} from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddCircleIcon from "@mui/icons-material/AddCircle";
+import { toast } from "sonner";
 import { DateTime } from "luxon";
-import { useSnackbar } from "notistack";
 import { dailyTicketService } from "../../../services/daily-ticket.service";
 import { planningService } from "../../../services/planning.service";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2, Plus, Loader2 } from "lucide-react";
 
-const TicketRow = ({ index, control, setValue, remove, plans, ticketDate, watchItems }) => {
+const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watchItems }) => {
   const selectedOrderId = watchItems[index]?.order_id;
   const selectedProductId = watchItems[index]?.product_id;
 
-  // Filter products based on selected order and available plans
   const availableProducts = useMemo(() => {
     if (!selectedOrderId || !plans) return [];
-    const productsMap = new Map();
+    const map = new Map();
     plans
-      .filter((p) => p.order_id === selectedOrderId)
-      .forEach((p) => {
-        if (p.product_id) {
-          productsMap.set(p.product_id, { id: p.product_id, name: p.product_name });
-        }
+      .filter(p => String(p.order_id) === String(selectedOrderId))
+      .forEach(p => {
+        if (p.product_id) map.set(p.product_id, { id: p.product_id, name: p.product_name });
       });
-    return Array.from(productsMap.values());
+    return Array.from(map.values());
   }, [selectedOrderId, plans]);
 
-  // Filter operations based on selected product and available plans
   const availableOperations = useMemo(() => {
     if (!selectedProductId || !plans) return [];
     return plans
-      .filter((p) => p.order_id === selectedOrderId && p.product_id === selectedProductId)
-      .map((p) => ({
-        id: p.product_group_operation_id || `null-${p.id}`,
-        name: p.operation_name || "N/A (CĐ Tổng)",
-        plan: p,
-      }));
+      .filter(p => String(p.order_id) === String(selectedOrderId) && String(p.product_id) === String(selectedProductId))
+      .map(p => ({ id: p.product_group_operation_id || `null-${p.id}`, name: p.operation_name || "N/A (CĐ Tổng)", plan: p }));
   }, [selectedOrderId, selectedProductId, plans]);
 
+  const uniqueOrders = Array.from(new Map(plans?.map(p => [p.order_id, { id: p.order_id, name: p.order_name || p.order_code || `#${p.order_id}` }]) || []).values());
+
   return (
-    <Box
-      display="grid"
-      gridTemplateColumns="1fr 1fr 1fr 150px 50px"
-      gap={2}
-      mb={2}
-      alignItems="center"
-    >
-      <Controller
-        name={`items.${index}.order_id`}
-        control={control}
-        render={({ field }) => (
-          <FormControl fullWidth size="small">
-            <InputLabel>Đơn hàng</InputLabel>
-            <Select
-              {...field}
-              label="Đơn hàng"
-              onChange={(e) => {
-                field.onChange(e.target.value);
-                setValue(`items.${index}.product_id`, "");
-                setValue(`items.${index}.product_group_operation_id`, "");
-                setValue(`items.${index}.planned_quantity`, "");
-              }}
-            >
-              {Array.from(new Map(plans?.map(p => [p.order_id, {id: p.order_id, name: p.order_name || p.order_code || `Đơn hàng #${p.order_id}`}]) || []).values()).map((o) => (
-                <MenuItem key={o.id} value={o.id}>
-                  {o.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-      />
+    <div className="grid grid-cols-[1fr_1fr_1fr_140px_36px] gap-2 items-center">
+      {/* Order */}
+      <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
+        <Select value={String(field.value || "")} disabled={isCompleted}
+          onValueChange={v => { field.onChange(v); setValue(`items.${index}.product_id`, ""); setValue(`items.${index}.product_group_operation_id`, ""); setValue(`items.${index}.planned_quantity`, ""); }}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Đơn hàng">
+              {uniqueOrders.find(o => String(o.id) === String(field.value))?.name || field.value}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>{uniqueOrders.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}</SelectContent>
+        </Select>
+      )} />
 
-      <Controller
-        name={`items.${index}.product_id`}
-        control={control}
-        render={({ field }) => (
-          <FormControl fullWidth size="small" disabled={!selectedOrderId}>
-            <InputLabel>Sản phẩm</InputLabel>
-            <Select
-              {...field}
-              label="Sản phẩm"
-              onChange={(e) => {
-                field.onChange(e.target.value);
-                setValue(`items.${index}.product_group_operation_id`, "");
-                setValue(`items.${index}.planned_quantity`, "");
-              }}
-            >
-              {availableProducts.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-      />
+      {/* Product */}
+      <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
+        <Select value={String(field.value || "")} disabled={!selectedOrderId || isCompleted}
+          onValueChange={v => { field.onChange(v); setValue(`items.${index}.product_group_operation_id`, ""); setValue(`items.${index}.planned_quantity`, ""); }}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Sản phẩm">
+               {availableProducts.find(p => String(p.id) === String(field.value))?.name || field.value}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>{availableProducts.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+        </Select>
+      )} />
 
-      <Controller
-        name={`items.${index}.product_group_operation_id`}
-        control={control}
-        render={({ field: selectField }) => (
-          <FormControl fullWidth size="small" disabled={!selectedProductId}>
-            <InputLabel>Công đoạn</InputLabel>
-            <Select
-              {...selectField}
-              label="Công đoạn"
-              onChange={(e) => {
-                selectField.onChange(e.target.value);
-                const op = availableOperations.find(o => o.id === e.target.value);
-                if (op) {
-                  setValue(`items.${index}.operation_name`, op.name);
-                }
-              }}
-            >
-              {availableOperations.map((op) => (
-                <MenuItem key={op.id} value={op.id}>
-                  {op.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-      />
+      {/* Operation */}
+      <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
+        <Select value={String(field.value || "")} disabled={!selectedProductId || isCompleted}
+          onValueChange={v => { field.onChange(v); const op = availableOperations.find(o => String(o.id) === v); if (op) setValue(`items.${index}.operation_name`, op.name); }}>
+          <SelectTrigger className="h-9 text-sm">
+            <SelectValue placeholder="Công đoạn">
+               {availableOperations.find(o => String(o.id) === String(field.value))?.name || field.value}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>{availableOperations.map(op => <SelectItem key={op.id} value={String(op.id)}>{op.name}</SelectItem>)}</SelectContent>
+        </Select>
+      )} />
 
-      <Controller
-        name={`items.${index}.planned_quantity`}
-        control={control}
-        render={({ field }) => (
-          <TextField
-            {...field}
-            label="Sản lượng"
-            type="number"
-            size="small"
-            fullWidth
-          />
-        )}
-      />
+      {/* Quantity */}
+      <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
+        <Input {...field} type="number" placeholder="SL KH" className="h-9 text-sm" disabled={isCompleted} />
+      )} />
 
-      <IconButton color="error" onClick={() => remove(index)}>
-        <DeleteIcon />
-      </IconButton>
-    </Box>
+      {/* Delete */}
+      <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
+        className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20">
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
   );
 };
 
 export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
-  const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
-
   const { control, handleSubmit, watch, reset, setValue } = useForm({
-    defaultValues: {
-      ticket_date: DateTime.local().toISODate(),
-      items: [],
-    },
+    defaultValues: { ticket_date: DateTime.local().toISODate(), items: [] },
   });
 
-  const { data: ticket, isLoading: ticketLoading } = useQuery({
+  const { data: ticket } = useQuery({
     queryKey: ["daily-ticket", ticketId],
     queryFn: () => dailyTicketService.getById(ticketId),
     enabled: !!ticketId && open,
   });
-
   const isCompleted = ticket?.status === "COMPLETED";
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "items",
-  });
-
+  const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const ticketDate = watch("ticket_date");
+  const watchItems = watch("items");
 
-  // Fetch plans for the selected date
-  const { data: plansData, isLoading: plansLoading } = useQuery({
+  const { data: plansData } = useQuery({
     queryKey: ["plans-by-date", ticketDate],
     queryFn: () => planningService.getAll({ working_date: ticketDate, limit: 100 }),
     enabled: !!ticketDate && open,
   });
   const plans = plansData?.data || [];
 
-  const createMutation = useMutation({
-    mutationFn: dailyTicketService.create,
-    onSuccess: () => {
-      enqueueSnackbar("Đã tạo phiếu sản xuất thành công!", { variant: "success" });
-      queryClient.invalidateQueries(["daily-tickets"]);
-      onClose();
-    },
-    onError: (err) => {
-      enqueueSnackbar(err.response?.data?.message || "Lỗi khi tạo phiếu!", {
-        variant: "error",
-      });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data) => dailyTicketService.update(ticketId, data),
-    onSuccess: () => {
-      enqueueSnackbar("Đã cập nhật phiếu thành công!", { variant: "success" });
-      queryClient.invalidateQueries(["daily-tickets"]);
-      queryClient.invalidateQueries(["daily-ticket", ticketId]);
-      onClose();
-    },
-    onError: (err) => {
-      enqueueSnackbar(err.response?.data?.message || "Lỗi khi cập nhật phiếu!", {
-        variant: "error",
-      });
-    },
-  });
-
-  const watchItems = watch("items");
-
   useEffect(() => {
-    if (!open) {
-      reset({ ticket_date: DateTime.local().toISODate(), items: [] });
-    } else if (ticketId && ticket) {
+    if (!open) { reset({ ticket_date: DateTime.local().toISODate(), items: [] }); return; }
+    if (ticketId && ticket) {
       reset({
         ticket_date: DateTime.fromISO(ticket.ticket_date).toISODate(),
         items: ticket.items?.map(item => ({
@@ -238,106 +128,88 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           product_group_operation_id: item.product_group_operation_id || "",
           operation_name: item.operation_name || item.pgo_operation_name || "",
           planned_quantity: item.planned_quantity ? parseFloat(item.planned_quantity) : "",
-        })) || []
+        })) || [],
       });
-    } else if (!ticketId) {
-      reset({ ticket_date: DateTime.local().toISODate(), items: [] });
-    }
+    } else if (!ticketId) { reset({ ticket_date: DateTime.local().toISODate(), items: [] }); }
   }, [open, ticket, ticketId, reset]);
 
-  useEffect(() => {
-    // handled effectively in the hook above
-  }, [open, reset]);
+  const createMutation = useMutation({
+    mutationFn: dailyTicketService.create,
+    onSuccess: () => { toast.success("Đã tạo phiếu sản xuất!"); queryClient.invalidateQueries(["daily-tickets"]); onClose(); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo phiếu!"),
+  });
+  const updateMutation = useMutation({
+    mutationFn: (data) => dailyTicketService.update(ticketId, data),
+    onSuccess: () => { toast.success("Đã cập nhật phiếu!"); queryClient.invalidateQueries(["daily-tickets"]); queryClient.invalidateQueries(["daily-ticket", ticketId]); onClose(); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật!"),
+  });
 
   const onSubmit = (data) => {
-    if (data.items.length === 0) {
-      enqueueSnackbar("Vui lòng thêm ít nhất một công đoạn!", { variant: "warning" });
-      return;
-    }
+    if (data.items.length === 0) { toast.warning("Vui lòng thêm ít nhất một công đoạn!"); return; }
     if (ticketId) updateMutation.mutate(data);
     else createMutation.mutate(data);
   };
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-      <DialogTitle sx={{ fontWeight: 700 }}>
-        {ticketId ? `Chỉnh Sửa Phiếu Sản Xuất #${ticketId}` : "Tạo Phiếu Sản Xuất Hàng Ngày"}
-        {isCompleted && (
-           <Typography component="span" color="error" sx={{ml: 2}}>
-             (Đã chốt - Không thể sửa)
-           </Typography>
-        )}
-      </DialogTitle>
-      <DialogContent dividers>
-        <Box mb={4} width={300}>
-          <Controller
-            name="ticket_date"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                label="Ngày sản xuất"
-                type="date"
-                fullWidth
-                disabled={isCompleted}
-                InputLabelProps={{ shrink: true }}
-              />
-            )}
-          />
-        </Box>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            {ticketId ? `Chỉnh sửa Phiếu #${ticketId}` : "Tạo Phiếu Sản Xuất Hàng Ngày"}
+            {isCompleted && <Badge variant="destructive" className="text-xs">Đã chốt - Không thể sửa</Badge>}
+          </DialogTitle>
+        </DialogHeader>
 
-        <Typography variant="subtitle1" fontWeight={700} mb={2}>
-          Danh sách công việc dự kiến:
-        </Typography>
+        <div className="flex-1 overflow-y-auto space-y-5 py-2">
+          {/* Date */}
+          <div className="w-52 space-y-1.5">
+            <Label>Ngày sản xuất</Label>
+            <Controller name="ticket_date" control={control} render={({ field }) => (
+              <Input {...field} type="date" className="h-9" disabled={isCompleted} />
+            )} />
+          </div>
 
-        {fields.map((field, index) => (
-          <React.Fragment key={field.id}>
-             <TicketRow 
-               index={index} 
-               control={control} 
-               setValue={setValue} 
-               remove={isCompleted ? () => {} : remove} 
-               plans={plans} 
-               ticketDate={ticketDate}
-               watchItems={watchItems}
-             />
-             <Divider sx={{ my: 1, borderStyle: 'dashed' }} />
-          </React.Fragment>
-        ))}
+          <Separator />
 
-        <Button
-          startIcon={<AddCircleIcon />}
-          onClick={() =>
-            append({
-              order_id: "",
-              product_id: "",
-              product_group_operation_id: "",
-              operation_name: "",
-              planned_quantity: "",
-            })
-          }
-          disabled={isCompleted}
-          sx={{ mt: 2, fontWeight: 700, display: isCompleted ? "none" : "inline-flex" }}
-        >
-          Thêm Công Việc Tiết
-        </Button>
+          {/* Items header */}
+          <div>
+            <p className="text-sm font-bold text-zinc-950 mb-3">Danh sách công việc dự kiến:</p>
+            <div className="grid grid-cols-[1fr_1fr_1fr_140px_36px] gap-2 px-0 mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Sản phẩm</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">SL Kế hoạch</p>
+              <div />
+            </div>
+            <div className="space-y-2">
+              {fields.map((field, index) => (
+                <TicketRow key={field.id} index={index} control={control} setValue={setValue}
+                  remove={remove} plans={plans} isCompleted={isCompleted} watchItems={watchItems} />
+              ))}
+            </div>
+          </div>
+
+          {!isCompleted && (
+            <Button type="button" variant="outline" size="sm" className="gap-2 mt-2"
+              onClick={() => append({ order_id: "", product_id: "", product_group_operation_id: "", operation_name: "", planned_quantity: "" })}>
+              <Plus className="w-3.5 h-3.5" /> Thêm công việc
+            </Button>
+          )}
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={onClose}>Huỷ</Button>
+          {isCompleted ? (
+            <Button onClick={onClose}>Đóng</Button>
+          ) : (
+            <Button onClick={handleSubmit(onSubmit)} disabled={isPending}>
+              {isPending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Đang lưu...</> : (ticketId ? "Cập Nhật Phiếu" : "Tạo Phiếu")}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} color="inherit">
-          Huỷ
-        </Button>
-        {isCompleted ? (
-           <Button onClick={onClose} variant="contained" color="primary">Đóng</Button>
-        ) : (
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            variant="contained"
-            disabled={createMutation.isPending || updateMutation.isPending}
-          >
-            {createMutation.isPending || updateMutation.isPending ? "Đang lưu..." : (ticketId ? "Cập Nhật Phiếu" : "Tạo Phiếu")}
-          </Button>
-        )}
-      </DialogActions>
     </Dialog>
   );
 }

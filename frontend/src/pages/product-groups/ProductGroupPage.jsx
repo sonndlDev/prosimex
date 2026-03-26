@@ -4,551 +4,199 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productGroupService } from "../../services/product-group.service";
 import { operationService } from "../../services/operation.service";
 import { machineService } from "../../services/machine.service";
+import { toast } from "sonner";
 import GenericTable from "../../components/GenericTable";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Paper,
-  Button,
-  TextField,
-  Box,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  IconButton,
-  Divider,
-  Autocomplete,
-  Snackbar,
-  Alert,
-} from "@mui/material";
-import SettingsIcon from "@mui/icons-material/Settings";
 import DraggableSequenceTable from "./DraggableSequenceTable";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings } from "lucide-react";
 
 export default function ProductGroupPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [manageOpsModal, setManageOpsModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "success",
-  });
 
-  const {
-    control: groupControl,
-    handleSubmit: handleGroupFormSubmit,
-    reset: resetGroup,
-  } = useForm({
-    defaultValues: { name: "" },
-  });
+  const { control: groupControl, handleSubmit: handleGroupFormSubmit, reset: resetGroup } = useForm({ defaultValues: { name: "" } });
+  const opInitial = { operation_id: "", machine_id: "", sequence_order: "", dinh_muc: "" };
+  const { control: opControl, handleSubmit: handleOpFormSubmit, reset: resetOp, setValue: setOpValue, watch: watchOp } = useForm({ defaultValues: opInitial });
 
-  // Ops mapping form
-  const opInitial = {
-    operation_id: "",
-    machine_id: "",
-    sequence_order: "",
-    dinh_muc: "",
-  };
-  const {
-    control: opControl,
-    handleSubmit: handleOpFormSubmit,
-    reset: resetOp,
-  } = useForm({
-    defaultValues: opInitial,
-  });
-
-  // Queries
-  const { data: operationsList } = useQuery({
-    queryKey: ["operations"],
-    queryFn: operationService.getAll,
-  });
-  const { data: machinesList } = useQuery({
-    queryKey: ["machines"],
-    queryFn: () => machineService.getAll(),
-  });
-
-  const {
-    data: productGroups,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["productGroups"],
-    queryFn: () => productGroupService.getAll(),
-  });
-
+  const { data: operationsList } = useQuery({ queryKey: ["operations"], queryFn: operationService.getAll });
+  const { data: machinesList } = useQuery({ queryKey: ["machines"], queryFn: () => machineService.getAll() });
+  const { data: productGroups, isLoading, error } = useQuery({ queryKey: ["productGroups"], queryFn: () => productGroupService.getAll() });
   const { data: groupOperations, isLoading: opsLoading } = useQuery({
     queryKey: ["groupOperations", selectedGroup?.id],
     queryFn: () => productGroupService.getOperations(selectedGroup.id),
     enabled: !!selectedGroup && manageOpsModal,
   });
 
-  // Auto-calculate next sequence order
-  const nextSequenceOrder =
-    groupOperations && groupOperations.length > 0
-      ? Math.max(...groupOperations.map((o) => o.sequence_order)) + 1
-      : 1;
+  const nextSequenceOrder = groupOperations?.length > 0 ? Math.max(...groupOperations.map(o => o.sequence_order)) + 1 : 1;
 
-  // Mutations
-  const mutationOpts = {
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["productGroups"] });
-      handleClose();
-    },
-  };
-  const createMutation = useMutation({
-    mutationFn: productGroupService.create,
-    ...mutationOpts,
-  });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }) => productGroupService.update(id, payload),
-    ...mutationOpts,
-  });
-  const deleteMutation = useMutation({
-    mutationFn: productGroupService.delete,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["productGroups"] }),
-  });
+  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["productGroups"] }); handleClose(); } };
+  const createMutation = useMutation({ mutationFn: productGroupService.create, ...mutationOpts });
+  const updateMutation = useMutation({ mutationFn: ({ id, payload }) => productGroupService.update(id, payload), ...mutationOpts });
+  const deleteMutation = useMutation({ mutationFn: productGroupService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["productGroups"] }) });
 
-  // Ops Mutations
   const addOpMutation = useMutation({
-    mutationFn: (payload) =>
-      productGroupService.addOperation(selectedGroup.id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["groupOperations", selectedGroup?.id],
-      });
-      resetOp(opInitial);
-    },
-    onError: (err) => {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.message || "Lỗi khi thêm công đoạn",
-        severity: "error",
-      });
-    }
-  });
-
-  const quickAddOpMutation = useMutation({
-    mutationFn: (name) => operationService.create({ name }),
-    onSuccess: (newOp) => {
-      queryClient.invalidateQueries({ queryKey: ["operations"] });
-      // Set the newly created operation in the form
-      opControl._defaultValues.operation_id = newOp.id;
-      resetOp({ ...opControl._formValues, operation_id: newOp.id });
-    },
-    onError: (err) => {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.message || "Lỗi khi tạo công đoạn nhanh",
-        severity: "error",
-      });
-    }
+    mutationFn: (payload) => productGroupService.addOperation(selectedGroup.id, payload),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }); resetOp(opInitial); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm công đoạn"),
   });
   const removeOpMutation = useMutation({
-    mutationFn: (mappingId) =>
-      productGroupService.removeOperation(selectedGroup.id, mappingId),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["groupOperations", selectedGroup?.id],
-      }),
+    mutationFn: (mappingId) => productGroupService.removeOperation(selectedGroup.id, mappingId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }),
   });
-
   const updateOpMutation = useMutation({
-    mutationFn: ({ mappingId, payload }) =>
-      productGroupService.updateOperation(selectedGroup.id, mappingId, payload),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["groupOperations", selectedGroup?.id],
-      }),
-    onError: (err) => {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.message || "Lỗi khi cập nhật công đoạn",
-        severity: "error",
-      });
-    }
+    mutationFn: ({ mappingId, payload }) => productGroupService.updateOperation(selectedGroup.id, mappingId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }),
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật công đoạn"),
   });
-
   const reorderOpMutation = useMutation({
-    mutationFn: (orders) =>
-      productGroupService.reorderOperations(selectedGroup.id, orders),
-    onSuccess: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["groupOperations", selectedGroup?.id],
-      }),
+    mutationFn: (orders) => productGroupService.reorderOperations(selectedGroup.id, orders),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }),
   });
 
   const columns = [
     { id: "name", label: "Tên nhóm" },
     {
-      id: "actions",
-      label: "Quy trình",
-      align: "center",
+      id: "actions", label: "Quy trình", align: "center",
       format: (v, row) => (
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<SettingsIcon />}
-          onClick={() => handleManageOps(row)}
+        <button
+          onClick={() => { setSelectedGroup(row); setManageOpsModal(true); }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
         >
-          Quy trình
-        </Button>
+          <Settings className="w-3 h-3" /> Quy trình
+        </button>
       ),
     },
   ];
 
   const handleOpen = (group = null) => {
-    if (group) {
-      setSelectedGroup(group);
-      resetGroup({ name: group.name });
-    } else {
-      setSelectedGroup(null);
-      resetGroup({ name: "" });
-    }
+    setSelectedGroup(group);
+    resetGroup({ name: group?.name || "" });
     setOpenModal(true);
   };
-
-  const handleClose = () => {
-    setOpenModal(false);
-    setSelectedGroup(null);
-  };
-
+  const handleClose = () => { setOpenModal(false); setSelectedGroup(null); };
   const onGroupSubmit = (data) => {
-    if (selectedGroup)
-      updateMutation.mutate({ id: selectedGroup.id, payload: data });
+    if (selectedGroup) updateMutation.mutate({ id: selectedGroup.id, payload: data });
     else createMutation.mutate(data);
   };
-
-  const handleDelete = (group) => {
-    if (window.confirm(`Xóa nhóm sản phẩm ${group.name}?`))
-      deleteMutation.mutate(group.id);
-  };
-
-  const handleBulkDelete = (selectedIds) => {
-    if (window.confirm(`Xóa ${selectedIds.length} nhóm sản phẩm đã chọn?`)) {
-      selectedIds.forEach((id) => deleteMutation.mutate(id));
-    }
-  };
-
-  const handleManageOps = (group) => {
-    setSelectedGroup(group);
-    setManageOpsModal(true);
-  };
-
-  const handleQuickAddOperation = () => {
-    const opName = window.prompt("Nhập tên công đoạn mới:");
-    if (opName && opName.trim()) {
-      quickAddOpMutation.mutate(opName.trim());
-    }
-  };
-
   const onAddOp = (data) => {
-    const selectedOp = operationsList?.find(
-      (o) => String(o.id) === String(data.operation_id)
-    );
-    const selectedOpName = selectedOp?.name;
-
-    // Check for duplicate operation (thorough name comparison)
-    const isDuplicate = groupOperations?.some(
-      (op) =>
-        String(op.operation_name).trim().toLowerCase() ===
-        String(selectedOpName).trim().toLowerCase()
-    );
-
-    if (isDuplicate) {
-      setSnackbar({
-        open: true,
-        message: `Công đoạn "${selectedOpName}" đã tồn tại trong quy trình. Vui lòng không thêm trùng.`,
-        severity: "error",
-      });
-      return;
-    }
-
-    const seqOrder = parseInt(data.sequence_order) || nextSequenceOrder;
-
+    const selectedOp = operationsList?.find(o => String(o.id) === String(data.operation_id));
+    const isDuplicate = groupOperations?.some(op => String(op.operation_name).trim().toLowerCase() === String(selectedOp?.name).trim().toLowerCase());
+    if (isDuplicate) { toast.error(`Công đoạn "${selectedOp?.name}" đã tồn tại!`); return; }
     addOpMutation.mutate({
       ...data,
-      sequence_order: seqOrder,
+      sequence_order: parseInt(data.sequence_order) || nextSequenceOrder,
       dinh_muc: data.dinh_muc ? parseFloat(data.dinh_muc) : null,
       machine_id: data.machine_id || null,
     });
   };
 
+  const watchOpId = watchOp("operation_id");
+  const watchMachineId = watchOp("machine_id");
+
   return (
-    <Box>
+    <div>
       <GenericTable
-        title={
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            gap={2}
-          >
-            <h2>Nhóm mã hàng & Quy trình</h2>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => handleOpen()}
-            >
-              + Thêm nhóm
-            </Button>
-          </Box>
-        }
-        data={productGroups}
-        columns={columns}
-        isLoading={isLoading}
-        error={error}
+        title="Nhóm mã hàng & Quy trình"
+        data={productGroups} columns={columns} isLoading={isLoading} error={error}
+        onAdd={() => handleOpen()}
         onEdit={handleOpen}
-        onDelete={handleDelete}
-        onBulkDelete={handleBulkDelete}
+        onDelete={(g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); }}
+        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} nhóm?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
         actionColWidth={150}
       />
 
-      {/* Base Form Modal */}
-      <Dialog open={openModal} onClose={handleClose} fullWidth maxWidth="sm">
-        <form onSubmit={handleGroupFormSubmit(onGroupSubmit)}>
-          <DialogTitle>
-            {selectedGroup ? "Chỉnh sửa nhóm" : "Thêm nhóm mới"}
-          </DialogTitle>
-          <DialogContent dividers>
-            <Controller
-              name="name"
-              control={groupControl}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  fullWidth
-                  label="Tên nhóm"
-                  margin="normal"
-                  required
-                />
-              )}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Hủy</Button>
-            <Button type="submit" variant="contained">
-              Lưu
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
-
-      {/* Operations Routing Modal */}
-      <Dialog
-        open={manageOpsModal}
-        onClose={() => setManageOpsModal(false)}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>
-          Quy trình sản xuất cho: <b>{selectedGroup?.name}</b>
-        </DialogTitle>
-        <DialogContent dividers>
-          <DraggableSequenceTable
-            data={groupOperations}
-            machinesList={machinesList}
-            isLoading={opsLoading}
-            onDelete={(id) => removeOpMutation.mutate(id)}
-            onUpdate={(id, payload) =>
-              updateOpMutation.mutate({ mappingId: id, payload })
-            }
-            onReorder={(newOrders) => reorderOpMutation.mutate(newOrders)}
-          />
-
-          <Box
-            sx={{
-              mt: 4,
-              pt: 3,
-              borderTop: "2px dashed",
-              borderColor: "divider",
-            }}
-          >
-            <Typography
-              variant="overline"
-              color="primary"
-              sx={{
-                fontWeight: 800,
-                mb: 2,
-                display: "block",
-                letterSpacing: "0.1em",
-              }}
-            >
-              THÊM BƯỚC MỚI
-            </Typography>
-
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                bgcolor: "rgba(37, 99, 235, 0.02)",
-                border: "1px solid",
-                borderColor: "primary.light",
-                borderRadius: "16px",
-              }}
-            >
-              <form
-                onSubmit={handleOpFormSubmit(onAddOp)}
-                style={{
-                  display: "flex",
-                  gap: "1rem",
-                  flexWrap: "wrap",
-                  alignItems: "flex-end",
-                }}
-              >
-                <Controller
-                  name="sequence_order"
-                  control={opControl}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Thứ tự"
-                      size="small"
-                      sx={{
-                        width: 80,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "10px",
-                          bgcolor: "white",
-                        },
-                      }}
-                      placeholder={String(nextSequenceOrder)}
-                    />
-                  )}
-                />
-
-                <Controller
-                  name="operation_id"
-                  control={opControl}
-                  render={({ field }) => (
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Autocomplete
-                        sx={{ minWidth: 220 }}
-                        options={operationsList || []}
-                        getOptionLabel={(option) => option.name || ""}
-                        value={operationsList?.find(o => o.id === field.value) || null}
-                        onChange={(_, newValue) => field.onChange(newValue ? newValue.id : "")}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Công đoạn"
-                            size="small"
-                            required
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                borderRadius: "10px",
-                                bgcolor: "white",
-                              },
-                            }}
-                          />
-                        )}
-                      />
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleQuickAddOperation}
-                        sx={{
-                          minWidth: "auto",
-                          p: "7px 10px",
-                          borderRadius: "10px",
-                          bgcolor: "white",
-                        }}
-                      >
-                        + Mới
-                      </Button>
-                    </Box>
-                  )}
-                />
-
-                <Controller
-                  name="machine_id"
-                  control={opControl}
-                  render={({ field }) => (
-                    <Autocomplete
-                      sx={{ minWidth: 220 }}
-                      options={machinesList || []}
-                      getOptionLabel={(option) => option.name || ""}
-                      value={machinesList?.find(m => m.id === field.value) || null}
-                      onChange={(_, newValue) => field.onChange(newValue ? newValue.id : "")}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          label="Máy"
-                          size="small"
-                          sx={{
-                            "& .MuiOutlinedInput-root": {
-                              borderRadius: "10px",
-                              bgcolor: "white",
-                            },
-                          }}
-                        />
-                      )}
-                    />
-                  )}
-                />
-
-                <Controller
-                  name="dinh_muc"
-                  control={opControl}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      type="number"
-                      label="Định mức"
-                      size="small"
-                      sx={{
-                        width: 110,
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: "10px",
-                          bgcolor: "white",
-                        },
-                      }}
-                      inputProps={{ step: "0.1" }}
-                    />
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  variant="contained"
-                  sx={{
-                    borderRadius: "10px",
-                    height: "40px",
-                    px: 3,
-                    boxShadow: "0 4px 12px rgba(37, 99, 235, 0.2)",
-                  }}
-                >
-                  Thêm bước
-                </Button>
-              </form>
-            </Paper>
-          </Box>
+      {/* Base Form Dialog */}
+      <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleGroupFormSubmit(onGroupSubmit)}>
+            <DialogHeader>
+              <DialogTitle>{selectedGroup ? "Chỉnh sửa nhóm" : "Thêm nhóm mới"}</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <div className="space-y-2">
+                <Label>Tên nhóm <span className="text-red-500">*</span></Label>
+                <Controller name="name" control={groupControl} render={({ field }) => <Input {...field} required />} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>Hủy</Button>
+              <Button type="submit">Lưu</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setManageOpsModal(false)}>Đóng</Button>
-        </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%", borderRadius: "12px", fontWeight: 600 }}
-          variant="filled"
-          elevation={6}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      {/* Operations Routing Dialog */}
+      <Dialog open={manageOpsModal} onOpenChange={(v) => { if (!v) setManageOpsModal(false); }}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Quy trình sản xuất: <span className="text-blue-600">{selectedGroup?.name}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <DraggableSequenceTable
+              data={groupOperations} machinesList={machinesList} isLoading={opsLoading}
+              onDelete={(id) => removeOpMutation.mutate(id)}
+              onUpdate={(id, payload) => updateOpMutation.mutate({ mappingId: id, payload })}
+              onReorder={(newOrders) => reorderOpMutation.mutate(newOrders)}
+            />
+
+            <Separator />
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Thêm bước mới</p>
+            <form onSubmit={handleOpFormSubmit(onAddOp)} className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Thứ tự</Label>
+                  <Controller name="sequence_order" control={opControl} render={({ field }) => (
+                    <Input {...field} className="w-20" placeholder={String(nextSequenceOrder)} />
+                  )} />
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-40">
+                  <Label className="text-xs">Công đoạn <span className="text-red-500">*</span></Label>
+                  <Controller name="operation_id" control={opControl} render={({ field }) => (
+                    <Select value={String(field.value || "")} onValueChange={field.onChange} required>
+                      <SelectTrigger><SelectValue placeholder="Chọn công đoạn" /></SelectTrigger>
+                      <SelectContent>
+                        {operationsList?.map(o => <SelectItem key={o.id} value={String(o.id)}>{o.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-40">
+                  <Label className="text-xs">Máy (tùy chọn)</Label>
+                  <Controller name="machine_id" control={opControl} render={({ field }) => (
+                    <Select value={String(field.value || "")} onValueChange={field.onChange}>
+                      <SelectTrigger><SelectValue placeholder="Tất cả máy" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Tất cả máy</SelectItem>
+                        {machinesList?.map(m => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Định mức</Label>
+                  <Controller name="dinh_muc" control={opControl} render={({ field }) => (
+                    <Input {...field} type="number" step="0.1" className="w-28" />
+                  )} />
+                </div>
+                <Button type="submit" disabled={addOpMutation.isPending} className="mb-0">Thêm bước</Button>
+              </div>
+            </form>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageOpsModal(false)}>Đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

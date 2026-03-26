@@ -1,20 +1,23 @@
 import React, { useCallback } from "react";
-import {
-  TableRow,
-  Box,
-  Typography,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-} from "@mui/material";
 import { DateTime } from "luxon";
-import EditIcon from "@mui/icons-material/Edit";
-import SaveIcon from "@mui/icons-material/Save";
-import CancelIcon from "@mui/icons-material/Cancel";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import {
+  Edit,
+  Save,
+  X,
+  ExternalLink,
+  Trash2,
+  Copy,
+  Loader2,
+  HelpCircle
+} from "lucide-react";
 import { ExcelDataCell, ManagedTextField } from "./shared";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 
 const PlanningTableRow = React.memo(
   ({
@@ -39,51 +42,54 @@ const PlanningTableRow = React.memo(
     const isOrange = idx % 2 === 0;
 
     return (
-      <TableRow hover sx={{ "&:nth-of-type(even)": { bgcolor: "#f8fafc" } }}>
+      <tr className="hover:bg-zinc-50 border-b border-zinc-200 transition-colors even:bg-zinc-50/30">
         <ExcelDataCell>{idx + 1}</ExcelDataCell>
         <ExcelDataCell>{plan.sequence_order}</ExcelDataCell>
-        <ExcelDataCell>{plan.product_name}</ExcelDataCell>
+        <ExcelDataCell className="font-medium">{plan.product_name}</ExcelDataCell>
         <ExcelDataCell
-          sx={{
-            bgcolor: isYellow ? "#ffee58" : isOrange ? "#ffe0b2" : "inherit",
+          style={{
+            backgroundColor: isYellow ? "#fef08a" : isOrange ? "#fed7aa" : "inherit",
           }}
+          className="font-bold text-[10px]"
         >
           {plan.product_group_name}
         </ExcelDataCell>
-        <ExcelDataCell align="left">{plan.operation_name}</ExcelDataCell>
-        <ExcelDataCell align="left">{plan.machine_name}</ExcelDataCell>
-        <ExcelDataCell align="right">
+        <ExcelDataCell className="text-left px-3">{plan.operation_name}</ExcelDataCell>
+        <ExcelDataCell className="text-left px-3">{plan.machine_name}</ExcelDataCell>
+        <ExcelDataCell className="text-right px-3 tabular-nums font-medium">
           {(
             parseFloat(plan.inventory_input) +
             parseFloat(plan.remaining_quantity)
           ).toLocaleString()}
         </ExcelDataCell>
-        <ExcelDataCell align="right">
+        <ExcelDataCell className="text-right px-3 tabular-nums">
           {parseFloat(plan.inventory_input).toLocaleString()}
         </ExcelDataCell>
-        <ExcelDataCell align="right" sx={{ fontWeight: 700 }}>
+        <ExcelDataCell className="text-right px-3 tabular-nums font-black text-red-600">
           {parseFloat(plan.remaining_quantity).toLocaleString()}
         </ExcelDataCell>
-        <ExcelDataCell align="right">{plan.dinh_muc}</ExcelDataCell>
-        <ExcelDataCell align="right" sx={{ color: "#e53935" }}>
+        <ExcelDataCell className="text-right px-3 tabular-nums">{plan.dinh_muc}</ExcelDataCell>
+        <ExcelDataCell className="text-right px-3 tabular-nums font-bold text-blue-600">
           {(parseFloat(plan.total_required_work) / 8).toFixed(2)}
         </ExcelDataCell>
-        <ExcelDataCell align="right">0.00</ExcelDataCell>
-        <ExcelDataCell
-          sx={{ bgcolor: "#f0fdf4", color: "#166534", fontWeight: 700 }}
-        >
+        <ExcelDataCell className="text-right px-3 tabular-nums">0.00</ExcelDataCell>
+        <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">
           x
         </ExcelDataCell>
-        <ExcelDataCell sx={{ color: "#64748b" }}>
+        <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">
           {DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}
         </ExcelDataCell>
-        <Tooltip
-          title={`Kết thúc vào cuối ngày ${DateTime.fromISO(plan.planned_end_date).toFormat("dd/MM/yyyy")} (23:59)`}
-        >
-          <ExcelDataCell sx={{ color: "#64748b", cursor: "help" }}>
-            {DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")}
-          </ExcelDataCell>
-        </Tooltip>
+        
+        <ExcelDataCell className="text-zinc-500 font-mono text-[10px] cursor-help p-0">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger render={<div className="w-full h-full flex items-center justify-center">{DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")}</div>} />
+              <TooltipContent>
+                <p>Kết thúc vào cuối ngày {DateTime.fromISO(plan.planned_end_date).toFormat("dd/MM/yyyy")} (23:59)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </ExcelDataCell>
 
         {/* Date columns */}
         {dateColumns.map((date, colIdx) => {
@@ -99,206 +105,176 @@ const PlanningTableRow = React.memo(
           const hasOvertime = metrics?.hasOvertime || false;
 
           let cellBg = "inherit";
+          let textColor = "inherit";
           if (dayData) {
             if (totalHours > 1.43) {
-              cellBg = "#f44336"; // Red (Always over absolute max)
+              cellBg = "#ef4444"; // Red
+              textColor = "#fff";
             } else if (hasOvertime) {
-              cellBg = "#4caf50"; // Green (Within OT capacity 1.43)
+              cellBg = "#22c55e"; // Green
+              textColor = "#fff";
             } else if (totalHours > 1) {
-              cellBg = "#ffeb3b"; // Yellow (Over standard 1.0 capacity, no OT)
+              cellBg = "#eab308"; // Yellow
+              textColor = "#854d0e";
             } else {
-              cellBg = "#4caf50"; // Green (Within standard 1.0 capacity)
+              cellBg = "#22c55e"; // Green
+              textColor = "#fff";
             }
           }
 
           return (
             <ExcelDataCell
               key={date.key}
-              sx={{
-                bgcolor: isInlineEditing ? "#fff" : cellBg,
-                p: isInlineEditing ? 0 : "4px 6px",
-                position: "relative",
+              style={{
+                backgroundColor: isInlineEditing ? "#fff" : cellBg,
+                color: isInlineEditing ? "inherit" : textColor,
+                padding: isInlineEditing ? 0 : "4px 6px",
               }}
+              className="relative"
             >
               {isInlineEditing ? (
-                <Box display="flex" flexDirection="column" alignItems="center">
-                  <Typography
-                    variant="caption"
+                <div className="flex flex-col items-center justify-center h-full">
+                  <span
                     onClick={() => onInlineOTToggle(plan, date.key)}
-                    sx={{
-                      cursor: "pointer",
-                      fontSize: "9px",
-                      fontWeight: 900,
-                      color: editDayData?.is_overtime ? "#ef4444" : "#94a3b8",
-                      mb: -0.5,
-                      "&:hover": { color: "#ef4444" },
-                    }}
+                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${
+                      editDayData?.is_overtime ? "text-red-500" : "text-zinc-400"
+                    } hover:text-red-600 mb-0.5`}
                   >
                     {editDayData?.is_overtime ? "TĂNG CA" : "chuẩn"}
-                  </Typography>
+                  </span>
                   <ManagedTextField
-                    size="small"
-                    variant="standard"
                     type="number"
                     value={editDayData ? editDayData.hours : "0.00"}
                     onCommit={(val) => onInlineDayChange(plan, date.key, val)}
-                    InputProps={{
-                      disableUnderline: true,
-                      autoFocus: colIdx === 0,
-                      sx: {
-                        fontSize: "0.8rem",
-                        textAlign: "center",
-                        "& input": {
-                          textAlign: "center",
-                          fontWeight: 700,
-                          p: 0,
-                        },
-                      },
-                    }}
-                    sx={{
-                      width: "100%",
-                      height: "30px",
-                      border: "none",
-                      background: "#ffffff",
-                      textAlign: "center",
-                      fontSize: "0.95rem",
-                      fontWeight: 800,
-                      padding: "0px 4px",
-                      color: "#2563eb",
-                    }}
+                    autoFocus={colIdx === 0}
+                    className="w-full border-none shadow-none text-blue-600 focus-visible:ring-0"
                   />
-                </Box>
+                </div>
               ) : (
-                <Box
-                  display="flex"
-                  flexDirection="column"
-                  alignItems="center"
-                  gap={0.2}
-                >
-                   <Typography
-                    variant="caption"
-                    sx={{
-                      fontSize: "8px",
-                      fontWeight: 900,
-                      color: dayData?.is_overtime ? "#fff" : "transparent",
-                      mb: -0.5
-                    }}
-                  >
+                <div className="flex flex-col items-center justify-center gap-0.5">
+                   <span className={`text-[7px] font-black uppercase ${dayData?.is_overtime ? "opacity-100" : "opacity-0"}`}>
                     TC
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontWeight: dayData ? 700 : 400,
-                      color: dayData ? (cellBg === "#ffeb3b" ? "#856404" : "#fff") : "#94a3b8",
-                    }}
-                  >
+                  </span>
+                  <span className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}>
                     {dayData
                       ? (() => {
-                          const qty =
-                            parseFloat(dayData.planned_work_quantity) || 0;
+                          const qty = parseFloat(dayData.planned_work_quantity) || 0;
                           const dinhMuc = parseFloat(plan.dinh_muc) || 0;
-
                           const base = qty / 8;
                           const total = base * dinhMuc;
-
                           return `${base.toFixed(2)} (${total.toFixed(2)})`;
                         })()
                       : "-"}
-                  </Typography>
-                </Box>
+                  </span>
+                </div>
               )}
             </ExcelDataCell>
           );
         })}
 
         {/* Action buttons (sticky right) */}
-        <ExcelDataCell
-          sx={{
-            position: "sticky",
-            right: 0,
-            zIndex: 5,
-            bgcolor: "white",
-            borderLeft: "1px solid #cbd5e1",
-            boxShadow: "-2px 0 5px rgba(0,0,0,0.02)",
-          }}
-        >
-          <Box display="flex" gap={0.5} justifyContent="center" bgcolor="white">
+        <ExcelDataCell className="sticky right-0 z-10 bg-white border-l border-zinc-300 shadow-[-4px_0_8px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center justify-center gap-1 bg-white p-1">
             {isInlineEditing ? (
               <>
-                <Tooltip title="Lưu thay đổi">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#22c55e" }}
-                    onClick={() => onSaveInline(plan)}
-                    disabled={isUpdatePending}
-                  >
-                    {isUpdatePending ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : (
-                      <SaveIcon fontSize="small" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Hủy bỏ">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#ef4444" }}
-                    onClick={onCancelInlineEdit}
-                    disabled={isUpdatePending}
-                  >
-                    <CancelIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => onSaveInline(plan)}
+                  disabled={isUpdatePending}
+                >
+                  {isUpdatePending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={onCancelInlineEdit}
+                  disabled={isUpdatePending}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </>
             ) : (
               <>
-                <Tooltip title="Sửa nhanh hàng này">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#3b82f6" }}
-                    onClick={() => onStartInlineEdit(plan)}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Chỉnh sửa chi tiết">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#6366f1" }}
-                    onClick={() => onOpenEdit(plan)}
-                  >
-                    <OpenInNewIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Nhân bản (Clone)">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#10b981" }}
-                    onClick={() => onClone(plan.id)}
-                  >
-                    <ContentCopyIcon fontSize="small" sx={{ scale: "0.85" }} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Xóa kế hoạch">
-                  <IconButton
-                    size="small"
-                    sx={{ color: "#f43f5e" }}
-                    onClick={() => onOpenDelete(plan.id)}
-                    disabled={isDeletePending}
-                  >
-                    {isDeletePending ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : (
-                      <DeleteIcon fontSize="small" />
-                    )}
-                  </IconButton>
-                </Tooltip>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => onStartInlineEdit(plan)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    } />
+                    <TooltipContent><p>Sửa nhanh hàng này</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
+                        onClick={() => onOpenEdit(plan)}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    } />
+                    <TooltipContent><p>Chỉnh sửa chi tiết</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50"
+                        onClick={() => onClone(plan.id)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    } />
+                    <TooltipContent><p>Nhân bản (Clone)</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger render={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => onOpenDelete(plan.id)}
+                        disabled={isDeletePending}
+                      >
+                        {isDeletePending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    } />
+                    <TooltipContent><p>Xóa kế hoạch</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </>
             )}
-          </Box>
+          </div>
         </ExcelDataCell>
-      </TableRow>
+      </tr>
     );
   },
 );

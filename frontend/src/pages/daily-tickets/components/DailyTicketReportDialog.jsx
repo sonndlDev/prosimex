@@ -1,63 +1,36 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { DateTime } from "luxon";
+import { dailyTicketService } from "../../../services/daily-ticket.service";
+import { 
+  Loader2, 
+  AlertCircle, 
+  FileSpreadsheet, 
+  Clock, 
+  CheckCircle2,
+  X
+} from "lucide-react";
+
+// Shadcn UI
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  Button,
-  Box,
-  Typography,
-  CircularProgress,
-  Paper,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
   Table,
   TableBody,
   TableCell,
-  TableContainer,
   TableHead,
+  TableHeader,
   TableRow,
-  Alert,
-} from "@mui/material";
-import { DateTime } from "luxon";
-import { dailyTicketService } from "../../../services/daily-ticket.service";
-
-// Styled Components inline
-const HeaderCell = ({ children, rowSpan = 1, colSpan = 1, sx = {} }) => (
-  <TableCell
-    rowSpan={rowSpan}
-    colSpan={colSpan}
-    align="center"
-    sx={{
-      fontWeight: 800,
-      bgcolor: "#f1f5f9",
-      color: "#334155",
-      borderRight: "1px solid #cbd5e1",
-      borderBottom: "2px solid #cbd5e1",
-      p: "8px 4px",
-      fontSize: "0.75rem",
-      whiteSpace: "nowrap",
-      ...sx,
-    }}
-  >
-    {children}
-  </TableCell>
-);
-
-const DataCell = ({ children, align = "center", sx = {} }) => (
-  <TableCell
-    align={align}
-    sx={{
-      p: "6px",
-      borderRight: "1px solid #e2e8f0",
-      borderBottom: "1px solid #e2e8f0",
-      fontSize: "0.8rem",
-      whiteSpace: "nowrap",
-      ...sx,
-    }}
-  >
-    {children}
-  </TableCell>
-);
+} from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 
 export default function DailyTicketReportDialog({ open, onClose }) {
   const { data: response, isLoading, error } = useQuery({
@@ -74,7 +47,6 @@ export default function DailyTicketReportDialog({ open, onClose }) {
     
     const datesSet = new Set();
     reportData.forEach((row) => {
-      // Collect dates from plans
       if (row.plan_days) {
         row.plan_days.forEach(d => {
            if (d && d.working_date) {
@@ -82,7 +54,6 @@ export default function DailyTicketReportDialog({ open, onClose }) {
            }
         });
       }
-      // Collect dates from actuals
       if (row.actual_tickets) {
         row.actual_tickets.forEach(t => {
            if (t && t.ticket_date) {
@@ -104,9 +75,8 @@ export default function DailyTicketReportDialog({ open, onClose }) {
   const rows = useMemo(() => {
     return reportData.map((row) => {
       let totalActual = 0;
-      
-      // Map actual tickets by date for quick lookup
       const actualByDate = {};
+      
       if (row.actual_tickets) {
         row.actual_tickets.forEach(t => {
           if (t && t.ticket_date) {
@@ -119,13 +89,11 @@ export default function DailyTicketReportDialog({ open, onClose }) {
         });
       }
 
-      // Map plan days by date for quick lookup
       const planByDate = {};
       if (row.plan_days) {
         row.plan_days.forEach(d => {
           if (d && d.working_date) {
             const dateStr = DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd");
-            // Plans usually store hours or qty/8 in planned_work_quantity. We multiply by dinh_muc to get qty.
             const hours = parseFloat(d.planned_quantity) / 8 || 0;
             const dinhMuc = parseFloat(row.dinh_muc) || 0;
             const qty = hours * dinhMuc;
@@ -161,159 +129,163 @@ export default function DailyTicketReportDialog({ open, onClose }) {
   }, [reportData]);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl" sx={{ "& .MuiDialog-paper": { height: "95vh" } }}>
-      <DialogTitle sx={{ fontWeight: 800, bgcolor: "#1e293b", color: "#fff", display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Báo cáo Kế Hoạch vs Thực Tế
-        <Typography variant="body2" sx={{ bgcolor: '#334155', px: 2, py: 0.5, borderRadius: 1 }}>
-          Cập nhật: {DateTime.now().toFormat("dd/MM/yyyy HH:mm")}
-        </Typography>
-      </DialogTitle>
-      
-      <DialogContent sx={{ p: 0, bgcolor: "#f8fafc" }}>
-        {isLoading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" height="100%">
-            <CircularProgress />
-          </Box>
-        ) : error ? (
-          <Box p={3}>
-            <Alert severity="error">Lỗi khi tải báo cáo: {error.message}</Alert>
-          </Box>
-        ) : rows.length === 0 ? (
-          <Box p={3}>
-            <Alert severity="info" variant="outlined">Chưa có dữ liệu kế hoạch và kết quả sản xuất để báo cáo.</Alert>
-          </Box>
-        ) : (
-          <TableContainer sx={{ maxHeight: "100%", bgcolor: "white" }}>
-            <Table stickyHeader size="small">
-              <TableHead>
-                <TableRow>
-                  <HeaderCell rowSpan={2} sx={{ position: "sticky", left: 0, zIndex: 12 }}>STT</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ position: "sticky", left: 40, zIndex: 12 }}>Thứ tự</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ position: "sticky", left: 100, zIndex: 12 }}>Tên mã hàng</HeaderCell>
-                  <HeaderCell rowSpan={2}>Nhóm mã hàng</HeaderCell>
-                  <HeaderCell rowSpan={2}>Công đoạn</HeaderCell>
-                  <HeaderCell rowSpan={2}>Máy</HeaderCell>
-                  
-                  <HeaderCell rowSpan={2}>SL đơn</HeaderCell>
-                  <HeaderCell rowSpan={2}>Tồn kho</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ color: "#e53935" }}>Còn lại</HeaderCell>
-                  <HeaderCell rowSpan={2}>Định mức</HeaderCell>
-                  <HeaderCell rowSpan={2}>Tổng công</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ color: "#2e7d32" }}>SL SX Thực tế</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ color: "#d32f2f" }}>SL CÒN PHẢI SX</HeaderCell>
-                  <HeaderCell rowSpan={2} sx={{ color: "#1976d2" }}>Tỉ lệ Thực tế</HeaderCell>
-                  <HeaderCell rowSpan={2}>Mẫu</HeaderCell>
-                  <HeaderCell rowSpan={2}>Bắt đầu</HeaderCell>
-                  <HeaderCell rowSpan={2}>Kết thúc</HeaderCell>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-[98vw] max-h-[95vh] p-0 flex flex-col border-zinc-200">
+        <DialogHeader className="px-6 py-4 bg-zinc-950 text-white flex flex-row items-center justify-between space-y-0">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
+                <FileSpreadsheet className="h-5 w-5" />
+             </div>
+             <div>
+                <DialogTitle className="text-xl font-black uppercase tracking-tight leading-tight">Báo cáo Kế Hoạch vs Thực Tế</DialogTitle>
+                <div className="flex items-center gap-2 mt-0.5">
+                   <Clock className="w-3 h-3 text-zinc-400" />
+                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                     Cập nhật: {DateTime.now().toFormat("dd/MM/yyyy HH:mm")}
+                   </span>
+                </div>
+             </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-white/10 rounded-full h-8 w-8">
+            <X className="h-5 w-5" />
+          </Button>
+        </DialogHeader>
 
-                  {/* Date Columns */}
-                  {dateColumns.map((date) => (
-                    <HeaderCell 
-                      key={date.key} 
-                      colSpan={2} 
-                      sx={{ bgcolor: "#f0f9ff", color: "#0369a1" }}
-                    >
-                      {date.label}
-                    </HeaderCell>
-                  ))}
-                </TableRow>
-                
-                {/* Sub headers KH | TT for each date */}
-                <TableRow>
-                  {dateColumns.map((date) => (
-                    <React.Fragment key={`sub-${date.key}`}>
-                      <HeaderCell sx={{ bgcolor: "#fef08a", color: "#854d0e", p: "4px" }}>KH</HeaderCell>
-                      <HeaderCell sx={{ bgcolor: "#f8fafc", color: "#475569", p: "4px" }}>Thực tế</HeaderCell>
-                    </React.Fragment>
-                  ))}
-                </TableRow>
-              </TableHead>
+        <div className="flex-1 overflow-hidden bg-zinc-50/50">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+               <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+               <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Đang tổng hợp dữ liệu báo cáo...</p>
+            </div>
+          ) : error ? (
+            <div className="p-10">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Lỗi</AlertTitle>
+                <AlertDescription>Lỗi khi tải báo cáo: {error.message}</AlertDescription>
+              </Alert>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-10">
+              <Alert className="bg-white border-zinc-200 shadow-sm">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <AlertTitle className="text-zinc-950 font-black uppercase text-xs">Thông báo</AlertTitle>
+                <AlertDescription className="text-zinc-500 font-bold">Chưa có dữ liệu kế hoạch và kết quả sản xuất để báo cáo.</AlertDescription>
+              </Alert>
+            </div>
+          ) : (
+            <ScrollArea className="h-full w-full">
+              <div className="min-w-max p-4">
+                <div className="border border-zinc-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                  <Table className="relative">
+                    <TableHeader className="bg-zinc-50 border-b-2 border-zinc-200">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead rowSpan={2} className="w-[50px] sticky left-0 z-40 bg-zinc-50 border-r border-zinc-100 text-center font-black text-[10px] uppercase text-zinc-500">STT</TableHead>
+                        <TableHead rowSpan={2} className="w-[60px] sticky left-[50px] z-40 bg-zinc-50 border-r border-zinc-100 text-center font-black text-[10px] uppercase text-zinc-500">Thứ tự</TableHead>
+                        <TableHead rowSpan={2} className="w-[200px] sticky left-[110px] z-40 bg-zinc-50 border-r border-zinc-100 font-black text-[10px] uppercase text-zinc-500">Tên mã hàng</TableHead>
+                        <TableHead rowSpan={2} className="font-black text-[10px] uppercase text-zinc-500 px-4">Đặc điểm / Nhóm</TableHead>
+                        <TableHead rowSpan={2} className="font-black text-[10px] uppercase text-zinc-500 px-4">Công đoạn</TableHead>
+                        <TableHead rowSpan={2} className="font-black text-[10px] uppercase text-zinc-500 px-4">Máy</TableHead>
+                        
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-zinc-500 px-4">SL đơn</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-zinc-500 px-4">Tồn kho</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-red-500 px-4">Còn lại</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-zinc-500 px-4">Định mức</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-zinc-500 px-4">Tổng công</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-emerald-600 px-4">Thực tế</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-rose-600 px-4">Cần SX</TableHead>
+                        <TableHead rowSpan={2} className="text-right font-black text-[10px] uppercase text-indigo-600 px-4">Tỉ lệ %</TableHead>
+                        <TableHead rowSpan={2} className="text-center font-black text-[10px] uppercase text-zinc-500 px-4">Bắt đầu</TableHead>
+                        <TableHead rowSpan={2} className="text-center font-black text-[10px] uppercase text-zinc-500 px-4">Kết thúc</TableHead>
 
-              <TableBody>
-                {rows.map((row, idx) => (
-                  <TableRow key={row.id} hover>
-                    <DataCell sx={{ position: "sticky", left: 0, bgcolor: "white", zIndex: 5, fontWeight: 600, textAlign: "center" }}>{idx + 1}</DataCell>
-                    <DataCell sx={{ position: "sticky", left: 40, bgcolor: "white", zIndex: 5, textAlign: "center" }}>{row.sequence_order || ""}</DataCell>
-                    <DataCell sx={{ position: "sticky", left: 100, bgcolor: "white", zIndex: 5, fontWeight: 600 }}>{row.product_name || ""}</DataCell>
-                    <DataCell>{row.product_group_name || ""}</DataCell>
-                    <DataCell align="left">{row.operation_name || ""}</DataCell>
-                    <DataCell align="left">{row.machine_name || ""}</DataCell>
-                    
-                    <DataCell align="right">{row.planQty?.toLocaleString()}</DataCell>
-                    <DataCell align="right">{row.inventory?.toLocaleString() || "0"}</DataCell>
-                    <DataCell align="right" sx={{ fontWeight: 700, color: "#e53935" }}>{row.qtyToProduce?.toLocaleString()}</DataCell>
-                    
-                    <DataCell align="right">{row.dinh_muc || ""}</DataCell>
-                    <DataCell align="right" sx={{ color: "#e53935" }}>{row.total_required_work ? (parseFloat(row.total_required_work) / 8).toFixed(2) : "0.00"}</DataCell>
-                    
-                    {/* SL SX Thực tế */}
-                    <DataCell align="right" sx={{ fontWeight: 700, color: "#2e7d32" }}>
-                      {row.totalActual.toLocaleString()}
-                    </DataCell>
+                        {dateColumns.map((date) => (
+                          <TableHead 
+                            key={date.key} 
+                            colSpan={2} 
+                            className="bg-indigo-50/30 text-indigo-700 text-center font-black text-[10px] border-l border-zinc-100 p-1"
+                          >
+                            {date.label}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                      <TableRow className="hover:bg-transparent">
+                        {dateColumns.map((date) => (
+                          <React.Fragment key={`sub-${date.key}`}>
+                            <TableHead className="text-[9px] font-black uppercase text-amber-600 border-l border-zinc-100 bg-amber-50/30 text-center h-8">KH</TableHead>
+                            <TableHead className="text-[9px] font-black uppercase text-zinc-400 border-l border-zinc-100 text-center h-8">TT</TableHead>
+                          </React.Fragment>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
 
-                    {/* SL CÒN PHẢI SX */}
-                    <DataCell align="right" sx={{ fontWeight: 700, color: "#d32f2f" }}>
-                      {row.remaining.toLocaleString()}
-                    </DataCell>
+                    <TableBody>
+                      {rows.map((row, idx) => (
+                        <TableRow key={row.id} className="group hover:bg-zinc-50 active:bg-zinc-100 transition-colors">
+                          <TableCell className="sticky left-0 bg-white group-hover:bg-zinc-50 z-30 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums">{idx + 1}</TableCell>
+                          <TableCell className="sticky left-[50px] bg-white group-hover:bg-zinc-50 z-30 font-bold text-center border-r border-zinc-100 tabular-nums">{row.sequence_order || ""}</TableCell>
+                          <TableCell className="sticky left-[110px] bg-white group-hover:bg-zinc-50 z-30 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tighter truncate max-w-[200px]">{row.product_name || ""}</TableCell>
+                          <TableCell className="text-[11px] font-bold text-zinc-500 max-w-[150px] truncate">{row.product_group_name || ""}</TableCell>
+                          <TableCell className="text-[11px] font-black text-zinc-800">{row.operation_name || ""}</TableCell>
+                          <TableCell className="text-[11px] font-bold text-zinc-500 italic">{row.machine_name || ""}</TableCell>
+                          
+                          <TableCell className="text-right text-xs font-bold tabular-nums">{row.planQty?.toLocaleString()}</TableCell>
+                          <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-400">{row.inventory?.toLocaleString() || "0"}</TableCell>
+                          <TableCell className="text-right text-xs font-black tabular-nums text-red-500">{row.qtyToProduce?.toLocaleString()}</TableCell>
+                          
+                          <TableCell className="text-right text-xs font-bold tabular-nums">{row.dinh_muc || ""}</TableCell>
+                          <TableCell className="text-right text-xs font-black tabular-nums text-rose-500">{row.total_required_work ? (parseFloat(row.total_required_work) / 8).toFixed(2) : "0.00"}</TableCell>
+                          
+                          <TableCell className="text-right text-xs font-black tabular-nums text-emerald-600 bg-emerald-50/20">{row.totalActual.toLocaleString()}</TableCell>
+                          <TableCell className="text-right text-xs font-black tabular-nums text-rose-600">{row.remaining.toLocaleString()}</TableCell>
+                          
+                          <TableCell className="text-right">
+                             <Badge variant={row.percentage >= 100 ? "success" : row.percentage > 0 ? "warning" : "outline"} className="font-black tabular-nums text-[10px]">
+                               {row.percentage.toFixed(0)}%
+                             </Badge>
+                          </TableCell>
+                          
+                          <TableCell className="text-center text-[10px] font-bold text-zinc-400 tabular-nums">
+                            {row.planned_start_date ? DateTime.fromISO(row.planned_start_date).toFormat("dd-MM") : ""}
+                          </TableCell>
+                          <TableCell className="text-center text-[10px] font-bold text-zinc-400 tabular-nums">
+                            {row.planned_end_date ? DateTime.fromISO(row.planned_end_date).toFormat("dd-MM") : ""}
+                          </TableCell>
 
-                    {/* Tỉ lệ Thực tế */}
-                    <DataCell align="right" sx={{ 
-                      fontWeight: 700, 
-                      color: "#1976d2",
-                      bgcolor: row.percentage >= 100 ? "#f0fdf4" : "transparent"
-                    }}>
-                      {row.percentage.toFixed(0)}%
-                    </DataCell>
+                          {dateColumns.map(date => {
+                             const planQty = row.planByDate[date.key] || 0;
+                             const actQty = row.actualByDate[date.key] || 0;
+                             
+                             return (
+                               <React.Fragment key={`data-${row.id}-${date.key}`}>
+                                  <TableCell className={`text-right text-[11px] font-black border-l border-zinc-100 tabular-nums ${planQty > 0 ? 'text-amber-600 bg-amber-50/10' : 'text-zinc-200'}`}>
+                                    {planQty > 0 ? planQty.toLocaleString() : "-"}
+                                  </TableCell>
+                                  <TableCell className={`text-right text-[11px] font-black border-l border-zinc-100 tabular-nums ${actQty > 0 ? 'text-zinc-900 bg-zinc-50/50' : 'text-zinc-200'}`}>
+                                    {actQty > 0 ? actQty.toLocaleString() : "-"}
+                                  </TableCell>
+                               </React.Fragment>
+                             );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          )}
+        </div>
 
-                    <DataCell sx={{ bgcolor: "#f0fdf4", color: "#166534", fontWeight: 700 }}>x</DataCell>
-                    
-                    <DataCell sx={{ color: "#64748b", textAlign: "center" }}>
-                      {row.planned_start_date ? DateTime.fromISO(row.planned_start_date).toFormat("dd-MM") : ""}
-                    </DataCell>
-                    <DataCell sx={{ color: "#64748b", textAlign: "center" }}>
-                      {row.planned_end_date ? DateTime.fromISO(row.planned_end_date).toFormat("dd-MM") : ""}
-                    </DataCell>
-
-                    {/* Daily KH and TT */}
-                    {dateColumns.map(date => {
-                       const planQty = row.planByDate[date.key] || 0;
-                       const actQty = row.actualByDate[date.key] || 0;
-                       
-                       return (
-                         <React.Fragment key={`data-${row.id}-${date.key}`}>
-                            <DataCell 
-                              align="right" 
-                              sx={{ 
-                                bgcolor: planQty > 0 ? "#fef08a" : "inherit",
-                                color: planQty > 0 ? "#854d0e" : "transparent"
-                              }}
-                            >
-                              {planQty > 0 ? planQty.toLocaleString() : "-"}
-                            </DataCell>
-                            <DataCell 
-                              align="right" 
-                              sx={{ 
-                                color: actQty > 0 ? "#0f172a" : "transparent",
-                                fontWeight: actQty > 0 ? 700 : 400
-                              }}
-                            >
-                              {actQty > 0 ? actQty.toLocaleString() : "-"}
-                            </DataCell>
-                         </React.Fragment>
-                       );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+        <DialogFooter className="px-6 py-4 bg-white border-t border-zinc-200">
+           <div className="flex-1 hidden md:block">
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">PROSIMEX MES / REPORTING MODULE</p>
+           </div>
+           <Button onClick={onClose} className="bg-zinc-950 hover:bg-zinc-800 text-white font-black px-10 shadow-lg shadow-zinc-200">
+             <CheckCircle2 className="mr-2 h-4 w-4" /> Đóng báo cáo
+           </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions sx={{ p: 2, bgcolor: "white", borderTop: "1px solid #e2e8f0" }}>
-        <Button onClick={onClose} variant="contained" color="primary" sx={{ px: 4, borderRadius: 2 }}>
-          Đóng
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 }
