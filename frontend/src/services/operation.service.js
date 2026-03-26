@@ -1,8 +1,8 @@
 import api from './api';
 
 export const operationService = {
-    getAll: async () => {
-        const { data } = await api.get('/operations');
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/operations', { params });
         return data;
     },
     create: async (payload) => {

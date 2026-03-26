@@ -1,8 +1,8 @@
 import api from './api';
 
 export const productService = {
-    getAll: async (factory_id = '') => {
-        const { data } = await api.get(`/products?factory_id=${factory_id}`);
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/products', { params });
         return data;
     },
     create: async (payload) => {

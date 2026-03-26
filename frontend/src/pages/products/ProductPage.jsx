@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown, Package, Search, Layers, Factory } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ProductPage() {
   const queryClient = useQueryClient();
@@ -18,16 +22,29 @@ export default function ProductPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [filterFactoryId, setFilterFactoryId] = useState("");
 
-  const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
+  const { control, handleSubmit: rhfHandleSubmit, reset, watch } = useForm({
     defaultValues: { name: "", product_group_id: "", is_active: true },
   });
 
-  const { data: factories } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
-  const { data: productGroups } = useQuery({ queryKey: ["productGroups"], queryFn: () => productGroupService.getAll() });
-  const { data: products, isLoading, error } = useQuery({
-    queryKey: ["products", filterFactoryId],
-    queryFn: () => productService.getAll(filterFactoryId),
+  const selectedGroupId = watch("product_group_id");
+
+  const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: () => factoryService.getAll({ limit: 1000 }) });
+  const factories = factoriesData?.data || [];
+  const { data: productGroupsData } = useQuery({ queryKey: ["productGroups"], queryFn: () => productGroupService.getAll({ limit: 1000 }) });
+  const productGroups = productGroupsData?.data || [];
+  
+  const { data: productsData, isLoading, error } = useQuery({
+    queryKey: ["products", filterFactoryId, page, pageSize, search],
+    queryFn: () => productService.getAll({ factory_id: filterFactoryId, page, limit: pageSize, search }),
   });
+
+  const products = productsData?.data || [];
+  const totalItems = productsData?.total || 0;
 
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); handleClose(); } };
   const createMutation = useMutation({ mutationFn: productService.create, ...mutationOpts });
@@ -61,13 +78,62 @@ export default function ProductPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
         <div className="flex items-center gap-2">
-          <Select value={filterFactoryId} onValueChange={setFilterFactoryId}>
-            <SelectTrigger className="w-48 bg-zinc-50"><SelectValue placeholder="Tất cả nhà máy" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Tất cả nhà máy</SelectItem>
-              {factories?.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-48 h-10 justify-between bg-zinc-50 border-zinc-200 font-bold"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Factory className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <span className="truncate">
+                    {filterFactoryId === "" ? "Tất cả nhà máy" : factories?.find(f => String(f.id) === String(filterFactoryId))?.name}
+                  </span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm nhà máy..." />
+                <CommandList className="max-h-64 p-1">
+                  <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="all"
+                      onSelect={() => setFilterFactoryId("")}
+                      className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                    >
+                      <span className="text-xs font-bold">Tất cả nhà máy</span>
+                      <Check
+                        className={cn(
+                          "ml-auto h-4 w-4 text-indigo-600",
+                          filterFactoryId === "" ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                    {factories?.map((f) => (
+                      <CommandItem
+                        key={f.id}
+                        value={f.name}
+                        onSelect={() => setFilterFactoryId(String(f.id))}
+                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      >
+                        <span className="text-xs font-bold">{f.name}</span>
+                        <Check
+                          className={cn(
+                            "ml-auto h-4 w-4 text-indigo-600",
+                            String(filterFactoryId) === String(f.id) ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           <Button onClick={() => handleOpen()} className="gap-2 font-semibold">+ Thêm mã hàng</Button>
         </div>
       </div>
@@ -76,6 +142,13 @@ export default function ProductPage() {
         onEdit={handleOpen}
         onDelete={(p) => { if (window.confirm(`Xóa mã hàng "${p.name}"?`)) deleteMutation.mutate(p.id); }}
         onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} mã hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
@@ -88,17 +161,79 @@ export default function ProductPage() {
               <div className="space-y-2">
                 <Label>Nhóm mã hàng <span className="text-red-500">*</span></Label>
                 <Controller name="product_group_id" control={control} render={({ field }) => (
-                  <Select value={String(field.value || "")} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn nhóm mã hàng">
-                        {productGroups?.find(g => String(g.id) === String(field.value))?.name || field.value}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {productGroups?.map(g => <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className={cn(
+                          "w-full justify-between bg-white border-zinc-200 font-semibold",
+                          !field.value && "text-zinc-500"
+                        )}
+                      >
+                        {field.value
+                          ? productGroups?.find(g => String(g.id) === String(field.value))?.name
+                          : "Chọn nhóm mã hàng"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                      <Command className="w-full">
+                        <CommandInput placeholder="Tìm kiếm nhóm..." />
+                        <CommandList className="max-h-64 overflow-y-auto p-1">
+                          <CommandEmpty className="py-6 text-center">
+                            <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không tìm thấy nhóm nào</p>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {productGroups?.map((g) => (
+                              <CommandItem
+                                key={g.id}
+                                value={g.name}
+                                onSelect={() => field.onChange(String(g.id))}
+                                className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                              >
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 group-aria-selected:bg-indigo-100 group-aria-selected:text-indigo-600">
+                                        {g.name.substring(0, 1)}
+                                    </div>
+                                    <span className="text-xs font-bold">{g.name}</span>
+                                </div>
+                                <Check
+                                  className={cn(
+                                    "h-3.5 w-3.5 text-indigo-600",
+                                    String(field.value) === String(g.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 )} />
+
+                {selectedGroupId && (
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100 space-y-2">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <Package className="w-3 h-3" /> Danh sách mã trong nhóm này
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 overflow-y-auto max-h-32 p-1">
+                      {products?.filter(p => String(p.product_group_id) === String(selectedGroupId)).length > 0 ? (
+                        products
+                          ?.filter(p => String(p.product_group_id) === String(selectedGroupId))
+                          .map(p => (
+                            <Badge key={p.id} variant="secondary" className="bg-white border-zinc-200 font-bold text-[10px] shadow-sm">
+                              {p.name}
+                            </Badge>
+                          ))
+                      ) : (
+                        <p className="text-[10px] italic text-zinc-400">Chưa có mã hàng nào trong nhóm này.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Tên mã hàng <span className="text-red-500">*</span></Label>

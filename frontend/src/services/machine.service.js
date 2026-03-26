@@ -1,8 +1,8 @@
 import api from './api';
 
 export const machineService = {
-    getAll: async (factory_id = '') => {
-        const { data } = await api.get(`/machines?factory_id=${factory_id}`);
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/machines', { params });
         return data;
     },
     create: async (payload) => {

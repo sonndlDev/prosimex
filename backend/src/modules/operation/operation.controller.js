@@ -2,7 +2,26 @@ import pool from '../../config/db.js'
 
 export const getOperations = async (req, res) => {
   try {
-    const query = `
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE o.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (o.name ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) FROM operations o ${whereClause}`;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
       SELECT 
         o.*,
         COALESCE(
@@ -12,15 +31,24 @@ export const getOperations = async (req, res) => {
       FROM operations o
       LEFT JOIN product_group_operations pgo ON o.id = pgo.operation_id AND pgo.deleted_at IS NULL
       LEFT JOIN product_groups pg ON pgo.product_group_id = pg.id AND pg.deleted_at IS NULL
-      WHERE o.deleted_at IS NULL
+      ${whereClause}
       GROUP BY o.id
-    `
-    const result = await pool.query(query)
-    res.json(result.rows)
+      ORDER BY o.created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving operations', error })
+    console.error("Get Operations Error:", error);
+    res.status(500).json({ message: "Error retrieving operations", error });
   }
-}
+};
 
 export const createOperation = async (req, res) => {
   try {

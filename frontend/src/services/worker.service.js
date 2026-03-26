@@ -1,8 +1,8 @@
 import api from './api';
 
 export const workerService = {
-    getAll: async () => {
-        const { data } = await api.get('/workers');
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/workers', { params });
         return data;
     },
     create: async (payload) => {

@@ -65,40 +65,56 @@ export const getAttendanceLogs = async (req, res) => {
   try {
     const userId = req.user.id
     const userRole = req.user.role_name
-    const { targetUserId, startDate, endDate } = req.query
+    const { targetUserId, startDate, endDate, page = 1, limit = 10 } = req.query
+    const offset = (page - 1) * limit
 
-    let query = `
-      SELECT a.*, u.username 
-      FROM attendance a
-      JOIN users u ON a.user_id = u.id
-      WHERE 1=1
-    `
+    let whereClause = ' WHERE 1=1'
     const params = []
 
     // If not Admin, forced to see own logs
     if (userRole !== 'ADMIN') {
       params.push(userId)
-      query += ` AND a.user_id = $${params.length}`
-    } else if (targetUserId) {
+      whereClause += ` AND a.user_id = $${params.length}`
+    } else if (targetUserId && targetUserId !== 'ALL_USERS') {
       // If Admin and specific user requested
       params.push(targetUserId)
-      query += ` AND a.user_id = $${params.length}`
+      whereClause += ` AND a.user_id = $${params.length}`
     }
 
     if (startDate) {
       params.push(startDate)
-      query += ` AND a.date >= $${params.length}`
+      whereClause += ` AND a.date >= $${params.length}`
     }
 
     if (endDate) {
       params.push(endDate)
-      query += ` AND a.date <= $${params.length}`
+      whereClause += ` AND a.date <= $${params.length}`
     }
 
-    query += ' ORDER BY a.date DESC, a.check_in_time DESC LIMIT 100'
+    // Get total count
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM attendance a JOIN users u ON a.user_id = u.id ${whereClause}`,
+      params
+    )
+    const total = parseInt(countResult.rows[0].count)
 
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+    const query = `
+      SELECT a.*, u.username 
+      FROM attendance a
+      JOIN users u ON a.user_id = u.id
+      ${whereClause}
+      ORDER BY a.date DESC, a.check_in_time DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `
+
+    const result = await pool.query(query, [...params, limit, offset])
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    })
   } catch (error) {
     res.status(500).json({ message: 'Lỗi khi lấy lịch sử chấm công', error: error.message })
   }

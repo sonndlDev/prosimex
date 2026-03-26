@@ -2,30 +2,60 @@ import pool from "../../config/db.js";
 
 export const getOrders = async (req, res) => {
   try {
-    const { factory_id } = req.query;
-    let query = `
-            SELECT o.*, c.name as customer_name, u.username as created_by_username,
-                   COALESCE(
-                     (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id, 'quantity', op.quantity))
-                      FROM order_products op
-                      JOIN products p ON op.product_id = p.id
-                      WHERE op.order_id = o.id),
-                     '[]'
-                   ) as products
-            FROM orders o
-            JOIN customers c ON o.customer_id = c.id
-            JOIN users u ON o.created_by = u.id
-            WHERE o.deleted_at IS NULL
-        `;
-    const params = [];
-    if (factory_id) {
-      query += " AND o.factory_id = $1";
-      params.push(factory_id);
-    }
-    query += " ORDER BY o.created_at DESC";
+    const { factory_id, page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
 
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    let whereClause = "WHERE o.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (factory_id) {
+      queryParams.push(factory_id);
+      whereClause += ` AND o.factory_id = $${queryParams.length}`;
+    }
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.order_code ILIKE $${queryParams.length} OR c.name ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM orders o
+      JOIN customers c ON o.customer_id = c.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
+      SELECT o.*, c.name as customer_name, u.username as created_by_username,
+             COALESCE(
+               (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id, 'quantity', op.quantity))
+                FROM order_products op
+                JOIN products p ON op.product_id = p.id
+                WHERE op.order_id = o.id),
+               '[]'
+             ) as products
+      FROM orders o
+      JOIN customers c ON o.customer_id = c.id
+      JOIN users u ON o.created_by = u.id
+      ${whereClause}
+      ORDER BY o.created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
     console.error("Get Orders Error:", error);
     res.status(500).json({ message: "Error retrieving orders", error });

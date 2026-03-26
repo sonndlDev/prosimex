@@ -26,28 +26,45 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, FilterX } from "lucide-react";
+import { Loader2, Search, FilterX, User, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { DateTime } from 'luxon';
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import PremiumDatePicker from "@/components/PremiumDatePicker";
 
 export default function AttendanceManagementPage() {
-  const [filters, setFilters] = useState({
-    targetUserId: '',
-    startDate: DateTime.now().startOf('month').toISODate(),
-    endDate: DateTime.now().toISODate()
-  });
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const { data: usersData } = useQuery({
     queryKey: ['users'],
-    queryFn: userService.getAll
+    queryFn: () => userService.getAll({ limit: 1000 })
   });
+  const users = usersData?.data || [];
 
-  const { data: logs, isLoading: logsLoading, refetch } = useQuery({
-    queryKey: ['attendanceLogsAdmin', filters],
-    queryFn: () => attendanceService.getLogs(filters)
+  const { data: attendanceData, isLoading: logsLoading } = useQuery({
+    queryKey: ['attendanceLogsAdmin', filters, page, pageSize],
+    queryFn: () => attendanceService.getLogs({ ...filters, page, limit: pageSize })
   });
+  const logs = attendanceData?.data || [];
+  const totalItems = attendanceData?.total || 0;
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }));
+    setPage(1); // Reset to first page on filter change
   };
 
   const resetFilters = () => {
@@ -56,7 +73,50 @@ export default function AttendanceManagementPage() {
       startDate: DateTime.now().startOf('month').toISODate(),
       endDate: DateTime.now().toISODate()
     });
+    setPage(1);
   };
+
+  const columns = [
+    { 
+      id: "date", 
+      label: "Ngày",
+      format: (val) => DateTime.fromISO(val).toFormat('dd/MM/yyyy')
+    },
+    { id: "username", label: "Nhân viên", className: "font-bold text-zinc-950" },
+    { 
+      id: "check_in_time", 
+      label: "Vào lúc",
+      format: (val) => (
+        <Badge variant="outline" className="font-mono bg-zinc-50 border-zinc-200">
+          {DateTime.fromISO(val).toFormat('HH:mm')}
+        </Badge>
+      )
+    },
+    { 
+      id: "check_out_time", 
+      label: "Ra lúc",
+      format: (val) => val ? (
+        <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
+          {DateTime.fromISO(val).toFormat('HH:mm')}
+        </Badge>
+      ) : <span className="text-zinc-300">—</span>
+    },
+    { 
+      id: "status", 
+      label: "Trạng thái",
+      format: (_, row) => (
+        <Badge variant={row.check_out_time ? "success" : "warning"}>
+          {row.check_out_time ? 'Đã hoàn thành' : 'Đang làm việc'}
+        </Badge>
+      )
+    },
+    { 
+      id: "note", 
+      label: "Ghi chú",
+      className: "max-w-[200px] truncate text-zinc-500 text-sm italic",
+      format: (val) => val || <span className="text-zinc-300 not-italic">Không có ghi chú</span>
+    },
+  ];
 
   return (
     <div className="p-6 space-y-6">
@@ -72,129 +132,110 @@ export default function AttendanceManagementPage() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
             <div className="md:col-span-3 space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase">Nhân viên</label>
-              <Select
-                value={filters.targetUserId}
-                onValueChange={(v) => handleFilterChange('targetUserId', v)}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Tất cả nhân viên" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL_USERS">Tất cả nhân viên</SelectItem>
-                  {users?.map(user => (
-                    <SelectItem key={user.id} value={String(user.id)}>
-                      {user.username}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    className="w-full h-10 justify-between bg-white border-zinc-200 font-bold"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <User className="h-4 w-4 text-indigo-500 shrink-0" />
+                      <span className="truncate">
+                        {!filters.targetUserId || filters.targetUserId === 'ALL_USERS'
+                          ? "Tất cả nhân viên" 
+                          : users?.find(u => String(u.id) === String(filters.targetUserId))?.username}
+                      </span>
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                  <Command className="w-full">
+                    <CommandInput placeholder="Tìm nhân viên..." />
+                    <CommandList className="max-h-[300px] p-1">
+                      <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhân viên</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="ALL_USERS"
+                          onSelect={() => handleFilterChange('targetUserId', 'ALL_USERS')}
+                          className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                        >
+                            <span className="text-xs font-bold">Tất cả nhân viên</span>
+                            <Check
+                                className={cn(
+                                    "h-4 w-4 text-indigo-600",
+                                    filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0"
+                                )}
+                            />
+                        </CommandItem>
+                        {users?.map((user) => (
+                          <CommandItem
+                            key={user.id}
+                            value={user.username}
+                            onSelect={() => handleFilterChange('targetUserId', String(user.id))}
+                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                          >
+                            <span className="text-xs font-bold">{user.username}</span>
+                            <Check
+                              className={cn(
+                                "h-4 w-4 text-indigo-600",
+                                String(filters.targetUserId) === String(user.id) ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="md:col-span-3 space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase">Từ ngày</label>
-              <Input
-                type="date"
-                className="h-10"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              <PremiumDatePicker
+                date={filters.startDate}
+                onSelect={(val) => handleFilterChange('startDate', val)}
               />
             </div>
 
             <div className="md:col-span-3 space-y-2">
               <label className="text-xs font-bold text-zinc-500 uppercase">Đến ngày</label>
-              <Input
-                type="date"
-                className="h-10"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
+              <PremiumDatePicker
+                date={filters.endDate}
+                onSelect={(val) => handleFilterChange('endDate', val)}
               />
             </div>
 
             <div className="md:col-span-3 flex gap-2">
               <Button 
-                variant="default" 
-                className="flex-1 h-10 font-bold gap-2"
-                onClick={() => refetch()}
-              >
-                <Search className="w-4 h-4" />
-                Tìm kiếm
-              </Button>
-              <Button 
                 variant="outline" 
-                className="h-10 px-3"
+                className="w-full h-10 px-3 font-bold border-zinc-200"
                 onClick={resetFilters}
-                title="Đặt lại bộ lọc"
               >
-                <FilterX className="w-4 h-4 text-zinc-400" />
+                <FilterX className="w-4 h-4 mr-2 text-zinc-400" />
+                Đặt lại
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Logs Table */}
-      <div className="rounded-xl border border-zinc-200 shadow-sm overflow-hidden bg-white">
-        <Table>
-          <TableHeader className="bg-zinc-50/50">
-            <TableRow>
-              <TableHead className="font-bold py-4">Ngày</TableHead>
-              <TableHead className="font-bold">Nhân viên</TableHead>
-              <TableHead className="font-bold">Vào lúc</TableHead>
-              <TableHead className="font-bold">Ra lúc</TableHead>
-              <TableHead className="font-bold">Trạng thái</TableHead>
-              <TableHead className="font-bold">Ghi chú</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logsLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-zinc-500">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Đang tải dữ liệu chấm công...
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : logs?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-zinc-500">
-                  Không tìm thấy dữ liệu chấm công nào trong khoảng thời gian này.
-                </TableCell>
-              </TableRow>
-            ) : (
-              logs.map((log) => (
-                <TableRow key={log.id} className="hover:bg-zinc-50/50">
-                  <TableCell className="font-medium">
-                    {DateTime.fromISO(log.date).toFormat('dd/MM/yyyy')}
-                  </TableCell>
-                  <TableCell className="font-bold text-zinc-950">{log.username}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono bg-zinc-50 border-zinc-200">
-                      {DateTime.fromISO(log.check_in_time).toFormat('HH:mm')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {log.check_out_time ? (
-                      <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
-                        {DateTime.fromISO(log.check_out_time).toFormat('HH:mm')}
-                      </Badge>
-                    ) : (
-                      <span className="text-zinc-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={log.check_out_time ? "success" : "warning"}>
-                      {log.check_out_time ? 'Đã hoàn thành' : 'Đang làm việc'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate text-zinc-500 text-sm italic">
-                    {log.note || <span className="text-zinc-300 not-italic">Không có ghi chú</span>}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      {/* Logs Table with GenericTable */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <GenericTable 
+          data={logs} 
+          columns={columns} 
+          isLoading={logsLoading} 
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          showActions={false}
+        />
       </div>
     </div>
   );

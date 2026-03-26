@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { orderService } from "../../../services/order.service";
@@ -18,7 +18,12 @@ import {
   AlertCircle,
   Clock,
   CheckCircle2,
-  Info
+  Info,
+  Search,
+  Layers,
+  Check,
+  ChevronsUpDown,
+  Truck
 } from "lucide-react";
 
 // Shadcn UI
@@ -40,18 +45,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   ManagedTextField,
   autoCalculateSchedule,
   rebalanceDays,
 } from "./shared";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { PremiumDatePicker } from "@/components/PremiumDatePicker";
+import { Badge } from "@/components/ui/badge";
 
 const PlanningFormDialog = React.memo(
   ({
@@ -62,22 +81,31 @@ const PlanningFormDialog = React.memo(
     onClose,
     onSubmit,
   }) => {
+    const [tabValue, setTabValue] = useState(editingPlan ? "edit" : "create");
+
+    // Sync tab when editingPlan changes
+    useEffect(() => {
+      setTabValue(editingPlan ? "edit" : "create");
+    }, [editingPlan, open]);
+
+    const defaultValues = useMemo(() => ({
+      selectedOrderId: "",
+      selectedProductId: "",
+      selectedOpId: "",
+      selectedFactoryId: "",
+      isOutsourced: false,
+      inventory: 0,
+      startDate: "",
+      endDate: "",
+      manualDinhMuc: "",
+      selectedMachineId: "",
+      isFullOrderMode: false,
+      plannedDays: [],
+      case2Items: [],
+    }), []);
+
     const { control, watch, setValue, reset, handleSubmit } = useForm({
-      defaultValues: {
-        selectedOrderId: "",
-        selectedProductId: "",
-        selectedOpId: "",
-        selectedFactoryId: "",
-        isOutsourced: false,
-        inventory: 0,
-        startDate: "",
-        endDate: "",
-        manualDinhMuc: "",
-        selectedMachineId: "",
-        isFullOrderMode: false,
-        plannedDays: [],
-        case2Items: [],
-      },
+      defaultValues,
     });
 
     const { fields: dayFields, replace: replaceDays } = useFieldArray({
@@ -108,19 +136,21 @@ const PlanningFormDialog = React.memo(
     // Data fetching
     const { data: allOrdersData } = useQuery({
       queryKey: ["orders"],
-      queryFn: orderService.getAll,
+      queryFn: () => orderService.getAll({ limit: 1000 }),
     });
-    const orders = allOrdersData || [];
+    const orders = allOrdersData?.data || [];
 
-    const { data: factories } = useQuery({
+    const { data: factoriesData } = useQuery({
       queryKey: ["factories"],
-      queryFn: factoryService.getAll,
+      queryFn: () => factoryService.getAll({ limit: 1000 }),
     });
+    const factories = factoriesData?.data || [];
 
-    const { data: machines } = useQuery({
+    const { data: machinesData } = useQuery({
       queryKey: ["machines", selectedFactoryId],
-      queryFn: () => machineService.getAll(selectedFactoryId),
+      queryFn: () => machineService.getAll({ factoryId: selectedFactoryId, limit: 1000 }),
     });
+    const machines = machinesData?.data || [];
 
     const selectedOrder = orders?.find((o) => String(o.id) === String(selectedOrderId));
     const selectedProduct = selectedOrder?.products?.find(
@@ -168,7 +198,7 @@ const PlanningFormDialog = React.memo(
       return 0;
     }, [selectedOp, manualDinhMuc, selectedOpId, startDate, endDate, remainingQty, isFullOrderMode]);
 
-    const totalDaysNeeded = dinhMuc > 0 ? remainingQty / dinhMuc / 8 : 0;
+    const totalDaysNeeded = dinhMuc > 0 ? remainingQty / dinhMuc : 0;
 
     // Reset form when opening/closing or switching between create/edit
     useEffect(() => {
@@ -184,7 +214,7 @@ const PlanningFormDialog = React.memo(
           startDate: DateTime.fromISO(editingPlan.planned_start_date).toISODate(),
           endDate: DateTime.fromISO(editingPlan.planned_end_date).toISODate(),
           selectedMachineId: editingPlan.machine_id || "",
-          isFullOrderMode: false,
+          isFullOrderMode: editingPlan.is_full_order_mode || false,
           plannedDays: editingPlan.days.map((d) => ({
             date: DateTime.fromISO(d.working_date).toISODate(),
             hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
@@ -210,10 +240,12 @@ const PlanningFormDialog = React.memo(
       }
     }, [open, editingPlan, reset]);
 
-    // Initialize Case 2 items when order changes
     useEffect(() => {
-      if (isFullOrderMode && selectedOrder?.products) {
+      const hasOrderIdChanged = selectedOrder && (case2Items?.length > 0) && case2Items[0] && String(case2Items[0].orderId) !== String(selectedOrderId);
+
+      if (isFullOrderMode && selectedOrder?.products && (case2Items.length === 0 || hasOrderIdChanged)) {
         const items = selectedOrder.products.map(p => ({
+          orderId: selectedOrderId,
           productId: p.id,
           name: p.name,
           quantity: parseFloat(p.quantity) || 0,
@@ -309,11 +341,12 @@ const PlanningFormDialog = React.memo(
 
     // Auto-calculate schedule 
     useEffect(() => {
-      if (startDate && totalDaysNeeded > 0 && !editingPlan && !isFullOrderMode) {
+      // Chỉ tự động tính toán nếu đang ở chế độ Single và chưa có dữ liệu ngày (hoặc mới chọn ngày/định mức)
+      if (startDate && totalDaysNeeded > 0 && !editingPlan && !isFullOrderMode && (plannedDays.length === 0)) {
         const newDays = autoCalculateSchedule(totalDaysNeeded, startDate);
         replaceDays(newDays);
       }
-    }, [totalDaysNeeded, startDate, isFullOrderMode]);
+    }, [totalDaysNeeded, startDate, isFullOrderMode, editingPlan]);
 
     const handleDayChange = (index, value) => {
       const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded);
@@ -399,14 +432,14 @@ const PlanningFormDialog = React.memo(
             <div className="p-6 space-y-8">
               {/* Tabs for Mode selection */}
               <Tabs
-                defaultValue={isFullOrderMode ? "full" : "single"}
+                value={isFullOrderMode ? "full" : "single"}
                 onValueChange={(val) => {
-                  const isFull = val === "full";
-                  setValue("isFullOrderMode", isFull);
-                  if (isFull) {
-                    setValue("selectedProductId", "");
-                    setValue("selectedOpId", "");
-                  }
+                  const currentOrder = selectedOrderId;
+                  reset({
+                    ...defaultValues,
+                    selectedOrderId: currentOrder,
+                    isFullOrderMode: val === "full"
+                  });
                 }}
                 className="w-full"
               >
@@ -432,142 +465,402 @@ const PlanningFormDialog = React.memo(
                 </TabsList>
               </Tabs>
 
-              {/* Steps 1-3: Selection Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Bước 1: Chọn đơn hàng</Label>
-                  <Controller
-                    name="selectedOrderId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        disabled={!!editingPlan}
-                        value={field.value ? String(field.value) : ""}
-                        onValueChange={(val) => {
-                          field.onChange(val);
-                          setValue("selectedProductId", "");
-                          setValue("selectedOpId", "");
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-white border-zinc-200 font-semibold shadow-sm focus:ring-indigo-600">
-                          <SelectValue placeholder="Chọn đơn hàng">
-                            {orders?.find(o => String(o.id) === String(field.value))?.name || field.value}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {orders?.map((o) => (
-                            <SelectItem key={o.id} value={String(o.id)}>
-                              {o.name} <span className="text-[10px] text-zinc-400 ml-1">({o.quantity} SP)</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
+              {/* Steps 1-3: Linear Workflow Layout */}
+              <div className="relative space-y-8">
+                {/* Visual Connection Line (Desktop only) */}
+                <div className="hidden lg:block absolute top-[62px] left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent z-0" />
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">
-                    {isFullOrderMode ? "Bước 2: Chế độ" : "Bước 2: Chọn mã hàng"}
-                  </Label>
-                  <Controller
-                    name="selectedProductId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        disabled={!!editingPlan || isFullOrderMode || !selectedOrderId}
-                        value={isFullOrderMode ? "all" : (field.value ? String(field.value) : "")}
-                        onValueChange={(val) => {
-                          if (val !== "all") {
-                            field.onChange(val);
-                            setValue("selectedOpId", "");
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-11 bg-white border-zinc-200 font-semibold shadow-sm focus:ring-indigo-600">
-                          <SelectValue placeholder={!selectedOrderId ? "Chưa chọn đơn" : "Chọn mã sản phẩm"}>
-                            {selectedOrder?.products?.find(p => String(p.id) === String(field.value))?.name || field.value || (!selectedOrderId ? "Chưa chọn đơn" : "Chọn mã sản phẩm")}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {isFullOrderMode ? (
-                            <SelectItem value="all" disabled>Toàn bộ đơn hàng</SelectItem>
-                          ) : (
-                            selectedOrder?.products?.map((p) => (
-                              <SelectItem key={p.id} value={String(p.id)}>
-                                {p.name} <span className="text-[10px] text-zinc-400 ml-1">({parseFloat(p.quantity).toLocaleString()} SP)</span>
-                              </SelectItem>
-                            ))
+                <div className={cn(
+                  "grid gap-4 lg:gap-8 relative z-10",
+                  isFullOrderMode ? "grid-cols-1 md:grid-cols-3" : "grid-cols-1 lg:grid-cols-4"
+                )}>
+                  {/* Step 1: Order */}
+                  <div className="flex flex-col gap-3 group">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">1</div>
+                      <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Đơn hàng mục tiêu</Label>
+                    </div>
+                    <Controller
+                      name="selectedOrderId"
+                      control={control}
+                      render={({ field }) => (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={!!editingPlan}
+                              className={cn(
+                                "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5"
+                              )}
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className="p-2 bg-indigo-50 rounded-lg shrink-0">
+                                  <Package className="h-4 w-4 text-indigo-600" />
+                                </div>
+                                <span className="truncate leading-tight">
+                                  {orders?.find(o => String(o.id) === String(field.value))?.name || "Chọn đơn hàng..."}
+                                </span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                            <Command className="w-full">
+                              <CommandInput placeholder="Tìm đơn hàng..." className="h-11" />
+                              <CommandList className="max-h-[300px] p-1">
+                                <CommandEmpty className="py-8 text-center">
+                                  <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2 opacity-50" />
+                                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</p>
+                                </CommandEmpty>
+                                <CommandGroup>
+                                  {orders?.map((o) => (
+                                    <CommandItem
+                                      key={o.id}
+                                      value={o.name}
+                                      onSelect={() => {
+                                        field.onChange(String(o.id));
+                                        setValue("selectedProductId", "");
+                                        setValue("selectedOpId", "");
+                                      }}
+                                      className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                    >
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-xs font-bold">{o.name}</span>
+                                        <span className="text-[10px] text-zinc-400 font-medium">SL: {o.quantity} SP • PO: {o.po_customer}</span>
+                                      </div>
+                                      <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    />
+                  </div>
+
+                  {/* Step 2: Product */}
+                  <div className="flex flex-col gap-3 group">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">2</div>
+                      <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                        {isFullOrderMode ? "Chế độ sản xuất" : "Mã sản phẩm"}
+                      </Label>
+                    </div>
+                    <Controller
+                      name="selectedProductId"
+                      control={control}
+                      render={({ field }) => (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={!!editingPlan || isFullOrderMode || !selectedOrderId}
+                              className={cn(
+                                "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
+                                isFullOrderMode && "opacity-80 bg-zinc-50 border-zinc-200"
+                              )}
+                            >
+                              <div className="flex items-center gap-3 truncate">
+                                <div className={cn("p-2 rounded-lg shrink-0", isFullOrderMode ? "bg-zinc-200" : "bg-blue-50")}>
+                                  <Layers className={cn("h-4 w-4", isFullOrderMode ? "text-zinc-500" : "text-blue-600")} />
+                                </div>
+                                <span className="truncate leading-tight">
+                                  {isFullOrderMode ? "Toàn bộ đơn hàng" : (selectedOrder?.products?.find(p => String(p.id) === String(field.value))?.name || "Chọn mã sản phẩm")}
+                                </span>
+                              </div>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                            </Button>
+                          </PopoverTrigger>
+                          {!isFullOrderMode && (
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                              <Command className="w-full">
+                                <CommandInput placeholder="Tìm mã hàng..." className="h-11" />
+                                <CommandList className="max-h-[300px] p-1">
+                                  <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
+                                  <CommandGroup>
+                                    {selectedOrder?.products?.map((p) => (
+                                      <CommandItem
+                                        key={p.id}
+                                        value={p.name}
+                                        onSelect={() => {
+                                          field.onChange(String(p.id));
+                                          setValue("selectedOpId", "");
+                                        }}
+                                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                      >
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="text-xs font-bold">{p.name}</span>
+                                          <span className="text-[10px] text-zinc-400 font-medium">{parseFloat(p.quantity).toLocaleString()} SP • ĐVT: {p.unit || "N/A"}</span>
+                                        </div>
+                                        <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
                           )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
+                        </Popover>
+                      )}
+                    />
+                  </div>
+
+                  {!isFullOrderMode && (
+                    <>
+                      {/* Step 3: Operation */}
+                      <div className="flex flex-col gap-3 group">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3</div>
+                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Công đoạn SX <span className="text-red-500">*</span></Label>
+                        </div>
+                        <Controller
+                          name="selectedOpId"
+                          control={control}
+                          render={({ field }) => (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  disabled={!!editingPlan || !selectedProductId || loadingOps}
+                                  className={cn(
+                                    "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                    "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
+                                    !field.value && "opacity-90"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3 truncate">
+                                    <div className="p-2 bg-emerald-50 rounded-lg shrink-0">
+                                      <Settings className="h-4 w-4 text-emerald-600" />
+                                    </div>
+                                    <span className="truncate leading-tight">
+                                      {operations?.find(op => String(op.id) === String(field.value))?.operation_name || (selectedProductId ? "Chọn công đoạn..." : "Chưa chọn mã")}
+                                    </span>
+                                  </div>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                <Command className="w-full">
+                                  <CommandInput placeholder="Tìm công đoạn..." className="h-11" />
+                                  <CommandList className="max-h-[300px] p-1">
+                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest tracking-widest">Không có dữ liệu</CommandEmpty>
+                                    <CommandGroup>
+                                      {operations?.map((op) => (
+                                        <CommandItem
+                                          key={op.id}
+                                          value={op.operation_name}
+                                          onSelect={() => {
+                                            field.onChange(String(op.id));
+                                            const found = operations?.find(o => String(o.id) === String(op.id));
+                                            if (found?.machine_ids?.length > 0) {
+                                              setValue("selectedMachineId", String(found.machine_ids[0]));
+                                            } else if (found?.machine_id) {
+                                              setValue("selectedMachineId", String(found.machine_id));
+                                            } else {
+                                              setValue("selectedMachineId", "");
+                                            }
+                                          }}
+                                          className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                        >
+                                          <div className="flex flex-col gap-0.5">
+                                            <span className="text-xs font-bold">CĐ {op.sequence_order}: {op.operation_name}</span>
+                                            <span className="text-[10px] text-zinc-400 font-medium">Đồ gá: {op.fixture || "N/A"} • Định mức: {op.dinh_muc || 0} SP/H</span>
+                                          </div>
+                                          <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        />
+                      </div>
+
+                      {/* Step 4: Machine (Inside Single Mode) */}
+                      <div className="flex flex-col gap-3 group">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3b</div>
+                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất <span className="text-red-500">*</span></Label>
+                        </div>
+                        <Controller
+                          name="selectedMachineId"
+                          control={control}
+                          render={({ field }) => {
+                            const availableMachineIds = (selectedOp?.machine_ids || (selectedOp?.machine_id ? [selectedOp.machine_id] : [])).map(String);
+                            const availableMachines = selectedOp ? machines?.filter(m => availableMachineIds.includes(String(m.id))) : [];
+
+                            return (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    disabled={isOutsourced || !selectedOp}
+                                    className={cn(
+                                      "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                      "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
+                                      (isOutsourced || !selectedOp) && "opacity-80 bg-zinc-50"
+                                    )}
+                                  >
+                                    <div className="flex items-center gap-3 truncate">
+                                      <div className="p-2 bg-amber-50 rounded-lg shrink-0">
+                                        <Cpu className="h-4 w-4 text-amber-600" />
+                                      </div>
+                                      <span className="truncate leading-tight">
+                                        {machines?.find(m => String(m.id) === String(field.value))?.name || (!selectedOp ? "Hãy chọn công đoạn" : (!isOutsourced ? "Chọn máy..." : "Gia công ngoài"))}
+                                      </span>
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                  <Command className="w-full">
+                                    <CommandInput placeholder="Tìm máy..." className="h-11" />
+                                    <CommandList className="max-h-[300px] p-1">
+                                      <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có máy</CommandEmpty>
+                                      <CommandGroup>
+                                        {availableMachines?.map((m) => (
+                                          <CommandItem
+                                            key={m.id}
+                                            value={m.name}
+                                            onSelect={() => field.onChange(String(m.id))}
+                                            className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                          >
+                                            <div className="flex flex-col gap-0.5">
+                                              <span className="text-xs font-bold">{m.name}</span>
+                                              <span className="text-[10px] text-zinc-400 font-medium">Khu vực: Xưởng 1 • Công nghệ: {m.type || "Tiện/Phay"}</span>
+                                            </div>
+                                            <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(m.id) ? "opacity-100" : "opacity-0")} />
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            );
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {isFullOrderMode && (
+                    <div className="flex flex-col gap-3 group">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3</div>
+                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất chung</Label>
+                      </div>
+                      <Controller
+                        name="selectedMachineId"
+                        control={control}
+                        render={({ field }) => (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                disabled={isOutsourced}
+                                className={cn(
+                                  "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                  "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5"
+                                )}
+                              >
+                                <div className="flex items-center gap-3 truncate">
+                                  <div className="p-2 bg-amber-50 rounded-lg shrink-0">
+                                    <Cpu className="h-4 w-4 text-amber-600" />
+                                  </div>
+                                  <span className="truncate leading-tight">
+                                    {machines?.find(m => String(m.id) === String(field.value))?.name || (!isOutsourced ? "Chọn máy..." : "Gia công ngoài")}
+                                  </span>
+                                </div>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                              <Command className="w-full">
+                                <CommandInput placeholder="Tìm máy..." className="h-11" />
+                                <CommandList className="max-h-[300px] p-1">
+                                  <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
+                                  <CommandGroup>
+                                    {machines?.map((m) => (
+                                      <CommandItem
+                                        key={m.id}
+                                        value={m.name}
+                                        onSelect={() => field.onChange(String(m.id))}
+                                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                      >
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="text-xs font-bold">{m.name}</span>
+                                          <span className="text-[10px] text-zinc-400 font-medium font-medium">Máy sản xuất xưởng</span>
+                                        </div>
+                                        <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(m.id) ? "opacity-100" : "opacity-0")} />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {!isFullOrderMode ? (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Bước 3: Chọn công đoạn</Label>
-                    <Controller
-                      name="selectedOpId"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          disabled={!!editingPlan || !selectedProductId || loadingOps}
-                          value={field.value ? String(field.value) : ""}
-                          onValueChange={(val) => {
-                            field.onChange(val);
-                            setValue("selectedFactoryId", "");
-                            setValue("isOutsourced", false);
-                          }}
-                        >
-                          <SelectTrigger className="h-11 bg-white border-zinc-200 font-semibold shadow-sm focus:ring-indigo-600">
-                            <SelectValue placeholder="Chọn công đoạn">
-                              {operations?.find(op => String(op.id) === String(field.value))?.operation_name || field.value || (selectedProductId ? "Chọn công đoạn" : "Chưa chọn mã")}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">-- Không có công đoạn --</SelectItem>
-                            {operations?.map((op) => (
-                              <SelectItem key={op.id} value={String(op.id)}>
-                                CĐ {op.sequence_order}: {op.operation_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Bước 3b: Chọn máy sản xuất</Label>
-                    <Controller
-                      name="selectedMachineId"
-                      control={control}
-                      render={({ field }) => (
-                        <Select value={field.value ? String(field.value) : ""} onValueChange={field.onChange}>
-                          <SelectTrigger className="h-11 bg-white border-zinc-200 font-semibold shadow-sm focus:ring-indigo-600">
-                            <SelectValue placeholder={!isOutsourced ? "Chọn máy sản xuất" : "Gia công ngoài"}>
-                              {machines?.find(m => String(m.id) === String(field.value))?.name || field.value || (!isOutsourced ? "Chọn máy sản xuất" : "Gia công ngoài")}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">-- Không chọn --</SelectItem>
-                            {machines?.map((m) => (
-                              <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </div>
-                )}
+                {/* Third Party Toggle Block */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setValue("isOutsourced", !isOutsourced)}
+                    className={cn(
+                      "w-full p-4 rounded-xl border flex items-center justify-between transition-all group relative overflow-hidden",
+                      isOutsourced
+                        ? "bg-red-50 border-red-200 shadow-lg shadow-red-100/50"
+                        : "bg-zinc-50 border-zinc-200 hover:border-indigo-200 hover:bg-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                        isOutsourced ? "bg-red-600 text-white animate-pulse" : "bg-zinc-200 text-zinc-500 group-hover:bg-indigo-600 group-hover:text-white"
+                      )}>
+                        <Truck className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className={cn("text-xs font-black uppercase tracking-widest", isOutsourced ? "text-red-700" : "text-zinc-500 group-hover:text-indigo-600")}>
+                          Ghi chú gia công ngoài (Outsourcing)
+                        </p>
+                        <p className="text-[11px] font-medium text-zinc-400">
+                          {isOutsourced ? "Đang chọn chế độ gia công tại đơn vị ngoài" : "Nhấp vào để bật chế độ lập kế hoạch ra bên ngoài"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "w-10 h-5 rounded-full relative transition-all duration-300",
+                      isOutsourced ? "bg-red-600" : "bg-zinc-300"
+                    )}>
+                      <div className={cn(
+                        "w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-sm",
+                        isOutsourced ? "right-0.5" : "left-0.5"
+                      )} />
+                    </div>
+                  </button>
+                </div>
               </div>
-
-              {/* Step 4: Factory / Outsourcing */}
+              {/* Factory / Outsourcing */}
               {(selectedOpId || isFullOrderMode) && (
                 <div className="flex flex-col md:flex-row gap-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100 md:items-center">
-                  <div className="flex items-center gap-3 min-w-[200px]">
+                  {/* <div className="flex items-center gap-3 min-w-[200px]">
                     <Switch
                       id="outsourced"
                       checked={isOutsourced}
@@ -579,28 +872,53 @@ const PlanningFormDialog = React.memo(
                     <Label htmlFor="outsourced" className="font-black text-sm text-zinc-950 cursor-pointer uppercase tracking-tighter">
                       Gia công ngoài
                     </Label>
-                  </div>
+                  </div> */}
 
                   {isOutsourced && (
                     <div className="flex-1 flex flex-col md:flex-row gap-4 md:items-center">
-                      <Label className="text-xs font-bold text-zinc-400 whitespace-nowrap">CHỌN ĐƠN VỊ:</Label>
+                      <Label className="text-xs font-bold text-zinc-400 whitespace-nowrap">CHỌN ĐƠN VỊ <span className="text-red-500">*</span>:</Label>
                       <Controller
                         name="selectedFactoryId"
                         control={control}
                         render={({ field }) => (
-                          <Select
-                            value={String(field.value || "")}
-                            onValueChange={(val) => field.onChange(val)}
-                          >
-                            <SelectTrigger className="h-10 bg-white border-zinc-200 min-w-[240px]">
-                              <SelectValue placeholder="Chọn nhà máy gia công" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {factories?.filter(f => f.is_active).map(f => (
-                                <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className="h-10 bg-white border-zinc-200 min-w-[240px] justify-between font-bold"
+                              >
+                                {factories?.find(f => String(f.id) === String(field.value))?.name || "Chọn nhà máy gia công"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                              <Command className="w-full">
+                                <CommandInput placeholder="Tìm nhà máy..." />
+                                <CommandList className="max-h-[300px] p-1">
+                                  <CommandEmpty className="py-6 text-center">Không thấy nhà máy</CommandEmpty>
+                                  <CommandGroup>
+                                    {factories?.filter(f => f.is_active).map(f => (
+                                      <CommandItem
+                                        key={f.id}
+                                        value={f.name}
+                                        onSelect={() => field.onChange(String(f.id))}
+                                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                      >
+                                        <span className="text-xs font-bold">{f.name}</span>
+                                        <Check
+                                          className={cn(
+                                            "ml-auto h-4 w-4 text-indigo-600",
+                                            String(field.value) === String(f.id) ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         )}
                       />
                       {selectedFactoryId && (
@@ -654,7 +972,7 @@ const PlanningFormDialog = React.memo(
                           <Cpu className="w-3 h-3 text-emerald-500" /> MÁY PHỤ TRÁCH
                         </span>
                         <div className="text-lg font-black text-zinc-950 mt-0.5">
-                          {selectedOp?.machine_name || (selectedOpId === "" ? "N/A" : "---")}
+                          {machines?.find(m => String(m.id) === String(selectedMachineId))?.name || selectedOp?.machine_names || selectedOp?.machine_name || (selectedOpId === "" ? "N/A" : "---")}
                         </div>
                       </div>
 
@@ -752,19 +1070,17 @@ const PlanningFormDialog = React.memo(
                               />
                             </div>
                             <div className="flex justify-center">
-                              <Input
-                                type="date"
-                                value={field.startDate}
-                                onChange={(e) => handleCase2Update(idx, { startDate: e.target.value })}
-                                className="h-7 w-28 text-[11px] font-bold p-1 border-none shadow-none bg-transparent group-hover:bg-white"
+                              <PremiumDatePicker
+                                date={field.startDate}
+                                onSelect={(val) => handleCase2Update(idx, { startDate: val })}
+                                className="h-7 w-28"
                               />
                             </div>
                             <div className="flex justify-center">
-                              <Input
-                                type="date"
-                                value={field.endDate}
-                                onChange={(e) => handleCase2Update(idx, { endDate: e.target.value })}
-                                className="h-7 w-28 text-[11px] font-bold p-1 border-none shadow-none bg-transparent group-hover:bg-white"
+                              <PremiumDatePicker
+                                date={field.endDate}
+                                onSelect={(val) => handleCase2Update(idx, { endDate: val })}
+                                className="h-7 w-28"
                               />
                             </div>
                           </div>
@@ -793,29 +1109,19 @@ const PlanningFormDialog = React.memo(
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-black uppercase text-zinc-400">{isFullOrderMode ? "Ngày bắt đầu (A)" : "Ngày bắt đầu"}</Label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                        <Input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => handleStartDateChange(e.target.value)}
-                          className="pl-10 h-11 bg-white border-zinc-200 font-bold"
-                        />
-                      </div>
+                      <PremiumDatePicker
+                        date={startDate}
+                        onSelect={handleStartDateChange}
+                      />
                     </div>
 
                     {(!selectedOp || isFullOrderMode) && (
                       <div className="space-y-1.5">
                         <Label className="text-[10px] font-black uppercase text-zinc-400">{isFullOrderMode ? "Ngày kết thúc (B)" : "Ngày kết thúc (để tính ĐM)"}</Label>
-                        <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                          <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setValue("endDate", e.target.value)}
-                            className="pl-10 h-11 bg-white border-zinc-200 font-bold"
-                          />
-                        </div>
+                        <PremiumDatePicker
+                          date={endDate}
+                          onSelect={(val) => setValue("endDate", val)}
+                        />
                       </div>
                     )}
                   </div>
@@ -835,7 +1141,7 @@ const PlanningFormDialog = React.memo(
                           <Plus className="w-3.5 h-3.5" /> Thêm ngày
                         </Button>
                       </div>
-                      <div className="divide-y divide-zinc-200/50">
+                      <div className="divide-y divide-zinc-200/50 max-h-64 overflow-y-auto">
                         {plannedDays.length === 0 ? (
                           <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
                             <AlertCircle className="w-8 h-8 mb-2 opacity-20" />
@@ -845,15 +1151,13 @@ const PlanningFormDialog = React.memo(
                           plannedDays.map((day, idx) => (
                             <div key={idx} className="flex items-center gap-4 px-4 py-3 bg-white group hover:bg-zinc-50/50 transition-colors">
                               <div className="w-[140px]">
-                                <Input
-                                  type="date"
-                                  value={day.date}
-                                  onChange={(e) => {
+                                <PremiumDatePicker
+                                  date={day.date}
+                                  onSelect={(val) => {
                                     const newDays = [...plannedDays];
-                                    newDays[idx] = { ...newDays[idx], date: e.target.value };
+                                    newDays[idx] = { ...newDays[idx], date: val };
                                     replaceDays(newDays);
                                   }}
-                                  className="h-9 border-none bg-transparent font-bold text-sm p-0 shadow-none focus-visible:ring-0"
                                 />
                               </div>
 
@@ -919,12 +1223,13 @@ const PlanningFormDialog = React.memo(
             <Button
               disabled={
                 !startDate ||
-                (isFullOrderMode ? !endDate : plannedDays.length === 0) ||
+                (isFullOrderMode ? !endDate : (plannedDays.length === 0 || !selectedOpId)) ||
+                (!isOutsourced ? !selectedMachineId : !selectedFactoryId) ||
                 isCreatePending ||
                 isUpdatePending
               }
               onClick={handleFormSubmit}
-              className="font-black px-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 h-11"
+              className="font-black px-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 h-11 disabled:opacity-50 disabled:bg-zinc-300 disabled:shadow-none transition-all"
             >
               {isCreatePending || isUpdatePending ? (
                 <>

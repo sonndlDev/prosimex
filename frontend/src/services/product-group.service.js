@@ -1,8 +1,8 @@
 import api from './api';
 
 export const productGroupService = {
-    getAll: async (factory_id = '') => {
-        const { data } = await api.get(`/product-groups?factory_id=${factory_id}`);
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/product-groups', { params });
         return data;
     },
     create: async (payload) => {

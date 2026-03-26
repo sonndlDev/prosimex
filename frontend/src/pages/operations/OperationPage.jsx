@@ -14,14 +14,23 @@ export default function OperationPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState(null);
+
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { name: "", description: "" },
   });
 
-  const { data: operations, isLoading, error } = useQuery({
-    queryKey: ["operations"],
-    queryFn: operationService.getAll,
+  const { data: operationsData, isLoading, error } = useQuery({
+    queryKey: ["operations", page, pageSize, search],
+    queryFn: () => operationService.getAll({ page, limit: pageSize, search }),
   });
+
+  const operations = operationsData?.data || [];
+  const totalItems = operationsData?.total || 0;
 
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["operations"] }); handleClose(); } };
   const createMutation = useMutation({
@@ -70,6 +79,13 @@ export default function OperationPage() {
         onEdit={handleOpen}
         onDelete={(op) => { if (window.confirm(`Xóa công đoạn "${op.name}"?`)) deleteMutation.mutate(op.id); }}
         onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công đoạn?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>

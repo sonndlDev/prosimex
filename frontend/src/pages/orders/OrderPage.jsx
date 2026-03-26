@@ -24,26 +24,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Plus, 
-  Trash2, 
-  Package, 
-  User, 
-  Calendar, 
-  MapPin, 
+import {
+  Plus,
+  Trash2,
+  Package,
+  User,
+  Calendar,
+  MapPin,
   FileText,
   AlertCircle,
   Loader2,
   CheckCircle2,
   Clock,
   XCircle,
-  Timer
+  Timer,
+  Check,
+  ChevronsUpDown,
+  Search,
+  Layers
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 
 const defaultValues = {
   order_code: "",
@@ -64,11 +83,17 @@ export default function OrderPage() {
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const {
     control,
     handleSubmit: rhfHandleSubmit,
     reset,
     watch,
+    setValue,
   } = useForm({
     defaultValues,
   });
@@ -82,28 +107,33 @@ export default function OrderPage() {
   // Queries
   const { data: customersData } = useQuery({
     queryKey: ["customers"],
-    queryFn: customerService.getAll,
+    queryFn: () => customerService.getAll({ limit: 1000 }),
   });
-  const customers = customersData?.data || customersData || [];
+  const customers = customersData?.data || [];
 
   const { data: productsData } = useQuery({
     queryKey: ["products"],
-    queryFn: () => productService.getAll(),
+    queryFn: () => productService.getAll({ limit: 1000 }),
   });
-  const products = productsData?.data || productsData || [];
+  const products = productsData?.data || [];
 
   const { data: productGroupsData } = useQuery({
     queryKey: ["productGroups"],
-    queryFn: () => productGroupService.getAll(),
+    queryFn: () => productGroupService.getAll({ limit: 1000 }),
   });
-  const productGroups = productGroupsData?.data || productGroupsData || [];
+  const productGroups = productGroupsData?.data || [];
 
   const {
     data: ordersData,
     isLoading,
     error,
-  } = useQuery({ queryKey: ["orders"], queryFn: orderService.getAll });
-  const orders = ordersData?.data || ordersData || [];
+  } = useQuery({ 
+    queryKey: ["orders", page, pageSize, search], 
+    queryFn: () => orderService.getAll({ page, limit: pageSize, search }) 
+  });
+  
+  const orders = ordersData?.data || [];
+  const totalItems = ordersData?.total || 0;
 
   // Mutations
   const mutationOpts = {
@@ -142,13 +172,13 @@ export default function OrderPage() {
   const getStatusBadge = (status) => {
     switch (status) {
       case "PLANNED":
-        return <Badge variant="primary" className="gap-1"><Timer className="w-3 h-3"/> PLANNED</Badge>;
+        return <Badge variant="primary" className="gap-1"><Timer className="w-3 h-3" /> PLANNED</Badge>;
       case "IN_PROGRESS":
-        return <Badge variant="warning" className="gap-1"><Clock className="w-3 h-3"/> IN PROGRESS</Badge>;
+        return <Badge variant="warning" className="gap-1"><Clock className="w-3 h-3" /> IN PROGRESS</Badge>;
       case "DONE":
-        return <Badge variant="success" className="gap-1"><CheckCircle2 className="w-3 h-3"/> DONE</Badge>;
+        return <Badge variant="success" className="gap-1"><CheckCircle2 className="w-3 h-3" /> DONE</Badge>;
       case "CANCELLED":
-        return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3"/> CANCELLED</Badge>;
+        return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> CANCELLED</Badge>;
       default:
         return <Badge variant="outline">DRAFT</Badge>;
     }
@@ -276,7 +306,7 @@ export default function OrderPage() {
             <Button
               variant="default"
               onClick={() => handleOpen()}
-              className="font-bold gap-2 h-10 px-6 shadow-sm"
+              className="font-bold gap-2 h-10 px-6 shadow-sm rounded-xl"
             >
               <Plus className="w-4 h-4" /> Thêm đơn hàng
             </Button>
@@ -289,15 +319,22 @@ export default function OrderPage() {
         onEdit={handleOpen}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl">
+        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl ">
           <form
             onSubmit={rhfHandleSubmit(onSubmit)}
             className="flex flex-col h-full bg-zinc-50/50"
           >
-            <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200">
+            <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200 shadow-sm z-10 sticky top-0">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-4">
                   <DialogTitle className="text-xl font-black tracking-tighter text-zinc-950 uppercase">
@@ -324,7 +361,7 @@ export default function OrderPage() {
                   <Button
                     type="submit"
                     disabled={createMutation.isPending || updateMutation.isPending}
-                    className="font-bold px-8 shadow-md h-10 min-w-[140px]"
+                    className="font-bold px-8 shadow-md h-10 min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white"
                   >
                     {createMutation.isPending || updateMutation.isPending ? (
                       <>
@@ -375,7 +412,7 @@ export default function OrderPage() {
                       <User className="w-4 h-4 text-blue-600" />
                       <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">KHÁCH HÀNG & PO</Label>
                     </div>
-                    
+
                     <div className="grid gap-5">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold">Khách hàng <span className="text-red-500">*</span></Label>
@@ -383,21 +420,47 @@ export default function OrderPage() {
                           name="customer_id"
                           control={control}
                           render={({ field }) => (
-                            <Select
-                              value={String(field.value || "")}
-                              onValueChange={field.onChange}
-                            >
-                              <SelectTrigger className="bg-white border-zinc-200 h-10">
-                                <SelectValue placeholder="Chọn khách hàng" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {customers?.map((c) => (
-                                  <SelectItem key={c.id} value={String(c.id)}>
-                                    {c.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn(
+                                            "w-full h-10 justify-between bg-white border-zinc-200 font-bold",
+                                            !field.value && "text-zinc-400 font-medium"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2 truncate">
+                                            <User className={cn("h-3.5 w-3.5 shrink-0", field.value ? "text-indigo-600" : "text-zinc-300")} />
+                                            <span className="truncate">
+                                                {field.value ? customers?.find(c => String(c.id) === String(field.value))?.name : "Chọn khách hàng"}
+                                            </span>
+                                        </div>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                    <Command className="w-full">
+                                        <CommandInput placeholder="Tìm khách hàng..." />
+                                        <CommandList className="max-h-64 p-1">
+                                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                            <CommandGroup>
+                                                {customers?.map((c) => (
+                                                    <CommandItem
+                                                        key={c.id}
+                                                        value={c.name}
+                                                        onSelect={() => field.onChange(String(c.id))}
+                                                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                    >
+                                                        <span className="text-xs font-bold">{c.name}</span>
+                                                        <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(c.id) ? "opacity-100" : "opacity-0")} />
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
                           )}
                         />
                       </div>
@@ -442,14 +505,11 @@ export default function OrderPage() {
                           name="received_date"
                           control={control}
                           render={({ field }) => (
-                            <div className="relative">
-                              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-                              <Input
-                                {...field}
-                                type="date"
-                                className="pl-10 bg-white border-zinc-200 h-10"
-                              />
-                            </div>
+                            <PremiumDatePicker
+                                date={field.value}
+                                onSelect={field.onChange}
+                                placeholder="Ngày nhận"
+                            />
                           )}
                         />
                       </div>
@@ -540,147 +600,199 @@ export default function OrderPage() {
               {/* 3. Product Selection */}
               <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-200 flex justify-between items-center">
+                  <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-200">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-blue-600" />
                       <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">DANH MỤC MÃ HÀNG & SỐ LƯỢNG</Label>
                     </div>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    {fields.length === 0 ? (
+                      <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
+                        <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
+                        <p className="text-sm font-medium text-zinc-400">Chưa có mã hàng nào được thêm.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 px-2 mb-2">
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">STT</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Nhóm mã</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Mã hàng</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right">Số lượng</span>
+                          <div />
+                        </div>
+                        {(() => {
+                          const watchedItems = watch("product_items") || [];
+                          return fields.map((field, index) => {
+                            const selectedProductIds = watchedItems
+                              .filter((_, i) => i !== index)
+                              .map((it) => String(it.product_id));
+
+                            const currentGroupId = watchedItems[index]?.product_group_id;
+
+                            return (
+                              <div
+                                key={field.id}
+                                className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 items-center p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
+                              >
+                                <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors pl-1">
+                                  {String(index + 1).padStart(2, '0')}
+                                </span>
+
+                                <Controller
+                                  name={`product_items.${index}.product_group_id`}
+                                  control={control}
+                                  render={({ field: f }) => (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          role="combobox"
+                                          className={cn(
+                                            "bg-white h-10 border-zinc-200 text-[11px] font-bold justify-between w-full px-3",
+                                            !f.value && "text-zinc-500 font-medium"
+                                          )}
+                                        >
+                                          <span className="truncate">
+                                            {f.value
+                                              ? productGroups.find(g => String(g.id) === String(f.value))?.name
+                                              : "Chọn nhóm..."}
+                                          </span>
+                                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                        </Button>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                        <Command className="w-full">
+                                          <CommandInput placeholder="Tìm nhóm mã hàng..." />
+                                          <CommandList className="max-h-[250px] p-1">
+                                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhóm nào</CommandEmpty>
+                                            <CommandGroup>
+                                              {productGroups.map((g) => (
+                                                <CommandItem
+                                                  key={g.id}
+                                                  value={g.name}
+                                                  onSelect={() => {
+                                                    f.onChange(String(g.id));
+                                                    setValue(`product_items.${index}.product_id`, "");
+                                                  }}
+                                                  className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 group-aria-selected:bg-indigo-100 group-aria-selected:text-indigo-600">
+                                                      {g.name.substring(0, 1)}
+                                                    </div>
+                                                    <span className="text-xs font-bold">{g.name}</span>
+                                                  </div>
+                                                  <Check
+                                                    className={cn(
+                                                      "h-3.5 w-3.5 text-indigo-600",
+                                                      String(f.value) === String(g.id) ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                  />
+                                                </CommandItem>
+                                              ))}
+                                            </CommandGroup>
+                                          </CommandList>
+                                        </Command>
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                />
+
+                                <Controller
+                                  name={`product_items.${index}.product_id`}
+                                  control={control}
+                                  render={({ field: f }) => {
+                                    const filteredProducts = products.filter(
+                                      (p) =>
+                                        (p.is_active || String(p.id) === String(f.value)) &&
+                                        String(p.product_group_id) === String(currentGroupId) &&
+                                        (!selectedProductIds.includes(String(p.id)) || String(p.id) === String(f.value))
+                                    );
+
+                                    return (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    disabled={!currentGroupId}
+                                                    className={cn(
+                                                        "w-full h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
+                                                        !f.value && "text-zinc-400 font-medium"
+                                                    )}
+                                                >
+                                                    <span className="truncate">
+                                                        {f.value ? products.find(p => String(p.id) === String(f.value))?.name : "Chọn mã hàng"}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                                <Command className="w-full">
+                                                    <CommandInput placeholder="Tìm mã hàng..." />
+                                                    <CommandList className="max-h-64 p-1">
+                                                        <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {filteredProducts.map((p) => (
+                                                                <CommandItem
+                                                                    key={p.id}
+                                                                    value={p.name}
+                                                                    onSelect={() => f.onChange(String(p.id))}
+                                                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                                >
+                                                                    <span className="text-xs font-bold">{p.name}</span>
+                                                                    <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(f.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    );
+                                  }}
+                                />
+
+                                <Controller
+                                  name={`product_items.${index}.quantity`}
+                                  control={control}
+                                  render={({ field: f }) => (
+                                    <Input
+                                      {...f}
+                                      type="number"
+                                      className="h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white"
+                                      placeholder="0"
+                                    />
+                                  )}
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() => remove(index)}
+                                  className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+
                     <Button
                       type="button"
-                      size="sm"
+                      variant="outline"
                       onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
-                      className="gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-bold h-8"
+                      className="w-full py-6 border-dashed border-zinc-200 hover:border-blue-300 hover:bg-blue-50/30 text-zinc-400 hover:text-blue-600 font-bold transition-all gap-2"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Thêm mã hàng
+                      <Plus className="w-4 h-4" /> Thêm mã hàng mới
                     </Button>
                   </div>
-                  
-                    <div className="p-6">
-                      {fields.length === 0 ? (
-                        <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
-                          <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
-                          <p className="text-sm font-medium text-zinc-400">Chưa có mã hàng nào được thêm.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 px-2 mb-2">
-                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">STT</span>
-                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Nhóm mã</span>
-                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Mã hàng</span>
-                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right">Số lượng</span>
-                            <div />
-                          </div>
-                          {(() => {
-                            const watchedItems = watch("product_items") || [];
-                            return fields.map((field, index) => {
-                              const selectedProductIds = watchedItems
-                                .filter((_, i) => i !== index)
-                                .map((it) => String(it.product_id));
-                              
-                              const currentGroupId = watchedItems[index]?.product_group_id;
-
-                              return (
-                                <div
-                                  key={field.id}
-                                  className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 items-center p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
-                                >
-                                  <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors pl-1">
-                                    {String(index + 1).padStart(2, '0')}
-                                  </span>
-                              
-                              <Controller
-                                name={`product_items.${index}.product_group_id`}
-                                control={control}
-                                render={({ field: f }) => (
-                                  <Select
-                                    value={String(f.value || "")}
-                                    onValueChange={(val) => {
-                                      f.onChange(val);
-                                      // Clear target product on group change
-                                      setValue(`product_items.${index}.product_id`, "");
-                                    }}
-                                  >
-                                    <SelectTrigger className="bg-white h-10 border-zinc-200 text-xs font-semibold">
-                                      <SelectValue placeholder="Chọn nhóm">
-                                        {productGroups.find(g => String(g.id) === String(f.value))?.name || f.value}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {productGroups.map((g) => (
-                                        <SelectItem key={g.id} value={String(g.id)} className="text-xs font-semibold">
-                                          {g.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-
-                              <Controller
-                                name={`product_items.${index}.product_id`}
-                                control={control}
-                                render={({ field: f }) => {
-                                  // Find current product if it's inactive or filtered out, so name still shows
-                                  const currentProduct = products.find(p => String(p.id) === String(f.value));
-                                  const filteredProducts = products.filter(
-                                    (p) =>
-                                      (p.is_active || String(p.id) === String(f.value)) &&
-                                      String(p.product_group_id) === String(currentGroupId) &&
-                                      (!selectedProductIds.includes(String(p.id)) || String(p.id) === String(f.value))
-                                  );
-
-                                  return (
-                                    <Select
-                                      disabled={!currentGroupId}
-                                      value={String(f.value || "")}
-                                      onValueChange={f.onChange}
-                                    >
-                                      <SelectTrigger className="bg-white h-10 border-zinc-200 text-xs font-semibold">
-                                        <SelectValue placeholder="Chọn mã hàng">
-                                          {currentProduct?.name || f.value}
-                                        </SelectValue>
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {filteredProducts.map((p) => (
-                                          <SelectItem key={p.id} value={String(p.id)} className="text-xs font-semibold">
-                                            {p.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  );
-                                }}
-                              />
-
-                              <Controller
-                                name={`product_items.${index}.quantity`}
-                                control={control}
-                                render={({ field: f }) => (
-                                  <Input
-                                    {...f}
-                                    type="number"
-                                    className="h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white"
-                                    placeholder="0"
-                                  />
-                                )}
-                              />
-
-                              <button
-                                type="button"
-                                onClick={() => remove(index)}
-                                className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                </CardContent>
+              </Card>
             </div>
           </form>
         </DialogContent>

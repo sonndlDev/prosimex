@@ -4,17 +4,19 @@ import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
-import { 
-  Plus, 
-  Search, 
-  Loader2, 
-  AlertCircle, 
-  ChevronLeft, 
+import {
+  Plus,
+  Search,
+  Loader2,
+  AlertCircle,
+  ChevronLeft,
   ChevronRight,
   Filter,
   Check,
   ChevronsUpDown,
-  X
+  X,
+  Timer,
+  Layers
 } from "lucide-react";
 
 // Shadcn UI
@@ -86,9 +88,9 @@ export default function PlanningPage() {
 
   const { data: allOrdersData } = useQuery({
     queryKey: ["orders"],
-    queryFn: orderService.getAll,
+    queryFn: () => orderService.getAll({ limit: 1000 }), // Lấy nhiều để filter
   });
-  const orders = allOrdersData || [];
+  const orders = allOrdersData?.data || [];
 
   // Calculates aggregate hours per machine per day
   const dailyMachineMetrics = useMemo(() => {
@@ -273,13 +275,13 @@ export default function PlanningPage() {
   }, [inlineEditDays, updateMutation, handleCancelInlineEdit]);
 
   const toggleOrderSelection = (id) => {
-    setSelectedOrderIds(prev => 
+    setSelectedOrderIds(prev =>
       prev.includes(id) ? prev.filter(oid => oid !== id) : [...prev, id]
     );
     setPage(0);
   };
 
-  const selectedOrdersDisplay = orders.filter(o => selectedOrderIds.includes(o.id));
+  const selectedOrdersDisplay = orders?.filter(o => selectedOrderIds.includes(o.id));
 
   // ─── Render ────────────────────────────────────────────
   if (isLoading && !plansData) {
@@ -311,7 +313,7 @@ export default function PlanningPage() {
           </h1>
           <p className="text-zinc-500 mt-1">Quản lý và điều phối các công đoạn sản xuất tại xưởng</p>
         </div>
-        
+
         <div className="flex gap-3 w-full md:w-auto">
           {/* Multi-select filter replacement */}
           <Popover open={openFilter} onOpenChange={setOpenFilter}>
@@ -322,25 +324,28 @@ export default function PlanningPage() {
                 <ChevronsUpDown className="w-4 h-4 opacity-50 ml-1" />
               </Button>
             } />
-            <PopoverContent className="w-[320px] p-0 shadow-xl border-zinc-200" align="end">
-              <Command>
-                <CommandInput placeholder="Tìm kiếm đơn hàng..." className="h-10" />
-                <CommandList className="max-h-[300px]">
-                  <CommandEmpty>Không tìm thấy đơn hàng.</CommandEmpty>
+            <PopoverContent className="w-[320px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="end">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm kiếm đơn hàng..." />
+                <CommandList className="max-h-[300px] p-1">
+                  <CommandEmpty className="py-6 text-center">
+                    <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không thấy đơn hàng</p>
+                  </CommandEmpty>
                   <CommandGroup>
                     {orders.map((order) => (
                       <CommandItem
                         key={order.id}
                         onSelect={() => toggleOrderSelection(order.id)}
-                        className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                       >
                         <div className={cn(
                           "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
-                          selectedOrderIds.includes(order.id) ? "bg-blue-600 border-blue-600" : "bg-white"
+                          selectedOrderIds.includes(order.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
                         )}>
                           {selectedOrderIds.includes(order.id) && <Check className="w-3 h-3 text-white" />}
                         </div>
-                        <span className="font-medium text-xs break-all leading-tight">{order.name}</span>
+                        <span className="font-bold text-xs break-all leading-tight">{order.name}</span>
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -464,9 +469,9 @@ export default function PlanningPage() {
                 <tr>
                   <td colSpan={16 + dateColumns.length} className="py-20 text-center text-zinc-400 bg-white">
                     {isLoading ? (
-                       <div className="flex items-center justify-center gap-2 italic">
-                         <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> Đang cập nhật danh sách...
-                       </div>
+                      <div className="flex items-center justify-center gap-2 italic">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> Đang cập nhật danh sách...
+                      </div>
                     ) : (
                       "Không tìm thấy kế hoạch sản xuất nào."
                     )}
@@ -485,8 +490,8 @@ export default function PlanningPage() {
             </p>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">Hiển thị</span>
-              <select 
-                value={rowsPerPage} 
+              <select
+                value={rowsPerPage}
                 onChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
                 className="text-xs font-bold bg-zinc-50 border border-zinc-200 rounded px-1.5 py-1 focus:ring-0 focus:border-zinc-300"
               >
@@ -494,24 +499,24 @@ export default function PlanningPage() {
               </select>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold text-zinc-500">
               Trang <span className="text-zinc-950">{page + 1}</span> / {totalPages || 1}
             </span>
             <div className="flex gap-1">
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 border-zinc-200"
                 disabled={page === 0}
                 onClick={() => setPage(p => p - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 border-zinc-200"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage(p => p + 1)}

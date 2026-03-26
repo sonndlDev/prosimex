@@ -2,26 +2,56 @@ import pool from '../../config/db.js'
 
 export const getMachines = async (req, res) => {
   try {
-    const { factory_id } = req.query
-    let query = `
+    const { factory_id, page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE m.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (factory_id) {
+      queryParams.push(factory_id);
+      whereClause += ` AND m.factory_id = $${queryParams.length}`;
+    }
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (m.name ILIKE $${queryParams.length} OR m.code ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM machines m 
+      LEFT JOIN factories f ON m.factory_id = f.id 
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
       SELECT m.*, f.name as factory_name 
       FROM machines m 
       LEFT JOIN factories f ON m.factory_id = f.id 
-      WHERE m.deleted_at IS NULL
-    `
-    const params = []
-
-    if (factory_id) {
-      query += ' AND m.factory_id = $1'
-      params.push(factory_id)
-    }
-
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+      ${whereClause}
+      ORDER BY m.created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving machines', error })
+    console.error("Get Machines Error:", error);
+    res.status(500).json({ message: "Error retrieving machines", error });
   }
-}
+};
 
 export const createMachine = async (req, res) => {
   try {

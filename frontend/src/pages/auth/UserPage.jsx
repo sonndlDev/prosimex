@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Shield, Trash2, AlertTriangle } from "lucide-react";
+import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, Search, UserPlus } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const AVAILABLE_PERMISSIONS = [
   { key: "planning", label: "Lập kế hoạch" },
@@ -41,8 +42,20 @@ export default function UserPage() {
   const watchRoleName = watch("role_name");
   const watchPermissions = watch("permissions");
 
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const { data: factories } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
-  const { data: users, isLoading: usersLoading, error: usersError } = useQuery({ queryKey: ["users"], queryFn: userService.getAll });
+  const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({ 
+    queryKey: ["users", page, pageSize, search], 
+    queryFn: () => userService.getAll({ page, limit: pageSize, search }) 
+  });
+  
+  const users = usersData?.data || [];
+  const totalItems = usersData?.total || 0;
+
   const { data: roles, isLoading: rolesLoading } = useQuery({ queryKey: ["roles"], queryFn: userService.getRoles });
 
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); handleClose(); } };
@@ -53,16 +66,19 @@ export default function UserPage() {
   const deleteRoleMutation = useMutation({ mutationFn: userService.deleteRole, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] }) });
 
   const columns = [
-    { id: "username", label: "Tên đăng nhập" },
-    { id: "full_name", label: "Tên hiển thị" },
-    { id: "role_name", label: "Vai trò", format: (v) => <Badge variant="outline" className="font-semibold">{v}</Badge> },
+    { id: "username", label: "Tài khoản", className: "font-bold text-indigo-700" },
+    { id: "full_name", label: "Họ và tên" },
+    { 
+      id: "role_name", 
+      label: "Vai trò", 
+      format: (v) => <Badge variant="outline" className="font-bold border-indigo-200 text-indigo-700 bg-indigo-50/50">{v}</Badge> 
+    },
     { id: "email", label: "Email" },
-    { id: "phone", label: "SĐT" },
-    {
+    { 
       id: "is_active", label: "Trạng thái",
       format: (val) => val
-        ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50">Hoạt động</Badge>
-        : <Badge variant="destructive">Ngừng</Badge>
+        ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-3 py-1 rounded-full">Hoạt động</Badge>
+        : <Badge variant="destructive" className="px-3 py-1 rounded-full">Tạm ngừng</Badge>
     },
   ];
 
@@ -84,110 +100,227 @@ export default function UserPage() {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
-        <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Quản lý Người dùng & Quyền</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setOpenRoleModal(true)} className="gap-2 font-semibold">
-            <Shield className="w-4 h-4" /> Quản lý Vai trò
+    <div className="space-y-6">
+      <div className="flex justify-between items-center flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản trị Hệ thống</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Phân quyền & Kiểm soát truy cập người dùng</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => setOpenRoleModal(true)} className="h-11 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
+            <Shield className="w-4 h-4 text-indigo-500" /> Vai trò (Roles)
           </Button>
-          <Button onClick={() => handleOpen()} className="gap-2 font-semibold">+ Thêm người dùng</Button>
+          <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
+            <UserPlus className="w-4 h-4" /> Thêm người dùng
+          </Button>
         </div>
       </div>
 
-      <GenericTable data={users} columns={columns} isLoading={usersLoading || rolesLoading} error={usersError}
-        onEdit={handleOpen}
-        onDelete={(u) => { if (window.confirm(`Xóa người dùng "${u.username}"?`)) deleteMutation.mutate(u.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} người dùng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
-      />
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+         <GenericTable 
+           data={users} 
+           columns={columns} 
+           isLoading={usersLoading || rolesLoading} 
+           error={usersError}
+           onEdit={handleOpen}
+           onDelete={(u) => { if (window.confirm(`Xóa người dùng "${u.username}"?`)) deleteMutation.mutate(u.id); }}
+           onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} người dùng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+           isServerSide={true}
+           totalItems={totalItems}
+           page={page}
+           pageSize={pageSize}
+           onPageChange={setPage}
+           onPageSizeChange={setPageSize}
+           onSearchChange={setSearch}
+         />
+      </div>
 
       {/* Create/Edit User Dialog */}
-      <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
-        <DialogContent className="sm:max-w-2xl">
+      <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden border-zinc-200 rounded-2xl">
           <form onSubmit={rhfHandleSubmit(onSubmit)}>
-            <DialogHeader>
-              <DialogTitle>{selectedUser ? "Chỉnh sửa người dùng" : "Thêm người dùng mới"}</DialogTitle>
+            <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
+              <DialogTitle className="text-xl font-black text-zinc-950 uppercase tracking-tight">
+                 {selectedUser ? "Cập nhật tài khoản" : "Tạo người dùng mới"}
+              </DialogTitle>
             </DialogHeader>
-            <div className="py-4 grid grid-cols-2 gap-6">
-              {/* Left: account info */}
-              <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Thông tin cá nhân</p>
-                <div className="space-y-1.5">
-                  <Label>Họ và tên</Label>
-                  <Controller name="full_name" control={control} render={({ field }) => <Input {...field} />} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1.5">
-                    <Label>SĐT</Label>
-                    <Controller name="phone" control={control} render={({ field }) => <Input {...field} />} />
+            <div className="p-0 flex flex-col md:flex-row h-[600px]">
+              {/* Left Column: Information */}
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto border-r border-zinc-100 bg-white">
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Thông tin cá nhân</p>
+                  <div className="space-y-2 group">
+                    <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">Họ và tên hiển thị</Label>
+                    <div className="relative">
+                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                       <Controller name="full_name" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" placeholder="VD: Nguyễn Văn A" />} />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Email</Label>
-                    <Controller name="email" control={control} render={({ field }) => <Input {...field} type="email" />} />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-zinc-500">Số điện thoại</Label>
+                      <div className="relative">
+                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                         <Controller name="phone" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" />} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-zinc-500">Địa chỉ Email</Label>
+                      <div className="relative">
+                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                         <Controller name="email" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" type="email" />} />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <Separator />
-                <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Tài khoản & Hệ thống</p>
-                <div className="space-y-1.5">
-                  <Label>Tên đăng nhập <span className="text-red-500">*</span></Label>
-                  <Controller name="username" control={control} render={({ field }) => <Input {...field} required disabled={!!selectedUser} />} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{selectedUser ? "Mật khẩu mới" : "Mật khẩu"}{!selectedUser && <span className="text-red-500"> *</span>}</Label>
-                  <Controller name="password" control={control} render={({ field }) => <Input {...field} type="password" required={!selectedUser} />} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Vai trò hệ thống <span className="text-red-500">*</span></Label>
-                  <Controller name="role_name" control={control} render={({ field }) => (
-                    <Select value={field.value} onValueChange={(v) => { field.onChange(v); if (v === "ADMIN") setValue("factory_id", ""); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{roles?.map(r => <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  )} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Gán nhà máy</Label>
-                  <Controller name="factory_id" control={control} render={({ field }) => (
-                    <Select value={String(field.value || "")} onValueChange={field.onChange} disabled={watchRoleName === "ADMIN"}>
-                      <SelectTrigger><SelectValue placeholder="Không gán / Tất cả" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Không gán / Tất cả</SelectItem>
-                        {factories?.filter(f => f.is_active).map(f => <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )} />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Label>Đang hoạt động</Label>
-                  <Controller name="is_active" control={control} render={({ field }) => (
-                    <input type="checkbox" className="w-4 h-4 rounded accent-zinc-950" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
-                  )} />
+                <Separator className="bg-zinc-50" />
+
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Xác thực hệ thống</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 group">
+                      <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">Tên truy cập <span className="text-red-500">*</span></Label>
+                      <Controller name="username" control={control} render={({ field }) => <Input {...field} required disabled={!!selectedUser} className="h-11 rounded-xl border-zinc-200 font-bold disabled:opacity-50" />} />
+                    </div>
+                    <div className="space-y-2 group">
+                      <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">{selectedUser ? "Đổi mật khẩu" : "Mật khẩu"} {!selectedUser && <span className="text-red-500">*</span>}</Label>
+                      <div className="relative">
+                         <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                         <Controller name="password" control={control} render={({ field }) => <Input {...field} type="password" required={!selectedUser} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" />} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-zinc-500">Vai trò chính <span className="text-red-500">*</span></Label>
+                      <Controller name="role_name" control={control} render={({ field }) => (
+                         <Popover>
+                            <PopoverTrigger asChild>
+                               <Button variant="outline" className="w-full h-11 justify-between text-xs font-bold border-zinc-200 rounded-xl hover:border-indigo-300 bg-white">
+                                  {field.value || "Chọn vai trò..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                               </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-zinc-100 overflow-hidden" align="start">
+                               <Command>
+                                  <CommandInput placeholder="Tìm vai trò..." />
+                                  <CommandList>
+                                     <CommandEmpty className="py-4 text-center text-xs text-zinc-400 font-bold">Không thấy</CommandEmpty>
+                                     <CommandGroup>
+                                        {roles?.map(r => (
+                                          <CommandItem
+                                            key={r.id}
+                                            value={r.name}
+                                            onSelect={() => { field.onChange(r.name); if (r.name === "ADMIN") setValue("factory_id", ""); }}
+                                            className="px-3 py-2 cursor-pointer font-bold text-xs"
+                                          >
+                                             {r.name}
+                                             <Check className={cn("ml-auto h-4 w-4 text-indigo-600", field.value === r.name ? "opacity-100" : "opacity-0")} />
+                                          </CommandItem>
+                                        ))}
+                                     </CommandGroup>
+                                  </CommandList>
+                               </Command>
+                            </PopoverContent>
+                         </Popover>
+                      )} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-zinc-500">Gán vào xưởng</Label>
+                      <Controller name="factory_id" control={control} render={({ field }) => (
+                         <Popover>
+                            <PopoverTrigger asChild>
+                               <Button variant="outline" disabled={watchRoleName === "ADMIN"} className="w-full h-11 justify-between text-xs font-bold border-zinc-200 rounded-xl hover:border-indigo-300 bg-white disabled:bg-zinc-50">
+                                  <div className="flex items-center gap-2 overflow-hidden truncate">
+                                     <Home className="h-4 w-4 text-zinc-300" />
+                                     {factories?.find(f => String(f.id) === String(field.value))?.name || "Tất cả / Quản trị"}
+                                  </div>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                               </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-zinc-100 overflow-hidden" align="start">
+                               <Command>
+                                  <CommandInput placeholder="Tìm xưởng..." />
+                                  <CommandList>
+                                     <CommandEmpty className="py-4 text-center text-xs text-zinc-400 font-bold">Không thấy</CommandEmpty>
+                                     <CommandGroup>
+                                        <CommandItem value="" onSelect={() => field.onChange("")} className="px-3 py-2 font-bold text-xs">Phạm vi công ty</CommandItem>
+                                        {factories?.filter(f => f.is_active).map(f => (
+                                          <CommandItem
+                                            key={f.id}
+                                            value={f.name}
+                                            onSelect={() => field.onChange(String(f.id))}
+                                            className="px-3 py-2 cursor-pointer font-bold text-xs"
+                                          >
+                                             {f.name}
+                                             <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(f.id) ? "opacity-100" : "opacity-0")} />
+                                          </CommandItem>
+                                        ))}
+                                     </CommandGroup>
+                                  </CommandList>
+                               </Command>
+                            </PopoverContent>
+                         </Popover>
+                      )} />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 transition-all hover:bg-zinc-100/50">
+                    <Controller name="is_active" control={control} render={({ field }) => (
+                      <input type="checkbox" id="user_active" className="w-5 h-5 rounded accent-indigo-600 cursor-pointer" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
+                    )} />
+                    <Label htmlFor="user_active" className="text-[11px] font-black uppercase text-zinc-600 cursor-pointer">Tài khoản này đang được phép truy cập hệ thống</Label>
+                  </div>
                 </div>
               </div>
 
-              {/* Right: permissions */}
-              <div className="space-y-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Phân quyền menu truy cập</p>
-                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 max-h-[360px] overflow-y-auto space-y-2">
-                  {AVAILABLE_PERMISSIONS.map(p => (
-                    <label key={p.key} className="flex items-center gap-3 cursor-pointer group py-1">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 rounded accent-zinc-950"
-                        checked={(watchPermissions || []).includes(p.key)}
-                        onChange={() => togglePermission(p.key)}
-                      />
-                      <span className="text-sm font-medium text-zinc-700 group-hover:text-zinc-950">{p.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-zinc-400">* Admin mặc định có tất cả quyền</p>
+              {/* Right Column: Permissions */}
+              <div className="w-full md:w-[320px] bg-zinc-50 p-6 overflow-y-auto space-y-4">
+                 <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Danh mục truy cập</p>
+                    <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Lựa chọn</Badge>
+                 </div>
+                 <div className="grid gap-2">
+                    {AVAILABLE_PERMISSIONS.map(p => (
+                      <label 
+                        key={p.key} 
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group",
+                          (watchPermissions || []).includes(p.key) 
+                            ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" 
+                            : "bg-transparent border-transparent hover:border-zinc-200"
+                        )}
+                      >
+                         <input
+                           type="checkbox"
+                           className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer"
+                           checked={(watchPermissions || []).includes(p.key)}
+                           onChange={() => togglePermission(p.key)}
+                         />
+                         <span className={cn(
+                            "text-xs font-bold transition-colors",
+                            (watchPermissions || []).includes(p.key) ? "text-indigo-900" : "text-zinc-500 group-hover:text-zinc-900"
+                         )}>
+                            {p.label}
+                         </span>
+                      </label>
+                    ))}
+                 </div>
+                 <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-3 items-start mt-4">
+                    <AlertTriangle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold text-indigo-700 leading-relaxed italic">
+                       * Lưu ý: Tài khoản Admin sẽ mặc định có toàn bộ quyền truy cập danh mục hệ thống.
+                    </p>
+                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleClose}>Hủy</Button>
-              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>Lưu thay đổi</Button>
+            <DialogFooter className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
+              <Button type="button" variant="ghost" onClick={handleClose} className="rounded-xl font-bold">Hủy bỏ</Button>
+              <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="rounded-xl px-10 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100">
+                {selectedUser ? "Cập nhật tài khoản" : "Khởi tạo tài khoản"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -195,56 +328,58 @@ export default function UserPage() {
 
       {/* Role Management Dialog */}
       <Dialog open={openRoleModal} onOpenChange={setOpenRoleModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-blue-600" /> Quản lý Vai trò Hệ thống
+        <DialogContent className="max-w-md p-0 overflow-hidden border-zinc-200 rounded-2xl">
+          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
+            <DialogTitle className="flex items-center gap-2 text-lg font-black text-zinc-950 uppercase tracking-tight">
+              <Shield className="w-5 h-5 text-indigo-600" /> Vai trò Hệ thống
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="p-6 space-y-6">
             <div className="flex gap-2">
               <Input
-                placeholder="Nhập tên vai trò (VD: MANAGER...)"
+                placeholder="VD: QUẢN LÝ XƯỞNG..."
                 value={newRoleName}
                 onChange={e => setNewRoleName(e.target.value.toUpperCase())}
-                className="flex-1"
+                className="h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500"
               />
               <Button
                 onClick={() => newRoleName.trim() && createRoleMutation.mutate({ name: newRoleName.trim() })}
                 disabled={!newRoleName.trim() || createRoleMutation.isPending}
+                className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold"
               >
                 Thêm
               </Button>
             </div>
-            <Separator />
-            <div className="space-y-1 max-h-72 overflow-y-auto">
+            <Separator className="bg-zinc-100" />
+            <div className="space-y-2 max-h-72 overflow-y-auto">
               {roles?.map(role => (
-                <div key={role.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-zinc-950">{role.name}</span>
-                    <Badge variant={role.is_system ? "secondary" : "outline"} className="text-xs">
-                      {role.is_system ? "Hệ thống" : "Tùy chỉnh"}
+                <div key={role.id} className="flex items-center justify-between p-3 rounded-xl border border-transparent hover:border-zinc-100 hover:bg-zinc-50 transition-all">
+                  <div className="flex items-center gap-3">
+                    <span className="font-black text-sm text-zinc-950">{role.name}</span>
+                    <Badge variant={role.is_system ? "secondary" : "outline"} className={cn("text-[9px] uppercase font-black px-2 py-0.5", role.is_system ? "bg-zinc-200" : "bg-white border-indigo-100 text-indigo-600")}>
+                      {role.is_system ? "Mặc định" : "Tùy chỉnh"}
                     </Badge>
                   </div>
-                  <button
-                    onClick={() => { if (!role.is_system && window.confirm(`Xóa vai trò "${role.name}"?`)) deleteRoleMutation.mutate(role.id); }}
-                    disabled={role.is_system}
-                    className="p-1.5 rounded-md text-zinc-300 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {!role.is_system && (
+                    <button
+                      onClick={() => { if (window.confirm(`Xóa vai trò "${role.name}"?`)) deleteRoleMutation.mutate(role.id); }}
+                      className="p-2 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="flex items-start gap-2 rounded-lg bg-orange-50 border border-orange-100 p-3">
-              <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-orange-700 font-medium leading-relaxed">
-                Khi xóa vai trò tùy chỉnh, tất cả người dùng sẽ chuyển về <strong>DEFAULT_USER</strong>.
+            <div className="flex items-start gap-3 rounded-xl bg-orange-50 border border-orange-100 p-4">
+              <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-orange-700 font-bold leading-relaxed">
+                Khi xóa một vai trò đang được sử dụng, hệ thống sẽ tự động gán tài khoản đó về vai trò <strong>DEFAULT_USER</strong> để đảm bảo an toàn.
               </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenRoleModal(false)}>Đóng</Button>
+          <DialogFooter className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 uppercase tracking-widest text-[10px]">
+              <p className="text-zinc-400 font-bold text-center w-full">Vui lòng quản lý vai trò cẩn trọng.</p>
           </DialogFooter>
         </DialogContent>
       </Dialog>

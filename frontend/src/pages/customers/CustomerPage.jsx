@@ -12,14 +12,23 @@ export default function CustomerPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { code: "", name: "", contact_info: "" },
   });
 
-  const { data: customers, isLoading, error } = useQuery({
-    queryKey: ["customers"],
-    queryFn: customerService.getAll,
+  const { data: customersData, isLoading, error } = useQuery({
+    queryKey: ["customers", page, pageSize, search],
+    queryFn: () => customerService.getAll({ page, limit: pageSize, search }),
   });
+
+  const customers = customersData?.data || [];
+  const totalItems = customersData?.total || 0;
 
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["customers"] }); handleClose(); } };
   const createMutation = useMutation({ mutationFn: customerService.create, ...mutationOpts });
@@ -52,6 +61,13 @@ export default function CustomerPage() {
         onEdit={handleOpen}
         onDelete={(c) => { if (window.confirm(`Xóa khách hàng "${c.name}"?`)) deleteMutation.mutate(c.id); }}
         onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} khách hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>

@@ -13,14 +13,23 @@ export default function WorkerPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
+
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { code: "", name: "", phone: "", factory_id: "", is_active: true },
   });
 
-  const { data: workers = [], isLoading } = useQuery({
-    queryKey: ["workers"],
-    queryFn: workerService.getAll,
+  const { data: workersData, isLoading, error } = useQuery({
+    queryKey: ["workers", page, pageSize, search],
+    queryFn: () => workerService.getAll({ page, limit: pageSize, search }),
   });
+
+  const workers = workersData?.data || [];
+  const totalItems = workersData?.total || 0;
 
   const createMutation = useMutation({ mutationFn: workerService.create, onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); } });
   const updateMutation = useMutation({ mutationFn: (data) => workerService.update(data.id, data.payload), onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); } });
@@ -67,6 +76,13 @@ export default function WorkerPage() {
         onDelete={(row) => { if (window.confirm("Bạn có chắc muốn xóa công nhân này?")) deleteMutation.mutate(row.id); }}
         onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công nhân?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
         isLoading={isLoading}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) setOpenModal(false); }}>

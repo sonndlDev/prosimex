@@ -3,17 +3,51 @@ import pool from '../../config/db.js'
 
 export const getUsers = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT u.id, u.username, u.full_name, u.phone, u.email, u.role_id, r.name as role_name, u.factory_id, u.is_active, u.created_at, u.permissions
-             FROM users u
-             JOIN roles r ON u.role_id = r.id
-             WHERE u.deleted_at IS NULL`
-    )
-    res.json(result.rows)
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE u.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (u.username ILIKE $${queryParams.length} OR u.full_name ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM users u
+      JOIN roles r ON u.role_id = r.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
+      SELECT u.id, u.username, u.full_name, u.phone, u.email, u.role_id, r.name as role_name, u.factory_id, u.is_active, u.created_at, u.permissions
+      FROM users u
+      JOIN roles r ON u.role_id = r.id
+      ${whereClause}
+      ORDER BY u.created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Internal server error' })
+    console.error("Get Users Error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const createRole = async (req, res) => {
   try {

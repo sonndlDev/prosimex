@@ -2,19 +2,49 @@ import pool from '../../config/db.js'
 
 export const getProductGroups = async (req, res) => {
   try {
-    const { factory_id } = req.query
-    let query = 'SELECT * FROM product_groups WHERE deleted_at IS NULL'
-    const params = []
+    const { factory_id, page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE deleted_at IS NULL";
+    const queryParams = [];
+
     if (factory_id) {
-      query += ' AND factory_id = $1'
-      params.push(factory_id)
+      queryParams.push(factory_id);
+      whereClause += ` AND factory_id = $${queryParams.length}`;
     }
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (name ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `SELECT COUNT(*) FROM product_groups ${whereClause}`;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
+      SELECT * FROM product_groups 
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving product groups', error })
+    console.error("Get Product Groups Error:", error);
+    res.status(500).json({ message: "Error retrieving product groups", error });
   }
-}
+};
 
 export const createProductGroup = async (req, res) => {
   try {
@@ -66,10 +96,10 @@ export const getProductGroupOperations = async (req, res) => {
   try {
     const { id } = req.params // product_group_id
     const result = await pool.query(
-      `SELECT pgo.*, o.name as operation_name, m.name as machine_name 
+      `SELECT pgo.*, o.name as operation_name, 
+              (SELECT string_agg(name, ', ') FROM machines WHERE id = ANY(pgo.machine_ids)) as machine_names
              FROM product_group_operations pgo
              LEFT JOIN operations o ON pgo.operation_id = o.id
-             LEFT JOIN machines m ON pgo.machine_id = m.id
              WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
              ORDER BY pgo.sequence_order ASC`,
       [id]
@@ -83,7 +113,7 @@ export const getProductGroupOperations = async (req, res) => {
 export const createProductGroupOperation = async (req, res) => {
   try {
     const { id } = req.params // product_group_id
-    const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
+    const { operation_id, machine_id, machine_ids, sequence_order, dinh_muc } = req.body
 
     // 1. Check for duplicate operation_id in the same group
     const duplicateCheck = await pool.query(
@@ -107,11 +137,14 @@ export const createProductGroupOperation = async (req, res) => {
       return res.status(400).json({ message: 'Công đoạn có tên này đã tồn tại trong quy trình. Vui lòng không thêm trùng tên.' })
     }
 
+    const m_ids = machine_ids || (machine_id ? [parseInt(machine_id)] : []);
+    const primary_m_id = m_ids.length > 0 ? m_ids[0] : null;
+
     const result = await pool.query(
       `INSERT INTO product_group_operations 
-             (product_group_id, operation_id, machine_id, sequence_order, dinh_muc) 
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [id, operation_id, machine_id || null, sequence_order, dinh_muc || null]
+             (product_group_id, operation_id, machine_id, machine_ids, sequence_order, dinh_muc) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [id, operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -139,7 +172,7 @@ export const deleteProductGroupOperation = async (req, res) => {
 export const updateProductGroupOperation = async (req, res) => {
   try {
     const { id, operationId } = req.params
-    const { operation_id, machine_id, sequence_order, dinh_muc } = req.body
+    const { operation_id, machine_id, machine_ids, sequence_order, dinh_muc } = req.body
 
     // If changing operation_id, check for duplicate ID and NAME
     if (operation_id) {
@@ -165,16 +198,20 @@ export const updateProductGroupOperation = async (req, res) => {
       }
     }
 
+    const m_ids = machine_ids || (machine_id ? [parseInt(machine_id)] : []);
+    const primary_m_id = m_ids.length > 0 ? m_ids[0] : null;
+
     const result = await pool.query(
       `UPDATE product_group_operations 
        SET operation_id = COALESCE($1, operation_id),
            machine_id = $2,
-           sequence_order = COALESCE($3, sequence_order),
-           dinh_muc = $4,
+           machine_ids = $3,
+           sequence_order = COALESCE($4, sequence_order),
+           dinh_muc = $5,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 AND product_group_id = $6 AND deleted_at IS NULL
+       WHERE id = $6 AND product_group_id = $7 AND deleted_at IS NULL
        RETURNING *`,
-      [operation_id, machine_id || null, sequence_order, dinh_muc || null, operationId, id]
+      [operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null, operationId, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
     res.json(result.rows[0])

@@ -8,7 +8,7 @@ import { dailyTicketService } from "../../services/daily-ticket.service";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
@@ -16,20 +16,24 @@ import { Plus, Printer, PencilLine, Trash2, BarChart2 } from "lucide-react";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import DailyTicketReportDialog from "./components/DailyTicketReportDialog";
+import GenericTable from "@/components/GenericTable";
 
 export default function DailyTicketPage() {
   const queryClient = useQueryClient();
-  const [page] = useState(1);
-  const rowsPerPage = 10;
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["daily-tickets", page, rowsPerPage],
-    queryFn: () => dailyTicketService.getAll({ page, limit: rowsPerPage }),
+  const { data: ticketData, isLoading, error } = useQuery({
+    queryKey: ["daily-tickets", page, pageSize],
+    queryFn: () => dailyTicketService.getAll({ page, limit: pageSize }),
   });
+
+  const tickets = ticketData?.data || [];
+  const totalItems = ticketData?.total || 0;
 
   const deleteMutation = useMutation({
     mutationFn: dailyTicketService.delete,
@@ -57,6 +61,41 @@ export default function DailyTicketPage() {
     });
   };
 
+  const columns = [
+    {
+      id: "id",
+      label: "Mã số phiếu",
+      className: "font-bold text-zinc-950",
+      format: (val, row) => `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${val}`
+    },
+    {
+      id: "ticket_date",
+      label: "Ngày sản xuất",
+      className: "font-semibold text-zinc-700",
+      format: (val) => DateTime.fromISO(val).toFormat("dd/MM/yyyy")
+    },
+    {
+      id: "status",
+      label: "Trạng thái",
+      format: (val) => val === "COMPLETED" ? (
+        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 font-semibold">
+          Đã nhập kết quả
+        </Badge>
+      ) : (
+        <Badge variant="secondary" className="font-semibold">
+          Mới/Bản nháp
+        </Badge>
+      )
+    },
+    { id: "created_by_name", label: "Người lập", className: "text-zinc-600" },
+    {
+      id: "created_at",
+      label: "Ngày tạo",
+      className: "text-zinc-500 text-sm",
+      format: (val) => DateTime.fromISO(val).toFormat("dd/MM/yyyy HH:mm")
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -70,108 +109,73 @@ export default function DailyTicketPage() {
             <BarChart2 className="w-4 h-4" />
             Báo cáo KH vs TT
           </Button>
-          <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="gap-2 font-semibold">
+          <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="gap-2 font-semibold bg-indigo-600 hover:bg-indigo-700">
             <Plus className="w-4 h-4" />
             Tạo Phiếu Mới
           </Button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-zinc-200 overflow-hidden bg-white shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="w-[180px] font-semibold">Mã số phiếu</TableHead>
-              <TableHead className="font-semibold">Ngày sản xuất</TableHead>
-              <TableHead className="font-semibold">Trạng thái</TableHead>
-              <TableHead className="font-semibold">Người lập</TableHead>
-              <TableHead className="font-semibold">Ngày tạo</TableHead>
-              <TableHead className="text-center font-semibold">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: 6 }).map((_, j) => (
-                    <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : data?.data?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-zinc-400 font-medium">
-                  Chưa có phiếu sản xuất nào.
-                </TableCell>
-              </TableRow>
-            ) : (
-              data?.data?.map((item) => (
-                <TableRow key={item.id} className="cursor-default">
-                  <TableCell className="font-bold text-zinc-950">
-                    {DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}_#{item.id}
-                  </TableCell>
-                  <TableCell className="font-semibold text-zinc-700">
-                    {DateTime.fromISO(item.ticket_date).toFormat("dd/MM/yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    {item.status === "COMPLETED" ? (
-                      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 font-semibold">
-                        Đã nhập kết quả
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="font-semibold">
-                        Mới/Bản nháp
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-zinc-600">{item.created_by_name}</TableCell>
-                  <TableCell className="text-zinc-500 text-sm">
-                    {DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center gap-1">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => { setSelectedTicketId(item.id); setIsPrintOpen(true); }}
-                            className="p-2 rounded-md text-zinc-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>In Phiếu</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => { setSelectedTicketId(item.id); setIsFormOpen(true); }}
-                            className="p-2 rounded-md text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <PencilLine className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Chỉnh sửa phiếu</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            disabled={item.status === "COMPLETED"}
-                            className="p-2 rounded-md text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Xoá phiếu</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+      {/* Table with GenericTable */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <GenericTable
+          data={tickets}
+          columns={columns}
+          isLoading={isLoading}
+          error={error}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          renderActions={(item) => (
+            <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setSelectedTicketId(item.id); setIsPrintOpen(true); }}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">In Phiếu</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => { setSelectedTicketId(item.id); setIsFormOpen(true); }}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
+                    >
+                      <PencilLine className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Chỉnh sửa phiếu</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      disabled={item.status === "COMPLETED"}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xoá phiếu</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
+        />
       </div>
 
       {isFormOpen && (

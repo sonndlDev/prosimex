@@ -63,13 +63,39 @@ export default function ProductionOutputPage() {
   }, [ticket, replace, searchDate]);
 
   const handleSearch = () => {
-    if (!searchTicketId || !searchDate) {
-      toast.warning("Vui lòng nhập Ngày và Mã số phiếu!");
+    if (!searchTicketId) {
+      toast.warning("Vui lòng nhập mã số phiếu!");
       return;
     }
-    const parts = searchTicketId.split("_#");
-    const idToFetch = parts.length > 1 ? parts[1] : searchTicketId;
-    setActiveTicketId(idToFetch);
+
+    let finalId = searchTicketId;
+    let finalDate = searchDate;
+
+    // Handle new format: YYYYMMDD + ID (e.g., 202603268)
+    // We expect at least 9 characters (8 for date + at least 1 for ID)
+    if (searchTicketId.length >= 9 && /^\d+$/.test(searchTicketId)) {
+      const datePart = searchTicketId.substring(0, 8);
+      const idPart = searchTicketId.substring(8);
+      
+      const parsedDate = DateTime.fromFormat(datePart, "yyyyMMdd");
+      if (parsedDate.isValid) {
+        finalDate = parsedDate.toISODate();
+        finalId = idPart;
+        // Sync the date picker
+        setSearchDate(finalDate);
+      }
+    } else if (searchTicketId.includes("_#")) {
+      // Legacy format support
+      const parts = searchTicketId.split("_#");
+      finalId = parts[1];
+    }
+
+    if (!finalDate) {
+      toast.warning("Vui lòng chọn ngày sản xuất!");
+      return;
+    }
+
+    setActiveTicketId(finalId);
   };
 
   const updateMutation = useMutation({
@@ -97,7 +123,7 @@ export default function ProductionOutputPage() {
   return (
     <div className="space-y-6">
       <Toaster position="top-right" richColors />
-      
+
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-zinc-950">Nhập Sản Lượng / Kết Quả Sản Xuất</h2>
         <p className="text-zinc-500 font-medium">Vui lòng nhập Ngày và Mã số phiếu sản xuất để lấy danh sách công đoạn.</p>
@@ -119,7 +145,7 @@ export default function ProductionOutputPage() {
               <Label htmlFor="ticketId">Mã số phiếu</Label>
               <Input
                 id="ticketId"
-                placeholder="VD: 20260325_#5"
+                placeholder="VD: 202603268"
                 value={searchTicketId}
                 onChange={(e) => setSearchTicketId(e.target.value)}
                 onKeyDown={(e) => {
@@ -149,7 +175,7 @@ export default function ProductionOutputPage() {
           <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
             <div>
               <h3 className="font-bold text-lg text-zinc-950">
-                Phiếu Sản Xuất {DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}_#{ticket.id}
+                Phiếu Sản Xuất {DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}{ticket.id}
               </h3>
               <p className="text-sm text-zinc-500 font-medium">Người lập: {ticket.created_by_name}</p>
             </div>

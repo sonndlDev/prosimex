@@ -15,14 +15,23 @@ export default function FactoryPage() {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedFactory, setSelectedFactory] = useState(null);
+
+  // Pagination & Filter State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [search, setSearch] = useState("");
+
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { name: "", is_active: true },
   });
 
-  const { data: factories, isLoading, error } = useQuery({
-    queryKey: ["factories"],
-    queryFn: factoryService.getAll,
+  const { data: factoriesData, isLoading, error } = useQuery({
+    queryKey: ["factories", page, pageSize, search],
+    queryFn: () => factoryService.getAll({ page, limit: pageSize, search }),
   });
+
+  const factories = factoriesData?.data || [];
+  const totalItems = factoriesData?.total || 0;
 
   const mutationOpts = {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); handleClose(); },
@@ -70,6 +79,13 @@ export default function FactoryPage() {
         onEdit={handleOpen}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
+        isServerSide={true}
+        totalItems={totalItems}
+        page={page}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        onSearchChange={setSearch}
       />
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>

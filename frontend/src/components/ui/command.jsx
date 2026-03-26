@@ -60,20 +60,15 @@ function CommandInput({
   ...props
 }) {
   return (
-    <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup
-        className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
-        <CommandPrimitive.Input
-          data-slot="command-input"
-          className={cn(
-            "w-full text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-            className
-          )}
-          {...props} />
-        <InputGroupAddon>
-          <SearchIcon className="size-4 shrink-0 opacity-50" />
-        </InputGroupAddon>
-      </InputGroup>
+    <div data-slot="command-input-wrapper" className="flex items-center border-b border-zinc-100 bg-zinc-50/50 px-3 h-10">
+      <SearchIcon className="size-4 shrink-0 opacity-40 text-zinc-950 mr-2" />
+      <CommandPrimitive.Input
+        data-slot="command-input"
+        className={cn(
+          "flex h-10 w-full rounded-md bg-transparent py-3 text-xs outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 font-bold",
+          className
+        )}
+        {...props} />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import api from './api';
 
 export const orderService = {
-    getAll: async () => {
-        const { data } = await api.get('/orders');
+    getAll: async (params = {}) => {
+        const { data } = await api.get('/orders', { params });
         return data;
     },
     create: async (payload) => {

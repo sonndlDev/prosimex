@@ -10,8 +10,25 @@ import {
     Loader2, 
     AlertCircle,
     LayoutDashboard,
-    Filter
+    Filter,
+    Check,
+    ChevronsUpDown,
+    Factory
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 // Shadcn UI
 import { Button } from "@/components/ui/button";
@@ -93,16 +110,62 @@ export default function SchedulePage() {
                 
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative flex-1 md:flex-none">
-                        <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 z-10" />
-                        <Select value={factoryId} onValueChange={setFactoryId}>
-                            <SelectTrigger className="pl-10 h-10 w-[240px] bg-white border-zinc-200 font-semibold shadow-sm">
-                                <SelectValue placeholder="Lọc theo nhà máy" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tất cả nhà máy</SelectItem>
-                                {factories?.map(f => <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className="w-[240px] h-10 justify-between bg-white border-zinc-200 font-bold shadow-sm"
+                                >
+                                    <div className="flex items-center gap-2 truncate">
+                                        <Factory className="h-4 w-4 text-indigo-500 shrink-0" />
+                                        <span className="truncate">
+                                            {factoryId === 'all' ? "Tất cả nhà máy" : factories?.find(f => String(f.id) === String(factoryId))?.name}
+                                        </span>
+                                    </div>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[240px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                <Command className="w-full">
+                                    <CommandInput placeholder="Tìm nhà máy..." />
+                                    <CommandList className="max-h-[300px] p-1">
+                                        <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhà máy</CommandEmpty>
+                                        <CommandGroup>
+                                            <CommandItem
+                                                value="all"
+                                                onSelect={() => setFactoryId('all')}
+                                                className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                            >
+                                                <span className="text-xs font-bold">Tất cả nhà máy</span>
+                                                <Check
+                                                    className={cn(
+                                                        "h-4 w-4 text-indigo-600",
+                                                        factoryId === 'all' ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                />
+                                            </CommandItem>
+                                            {factories?.map((f) => (
+                                                <CommandItem
+                                                    key={f.id}
+                                                    value={f.name}
+                                                    onSelect={() => setFactoryId(String(f.id))}
+                                                    className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                >
+                                                    <span className="text-xs font-bold">{f.name}</span>
+                                                    <Check
+                                                        className={cn(
+                                                            "h-4 w-4 text-indigo-600",
+                                                            String(factoryId) === String(f.id) ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     </div>
                 </div>
             </div>

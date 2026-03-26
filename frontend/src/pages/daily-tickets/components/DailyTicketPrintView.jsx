@@ -63,7 +63,7 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
 
   const ticketDate = ticket ? DateTime.fromISO(ticket.ticket_date).toFormat("dd/MM/yyyy") : "";
   const firstMachine = ticket?.items?.[0]?.pgo_machine_name || "";
-  const ticketCode = ticket ? `${DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}_#${ticket.id}` : "";
+  const ticketCode = ticket ? `${DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}${ticket.id}` : "";
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>

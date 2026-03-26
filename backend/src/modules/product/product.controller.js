@@ -2,24 +2,56 @@ import pool from '../../config/db.js'
 
 export const getProducts = async (req, res) => {
   try {
-    const { factory_id } = req.query
-    let query = `
-            SELECT p.*, pg.name as product_group_name 
-            FROM products p 
-            LEFT JOIN product_groups pg ON p.product_group_id = pg.id
-            WHERE p.deleted_at IS NULL
-        `
-    const params = []
+    const { factory_id, page = 1, limit = 10, search = "" } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = parseInt(limit) || 10;
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE p.deleted_at IS NULL";
+    const queryParams = [];
+
     if (factory_id) {
-      query += ' AND p.factory_id = $1'
-      params.push(factory_id)
+      queryParams.push(factory_id);
+      whereClause += ` AND p.factory_id = $${queryParams.length}`;
     }
-    const result = await pool.query(query, params)
-    res.json(result.rows)
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (p.name ILIKE $${queryParams.length} OR pg.name ILIKE $${queryParams.length})`;
+    }
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) 
+      FROM products p 
+      LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Get data
+    const dataQuery = `
+      SELECT p.*, pg.name as product_group_name 
+      FROM products p 
+      LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+      ${whereClause}
+      ORDER BY p.created_at DESC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
+    
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Error retrieving products', error })
+    console.error("Get Products Error:", error);
+    res.status(500).json({ message: "Error retrieving products", error });
   }
-}
+};
 
 export const createProduct = async (req, res) => {
   try {
