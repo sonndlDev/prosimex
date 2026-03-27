@@ -50,6 +50,7 @@ export default function SchedulePage() {
     const [currentDate, setCurrentDate] = useState(DateTime.now());
 
     const { data: factories } = useQuery({ queryKey: ['factories'], queryFn: factoryService.getAll });
+    const factoriesArray = Array.isArray(factories) ? factories : [];
 
     const dateRange = useMemo(() => {
         let start, end;
@@ -145,7 +146,7 @@ export default function SchedulePage() {
                                                     )}
                                                 />
                                             </CommandItem>
-                                            {factories?.map((f) => (
+                                            {factoriesArray.map((f) => (
                                                 <CommandItem
                                                     key={f.id}
                                                     value={f.name}
