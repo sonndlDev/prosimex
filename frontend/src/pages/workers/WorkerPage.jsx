@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
 
 export default function WorkerPage() {
   const queryClient = useQueryClient();
@@ -58,17 +59,20 @@ export default function WorkerPage() {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Quản lý Công nhân</h2>
-          <p className="text-zinc-500 text-sm font-medium mt-0.5">Quản lý danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Công nhân</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="gap-2 font-semibold">
-          + Thêm công nhân
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => handleOpenModal()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm công nhân
+          </Button>
+        </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
         columns={columns}
         data={workers}
@@ -84,6 +88,7 @@ export default function WorkerPage() {
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
       />
+      </div>
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) setOpenModal(false); }}>
         <DialogContent className="sm:max-w-md">

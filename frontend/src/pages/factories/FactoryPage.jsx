@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
 
 export default function FactoryPage() {
   const queryClient = useQueryClient();
@@ -68,14 +69,25 @@ export default function FactoryPage() {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhà máy</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách phân xưởng sản xuất</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm nhà máy
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
-        title="Quản lý Nhà máy"
         data={factories}
         columns={columns}
         isLoading={isLoading}
         error={error}
-        onAdd={() => handleOpen()}
         onEdit={handleOpen}
         onDelete={handleDelete}
         onBulkDelete={handleBulkDelete}
@@ -87,6 +99,7 @@ export default function FactoryPage() {
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
       />
+      </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
         <DialogContent className="sm:max-w-[500px] p-0 border-zinc-200">

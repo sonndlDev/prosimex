@@ -15,10 +15,12 @@ const pool = new Pool({
   keepAliveInitialDelayMillis: 10000, // send keepalive probe after 10s idle
 });
 
+pool.on("connect", (client) => {
+  client.query("SET timezone = 'Asia/Ho_Chi_Minh'");
+});
+
 pool.on("error", (err, client) => {
   console.error("Unexpected error on idle client", err);
-  // Don't crash the process for transient connection errors
-  // process.exit(-1)
 });
 
 // Verify pool connectivity on startup

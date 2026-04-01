@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check } from "lucide-react";
+import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,11 +121,22 @@ export default function ProductGroupPage() {
   const watchMachineIds = watchOp("machine_ids");
 
   return (
-    <div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhóm mã hàng</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Thiết lập quy trình cho nhóm</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm nhóm
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
-        title="Nhóm mã hàng & Quy trình"
         data={productGroups} columns={columns} isLoading={isLoading} error={error}
-        onAdd={() => handleOpen()}
         onEdit={handleOpen}
         onDelete={(g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); }}
         onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} nhóm?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
@@ -138,6 +149,7 @@ export default function ProductGroupPage() {
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
       />
+      </div>
 
       {/* Base Form Dialog */}
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>

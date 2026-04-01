@@ -99,17 +99,17 @@ export default function DailyTicketPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
-          <p className="text-zinc-500 text-sm font-medium mt-0.5">Quản lý và theo dõi các phiếu sản xuất theo ngày</p>
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsReportOpen(true)} className="gap-2 font-semibold">
-            <BarChart2 className="w-4 h-4" />
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => setIsReportOpen(true)} className="h-11 px-6 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
+            <BarChart2 className="w-4 h-4 text-indigo-500" />
             Báo cáo KH vs TT
           </Button>
-          <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="gap-2 font-semibold bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 gap-2">
             <Plus className="w-4 h-4" />
             Tạo Phiếu Mới
           </Button>

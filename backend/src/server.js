@@ -2,6 +2,8 @@ import express from 'express'
 import morgan from 'morgan'
 import cors from 'cors'
 
+process.env.TZ = 'Asia/Ho_Chi_Minh'
+
 import authRoutes from './modules/auth/auth.routes.js'
 import userRoutes from './modules/user/user.routes.js'
 import workerRoutes from './modules/worker/worker.routes.js'
@@ -18,6 +20,7 @@ import productionPlanningRoutes from './modules/production-planning/production-p
 import machineScheduleRoutes from './modules/machine-schedule/machine-schedule.routes.js'
 import attendanceRoutes from './modules/attendance/attendance.routes.js'
 import dailyTicketRoutes from './modules/daily-ticket/daily-ticket.routes.js'
+import outsourcingRoutes from './modules/outsourcing/outsourcing.routes.js'
 
 const app = express()
 
@@ -41,6 +44,7 @@ app.use('/api/production-plans', productionPlanningRoutes)
 app.use('/api/machine-schedule', machineScheduleRoutes)
 app.use('/api/attendance', attendanceRoutes)
 app.use('/api/daily-tickets', dailyTicketRoutes)
+app.use('/api/outsourcing', outsourcingRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {

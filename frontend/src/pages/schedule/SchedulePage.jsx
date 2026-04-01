@@ -222,7 +222,7 @@ export default function SchedulePage() {
                             </div>
                         )}
                         
-                        <div className="flex-1">
+                        <div className="flex-1 min-h-0">
                             <CustomSchedule 
                                 resources={scheduleData?.machines || []} 
                                 events={scheduleData?.events || []} 

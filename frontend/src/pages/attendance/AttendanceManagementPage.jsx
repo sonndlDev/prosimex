@@ -120,10 +120,11 @@ export default function AttendanceManagementPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-extrabold tracking-tight text-zinc-950">
-          Quản lý Chấm công
-        </h1>
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Chấm công</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Lịch sử ra vào của nhân viên</p>
+        </div>
       </div>
 
       {/* Filter Card */}

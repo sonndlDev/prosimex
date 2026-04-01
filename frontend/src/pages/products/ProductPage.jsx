@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Package, Search, Layers, Factory } from "lucide-react";
+import { Check, ChevronsUpDown, Package, Search, Layers, Factory, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ProductPage() {
@@ -74,41 +74,44 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
-        <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin mã hàng</p>
+        </div>
+        <div className="flex items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-48 h-10 justify-between bg-zinc-50 border-zinc-200 font-bold"
+                className="w-48 h-11 justify-between bg-zinc-50 border-zinc-200 font-bold hover:bg-white transition-all rounded-xl shadow-sm"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Factory className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <Factory className="h-4 w-4 text-zinc-400 shrink-0" />
                   <span className="truncate">
                     {filterFactoryId === "" ? "Tất cả nhà máy" : factories?.find(f => String(f.id) === String(filterFactoryId))?.name}
                   </span>
                 </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-48 p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <PopoverContent className="w-48 p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="end">
               <Command className="w-full">
-                <CommandInput placeholder="Tìm nhà máy..." />
+                <CommandInput placeholder="Tìm nhà máy..." className="h-10" />
                 <CommandList className="max-h-64 p-1">
                   <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
                   <CommandGroup>
                     <CommandItem
                       value="all"
                       onSelect={() => setFilterFactoryId("")}
-                      className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
                     >
-                      <span className="text-xs font-bold">Tất cả nhà máy</span>
+                      Tất cả nhà máy
                       <Check
                         className={cn(
-                          "ml-auto h-4 w-4 text-indigo-600",
+                          "h-4 w-4 text-indigo-600",
                           filterFactoryId === "" ? "opacity-100" : "opacity-0"
                         )}
                       />
@@ -118,12 +121,12 @@ export default function ProductPage() {
                         key={f.id}
                         value={f.name}
                         onSelect={() => setFilterFactoryId(String(f.id))}
-                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                        className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
                       >
-                        <span className="text-xs font-bold">{f.name}</span>
+                        {f.name}
                         <Check
                           className={cn(
-                            "ml-auto h-4 w-4 text-indigo-600",
+                            "h-4 w-4 text-indigo-600",
                             String(filterFactoryId) === String(f.id) ? "opacity-100" : "opacity-0"
                           )}
                         />
@@ -134,10 +137,13 @@ export default function ProductPage() {
               </Command>
             </PopoverContent>
           </Popover>
-          <Button onClick={() => handleOpen()} className="gap-2 font-semibold">+ Thêm mã hàng</Button>
+          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm mã hàng
+          </Button>
         </div>
       </div>
 
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable data={products} columns={columns} isLoading={isLoading} error={error}
         onEdit={handleOpen}
         onDelete={(p) => { if (window.confirm(`Xóa mã hàng "${p.name}"?`)) deleteMutation.mutate(p.id); }}
@@ -150,6 +156,7 @@ export default function ProductPage() {
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
       />
+      </div>
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
         <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">

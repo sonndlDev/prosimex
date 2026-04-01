@@ -299,20 +299,21 @@ export default function OrderPage() {
 
   return (
     <div className="space-y-4">
-      <GenericTable
-        title={
-          <div className="flex justify-between items-center w-full">
-            <h2 className="text-2xl font-extrabold tracking-tight">Quản lý Đơn hàng</h2>
-            <Button
-              variant="default"
-              onClick={() => handleOpen()}
-              className="font-bold gap-2 h-10 px-6 shadow-sm rounded-xl"
-            >
-              <Plus className="w-4 h-4" /> Thêm đơn hàng
-            </Button>
-          </div>
-        }
-        data={orders}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Đơn hàng</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Plus className="w-4 h-4" /> Thêm đơn hàng
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <GenericTable
+          data={orders}
         columns={columns}
         isLoading={isLoading}
         error={error}
@@ -327,6 +328,7 @@ export default function OrderPage() {
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
       />
+      </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
         <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl ">

@@ -20,22 +20,31 @@ export const getMachineScheduleCalendar = async (req, res) => {
     }
     const machinesRes = await pool.query(machineQuery, machineParams);
 
-    // 2. Fetch Schedule Events
+    // 2. Fetch Schedule Events (Daily segments from production_plan_days)
     let scheduleQuery = `
             SELECT 
-                ms.id,
-                ms.machine_id as "resourceId",
-                o.order_code as title,
-                ms.start_date as start,
-                ms.end_date as end,
+                ppd.id,
+                pp.machine_id as "resourceId",
+                COALESCE(o.order_code, p.name, 'L-' || pp.id) as title,
+                o.order_code,
+                p.name as product_name,
+                o.po_customer,
+                op.name as operation_name,
+                ppd.working_date as start,
+                ppd.working_date as end,
+                (ppd.planned_work_quantity / 8.0) as planned_work_quantity,
                 pp.status as color_status
-            FROM machine_schedules ms
-            JOIN machines m ON ms.machine_id = m.id
-            JOIN orders o ON ms.order_id = o.id
-            JOIN production_plans pp ON ms.production_plan_id = pp.id
-            WHERE ms.deleted_at IS NULL
-              AND ms.start_date <= $2
-              AND ms.end_date >= $1
+            FROM production_plan_days ppd
+            JOIN production_plans pp ON ppd.production_plan_id = pp.id
+            JOIN machines m ON pp.machine_id = m.id
+            LEFT JOIN orders o ON pp.order_id = o.id
+            LEFT JOIN products p ON pp.product_id = p.id
+            LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
+            LEFT JOIN operations op ON pgo.operation_id = op.id
+            WHERE ppd.deleted_at IS NULL
+              AND pp.deleted_at IS NULL
+              AND ppd.working_date <= $2
+              AND ppd.working_date >= $1
         `;
     const scheduleParams = [start_date, end_date];
     if (factory_id && factory_id !== "all") {
@@ -49,18 +58,15 @@ export const getMachineScheduleCalendar = async (req, res) => {
       machines: machinesRes.rows,
       events: eventsRes.rows.map((ev) => {
         // Format start as 07:00 and end as 16:30 in ICT (UTC+7)
-        const startDate = new Date(ev.start);
-        const endDate = new Date(ev.end);
-
-        const startPart = startDate.toISOString().split("T")[0];
-        const endPart = endDate.toISOString().split("T")[0];
+        const workingDate = new Date(ev.start);
+        const datePart = workingDate.toISOString().split("T")[0];
 
         return {
           ...ev,
-          start: `${startPart}T07:00:00+07:00`,
-          end: `${endPart}T16:30:00+07:00`,
-          allDay: true,
-          backgroundColor: ev.color_status === "DONE" ? "#4caf50" : "#2196f3",
+          start: `${datePart}T07:00:00+07:00`,
+          end: `${datePart}T16:30:00+07:00`,
+          allDay: false, // Changed to false to allow potential overlapping segments on the same day
+          backgroundColor: ev.color_status === "DONE" ? "#10b981" : "#3b82f6", // More modern colors
         };
       }),
     });

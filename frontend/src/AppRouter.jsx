@@ -24,6 +24,7 @@ const OrderPage = React.lazy(() => import("./pages/orders/OrderPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
 const DailyTicketPage = React.lazy(() => import("./pages/daily-tickets/DailyTicketPage"));
 const ProductionOutputPage = React.lazy(() => import("./pages/daily-tickets/ProductionOutputPage"));
+const OutsourcingPage = React.lazy(() => import("./pages/outsourcing/OutsourcingPage"));
 const SchedulePage = React.lazy(() => import("./pages/schedule/SchedulePage"));
 const AttendancePage = React.lazy(
   () => import("./pages/attendance/AttendancePage"),
@@ -121,6 +122,9 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="planning" />}>
                 <Route path="/production-output" element={<ProductionOutputPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+                <Route path="/outsourcing" element={<OutsourcingPage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="schedule" />}>
                 <Route path="/schedule" element={<SchedulePage />} />

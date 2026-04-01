@@ -124,9 +124,11 @@ export default function ProductionOutputPage() {
     <div className="space-y-6">
       <Toaster position="top-right" richColors />
 
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-950">Nhập Sản Lượng / Kết Quả Sản Xuất</h2>
-        <p className="text-zinc-500 font-medium">Vui lòng nhập Ngày và Mã số phiếu sản xuất để lấy danh sách công đoạn.</p>
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-col">
+           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Nhập Sản Lượng</h2>
+           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Kết quả kiểm tra và báo cáo sản xuất hàng ngày</p>
+        </div>
       </div>
 
       <Card>
