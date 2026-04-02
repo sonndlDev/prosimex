@@ -8,9 +8,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
+      refetchOnMount: true,
       retry: 1,
-      staleTime: 2 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      staleTime: 0,          // Data luôn stale → refetch mỗi lần mount
+      gcTime: 5 * 60 * 1000, // Cache 5 phút trong memory để render nhanh trong khi fetch
     },
   },
 });

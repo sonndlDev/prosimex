@@ -51,46 +51,62 @@ export const getProductGroups = async (req, res) => {
 
 export const createProductGroup = async (req, res) => {
   try {
-    const { name, factory_id } = req.body
+    const { name, factory_id } = req.body;
     const userId = req.user?.id;
     const result = await pool.query(
       'INSERT INTO product_groups (name, factory_id, created_by, modified_by) VALUES ($1, $2, $3, $3) RETURNING *',
       [name, factory_id, userId]
-    )
-    res.status(201).json(result.rows[0])
+    );
+    const newGroup = result.rows[0];
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'ProductGroup', $2, $3)`,
+      [userId, newGroup.id, newGroup]
+    );
+    res.status(201).json(newGroup);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating product group', error })
+    res.status(500).json({ message: 'Error creating product group', error });
   }
 }
 
 export const updateProductGroup = async (req, res) => {
   try {
-    const { id } = req.params
-    const { name } = req.body
+    const { id } = req.params;
+    const { name } = req.body;
     const userId = req.user?.id;
+    const beforeRes = await pool.query('SELECT * FROM product_groups WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Product group not found' });
     const result = await pool.query(
       'UPDATE product_groups SET name = COALESCE($1, name), updated_at = CURRENT_TIMESTAMP, modified_by = $3, modified_time = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL RETURNING *',
       [name, id, userId]
-    )
-    if (result.rowCount === 0) return res.status(404).json({ message: 'Product group not found' })
-    res.json(result.rows[0])
+    );
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Product group not found' });
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) VALUES ($1, 'UPDATE', 'ProductGroup', $2, $3, $4)`,
+      [userId, id, beforeRes.rows[0], result.rows[0]]
+    );
+    res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating product group', error })
+    res.status(500).json({ message: 'Error updating product group', error });
   }
 }
 
 export const deleteProductGroup = async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
     const userId = req.user?.id;
-    const result = await pool.query(
-      'UPDATE product_groups SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
+    const beforeRes = await pool.query('SELECT * FROM product_groups WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Product group not found' });
+    await pool.query(
+      'UPDATE product_groups SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1',
       [id, userId]
-    )
-    if (result.rowCount === 0) return res.status(404).json({ message: 'Product group not found' })
-    res.json({ message: 'Product group deleted successfully' })
+    );
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data) VALUES ($1, 'DELETE', 'ProductGroup', $2, $3)`,
+      [userId, id, beforeRes.rows[0]]
+    );
+    res.json({ message: 'Product group deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting product group', error })
+    res.status(500).json({ message: 'Error deleting product group', error });
   }
 }
 

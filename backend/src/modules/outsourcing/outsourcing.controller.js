@@ -142,6 +142,11 @@ export const createTicket = async (req, res) => {
 
     const newTicket = insertRes.rows[0];
 
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'OutsourcingTicket', $2, $3)`,
+      [created_by, newTicket.id, newTicket]
+    );
+
     await client.query("COMMIT");
     res.status(201).json(newTicket);
   } catch (error) {
@@ -194,6 +199,11 @@ export const addReturnEntry = async (req, res) => {
         [newStatus, ticket_id, created_by]
       );
     }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'OutsourcingReturn', $2, $3)`,
+      [created_by, ticket_id, insertRes.rows[0]]
+    );
 
     await client.query("COMMIT");
     res.status(201).json(insertRes.rows[0]);

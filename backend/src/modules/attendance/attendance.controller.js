@@ -19,8 +19,14 @@ export const checkIn = async (req, res) => {
       "INSERT INTO attendance (user_id, note, date) VALUES ($1, $2, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) RETURNING *",
       [userId, note]
     )
+    const record = result.rows[0]
 
-    res.status(201).json(result.rows[0])
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'Attendance', $2, $3)`,
+      [userId, record.id, record]
+    )
+
+    res.status(201).json(record)
   } catch (error) {
     res.status(500).json({ message: 'Lỗi khi chấm công vào', error: error.message })
   }
@@ -42,7 +48,14 @@ export const checkOut = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy bản ghi chấm công vào hôm nay hoặc bạn đã chấm công ra rồi.' })
     }
 
-    res.json(result.rows[0])
+    const record = result.rows[0]
+
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE', 'Attendance', $2, $3)`,
+      [userId, record.id, record]
+    )
+
+    res.json(record)
   } catch (error) {
     res.status(500).json({ message: 'Lỗi khi chấm công ra', error: error.message })
   }
