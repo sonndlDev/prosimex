@@ -689,7 +689,7 @@ const PlanningFormDialog = React.memo(
                       <div className="flex flex-col gap-3 group">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3b</div>
-                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất <span className="text-red-500">*</span></Label>
+                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất</Label>
                         </div>
                         <Controller
                           name="selectedMachineId"
@@ -1223,8 +1223,7 @@ const PlanningFormDialog = React.memo(
             <Button
               disabled={
                 !startDate ||
-                (isFullOrderMode ? !endDate : (plannedDays.length === 0 || !selectedOpId)) ||
-                (!isOutsourced ? !selectedMachineId : !selectedFactoryId) ||
+                (isFullOrderMode ? (!endDate || (!isOutsourced ? !selectedMachineId : !selectedFactoryId)) : (plannedDays.length === 0 || !selectedOpId || (isOutsourced ? !selectedFactoryId : false))) ||
                 isCreatePending ||
                 isUpdatePending
               }

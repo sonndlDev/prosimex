@@ -22,9 +22,11 @@ export const getCustomers = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT *, address as contact_info 
-      FROM customers 
-      ${whereClause}
+      SELECT c.*, c.address as contact_info, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+      FROM customers c
+      LEFT JOIN users cu ON c.created_by = cu.id
+      LEFT JOIN users mu ON c.modified_by = mu.id
+      ${whereClause.replace(/deleted_at/g, 'c.deleted_at').replace(/name/g, 'c.name').replace(/code/g, 'c.code')}
       ORDER BY created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
@@ -46,10 +48,11 @@ export const createCustomer = async (req, res) => {
   try {
     const { code, name, address, phone, is_active, contact_info } = req.body
     const finalAddress = contact_info || address;
+    const userId = req.user?.id;
     const result = await pool.query(
-      `INSERT INTO customers (code, name, address, phone, is_active) 
-             VALUES ($1, $2, $3, $4, COALESCE($5, true)) RETURNING *`,
-      [code, name, finalAddress, phone, is_active]
+      `INSERT INTO customers (code, name, address, phone, is_active, created_by, modified_by) 
+             VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $6) RETURNING *`,
+      [code, name, finalAddress, phone, is_active, userId]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -68,6 +71,7 @@ export const updateCustomer = async (req, res) => {
     // Support either contact_info (frontend) or address (direct API)
     const finalAddress = contact_info || address;
 
+    const userId = req.user?.id;
     const result = await pool.query(
       `UPDATE customers 
              SET code = COALESCE($1, code),
@@ -75,9 +79,11 @@ export const updateCustomer = async (req, res) => {
                  address = COALESCE($3, address), 
                  phone = COALESCE($4, phone), 
                  is_active = COALESCE($5, is_active), 
-                 updated_at = CURRENT_TIMESTAMP 
+                 updated_at = CURRENT_TIMESTAMP,
+                 modified_by = $7,
+                 modified_time = CURRENT_TIMESTAMP
              WHERE id = $6 AND deleted_at IS NULL RETURNING *`,
-      [code, name, finalAddress, phone, is_active, id]
+      [code, name, finalAddress, phone, is_active, id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Customer not found' })
     res.json(result.rows[0])
@@ -92,9 +98,10 @@ export const updateCustomer = async (req, res) => {
 export const deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params
+    const userId = req.user?.id;
     const result = await pool.query(
-      'UPDATE customers SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
-      [id]
+      'UPDATE customers SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
+      [id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Customer not found' })
     res.json({ message: 'Customer deleted successfully' })

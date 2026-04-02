@@ -27,8 +27,11 @@ export const getProductGroups = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT * FROM product_groups 
-      ${whereClause}
+      SELECT pg.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+      FROM product_groups pg
+      LEFT JOIN users cu ON pg.created_by = cu.id
+      LEFT JOIN users mu ON pg.modified_by = mu.id
+      ${whereClause.replace(/deleted_at/g, 'pg.deleted_at').replace(/factory_id/g, 'pg.factory_id').replace(/name/g, 'pg.name')}
       ORDER BY created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
@@ -49,9 +52,10 @@ export const getProductGroups = async (req, res) => {
 export const createProductGroup = async (req, res) => {
   try {
     const { name, factory_id } = req.body
+    const userId = req.user?.id;
     const result = await pool.query(
-      'INSERT INTO product_groups (name, factory_id) VALUES ($1, $2) RETURNING *',
-      [name, factory_id]
+      'INSERT INTO product_groups (name, factory_id, created_by, modified_by) VALUES ($1, $2, $3, $3) RETURNING *',
+      [name, factory_id, userId]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -63,9 +67,10 @@ export const updateProductGroup = async (req, res) => {
   try {
     const { id } = req.params
     const { name } = req.body
+    const userId = req.user?.id;
     const result = await pool.query(
-      'UPDATE product_groups SET name = COALESCE($1, name), updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL RETURNING *',
-      [name, id]
+      'UPDATE product_groups SET name = COALESCE($1, name), updated_at = CURRENT_TIMESTAMP, modified_by = $3, modified_time = CURRENT_TIMESTAMP WHERE id = $2 AND deleted_at IS NULL RETURNING *',
+      [name, id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Product group not found' })
     res.json(result.rows[0])
@@ -77,9 +82,10 @@ export const updateProductGroup = async (req, res) => {
 export const deleteProductGroup = async (req, res) => {
   try {
     const { id } = req.params
+    const userId = req.user?.id;
     const result = await pool.query(
-      'UPDATE product_groups SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
-      [id]
+      'UPDATE product_groups SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
+      [id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Product group not found' })
     res.json({ message: 'Product group deleted successfully' })

@@ -32,9 +32,11 @@ export const getProducts = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT p.*, pg.name as product_group_name 
+      SELECT p.*, pg.name as product_group_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
       FROM products p 
       LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+      LEFT JOIN users cu ON p.created_by = cu.id
+      LEFT JOIN users mu ON p.modified_by = mu.id
       ${whereClause}
       ORDER BY p.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -56,10 +58,11 @@ export const getProducts = async (req, res) => {
 export const createProduct = async (req, res) => {
   try {
     const { name, product_group_id, factory_id, is_active } = req.body
+    const userId = req.user?.id;
     const result = await pool.query(
-      `INSERT INTO products (name, product_group_id, factory_id, is_active) 
-             VALUES ($1, $2, $3, COALESCE($4, true)) RETURNING *`,
-      [name, product_group_id, factory_id, is_active]
+      `INSERT INTO products (name, product_group_id, factory_id, is_active, created_by, modified_by) 
+             VALUES ($1, $2, $3, COALESCE($4, true), $5, $5) RETURNING *`,
+      [name, product_group_id, factory_id, is_active, userId]
     )
     res.status(201).json(result.rows[0])
   } catch (error) {
@@ -71,14 +74,17 @@ export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params
     const { name, product_group_id, is_active } = req.body
+    const userId = req.user?.id;
     const result = await pool.query(
       `UPDATE products 
              SET name = COALESCE($1, name), 
                  product_group_id = COALESCE($2, product_group_id), 
                  is_active = COALESCE($3, is_active), 
-                 updated_at = CURRENT_TIMESTAMP 
+                 updated_at = CURRENT_TIMESTAMP,
+                 modified_by = $5,
+                 modified_time = CURRENT_TIMESTAMP
              WHERE id = $4 AND deleted_at IS NULL RETURNING *`,
-      [name, product_group_id, is_active, id]
+      [name, product_group_id, is_active, id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Product not found' })
     res.json(result.rows[0])
@@ -90,9 +96,10 @@ export const updateProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params
+    const userId = req.user?.id;
     const result = await pool.query(
-      'UPDATE products SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
-      [id]
+      'UPDATE products SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL',
+      [id, userId]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Product not found' })
     res.json({ message: 'Product deleted successfully' })

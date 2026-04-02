@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateTime } from "luxon";
 import { Pencil } from "lucide-react";
+import { getAuditColumn } from "../../utils/audit";
 
 export default function WarehousePage() {
   const [page, setPage] = useState(1);
@@ -25,7 +26,7 @@ export default function WarehousePage() {
   const totalItems = ordersData?.total || 0;
 
   const columns = [
-    { id: "order_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
+    { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
     { id: "customer_name", label: "Tên khách", className: "font-medium" },
     {
       id: "expected_material_date",
@@ -40,6 +41,7 @@ export default function WarehousePage() {
     { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
     { id: "package_count_text", label: "Số kiện", format: (value, row) => row.package_count_text || "-" },
     { id: "container_volume_text", label: "Khối lượng cont/ lẻ", format: (value, row) => row.container_volume_text || "-" },
+    getAuditColumn(),
   ];
 
   return (

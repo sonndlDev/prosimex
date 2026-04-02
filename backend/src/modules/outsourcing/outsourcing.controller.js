@@ -32,7 +32,7 @@ export const getTickets = async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = `
-      SELECT t.*, o.order_code, o.name as order_name, p.name as product_name, u.username as created_by_username,
+      SELECT t.*, o.order_code, o.name as order_name, p.name as product_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              COALESCE(
                (SELECT sum(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_id = t.id),
                0
@@ -40,7 +40,8 @@ export const getTickets = async (req, res) => {
       FROM outsourcing_tickets t
       LEFT JOIN orders o ON t.order_id = o.id
       LEFT JOIN products p ON t.product_id = p.id
-      LEFT JOIN users u ON t.created_by = u.id
+      LEFT JOIN users cu ON t.created_by = cu.id
+      LEFT JOIN users mu ON t.modified_by = mu.id
       ${whereClause}
       ORDER BY t.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -65,7 +66,7 @@ export const getTicketByCode = async (req, res) => {
   try {
     const { ticket_code } = req.params;
     const dataQuery = `
-      SELECT t.*, o.order_code, o.name as order_name, p.name as product_name, u.username as created_by_username,
+      SELECT t.*, o.order_code, o.name as order_name, p.name as product_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              COALESCE(
                (SELECT sum(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_id = t.id),
                0
@@ -73,7 +74,8 @@ export const getTicketByCode = async (req, res) => {
       FROM outsourcing_tickets t
       LEFT JOIN orders o ON t.order_id = o.id
       LEFT JOIN products p ON t.product_id = p.id
-      LEFT JOIN users u ON t.created_by = u.id
+      LEFT JOIN users cu ON t.created_by = cu.id
+      LEFT JOIN users mu ON t.modified_by = mu.id
       WHERE t.ticket_code = $1 AND t.deleted_at IS NULL
     `;
     const result = await pool.query(dataQuery, [ticket_code]);
@@ -133,8 +135,8 @@ export const createTicket = async (req, res) => {
 
     const insertRes = await client.query(
       `INSERT INTO outsourcing_tickets 
-        (ticket_code, type, order_id, product_id, supplier, quantity_out, weight_out, pieces_out, expected_return_date, created_by) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        (ticket_code, type, order_id, product_id, supplier, quantity_out, weight_out, pieces_out, expected_return_date, created_by, modified_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10) RETURNING *`,
       [ticket_code, type, order_id, product_id, supplier, quantity_out, weight_out || null, pieces_out || null, expected_return_date || null, created_by]
     );
 
@@ -188,8 +190,8 @@ export const addReturnEntry = async (req, res) => {
       }
       
       await client.query(
-        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-        [newStatus, ticket_id]
+        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3, modified_time = CURRENT_TIMESTAMP WHERE id = $2",
+        [newStatus, ticket_id, created_by]
       );
     }
 

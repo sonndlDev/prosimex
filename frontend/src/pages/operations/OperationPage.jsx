@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { operationService } from "../../services/operation.service";
 import { toast } from "sonner";
 import GenericTable from "../../components/GenericTable";
+import { getAuditColumn } from "../../utils/audit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,7 @@ export default function OperationPage() {
       ),
     },
     { id: "description", label: "Mô tả" },
+    getAuditColumn(),
   ];
 
   const handleOpen = (operation = null) => {

@@ -6,6 +6,7 @@ import { operationService } from "../../services/operation.service";
 import { machineService } from "../../services/machine.service";
 import { toast } from "sonner";
 import GenericTable from "../../components/GenericTable";
+import { getAuditColumn } from "../../utils/audit";
 import DraggableSequenceTable from "./DraggableSequenceTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,7 @@ export default function ProductGroupPage() {
         </button>
       ),
     },
+    getAuditColumn(),
   ];
 
   const handleOpen = (group = null) => {

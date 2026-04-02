@@ -42,12 +42,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import PremiumDatePicker from "@/components/PremiumDatePicker";
+import { PremiumDatePicker } from "@/components/PremiumDatePicker";
+import GenericTable from '@/components/GenericTable';
 
 export default function AttendanceManagementPage() {
   // Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [filters, setFilters] = useState({
+    targetUserId: '',
+    startDate: DateTime.now().startOf('month').toISODate(),
+    endDate: DateTime.now().toISODate()
+  });
 
   const { data: usersData } = useQuery({
     queryKey: ['users'],
@@ -77,14 +83,14 @@ export default function AttendanceManagementPage() {
   };
 
   const columns = [
-    { 
-      id: "date", 
+    {
+      id: "date",
       label: "Ngày",
       format: (val) => DateTime.fromISO(val).toFormat('dd/MM/yyyy')
     },
     { id: "username", label: "Nhân viên", className: "font-bold text-zinc-950" },
-    { 
-      id: "check_in_time", 
+    {
+      id: "check_in_time",
       label: "Vào lúc",
       format: (val) => (
         <Badge variant="outline" className="font-mono bg-zinc-50 border-zinc-200">
@@ -92,8 +98,8 @@ export default function AttendanceManagementPage() {
         </Badge>
       )
     },
-    { 
-      id: "check_out_time", 
+    {
+      id: "check_out_time",
       label: "Ra lúc",
       format: (val) => val ? (
         <Badge variant="outline" className="font-mono bg-emerald-50 text-emerald-700 border-emerald-200">
@@ -101,8 +107,8 @@ export default function AttendanceManagementPage() {
         </Badge>
       ) : <span className="text-zinc-300">—</span>
     },
-    { 
-      id: "status", 
+    {
+      id: "status",
       label: "Trạng thái",
       format: (_, row) => (
         <Badge variant={row.check_out_time ? "success" : "warning"}>
@@ -110,8 +116,8 @@ export default function AttendanceManagementPage() {
         </Badge>
       )
     },
-    { 
-      id: "note", 
+    {
+      id: "note",
       label: "Ghi chú",
       className: "max-w-[200px] truncate text-zinc-500 text-sm italic",
       format: (val) => val || <span className="text-zinc-300 not-italic">Không có ghi chú</span>
@@ -122,8 +128,8 @@ export default function AttendanceManagementPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Chấm công</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Lịch sử ra vào của nhân viên</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Chấm công</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Lịch sử ra vào của nhân viên</p>
         </div>
       </div>
 
@@ -144,7 +150,7 @@ export default function AttendanceManagementPage() {
                       <User className="h-4 w-4 text-indigo-500 shrink-0" />
                       <span className="truncate">
                         {!filters.targetUserId || filters.targetUserId === 'ALL_USERS'
-                          ? "Tất cả nhân viên" 
+                          ? "Tất cả nhân viên"
                           : users?.find(u => String(u.id) === String(filters.targetUserId))?.username}
                       </span>
                     </div>
@@ -162,13 +168,13 @@ export default function AttendanceManagementPage() {
                           onSelect={() => handleFilterChange('targetUserId', 'ALL_USERS')}
                           className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                         >
-                            <span className="text-xs font-bold">Tất cả nhân viên</span>
-                            <Check
-                                className={cn(
-                                    "h-4 w-4 text-indigo-600",
-                                    filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0"
-                                )}
-                            />
+                          <span className="text-xs font-bold">Tất cả nhân viên</span>
+                          <Check
+                            className={cn(
+                              "h-4 w-4 text-indigo-600",
+                              filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0"
+                            )}
+                          />
                         </CommandItem>
                         {users?.map((user) => (
                           <CommandItem
@@ -210,8 +216,8 @@ export default function AttendanceManagementPage() {
             </div>
 
             <div className="md:col-span-3 flex gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full h-10 px-3 font-bold border-zinc-200"
                 onClick={resetFilters}
               >
@@ -225,10 +231,10 @@ export default function AttendanceManagementPage() {
 
       {/* Logs Table with GenericTable */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <GenericTable 
-          data={logs} 
-          columns={columns} 
-          isLoading={logsLoading} 
+        <GenericTable
+          data={logs}
+          columns={columns}
+          isLoading={logsLoading}
           isServerSide={true}
           totalItems={totalItems}
           page={page}

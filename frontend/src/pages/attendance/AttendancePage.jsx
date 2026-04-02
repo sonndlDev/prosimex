@@ -24,10 +24,11 @@ export default function AttendancePage() {
     queryKey: ['attendanceToday'],
     queryFn: attendanceService.getStatus,
   });
-  const { data: logs, isLoading: logsLoading } = useQuery({
+  const { data: logsData, isLoading: logsLoading } = useQuery({
     queryKey: ['attendanceLogs'],
     queryFn: attendanceService.getLogs,
   });
+  const logs = logsData?.data || [];
 
   const checkInMutation = useMutation({
     mutationFn: attendanceService.checkIn,

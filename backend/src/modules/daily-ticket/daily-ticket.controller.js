@@ -24,9 +24,11 @@ export const getTickets = async (req, res) => {
       `
             SELECT 
                 dt.*,
-                u.username as created_by_name
+                COALESCE(cu.full_name, cu.username) as creator_name,
+                COALESCE(mu.full_name, mu.username) as modifier_name
             FROM daily_production_tickets dt
-            LEFT JOIN users u ON dt.created_by = u.id
+            LEFT JOIN users cu ON dt.created_by = cu.id
+            LEFT JOIN users mu ON dt.modified_by = mu.id
             ${whereClause}
             ORDER BY dt.ticket_date DESC, dt.created_at DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -53,9 +55,10 @@ export const getTicketById = async (req, res) => {
     const { id } = req.params;
 
     const ticketRes = await pool.query(
-      `SELECT dt.*, u.username as created_by_name
+      `SELECT dt.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
        FROM daily_production_tickets dt
-       LEFT JOIN users u ON dt.created_by = u.id
+       LEFT JOIN users cu ON dt.created_by = cu.id
+       LEFT JOIN users mu ON dt.modified_by = mu.id
        WHERE dt.id = $1 AND dt.deleted_at IS NULL`,
       [id]
     );
@@ -104,8 +107,8 @@ export const createTicket = async (req, res) => {
     const created_by = req.user.id;
 
     const ticketInsert = await client.query(
-      `INSERT INTO daily_production_tickets (ticket_date, created_by)
-       VALUES ($1, $2) RETURNING *`,
+      `INSERT INTO daily_production_tickets (ticket_date, created_by, modified_by)
+       VALUES ($1, $2, $2) RETURNING *`,
       [ticket_date, created_by]
     );
     const newTicket = ticketInsert.rows[0];
@@ -168,8 +171,8 @@ export const updateTicket = async (req, res) => {
 
     // Update ticket header
     await client.query(
-      "UPDATE daily_production_tickets SET ticket_date = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-      [ticket_date, id]
+      "UPDATE daily_production_tickets SET ticket_date = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3, modified_time = CURRENT_TIMESTAMP WHERE id = $2",
+      [ticket_date, id, user_id]
     );
 
     // Re-create items (since logic is to only edit un-completed tickets)
@@ -236,8 +239,8 @@ export const updateTicketResults = async (req, res) => {
 
     // Mark as completed if some condition met? For now, let's just mark it COMPLETED if actual quantities are submitted.
     await client.query(
-      "UPDATE daily_production_tickets SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id]
+      "UPDATE daily_production_tickets SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, user_id]
     );
 
     await client.query(
@@ -274,8 +277,8 @@ export const deleteTicket = async (req, res) => {
     }
 
     await client.query(
-      "UPDATE daily_production_tickets SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id]
+      "UPDATE daily_production_tickets SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, user_id]
     );
 
     await client.query(

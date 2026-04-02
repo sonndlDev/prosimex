@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import CompletionReportDialog from "./components/CompletionReportDialog";
 import CompletionPercentageCell from "./components/CompletionPercentageCell";
 import WarehouseDetailsDialog from "./components/WarehouseDetailsDialog";
+import { getAuditColumn } from "../../utils/audit";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -274,6 +275,7 @@ export default function OrderPage() {
     { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
     { id: "package_count_text", label: "Số kiện", format: (value, row) => row.package_count_text || "-" },
     { id: "container_volume_text", label: "Khối lượng cont/ lẻ", format: (value, row) => row.container_volume_text || "-" },
+    getAuditColumn(),
   ];
 
   const handleOpen = (order = null) => {

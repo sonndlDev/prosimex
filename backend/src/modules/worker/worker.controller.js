@@ -27,10 +27,12 @@ export const getWorkers = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT * 
-      FROM workers 
-      ${whereClause}
-      ORDER BY created_at DESC
+      SELECT w.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+      FROM workers w
+      LEFT JOIN users cu ON w.created_by = cu.id
+      LEFT JOIN users mu ON w.modified_by = mu.id
+      ${whereClause.replace(/deleted_at/g, 'w.deleted_at').replace(/factory_id/g, 'w.factory_id').replace(/name/g, 'w.name').replace(/code/g, 'w.code')}
+      ORDER BY w.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
     const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
@@ -54,11 +56,12 @@ export const createWorker = async (req, res) => {
             return res.status(400).json({ message: 'Code and name are required' });
         }
 
+        const userId = req.user?.id;
         const result = await pool.query(
-            `INSERT INTO workers (code, name, phone, factory_id) 
-             VALUES ($1, $2, $3, $4) 
+            `INSERT INTO workers (code, name, phone, factory_id, created_by, modified_by) 
+             VALUES ($1, $2, $3, $4, $5, $5) 
              RETURNING *`,
-            [code.toUpperCase(), name, phone, factory_id || null]
+            [code.toUpperCase(), name, phone, factory_id || null, userId]
         );
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -75,6 +78,7 @@ export const updateWorker = async (req, res) => {
         const { id } = req.params;
         const { code, name, phone, factory_id, is_active } = req.body;
 
+        const userId = req.user?.id;
         const result = await pool.query(
             `UPDATE workers 
              SET code = COALESCE($1, code),
@@ -82,10 +86,12 @@ export const updateWorker = async (req, res) => {
                  phone = COALESCE($3, phone),
                  factory_id = $4,
                  is_active = COALESCE($5, is_active),
-                 updated_at = CURRENT_TIMESTAMP
+                 updated_at = CURRENT_TIMESTAMP,
+                 modified_by = $7,
+                 modified_time = CURRENT_TIMESTAMP
              WHERE id = $6 AND deleted_at IS NULL
              RETURNING *`,
-            [code ? code.toUpperCase() : null, name, phone, factory_id || null, is_active, id]
+            [code ? code.toUpperCase() : null, name, phone, factory_id || null, is_active, id, userId]
         );
 
         if (result.rowCount === 0) {
@@ -101,11 +107,14 @@ export const updateWorker = async (req, res) => {
 export const deleteWorker = async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.user?.id;
         const result = await pool.query(
             `UPDATE workers 
-             SET deleted_at = CURRENT_TIMESTAMP 
+             SET deleted_at = CURRENT_TIMESTAMP,
+                 modified_by = $2,
+                 modified_time = CURRENT_TIMESTAMP
              WHERE id = $1 AND deleted_at IS NULL`,
-            [id]
+            [id, userId]
         );
 
         if (result.rowCount === 0) {

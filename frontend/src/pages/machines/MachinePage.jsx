@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { machineService } from "../../services/machine.service";
 import { factoryService } from "../../services/factory.service";
 import GenericTable from "../../components/GenericTable";
+import { getAuditColumn } from "../../utils/audit";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -56,6 +57,7 @@ export default function MachinePage() {
         ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-3 py-1 rounded-full">Hoạt động</Badge>
         : <Badge variant="secondary" className="text-zinc-400 px-3 py-1 rounded-full">Ngừng HĐ</Badge>
     },
+    getAuditColumn(),
   ];
 
   const handleOpen = (machine = null) => {

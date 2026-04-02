@@ -225,24 +225,24 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                         )}
 
                                         <div>
-                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 opacity-60">Công đoạn</p>
+                                            <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Công đoạn</p>
                                             <p className="font-black text-blue-400 uppercase tracking-tight leading-tight text-[11px]">{hoveredEvent.operation_name || 'N/A'}</p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
                                             <div>
-                                                <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 opacity-60">Mã hàng</p>
+                                                <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Mã hàng</p>
                                                 <p className="text-[10px] font-black text-zinc-100 uppercase truncate">{hoveredEvent.product_name || hoveredEvent.title || 'N/A'}</p>
                                             </div>
                                             <div>
-                                                <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 opacity-60">PO</p>
+                                                <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">PO</p>
                                                 <p className="text-[10px] font-black text-zinc-100 uppercase truncate">{hoveredEvent.po_customer || 'N/A'}</p>
                                             </div>
                                         </div>
 
                                         <div className="border-t border-zinc-800/50 pt-3">
-                                            <p className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1 opacity-60">Thời gian</p>
-                                            <p className="text-[10px] font-black text-zinc-400">
+                                            <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Thời gian</p>
+                                            <p className="text-[10px] font-black text-zinc-100">
                                                 {DateTime.fromISO(hoveredEvent.start).toFormat('dd/MM/yyyy')}
                                             </p>
                                         </div>

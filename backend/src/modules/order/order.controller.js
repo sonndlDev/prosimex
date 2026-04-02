@@ -32,7 +32,8 @@ export const getOrders = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT o.*, c.name as customer_name, u.username as created_by_username,
+      SELECT o.*, c.name as customer_name, 
+             COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
              COALESCE(
@@ -44,7 +45,8 @@ export const getOrders = async (req, res) => {
              ) as products
       FROM orders o
       JOIN customers c ON o.customer_id = c.id
-      JOIN users u ON o.created_by = u.id
+      LEFT JOIN users cu ON o.created_by = cu.id
+      LEFT JOIN users mu ON o.modified_by = mu.id
       LEFT JOIN order_ext oe ON o.id = oe.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
@@ -173,8 +175,8 @@ export const createOrder = async (req, res) => {
       `INSERT INTO orders 
             (order_code, name, customer_id, product_id, po_customer, 
              received_date, delivery_date, quantity, production_location, 
-             person_in_charge, note, factory_id, created_by) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+             person_in_charge, note, factory_id, created_by, modified_by) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING id`,
       [
         order_code,
         name,
@@ -332,7 +334,9 @@ export const updateOrder = async (req, res) => {
                  person_in_charge = COALESCE($8, person_in_charge),
                  note = COALESCE($9, note),
                  status = COALESCE($10, status),
-                 updated_at = CURRENT_TIMESTAMP 
+                 updated_at = CURRENT_TIMESTAMP,
+                 modified_by = $12,
+                 modified_time = CURRENT_TIMESTAMP
              WHERE id = $11 AND deleted_at IS NULL RETURNING *`,
       [
         name,
@@ -346,6 +350,7 @@ export const updateOrder = async (req, res) => {
         note,
         status,
         id,
+        req.user.id
       ],
     );
 

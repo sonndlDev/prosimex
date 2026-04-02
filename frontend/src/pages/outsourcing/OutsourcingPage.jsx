@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
+import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -676,11 +677,7 @@ function OutsourcingHistory({ type }) {
         return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Đang chờ</Badge>;
       }
     },
-    {
-      id: "created_at",
-      label: "Ngày tạo",
-      format: (val) => DateTime.fromISO(val).toFormat("dd/MM/yyyy HH:mm")
-    }
+    getAuditColumn()
   ];
 
   return (

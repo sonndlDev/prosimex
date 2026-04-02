@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerService } from "../../services/customer.service";
 import GenericTable from "../../components/GenericTable";
+import { getAuditColumn } from "../../utils/audit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ export default function CustomerPage() {
     { id: "code", label: "Mã công ty" },
     { id: "name", label: "Tên khách hàng" },
     { id: "contact_info", label: "Thông tin liên hệ" },
+    getAuditColumn(),
   ];
 
   const handleOpen = (customer = null) => {

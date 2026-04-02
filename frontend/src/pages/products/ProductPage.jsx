@@ -5,6 +5,7 @@ import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
 import { factoryService } from "../../services/factory.service";
 import GenericTable from "../../components/GenericTable";
+import { getAuditColumn } from "../../utils/audit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ export default function ProductPage() {
         ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50">Hoạt động</Badge>
         : <Badge variant="secondary" className="text-zinc-400">Ngừng HĐ</Badge>
     },
+    getAuditColumn(),
   ];
 
   const handleOpen = (product = null) => {

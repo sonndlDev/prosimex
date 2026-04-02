@@ -56,7 +56,9 @@ export const getProductionPlans = async (req, res) => {
                 op.name as operation_name, 
                 COALESCE(pp.machine_id, pgo.machine_id) as machine_id,
                 m.name as machine_name,
-                f.name as factory_name
+                f.name as factory_name,
+                COALESCE(cu.full_name, cu.username) as creator_name,
+                COALESCE(mu.full_name, mu.username) as modifier_name
             FROM production_plans pp
             LEFT JOIN orders o ON pp.order_id = o.id
             LEFT JOIN products p ON pp.product_id = p.id
@@ -66,6 +68,8 @@ export const getProductionPlans = async (req, res) => {
             LEFT JOIN machines m ON COALESCE(pp.machine_id, pgo.machine_id) = m.id
             LEFT JOIN factories f ON pp.factory_id = f.id
             LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
+            LEFT JOIN users cu ON pp.created_by = cu.id
+            LEFT JOIN users mu ON pp.modified_by = mu.id
             ${whereClause}
             ORDER BY pp.created_at DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -181,8 +185,8 @@ export const createProductionPlan = async (req, res) => {
     // 3. Insert Production Plan
     const planInsert = await client.query(
       `INSERT INTO production_plans 
-             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by, modified_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING *`,
       [
         order_id,
         product_id || null,
@@ -288,7 +292,8 @@ export const updateProductionPlan = async (req, res) => {
       `UPDATE production_plans 
        SET inventory_input = $1, remaining_quantity = $2, total_required_work = $3, 
            planned_start_date = $4, planned_end_date = $5, product_id = $6, 
-           dinh_muc = $7, updated_at = CURRENT_TIMESTAMP
+           dinh_muc = $7, updated_at = CURRENT_TIMESTAMP,
+           modified_by = $9, modified_time = CURRENT_TIMESTAMP
        WHERE id = $8 RETURNING *`,
       [
         inventory_input !== undefined
@@ -301,6 +306,7 @@ export const updateProductionPlan = async (req, res) => {
         product_id || currentPlan.product_id,
         dinh_muc || currentPlan.dinh_muc,
         id,
+        created_by,
       ],
     );
 
@@ -371,8 +377,8 @@ export const deleteProductionPlan = async (req, res) => {
 
     // 3. Soft delete the production plan
     await client.query(
-      "UPDATE production_plans SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id],
+      "UPDATE production_plans SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, created_by],
     );
 
     // 4. Reset order status if no more ACTIVE plans exist for this order
@@ -425,8 +431,8 @@ export const cloneProductionPlan = async (req, res) => {
     // 2. Insert as new Plan
     const planInsert = await client.query(
       `INSERT INTO production_plans 
-             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, created_by, modified_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12) RETURNING *`,
       [
         plan.order_id,
         plan.product_id,
@@ -564,8 +570,8 @@ export const createOrderGeneralPlan = async (req, res) => {
       // Insert Plan
       const planInsert = await client.query(
         `INSERT INTO production_plans 
-         (order_id, product_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+         (order_id, product_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by, modified_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12) RETURNING *`,
         [
           order_id,
           p.productId || p.product_id,

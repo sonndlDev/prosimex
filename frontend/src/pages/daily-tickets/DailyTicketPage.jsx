@@ -17,6 +17,7 @@ import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import DailyTicketReportDialog from "./components/DailyTicketReportDialog";
 import GenericTable from "@/components/GenericTable";
+import { getAuditColumn } from "@/utils/audit";
 
 export default function DailyTicketPage() {
   const queryClient = useQueryClient();
@@ -87,13 +88,7 @@ export default function DailyTicketPage() {
         </Badge>
       )
     },
-    { id: "created_by_name", label: "Người lập", className: "text-zinc-600" },
-    {
-      id: "created_at",
-      label: "Ngày tạo",
-      className: "text-zinc-500 text-sm",
-      format: (val) => DateTime.fromISO(val).toFormat("dd/MM/yyyy HH:mm")
-    },
+    getAuditColumn()
   ];
 
   return (
