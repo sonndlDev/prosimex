@@ -7,6 +7,15 @@ import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
 import GenericTable from "../../components/GenericTable";
 import { toast } from "sonner";
+import CompletionReportDialog from "./components/CompletionReportDialog";
+import CompletionPercentageCell from "./components/CompletionPercentageCell";
+import WarehouseDetailsDialog from "./components/WarehouseDetailsDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -58,8 +67,10 @@ import {
   Timer,
   Check,
   ChevronsUpDown,
-  Search,
-  Layers
+  Layers,
+  MoreHorizontal,
+  Warehouse,
+  Pencil
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
@@ -76,6 +87,10 @@ const defaultValues = {
   person_in_charge: "",
   note: "",
   status: "DRAFT",
+  production_start_date: "",
+  expected_shipping_date: "",
+  expected_container_shipping_date: "",
+  customer_confirmation_result: "",
 };
 
 export default function OrderPage() {
@@ -87,6 +102,12 @@ export default function OrderPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
+
+  const [openCompletionReport, setOpenCompletionReport] = useState(false);
+  const [reportOrderId, setReportOrderId] = useState(null);
+
+  const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
+  const [warehouseOrder, setWarehouseOrder] = useState(null);
 
   const {
     control,
@@ -127,11 +148,11 @@ export default function OrderPage() {
     data: ordersData,
     isLoading,
     error,
-  } = useQuery({ 
-    queryKey: ["orders", page, pageSize, search], 
-    queryFn: () => orderService.getAll({ page, limit: pageSize, search }) 
+  } = useQuery({
+    queryKey: ["orders", page, pageSize, search],
+    queryFn: () => orderService.getAll({ page, limit: pageSize, search })
   });
-  
+
   const orders = ordersData?.data || [];
   const totalItems = ordersData?.total || 0;
 
@@ -186,45 +207,73 @@ export default function OrderPage() {
 
   const columns = [
     { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
-    { id: "po_customer", label: "PO Khách hàng" },
-    { id: "name", label: "Tên đơn hàng", className: "font-medium" },
-    { id: "customer_name", label: "Khách hàng" },
+    { id: "customer_name", label: "Tên khách", className: "font-medium" },
+    { id: "person_in_charge", label: "Người theo dõi đơn hàng" },
     {
-      id: "products",
-      label: "Sản phẩm",
-      format: (value, row) => (
-        <div className="flex flex-wrap gap-1 max-w-xs">
-          {row.products?.slice(0, 3).map((p) => (
-            <Badge
-              key={p.id}
-              variant="outline"
-              className="text-[10px] bg-zinc-50 border-zinc-200"
-            >
-              {p.name} ({p.quantity || 0})
-            </Badge>
-          ))}
-          {row.products?.length > 3 && (
-            <Badge variant="outline" className="text-[10px] bg-zinc-50 border-zinc-200">
-              +{row.products.length - 3}...
-            </Badge>
-          )}
-        </div>
-      ),
+      id: "received_date",
+      label: "Ngày nhận đơn",
+      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
     },
     {
-      id: "total_quantity",
-      label: "Tổng SL",
-      className: "text-right font-bold tabular-nums",
-      format: (value, row) =>
-        row.products
-          ?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
-          .toLocaleString() || "0",
+      id: "expected_material_date",
+      label: <p className="text-center">Ngày NL về xưởng <br /> (Dự kiến)</p>,
+      format: (value, row) => row.expected_material_date ? DateTime.fromISO(row.expected_material_date).toFormat("dd/MM/yyyy") : "-"
+    },
+    {
+      id: "actual_material_date",
+      label: <p className="text-center">Ngày NL về xưởng <br /> (Thực tế)</p>,
+      format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
+    },
+    {
+      id: "production_start_date",
+      label: "Ngày bắt đầu sản xuất",
+      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+    },
+    {
+      id: "expected_shipping_date",
+      label: <p className="text-center">Ngày xuất hàng <br /> (Dự kiến)</p>,
+      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+    },
+    {
+      id: "expected_container_shipping_date",
+      label: <p className="text-center">Ngày xuất công <br /> (Dự kiến)</p>,
+      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
     },
     {
       id: "status",
       label: "Trạng thái",
       format: (value) => getStatusBadge(value),
     },
+    {
+      id: "customer_confirmation_result",
+      label: "Kết quả xác nhận Kh"
+    },
+    {
+      id: "completion_percentage",
+      label: "Phần trăm hoàn thành đơn hàng",
+      format: (value, row) => (
+        <CompletionPercentageCell
+          orderId={row.id}
+          onClick={() => {
+            setReportOrderId(row.id);
+            setOpenCompletionReport(true);
+          }}
+        />
+      )
+    },
+    { id: "note", label: "Ghi chú", className: "max-w-[150px] truncate" },
+    {
+      id: "total_quantity",
+      label: "Số lượng",
+      className: "text-right font-bold tabular-nums",
+      format: (value, row) =>
+        row.products
+          ?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
+          .toLocaleString() || "0",
+    },
+    { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
+    { id: "package_count_text", label: "Số kiện", format: (value, row) => row.package_count_text || "-" },
+    { id: "container_volume_text", label: "Khối lượng cont/ lẻ", format: (value, row) => row.container_volume_text || "-" },
   ];
 
   const handleOpen = (order = null) => {
@@ -249,6 +298,10 @@ export default function OrderPage() {
         person_in_charge: order.person_in_charge || "",
         note: order.note || "",
         status: order.status,
+        production_start_date: order.production_start_date ? DateTime.fromISO(order.production_start_date).toFormat("yyyy-MM-dd") : "",
+        expected_shipping_date: order.expected_shipping_date ? DateTime.fromISO(order.expected_shipping_date).toFormat("yyyy-MM-dd") : "",
+        expected_container_shipping_date: order.expected_container_shipping_date ? DateTime.fromISO(order.expected_container_shipping_date).toFormat("yyyy-MM-dd") : "",
+        customer_confirmation_result: order.customer_confirmation_result || "",
       });
     } else {
       setSelectedOrder(null);
@@ -301,8 +354,8 @@ export default function OrderPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Đơn hàng</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Đơn hàng</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
@@ -314,20 +367,20 @@ export default function OrderPage() {
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <GenericTable
           data={orders}
-        columns={columns}
-        isLoading={isLoading}
-        error={error}
-        onEdit={handleOpen}
-        onDelete={handleDelete}
-        onBulkDelete={handleBulkDelete}
-        isServerSide={true}
-        totalItems={totalItems}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        onSearchChange={setSearch}
-      />
+          columns={columns}
+          isLoading={isLoading}
+          error={error}
+          onEdit={handleOpen}
+          onDelete={handleDelete}
+          onBulkDelete={handleBulkDelete}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          onSearchChange={setSearch}
+        />
       </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
@@ -423,45 +476,45 @@ export default function OrderPage() {
                           control={control}
                           render={({ field }) => (
                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        className={cn(
-                                            "w-full h-10 justify-between bg-white border-zinc-200 font-bold",
-                                            !field.value && "text-zinc-400 font-medium"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2 truncate">
-                                            <User className={cn("h-3.5 w-3.5 shrink-0", field.value ? "text-indigo-600" : "text-zinc-300")} />
-                                            <span className="truncate">
-                                                {field.value ? customers?.find(c => String(c.id) === String(field.value))?.name : "Chọn khách hàng"}
-                                            </span>
-                                        </div>
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                                    <Command className="w-full">
-                                        <CommandInput placeholder="Tìm khách hàng..." />
-                                        <CommandList className="max-h-64 p-1">
-                                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
-                                            <CommandGroup>
-                                                {customers?.map((c) => (
-                                                    <CommandItem
-                                                        key={c.id}
-                                                        value={c.name}
-                                                        onSelect={() => field.onChange(String(c.id))}
-                                                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                                                    >
-                                                        <span className="text-xs font-bold">{c.name}</span>
-                                                        <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(c.id) ? "opacity-100" : "opacity-0")} />
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                    "w-full h-10 justify-between bg-white border-zinc-200 font-bold",
+                                    !field.value && "text-zinc-400 font-medium"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <User className={cn("h-3.5 w-3.5 shrink-0", field.value ? "text-indigo-600" : "text-zinc-300")} />
+                                    <span className="truncate">
+                                      {field.value ? customers?.find(c => String(c.id) === String(field.value))?.name : "Chọn khách hàng"}
+                                    </span>
+                                  </div>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                <Command className="w-full">
+                                  <CommandInput placeholder="Tìm khách hàng..." />
+                                  <CommandList className="max-h-64 p-1">
+                                    <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                    <CommandGroup>
+                                      {customers?.map((c) => (
+                                        <CommandItem
+                                          key={c.id}
+                                          value={c.name}
+                                          onSelect={() => field.onChange(String(c.id))}
+                                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                        >
+                                          <span className="text-xs font-bold">{c.name}</span>
+                                          <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(c.id) ? "opacity-100" : "opacity-0")} />
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
                             </Popover>
                           )}
                         />
@@ -508,9 +561,9 @@ export default function OrderPage() {
                           control={control}
                           render={({ field }) => (
                             <PremiumDatePicker
-                                date={field.value}
-                                onSelect={field.onChange}
-                                placeholder="Ngày nhận"
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Ngày nhận"
                             />
                           )}
                         />
@@ -598,6 +651,76 @@ export default function OrderPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Tiến độ và Xác nhận (chỉ hiển thị khi Update theo yêu cầu) */}
+              {selectedOrder && (
+                <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
+                  <CardContent className="p-6 space-y-5">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">TIẾN ĐỘ & XÁC NHẬN</Label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-zinc-100 pb-5">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Ngày bắt đầu sản xuất</Label>
+                        <Controller
+                          name="production_start_date"
+                          control={control}
+                          render={({ field }) => (
+                            <PremiumDatePicker
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Chọn ngày"
+                            />
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Ngày xuất hàng (Dự kiến)</Label>
+                        <Controller
+                          name="expected_shipping_date"
+                          control={control}
+                          render={({ field }) => (
+                            <PremiumDatePicker
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Chọn ngày"
+                            />
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Ngày xuất công dự kiến</Label>
+                        <Controller
+                          name="expected_container_shipping_date"
+                          control={control}
+                          render={({ field }) => (
+                            <PremiumDatePicker
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Chọn ngày"
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold">Kết quả xác nhận Khách hàng</Label>
+                      <Controller
+                        name="customer_confirmation_result"
+                        control={control}
+                        render={({ field }) => (
+                          <Textarea
+                            {...field}
+                            className="bg-white border-zinc-200 min-h-[60px] resize-none"
+                            placeholder="Nhập kết quả xác nhận của khách hàng..."
+                          />
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 3. Product Selection */}
               <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
@@ -714,45 +837,45 @@ export default function OrderPage() {
                                     );
 
                                     return (
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    disabled={!currentGroupId}
-                                                    className={cn(
-                                                        "w-full h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
-                                                        !f.value && "text-zinc-400 font-medium"
-                                                    )}
-                                                >
-                                                    <span className="truncate">
-                                                        {f.value ? products.find(p => String(p.id) === String(f.value))?.name : "Chọn mã hàng"}
-                                                    </span>
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                                                <Command className="w-full">
-                                                    <CommandInput placeholder="Tìm mã hàng..." />
-                                                    <CommandList className="max-h-64 p-1">
-                                                        <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {filteredProducts.map((p) => (
-                                                                <CommandItem
-                                                                    key={p.id}
-                                                                    value={p.name}
-                                                                    onSelect={() => f.onChange(String(p.id))}
-                                                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                                                                >
-                                                                    <span className="text-xs font-bold">{p.name}</span>
-                                                                    <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(f.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
+                                      <Popover>
+                                        <PopoverTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            disabled={!currentGroupId}
+                                            className={cn(
+                                              "w-full h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
+                                              !f.value && "text-zinc-400 font-medium"
+                                            )}
+                                          >
+                                            <span className="truncate">
+                                              {f.value ? products.find(p => String(p.id) === String(f.value))?.name : "Chọn mã hàng"}
+                                            </span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                          </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                          <Command className="w-full">
+                                            <CommandInput placeholder="Tìm mã hàng..." />
+                                            <CommandList className="max-h-64 p-1">
+                                              <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                              <CommandGroup>
+                                                {filteredProducts.map((p) => (
+                                                  <CommandItem
+                                                    key={p.id}
+                                                    value={p.name}
+                                                    onSelect={() => f.onChange(String(p.id))}
+                                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                  >
+                                                    <span className="text-xs font-bold">{p.name}</span>
+                                                    <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(f.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                                                  </CommandItem>
+                                                ))}
+                                              </CommandGroup>
+                                            </CommandList>
+                                          </Command>
+                                        </PopoverContent>
+                                      </Popover>
                                     );
                                   }}
                                 />
@@ -799,6 +922,15 @@ export default function OrderPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CompletionReportDialog
+        orderId={reportOrderId}
+        open={openCompletionReport}
+        onClose={() => {
+          setOpenCompletionReport(false);
+          setReportOrderId(null);
+        }}
+      />
     </div>
   );
 }

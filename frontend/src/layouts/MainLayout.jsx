@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Factory, Settings, CalendarDays, Users, LogOut,
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
-  Hammer, UserCircle,
+  Hammer, UserCircle, Warehouse,
 } from "lucide-react";
 
 const menuItems = [
@@ -23,6 +23,7 @@ const menuItems = [
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "planning" },
   { text: "Đơn hàng", icon: ShoppingCart, path: "/orders", permission: "orders" },
+  { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "orders" },
   { type: "subheader", text: "Dữ liệu gốc" },
   { text: "Khách hàng", icon: Store, path: "/customers", permission: "customers" },
   { text: "Nhà máy", icon: Factory, path: "/factories", permission: "factories" },

@@ -33,6 +33,8 @@ export const getOrders = async (req, res) => {
     // Get data
     const dataQuery = `
       SELECT o.*, c.name as customer_name, u.username as created_by_username,
+             oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
+             oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
              COALESCE(
                (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id, 'quantity', op.quantity))
                 FROM order_products op
@@ -43,6 +45,7 @@ export const getOrders = async (req, res) => {
       FROM orders o
       JOIN customers c ON o.customer_id = c.id
       JOIN users u ON o.created_by = u.id
+      LEFT JOIN order_ext oe ON o.id = oe.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -59,6 +62,75 @@ export const getOrders = async (req, res) => {
   } catch (error) {
     console.error("Get Orders Error:", error);
     res.status(500).json({ message: "Error retrieving orders", error });
+  }
+};
+
+export const getOrderCompletionReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT 
+        p.id as product_id,
+        p.name as product_code,
+        op.quantity as required_quantity,
+        (
+          SELECT COALESCE(SUM(dti.actual_quantity), 0)
+          FROM daily_production_ticket_items dti 
+          JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+          WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
+        ) as sx_quantity,
+        (
+          SELECT COALESCE(SUM(ot.quantity_out), 0)
+          FROM outsourcing_tickets ot 
+          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        ) as plating_out_quantity,
+        (
+          SELECT COALESCE(SUM(or_t.quantity_returned), 0)
+          FROM outsourcing_returns or_t 
+          JOIN outsourcing_tickets ot ON or_t.ticket_id = ot.id 
+          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        ) as plating_returned_quantity,
+        (
+          SELECT COALESCE(SUM(ot.quantity_out), 0)
+          FROM outsourcing_tickets ot 
+          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        ) as packaging_out_quantity
+      FROM order_products op
+      JOIN products p ON op.product_id = p.id
+      WHERE op.order_id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    const data = result.rows.map(row => {
+      const required = parseFloat(row.required_quantity) || 0;
+      const sx = parseFloat(row.sx_quantity) || 0;
+      const platingOut = parseFloat(row.plating_out_quantity) || 0;
+      const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
+      const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
+
+      // Formula = SX + ĐI XMS + ĐÓNG GÓI
+      const sum = sx + platingOut + packagingOut;
+      let percentage = 0;
+      if (required > 0) {
+        percentage = (sum / required) * 100;
+      }
+
+      return {
+        ...row,
+        sx_quantity: sx,
+        plating_out_quantity: platingOut,
+        plating_returned_quantity: platingReturned,
+        packaging_out_quantity: packagingOut,
+        completion_percentage: percentage
+      };
+    });
+
+    res.json({ data });
+  } catch (error) {
+    console.error("Get Order Completion Report Error:", error);
+    res.status(500).json({ message: "Error retrieving order completion report", error });
   }
 };
 
@@ -178,6 +250,10 @@ export const updateOrder = async (req, res) => {
       status,
       product_ids,
       product_items,
+      production_start_date,
+      expected_shipping_date,
+      expected_container_shipping_date,
+      customer_confirmation_result,
     } = req.body;
 
     // Get Before Data for Audit Log
@@ -275,6 +351,29 @@ export const updateOrder = async (req, res) => {
 
     const afterData = result.rows[0];
 
+    // Update order_ext
+    await client.query(
+      `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (order_id) DO UPDATE SET
+         production_start_date = EXCLUDED.production_start_date,
+         expected_shipping_date = EXCLUDED.expected_shipping_date,
+         expected_container_shipping_date = EXCLUDED.expected_container_shipping_date,
+         customer_confirmation_result = EXCLUDED.customer_confirmation_result`,
+      [
+        id,
+        production_start_date || null,
+        expected_shipping_date || null,
+        expected_container_shipping_date || null,
+        customer_confirmation_result || null,
+      ]
+    );
+
+    afterData.production_start_date = production_start_date || null;
+    afterData.expected_shipping_date = expected_shipping_date || null;
+    afterData.expected_container_shipping_date = expected_container_shipping_date || null;
+    afterData.customer_confirmation_result = customer_confirmation_result || null;
+
     // Audit Log
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data)
@@ -326,6 +425,69 @@ export const deleteOrder = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     res.status(500).json({ message: "Error deleting order", error });
+  } finally {
+    client.release();
+  }
+};
+
+export const updateWarehouseDetails = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const {
+      expected_material_date,
+      actual_material_date,
+      net_weight_text,
+      package_count_text,
+      container_volume_text
+    } = req.body;
+
+    await client.query("BEGIN");
+
+    const orderRes = await client.query("SELECT id FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (orderRes.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    await client.query(
+      `INSERT INTO order_ext (
+        order_id, 
+        expected_material_date, 
+        actual_material_date, 
+        net_weight_text, 
+        package_count_text, 
+        container_volume_text
+       )
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (order_id) DO UPDATE SET
+         expected_material_date = EXCLUDED.expected_material_date,
+         actual_material_date = EXCLUDED.actual_material_date,
+         net_weight_text = EXCLUDED.net_weight_text,
+         package_count_text = EXCLUDED.package_count_text,
+         container_volume_text = EXCLUDED.container_volume_text`,
+      [
+        id,
+        expected_material_date || null,
+        actual_material_date || null,
+        net_weight_text || null,
+        package_count_text || null,
+        container_volume_text || null,
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
+             VALUES ($1, 'UPDATE_WAREHOUSE', 'Order', $2, $3)`,
+      [req.user.id, id, { expected_material_date, actual_material_date, net_weight_text, package_count_text, container_volume_text }]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Warehouse details updated successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Warehouse Details Error:", error);
+    res.status(500).json({ message: "Error updating warehouse details" });
   } finally {
     client.release();
   }

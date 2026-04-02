@@ -17,4 +17,12 @@ export const orderService = {
         const { data } = await api.delete(`/orders/${id}`);
         return data;
     },
+    getCompletionReport: async (id) => {
+        const { data } = await api.get(`/orders/${id}/completion-report`);
+        return data;
+    },
+    updateWarehouseDetails: async (id, payload) => {
+        const { data } = await api.put(`/orders/${id}/warehouse-details`, payload);
+        return data;
+    },
 };
