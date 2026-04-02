@@ -21,6 +21,7 @@ import machineScheduleRoutes from './modules/machine-schedule/machine-schedule.r
 import attendanceRoutes from './modules/attendance/attendance.routes.js'
 import dailyTicketRoutes from './modules/daily-ticket/daily-ticket.routes.js'
 import outsourcingRoutes from './modules/outsourcing/outsourcing.routes.js'
+import dashboardRoutes from './modules/dashboard/dashboard.routes.js'
 
 const app = express()
 
@@ -45,6 +46,7 @@ app.use('/api/machine-schedule', machineScheduleRoutes)
 app.use('/api/attendance', attendanceRoutes)
 app.use('/api/daily-tickets', dailyTicketRoutes)
 app.use('/api/outsourcing', outsourcingRoutes)
+app.use('/api/dashboard', dashboardRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {
