@@ -18,9 +18,9 @@ router.use(verifyToken);
 router.get("/", getTickets);
 router.get("/report/plan-vs-actual", getPlanVsActualReport);
 router.get("/:id", getTicketById);
-router.post("/", authorize(["ADMIN", "PLANNER"]), createTicket);
-router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"]), updateTicket);
-router.put("/:id/results", authorize(["ADMIN", "PLANNER", "MANAGER"]), updateTicketResults);
-router.delete("/:id", authorize(["ADMIN", "PLANNER"]), deleteTicket);
+router.post("/", authorize(["ADMIN", "PLANNER"], "daily_tickets"), createTicket);
+router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], "daily_tickets"), updateTicket);
+router.put("/:id/results", authorize(["ADMIN", "PLANNER", "MANAGER"], "daily_tickets"), updateTicketResults);
+router.delete("/:id", authorize(["ADMIN", "PLANNER"], "daily_tickets"), deleteTicket);
 
 export default router;

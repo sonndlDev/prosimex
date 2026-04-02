@@ -15,19 +15,41 @@ import { Separator } from "@/components/ui/separator";
 import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, Search, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const AVAILABLE_PERMISSIONS = [
-  { key: "planning", label: "Lập kế hoạch" },
-  { key: "schedule", label: "Lịch sản xuất" },
-  { key: "orders", label: "Đơn hàng" },
-  { key: "customers", label: "Khách hàng" },
-  { key: "factories", label: "Nhà máy" },
-  { key: "machines", label: "Máy móc" },
-  { key: "operations", label: "Công đoạn" },
-  { key: "product_groups", label: "Nhóm mã hàng" },
-  { key: "products", label: "Mã hàng" },
-  { key: "workers", label: "Quản lý công nhân" },
-  { key: "attendance", label: "Chấm công" },
-  { key: "settings", label: "Cài đặt hệ thống" },
+const PERMISSION_GROUPS = [
+  {
+    groupLabel: "Sản xuất",
+    items: [
+      { key: "dashboard", label: "Bảng điều khiển" },
+      { key: "planning", label: "Lập kế hoạch" },
+      { key: "daily_tickets", label: "Phiếu SX hàng ngày" },
+      { key: "production_output", label: "Nhập sản lượng" },
+      { key: "schedule", label: "Timeline" },
+      { key: "outsourcing", label: "Phiếu gia công" },
+      { key: "orders", label: "Đơn hàng" },
+      { key: "warehouse", label: "Thông tin kho" },
+    ]
+  },
+  {
+    groupLabel: "Dữ liệu gốc",
+    items: [
+      { key: "customers", label: "Khách hàng" },
+      { key: "factories", label: "Nhà máy" },
+      { key: "machines", label: "Máy móc" },
+      { key: "operations", label: "Công đoạn" },
+      { key: "product_groups", label: "Nhóm mã hàng" },
+      { key: "products", label: "Mã hàng" },
+    ]
+  },
+  {
+    groupLabel: "Hệ thống",
+    items: [
+      { key: "attendance", label: "Chấm công (C.Nhân)" },
+      { key: "attendance_management", label: "QL Chấm công" },
+      { key: "workers", label: "Quản lý công nhân" },
+      { key: "users", label: "Người dùng & Quyền" },
+      { key: "settings", label: "Cài đặt hệ thống" },
+    ]
+  }
 ];
 
 export default function UserPage() {
@@ -47,7 +69,8 @@ export default function UserPage() {
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
 
-  const { data: factories } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
+  const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
+  const factories = factoriesData?.data || (Array.isArray(factoriesData) ? factoriesData : []);
   const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({ 
     queryKey: ["users", page, pageSize, search], 
     queryFn: () => userService.getAll({ page, limit: pageSize, search }) 
@@ -277,35 +300,42 @@ export default function UserPage() {
               </div>
 
               {/* Right Column: Permissions */}
-              <div className="w-full md:w-[320px] bg-zinc-50 p-6 overflow-y-auto space-y-4">
+              <div className="w-full md:w-[320px] bg-zinc-50 p-6 overflow-y-auto space-y-6">
                  <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Danh mục truy cập</p>
-                    <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Lựa chọn</Badge>
+                    <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Lựa chọn riêng biệt</Badge>
                  </div>
-                 <div className="grid gap-2">
-                    {AVAILABLE_PERMISSIONS.map(p => (
-                      <label 
-                        key={p.key} 
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer group",
-                          (watchPermissions || []).includes(p.key) 
-                            ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" 
-                            : "bg-transparent border-transparent hover:border-zinc-200"
-                        )}
-                      >
-                         <input
-                           type="checkbox"
-                           className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer"
-                           checked={(watchPermissions || []).includes(p.key)}
-                           onChange={() => togglePermission(p.key)}
-                         />
-                         <span className={cn(
-                            "text-xs font-bold transition-colors",
-                            (watchPermissions || []).includes(p.key) ? "text-indigo-900" : "text-zinc-500 group-hover:text-zinc-900"
-                         )}>
-                            {p.label}
-                         </span>
-                      </label>
+                 <div className="space-y-6">
+                    {PERMISSION_GROUPS.map(group => (
+                      <div key={group.groupLabel} className="space-y-2">
+                        <p className="text-[11px] font-bold text-indigo-700 tracking-wide">{group.groupLabel}</p>
+                        <div className="grid gap-2">
+                          {group.items.map(p => (
+                            <label 
+                              key={p.key} 
+                              className={cn(
+                                "flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group",
+                                (watchPermissions || []).includes(p.key) 
+                                  ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" 
+                                  : "bg-transparent border-transparent hover:border-zinc-200"
+                              )}
+                            >
+                               <input
+                                 type="checkbox"
+                                 className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer"
+                                 checked={(watchPermissions || []).includes(p.key)}
+                                 onChange={() => togglePermission(p.key)}
+                               />
+                               <span className={cn(
+                                  "text-xs font-bold transition-colors",
+                                  (watchPermissions || []).includes(p.key) ? "text-indigo-900" : "text-zinc-500 group-hover:text-zinc-900"
+                               )}>
+                                  {p.label}
+                               </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                  </div>
                  <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-3 items-start mt-4">

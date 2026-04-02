@@ -241,13 +241,11 @@ export default function GenericTable({
                                 {onEdit && (
                                   <TooltipProvider>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
+                                      <TooltipTrigger
                                           onClick={e => { e.stopPropagation(); onEdit(row); }}
                                           className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
                                         >
                                           <Pencil className="w-4 h-4" />
-                                        </button>
                                       </TooltipTrigger>
                                       <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]"><p>Chỉnh sửa</p></TooltipContent>
                                     </Tooltip>
@@ -256,13 +254,11 @@ export default function GenericTable({
                                 {onDelete && (
                                   <TooltipProvider>
                                     <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <button
+                                      <TooltipTrigger
                                           onClick={e => { e.stopPropagation(); onDelete(row); }}
                                           className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100"
                                         >
                                           <Trash2 className="w-4 h-4" />
-                                        </button>
                                       </TooltipTrigger>
                                       <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]"><p>Xóa bản ghi</p></TooltipContent>
                                     </Tooltip>

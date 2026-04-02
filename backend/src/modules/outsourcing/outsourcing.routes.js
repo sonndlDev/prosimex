@@ -6,6 +6,7 @@ import {
   addReturnEntry,
 } from "./outsourcing.controller.js";
 import verifyToken from "../../middlewares/auth.middleware.js";
+import { authorize } from "../../middlewares/rbac.middleware.js";
 
 const router = express.Router();
 
@@ -17,9 +18,9 @@ router.use(verifyToken);
 // router.use(permissionsMiddleware("planning"));
 
 // API Endpoints
-router.get("/", getTickets);
-router.post("/", createTicket);
-router.get("/:ticket_code", getTicketByCode);
-router.post("/:ticket_id/returns", addReturnEntry);
+router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTickets);
+router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), createTicket);
+router.get("/:ticket_code", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTicketByCode);
+router.post("/:ticket_id/returns", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), addReturnEntry);
 
 export default router;

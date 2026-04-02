@@ -114,18 +114,20 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="orders" />}>
                 <Route path="/orders" element={<OrderPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="warehouse" />}>
                 <Route path="/warehouse" element={<WarehousePage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="planning" />}>
                 <Route path="/planning" element={<PlanningPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+              <Route element={<ProtectedRoute requiredPermission="daily_tickets" />}>
                 <Route path="/daily-tickets" element={<DailyTicketPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+              <Route element={<ProtectedRoute requiredPermission="production_output" />}>
                 <Route path="/production-output" element={<ProductionOutputPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+              <Route element={<ProtectedRoute requiredPermission="outsourcing" />}>
                 <Route path="/outsourcing" element={<OutsourcingPage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="schedule" />}>

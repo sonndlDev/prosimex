@@ -133,13 +133,11 @@ export default function DailyTicketPage() {
             <div className="flex items-center gap-1">
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
+                  <TooltipTrigger
                       onClick={() => { setSelectedTicketId(item.id); setIsPrintOpen(true); }}
                       className="p-2 rounded-xl text-zinc-400 hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
                     >
                       <Printer className="w-4 h-4" />
-                    </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">In Phiếu</TooltipContent>
                 </Tooltip>
@@ -147,13 +145,11 @@ export default function DailyTicketPage() {
 
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
+                  <TooltipTrigger
                       onClick={() => { setSelectedTicketId(item.id); setIsFormOpen(true); }}
                       className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
                     >
                       <PencilLine className="w-4 h-4" />
-                    </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Chỉnh sửa phiếu</TooltipContent>
                 </Tooltip>
@@ -161,14 +157,12 @@ export default function DailyTicketPage() {
 
               <TooltipProvider>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
+                  <TooltipTrigger
                       onClick={() => handleDelete(item.id)}
                       disabled={item.status === "COMPLETED"}
                       className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xoá phiếu</TooltipContent>
                 </Tooltip>
