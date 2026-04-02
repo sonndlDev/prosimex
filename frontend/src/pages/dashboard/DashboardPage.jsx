@@ -341,8 +341,7 @@ export default function DashboardPage() {
   const { data: metrics, isLoading } = useQuery({
     queryKey: ['dashboardMetrics'],
     queryFn: dashboardService.getMetrics,
-    staleTime: 30000,
-    refetchInterval: 60000,
+    refetchInterval: 15000,
   });
 
   const today = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
