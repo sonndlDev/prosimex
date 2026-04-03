@@ -161,7 +161,7 @@ const PlanningTableRow = React.memo(
                         const dinhMuc = parseFloat(plan.dinh_muc) || 0;
                         const base = qty / 8;
                         const total = base * dinhMuc;
-                        return `${base.toFixed(2)} (${total.toFixed(2)})`;
+                        return `${total.toFixed(2)}`;
                       })()
                       : "-"}
                   </span>
