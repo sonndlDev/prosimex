@@ -77,32 +77,42 @@ export const getProductionPlans = async (req, res) => {
       [...queryParams, limitInt, offsetInt],
     );
 
-    // Fetch days and worker counts for each plan
-    const plansWithDays = await Promise.all(
-      result.rows.map(async (plan) => {
-        const daysRes = await pool.query(
-          `SELECT 
-                ppd.working_date, 
-                ppd.planned_work_quantity, 
-                ppd.is_overtime,
-                (SELECT COUNT(*) FROM worker_plan_assignments wpa 
-                 WHERE wpa.production_plan_id = ppd.production_plan_id 
-                 AND wpa.working_date = ppd.working_date) as worker_count,
-                (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
-                 JOIN workers w ON wpa.worker_id = w.id
-                 WHERE wpa.production_plan_id = ppd.production_plan_id 
-                 AND wpa.working_date = ppd.working_date) as worker_names
-             FROM production_plan_days ppd 
-             WHERE ppd.production_plan_id = $1 
-             ORDER BY ppd.working_date ASC`,
-          [plan.id],
-        );
-        return {
-          ...plan,
-          days: daysRes.rows,
-        };
-      }),
-    );
+    // Fix N+1: Fetch tất cả days của tất cả plans trong 1 query duy nhất
+    let plansWithDays = result.rows.map(plan => ({ ...plan, days: [] }));
+
+    if (result.rows.length > 0) {
+      const planIds = result.rows.map(r => r.id);
+      const allDaysRes = await pool.query(
+        `SELECT 
+              ppd.production_plan_id,
+              ppd.working_date, 
+              ppd.planned_work_quantity, 
+              ppd.is_overtime,
+              (SELECT COUNT(*) FROM worker_plan_assignments wpa 
+               WHERE wpa.production_plan_id = ppd.production_plan_id 
+               AND wpa.working_date = ppd.working_date) as worker_count,
+              (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
+               JOIN workers w ON wpa.worker_id = w.id
+               WHERE wpa.production_plan_id = ppd.production_plan_id 
+               AND wpa.working_date = ppd.working_date) as worker_names
+           FROM production_plan_days ppd 
+           WHERE ppd.production_plan_id = ANY($1)
+           ORDER BY ppd.working_date ASC`,
+        [planIds],
+      );
+
+      // Group days theo plan_id bằng JS (không cần thêm query)
+      const daysMap = {};
+      for (const day of allDaysRes.rows) {
+        if (!daysMap[day.production_plan_id]) daysMap[day.production_plan_id] = [];
+        daysMap[day.production_plan_id].push(day);
+      }
+
+      plansWithDays = result.rows.map(plan => ({
+        ...plan,
+        days: daysMap[plan.id] || [],
+      }));
+    }
 
     res.json({
       data: plansWithDays,
@@ -205,12 +215,18 @@ export const createProductionPlan = async (req, res) => {
     );
     const newPlan = planInsert.rows[0];
 
-    // 4. Insert Production Plan Days
-    for (const day of days) {
+    // 4. Insert Production Plan Days (Bulk INSERT — 1 query thay vì N queries)
+    if (days && days.length > 0) {
+      const dayValues = days
+        .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
+        .join(", ");
+      const dayParams = [
+        newPlan.id,
+        ...days.flatMap(d => [d.date, d.hours, d.is_overtime]),
+      ];
       await client.query(
-        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
-                 VALUES ($1, $2, $3, $4)`,
-        [newPlan.id, day.date, day.hours, day.is_overtime],
+        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime) VALUES ${dayValues}`,
+        dayParams,
       );
     }
 
@@ -325,16 +341,22 @@ export const updateProductionPlan = async (req, res) => {
       ],
     );
 
-    // 5. Delete and Re-insert Days
+    // 5. Delete and Re-insert Days (Bulk INSERT)
     await client.query(
       "DELETE FROM production_plan_days WHERE production_plan_id = $1",
       [id],
     );
-    for (const day of days) {
+    if (days && days.length > 0) {
+      const dayValues = days
+        .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
+        .join(", ");
+      const dayParams = [
+        id,
+        ...days.flatMap(d => [d.date, d.hours, d.is_overtime]),
+      ];
       await client.query(
-        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
-         VALUES ($1, $2, $3, $4)`,
-        [id, day.date, day.hours, day.is_overtime],
+        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime) VALUES ${dayValues}`,
+        dayParams,
       );
     }
 
@@ -465,16 +487,22 @@ export const cloneProductionPlan = async (req, res) => {
     );
     const newPlan = planInsert.rows[0];
 
-    // 3. Clone Days
+    // 3. Clone Days (Bulk INSERT)
     const daysRes = await client.query(
       "SELECT * FROM production_plan_days WHERE production_plan_id = $1",
       [id],
     );
-    for (const day of daysRes.rows) {
+    if (daysRes.rows.length > 0) {
+      const dayValues = daysRes.rows
+        .map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`)
+        .join(", ");
+      const dayParams = [
+        newPlan.id,
+        ...daysRes.rows.flatMap(d => [d.working_date, d.planned_work_quantity, d.is_overtime]),
+      ];
       await client.query(
-        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
-                 VALUES ($1, $2, $3, $4)`,
-        [newPlan.id, day.working_date, day.planned_work_quantity, day.is_overtime],
+        `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime) VALUES ${dayValues}`,
+        dayParams,
       );
     }
 
@@ -576,11 +604,17 @@ export const createOrderGeneralPlan = async (req, res) => {
 
     const createdPlans = [];
     for (const p of productsToPlan) {
-      const pQty = parseFloat(p.quantity);
-      const pStart = new Date(p.startDate || p.working_date);
-      const pEnd = new Date(p.endDate || p.working_date);
-      const pNorm = parseFloat(p.norm);
-      const pDaysNeeded = Math.ceil((pEnd - pStart) / (1000 * 60 * 60 * 24)) + 1;
+      const pQty = parseFloat(p.quantity || 0);
+      // Validate dates to avoid NaN results
+      const pStart = new Date(p.startDate || p.working_date || start_date);
+      const pEnd = new Date(p.endDate || p.working_date || end_date);
+      
+      if (isNaN(pStart.getTime()) || isNaN(pEnd.getTime())) {
+        continue; // Skip invalid items
+      }
+
+      const pNorm = parseFloat(p.norm) || 1;
+      const pDaysNeeded = Math.max(1, Math.ceil((pEnd - pStart) / (1000 * 60 * 60 * 24)) + 1);
 
       // Insert Plan
       const planInsert = await client.query(
@@ -604,15 +638,23 @@ export const createOrderGeneralPlan = async (req, res) => {
       );
       const newPlan = planInsert.rows[0];
 
-      // Insert Days (Standard 8h per day)
+      // Insert Days — Standard 8h per day (Bulk INSERT)
+      const generatedDays = [];
       for (let i = 0; i < pDaysNeeded; i++) {
         const d = new Date(pStart);
         d.setDate(d.getDate() + i);
         if (d > pEnd) break;
+        generatedDays.push(d);
+      }
+      if (generatedDays.length > 0) {
+        // Fix: Use separate parameters for each value instead of reusing $3 and $4 which might point to dates
+        const dayValues = generatedDays
+          .map((_, i) => `($1, $${i + 2}, 8, false)`)
+          .join(", ");
+        const dayParams = [newPlan.id, ...generatedDays];
         await client.query(
-          `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime)
-           VALUES ($1, $2, $3, $4)`,
-          [newPlan.id, d, 8, false]
+          `INSERT INTO production_plan_days (production_plan_id, working_date, planned_work_quantity, is_overtime) VALUES ${dayValues}`,
+          dayParams,
         );
       }
       createdPlans.push(newPlan);

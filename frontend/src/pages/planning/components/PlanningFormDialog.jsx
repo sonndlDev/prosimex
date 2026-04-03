@@ -1229,7 +1229,7 @@ const PlanningFormDialog = React.memo(
             <Button
               disabled={
                 !startDate ||
-                (isFullOrderMode ? (!endDate || (!isOutsourced ? !selectedMachineId : !selectedFactoryId)) : (plannedDays.length === 0 || !selectedOpId || (isOutsourced ? !selectedFactoryId : false))) ||
+                (isFullOrderMode ? (!endDate || (isOutsourced ? !selectedFactoryId : false)) : (plannedDays.length === 0 || !selectedOpId || (isOutsourced ? !selectedFactoryId : false))) ||
                 isCreatePending ||
                 isUpdatePending
               }

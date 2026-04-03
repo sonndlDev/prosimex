@@ -72,34 +72,46 @@ export const getOrderCompletionReport = async (req, res) => {
     const { id } = req.params;
 
     const query = `
+      WITH sx_totals AS (
+        SELECT dti.product_id, SUM(dti.actual_quantity) as total_sx
+        FROM daily_production_ticket_items dti 
+        JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+        WHERE dti.order_id = $1 AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
+        GROUP BY dti.product_id
+      ),
+      plating_totals AS (
+        SELECT ot.product_id, SUM(ot.quantity_out) as total_plating_out
+        FROM outsourcing_tickets ot 
+        WHERE ot.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY ot.product_id
+      ),
+      plating_returns AS (
+        SELECT ot.product_id, SUM(or_t.quantity_returned) as total_plating_returned
+        FROM outsourcing_returns or_t 
+        JOIN outsourcing_tickets ot ON or_t.ticket_id = ot.id 
+        WHERE ot.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY ot.product_id
+      ),
+      packaging_totals AS (
+        SELECT ot.product_id, SUM(ot.quantity_out) as total_packaging_out
+        FROM outsourcing_tickets ot 
+        WHERE ot.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        GROUP BY ot.product_id
+      )
       SELECT 
         p.id as product_id,
         p.name as product_code,
         op.quantity as required_quantity,
-        (
-          SELECT COALESCE(SUM(dti.actual_quantity), 0)
-          FROM daily_production_ticket_items dti 
-          JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-          WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
-        ) as sx_quantity,
-        (
-          SELECT COALESCE(SUM(ot.quantity_out), 0)
-          FROM outsourcing_tickets ot 
-          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-        ) as plating_out_quantity,
-        (
-          SELECT COALESCE(SUM(or_t.quantity_returned), 0)
-          FROM outsourcing_returns or_t 
-          JOIN outsourcing_tickets ot ON or_t.ticket_id = ot.id 
-          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-        ) as plating_returned_quantity,
-        (
-          SELECT COALESCE(SUM(ot.quantity_out), 0)
-          FROM outsourcing_tickets ot 
-          WHERE ot.order_id = $1 AND ot.product_id = p.id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
-        ) as packaging_out_quantity
+        COALESCE(st.total_sx, 0) as sx_quantity,
+        COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
+        COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
+        COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
       FROM order_products op
       JOIN products p ON op.product_id = p.id
+      LEFT JOIN sx_totals st ON p.id = st.product_id
+      LEFT JOIN plating_totals pt ON p.id = pt.product_id
+      LEFT JOIN plating_returns pr ON p.id = pr.product_id
+      LEFT JOIN packaging_totals pkt ON p.id = pkt.product_id
       WHERE op.order_id = $1
     `;
 

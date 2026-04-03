@@ -104,7 +104,11 @@ const PlanningTableRow = React.memo(
           let cellBg = "inherit";
           let textColor = "inherit";
           if (dayData) {
-            if (totalHours > 1.43) {
+            if (!plan.machine_id) {
+              // Nếu không có máy, luôn hiển thị màu xanh theo yêu cầu
+              cellBg = "#22c55e"; // Green
+              textColor = "#fff";
+            } else if (totalHours > 1.43) {
               cellBg = "#ef4444"; // Red
               textColor = "#fff";
             } else if (hasOvertime) {

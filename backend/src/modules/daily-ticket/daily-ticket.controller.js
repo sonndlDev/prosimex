@@ -114,21 +114,25 @@ export const createTicket = async (req, res) => {
     const newTicket = ticketInsert.rows[0];
 
     if (items && items.length > 0) {
-      for (const item of items) {
-        await client.query(
-          `INSERT INTO daily_production_ticket_items 
+      const itemValues = items
+        .map((_, i) => `($1, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, $${i * 5 + 6})`)
+        .join(", ");
+      const itemParams = [
+        newTicket.id,
+        ...items.flatMap(item => [
+          item.order_id || null,
+          item.product_id || null,
+          item.product_group_operation_id || null,
+          item.operation_name || null,
+          item.planned_quantity || 0,
+        ]),
+      ];
+      await client.query(
+        `INSERT INTO daily_production_ticket_items 
            (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            newTicket.id,
-            item.order_id || null,
-            item.product_id || null,
-            item.product_group_operation_id || null,
-            item.operation_name || null,
-            item.planned_quantity || 0,
-          ]
-        );
-      }
+           VALUES ${itemValues}`,
+        itemParams,
+      );
     }
 
     await client.query(
@@ -179,21 +183,25 @@ export const updateTicket = async (req, res) => {
     await client.query("DELETE FROM daily_production_ticket_items WHERE ticket_id = $1", [id]);
 
     if (items && items.length > 0) {
-      for (const item of items) {
-        await client.query(
-          `INSERT INTO daily_production_ticket_items 
+      const itemValues = items
+        .map((_, i) => `($1, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, $${i * 5 + 6})`)
+        .join(", ");
+      const itemParams = [
+        id,
+        ...items.flatMap(item => [
+          item.order_id || null,
+          item.product_id || null,
+          item.product_group_operation_id || null,
+          item.operation_name || null,
+          item.planned_quantity || 0,
+        ]),
+      ];
+      await client.query(
+        `INSERT INTO daily_production_ticket_items 
            (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            id,
-            item.order_id || null,
-            item.product_id || null,
-            item.product_group_operation_id || null,
-            item.operation_name || null,
-            item.planned_quantity || 0,
-          ]
-        );
-      }
+           VALUES ${itemValues}`,
+        itemParams,
+      );
     }
 
     await client.query(
@@ -230,11 +238,17 @@ export const updateTicketResults = async (req, res) => {
       return res.status(404).json({ message: "Ticket not found" });
     }
 
-    for (const item of items) {
-       await client.query(
-         "UPDATE daily_production_ticket_items SET actual_quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND ticket_id = $3",
-         [item.actual_quantity, item.id, id]
-       );
+    // Bulk UPDATE actual_quantity dùng unnest — 1 query thay vì N queries
+    if (items && items.length > 0) {
+      const itemIds = items.map(i => parseInt(i.id));
+      const actualQtys = items.map(i => parseFloat(i.actual_quantity) || 0);
+      await client.query(
+        `UPDATE daily_production_ticket_items AS dti
+         SET actual_quantity = v.qty, updated_at = CURRENT_TIMESTAMP
+         FROM (SELECT unnest($1::int[]) AS id, unnest($2::numeric[]) AS qty) AS v
+         WHERE dti.id = v.id AND dti.ticket_id = $3`,
+        [itemIds, actualQtys, id],
+      );
     }
 
     // Mark as completed if some condition met? For now, let's just mark it COMPLETED if actual quantities are submitted.

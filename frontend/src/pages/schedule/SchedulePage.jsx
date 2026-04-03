@@ -47,6 +47,7 @@ import CustomSchedule from './components/CustomSchedule';
 export default function SchedulePage() {
     const [factoryId, setFactoryId] = useState('all');
     const [viewType, setViewType] = useState('month'); // day, week, month
+    const [activeTab, setActiveTab] = useState('assigned'); // assigned, unassigned
     const [currentDate, setCurrentDate] = useState(DateTime.now());
 
     const { data: factories } = useQuery({ queryKey: ['factories'], queryFn: factoryService.getAll });
@@ -68,8 +69,13 @@ export default function SchedulePage() {
     }, [currentDate, viewType]);
 
     const { data: scheduleData, isLoading, error } = useQuery({
-        queryKey: ['schedule', dateRange, factoryId],
-        queryFn: () => scheduleService.getCalendarData(dateRange.start, dateRange.end, factoryId),
+        queryKey: ['schedule', dateRange, factoryId, activeTab],
+        queryFn: () => scheduleService.getCalendarData(
+            dateRange.start, 
+            dateRange.end, 
+            factoryId, 
+            activeTab === 'unassigned'
+        ),
     });
 
     const handlePrev = () => {
@@ -98,18 +104,47 @@ export default function SchedulePage() {
 
     return (
         <div className="h-[calc(100vh-100px)] flex flex-col gap-4 px-2 py-4">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-100">
-                        <CalendarIcon className="h-5 w-5" />
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-600 rounded-2xl text-white flex items-center justify-center shadow-lg shadow-indigo-200 ring-4 ring-indigo-50">
+                        <CalendarIcon className="h-6 w-6" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-black tracking-tight text-zinc-950">Lịch sản xuất</h1>
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Gantt chart điều phối máy móc</p>
+                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Gantt chart điều phối máy móc</p>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+                        <TabsList className="bg-zinc-100 p-1 rounded-full border border-zinc-200 h-12 shadow-inner flex">
+                            <TabsTrigger 
+                                value="assigned" 
+                                className={cn(
+                                    "px-8 font-black rounded-full py-2 transition-all text-[10px] uppercase tracking-widest",
+                                    activeTab === "assigned"
+                                        ? "bg-white text-indigo-600 shadow-md"
+                                        : "text-zinc-400 hover:text-zinc-600"
+                                )}
+                            >
+                                Theo máy
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="unassigned" 
+                                className={cn(
+                                    "px-8 font-black rounded-full py-2 transition-all text-[10px] uppercase tracking-widest",
+                                    activeTab === "unassigned"
+                                        ? "bg-white text-orange-600 shadow-md"
+                                        : "text-zinc-400 hover:text-zinc-600"
+                                )}
+                            >
+                                Chưa gán máy
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+
+                    <div className="w-px h-8 bg-zinc-200 hidden md:block"></div>
+
                     <div className="relative flex-1 md:flex-none">
                         <Popover>
                             <PopoverTrigger asChild>

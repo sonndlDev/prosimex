@@ -2,7 +2,8 @@ import pool from "../../config/db.js";
 
 export const getMachineScheduleCalendar = async (req, res) => {
   try {
-    const { factory_id, start_date, end_date } = req.query;
+    const { factory_id, start_date, end_date, is_unassigned } = req.query;
+    const unassignedMode = is_unassigned === "true";
 
     if (!start_date || !end_date) {
       return res
@@ -10,22 +11,28 @@ export const getMachineScheduleCalendar = async (req, res) => {
         .json({ message: "Missing parameters: start_date, end_date required" });
     }
 
-    // 1. Fetch Machines for the Resource Axis
-    let machineQuery =
-      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
-    const machineParams = [];
-    if (factory_id && factory_id !== "all") {
-      machineQuery += " AND factory_id = $1";
-      machineParams.push(factory_id);
+    // 1. Fetch Machines/Resources
+    let machines = [];
+    if (unassignedMode) {
+      machines = [{ id: "unassigned", title: "CHƯA GÁN MÁY" }];
+    } else {
+      let machineQuery =
+        "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
+      const machineParams = [];
+      if (factory_id && factory_id !== "all") {
+        machineQuery += " AND factory_id = $1";
+        machineParams.push(factory_id);
+      }
+      machineQuery += " ORDER BY name ASC";
+      const machinesRes = await pool.query(machineQuery, machineParams);
+      machines = machinesRes.rows;
     }
-    machineQuery += " ORDER BY name ASC";
-    const machinesRes = await pool.query(machineQuery, machineParams);
 
     // 2. Fetch Schedule Events (Daily segments from production_plan_days)
     let scheduleQuery = `
             SELECT 
                 ppd.id,
-                pp.machine_id as "resourceId",
+                ${unassignedMode ? "'unassigned'" : 'pp.machine_id'} as "resourceId",
                 COALESCE(o.order_code, p.name, 'L-' || pp.id) as title,
                 o.order_code,
                 p.name as product_name,
@@ -37,7 +44,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
                 pp.status as color_status
             FROM production_plan_days ppd
             JOIN production_plans pp ON ppd.production_plan_id = pp.id
-            JOIN machines m ON pp.machine_id = m.id
+            ${unassignedMode ? "LEFT JOIN machines m ON pp.machine_id = m.id" : "JOIN machines m ON pp.machine_id = m.id"}
             LEFT JOIN orders o ON pp.order_id = o.id
             LEFT JOIN products p ON pp.product_id = p.id
             LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
@@ -48,15 +55,20 @@ export const getMachineScheduleCalendar = async (req, res) => {
               AND ppd.working_date >= $1
         `;
     const scheduleParams = [start_date, end_date];
+    
+    if (unassignedMode) {
+      scheduleQuery += " AND pp.machine_id IS NULL";
+    }
+
     if (factory_id && factory_id !== "all") {
-      scheduleQuery += " AND m.factory_id = $3";
+      scheduleQuery += " AND (m.factory_id = $3 OR (m.factory_id IS NULL AND pp.factory_id = $3))";
       scheduleParams.push(factory_id);
     }
 
     const eventsRes = await pool.query(scheduleQuery, scheduleParams);
 
     res.json({
-      machines: machinesRes.rows,
+      machines: machines,
       events: eventsRes.rows.map((ev) => {
         // Since we configured PG to return ISO-like strings, 
         // we split on 'T' or space to get the date part
