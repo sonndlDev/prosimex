@@ -200,6 +200,13 @@ const PlanningFormDialog = React.memo(
 
     const totalDaysNeeded = dinhMuc > 0 ? remainingQty / dinhMuc : 0;
 
+    // Debounce totalDaysNeeded to avoid heavy schedule recalcs on every keystroke
+    const [debouncedTotalDaysNeeded, setDebouncedTotalDaysNeeded] = useState(0);
+    useEffect(() => {
+      const timer = setTimeout(() => setDebouncedTotalDaysNeeded(totalDaysNeeded), 400);
+      return () => clearTimeout(timer);
+    }, [totalDaysNeeded]);
+
     // Reset form when opening/closing or switching between create/edit
     useEffect(() => {
       if (open && editingPlan) {
@@ -339,14 +346,13 @@ const PlanningFormDialog = React.memo(
       replaceCase2(currentItems);
     };
 
-    // Auto-calculate schedule 
+    // Auto-calculate schedule: use debounced value to avoid lag on rapid input
     useEffect(() => {
-      // Chỉ tự động tính toán nếu đang ở chế độ Single và chưa có dữ liệu ngày (hoặc mới chọn ngày/định mức)
-      if (startDate && totalDaysNeeded > 0 && !editingPlan && !isFullOrderMode && (plannedDays.length === 0)) {
-        const newDays = autoCalculateSchedule(totalDaysNeeded, startDate);
+      if (startDate && debouncedTotalDaysNeeded > 0 && !isFullOrderMode) {
+        const newDays = autoCalculateSchedule(debouncedTotalDaysNeeded, startDate);
         replaceDays(newDays);
       }
-    }, [totalDaysNeeded, startDate, isFullOrderMode, editingPlan]);
+    }, [debouncedTotalDaysNeeded, startDate, isFullOrderMode]);
 
     const handleDayChange = (index, value) => {
       const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded);

@@ -12,12 +12,13 @@ export const getMachineScheduleCalendar = async (req, res) => {
 
     // 1. Fetch Machines for the Resource Axis
     let machineQuery =
-      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL ORDER BY name ASC";
+      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
     const machineParams = [];
     if (factory_id && factory_id !== "all") {
       machineQuery += " AND factory_id = $1";
       machineParams.push(factory_id);
     }
+    machineQuery += " ORDER BY name ASC";
     const machinesRes = await pool.query(machineQuery, machineParams);
 
     // 2. Fetch Schedule Events (Daily segments from production_plan_days)
