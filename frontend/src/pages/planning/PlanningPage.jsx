@@ -263,6 +263,7 @@ export default function PlanningPage() {
       product_group_operation_id: plan.product_group_operation_id,
       inventory_input: plan.inventory_input,
       planned_start_date: plan.planned_start_date,
+      machine_id: plan.machine_id || null,
       days: inlineEditDays
         .filter((d) => parseFloat(d.hours) > 0)
         .map((d) => ({

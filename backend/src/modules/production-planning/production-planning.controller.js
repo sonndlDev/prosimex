@@ -292,7 +292,7 @@ export const updateProductionPlan = async (req, res) => {
       `UPDATE production_plans 
        SET inventory_input = $1, remaining_quantity = $2, total_required_work = $3, 
            planned_start_date = $4, planned_end_date = $5, product_id = $6, 
-           dinh_muc = $7, updated_at = CURRENT_TIMESTAMP,
+           dinh_muc = $7, machine_id = $10, updated_at = CURRENT_TIMESTAMP,
            modified_by = $9, modified_time = CURRENT_TIMESTAMP
        WHERE id = $8 RETURNING *`,
       [
@@ -307,6 +307,7 @@ export const updateProductionPlan = async (req, res) => {
         dinh_muc || currentPlan.dinh_muc,
         id,
         created_by,
+        machine_id !== undefined ? machine_id : currentPlan.machine_id,
       ],
     );
 
@@ -323,13 +324,13 @@ export const updateProductionPlan = async (req, res) => {
       );
     }
 
-    // 6. Update Machine Schedule
-    if (machine_id || currentPlan.machine_id) {
+    // 6. Update Machine Schedule (Delete and Re-insert to ensure consistency)
+    await client.query("DELETE FROM machine_schedules WHERE production_plan_id = $1", [id]);
+    if (machine_id) {
       await client.query(
-        `UPDATE machine_schedules 
-         SET machine_id = COALESCE($1, machine_id), start_date = $2, end_date = $3 
-         WHERE production_plan_id = $4`,
-        [machine_id || null, planned_start_date, planned_end_date, id],
+        `INSERT INTO machine_schedules (machine_id, order_id, production_plan_id, start_date, end_date)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [machine_id, currentPlan.order_id, id, planned_start_date || currentPlan.planned_start_date, planned_end_date],
       );
     }
 

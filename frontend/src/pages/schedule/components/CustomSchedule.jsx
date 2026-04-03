@@ -61,13 +61,25 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                 DateTime.fromISO(a.start).toMillis() - DateTime.fromISO(b.start).toMillis()
             );
 
-            // User requested: "nếu 1 máy có lớn hơn 1 time line thì sẽ hiển thị bấy nhiêu dòng"
-            // This means we don't reuse lanes even if they don't overlap in time.
-            const positionedEvents = resEvents.map((event, index) => {
-                return { ...event, laneIndex: index };
+            // Pack events into lanes to minimize vertical space.
+            // Only create new lanes if there is a time overlap between events.
+            const lanes = []; // stores the end time (millis) of the last event in each lane
+            const positionedEvents = resEvents.map(event => {
+                const eventStart = DateTime.fromISO(event.start).toMillis();
+                const eventEnd = DateTime.fromISO(event.end).toMillis();
+                
+                // Find the first lane where this event fits (no overlap)
+                let laneIndex = lanes.findIndex(lastEnd => lastEnd <= eventStart);
+                if (laneIndex === -1) {
+                    laneIndex = lanes.length;
+                    lanes.push(eventEnd);
+                } else {
+                    lanes[laneIndex] = eventEnd;
+                }
+                return { ...event, laneIndex };
             });
 
-            const laneCount = Math.max(positionedEvents.length, 1);
+            const laneCount = Math.max(lanes.length, 1);
             const height = laneCount * ROW_HEIGHT;
 
             layoutsList.push({
