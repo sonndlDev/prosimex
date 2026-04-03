@@ -11,8 +11,9 @@ import {
   LayoutDashboard, Factory, Settings, CalendarDays, Users, LogOut,
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
-  Hammer, UserCircle, Warehouse,
+  Hammer, UserCircle, Warehouse, Calendar
 } from "lucide-react";
+import { DateTime } from "luxon";
 
 const menuItems = [
   { type: "subheader", text: "Sản xuất" },
@@ -50,7 +51,7 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
         </div>
         {!isCollapsed && (
           <span className="font-extrabold text-slate-800 tracking-tight text-xl leading-none relative z-10 font-['Outfit']">
-            PROSIMEX <span className="text-primary font-bold text-sm bg-primary/10 px-1.5 py-0.5 rounded-md ml-1">MES</span>
+            PROSIMEX
           </span>
         )}
       </div>
@@ -145,6 +146,35 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
   );
 }
 
+function LiveClock() {
+  const [now, setNow] = useState(DateTime.now());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setNow(DateTime.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-1.5 bg-slate-900/5 rounded-2xl border border-slate-200/50 shadow-sm backdrop-blur-sm group hover:bg-slate-900 transition-all duration-500 cursor-default">
+      <div className="flex flex-col items-end leading-tight">
+        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-500 transition-colors">
+          {now.setLocale('vi-VN').toFormat('cccc')}
+        </span>
+        <span className="text-[13px] font-black text-slate-700 group-hover:text-white transition-colors tabular-nums">
+          {now.setLocale('vi-VN').toFormat('dd/MM/yyyy')}
+        </span>
+      </div>
+      <div className="w-px h-6 bg-slate-200 group-hover:bg-slate-700 transition-colors"></div>
+      <div className="flex items-center gap-1.5">
+        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+        <span className="text-xl font-black text-slate-900 group-hover:text-emerald-400 transition-all duration-500 tabular-nums font-mono tracking-tighter">
+          {now.toFormat('HH:mm:ss')}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -224,11 +254,16 @@ export default function MainLayout() {
               {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
             </button>
             <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
-            <h1 className="font-bold text-slate-800 text-lg tracking-tight font-['Outfit']">
+            <h1 className="font-bold text-slate-800 text-lg tracking-tight font-['Outfit'] truncate max-w-[200px]">
               {currentPage?.text || "Hệ thống điều hành"}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+
+
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <LiveClock />
+            </div>
             <Tooltip>
               <TooltipTrigger>
                 <div

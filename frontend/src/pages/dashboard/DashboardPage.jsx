@@ -21,6 +21,22 @@ const actionBadge = (a) => ({
   CLONE: 'bg-violet-50 text-violet-700 border-violet-200',
 }[a] ?? 'bg-blue-50 text-blue-700 border-blue-200');
 const actionText = (a) => ({ CREATE: 'Tạo mới', DELETE: 'Xóa', CLONE: 'Sao chép' }[a] ?? 'Cập nhật');
+const entityLabel = (e) => ({
+  ProductGroupOperation: 'Công đoạn nhóm SP',
+  ProductionPlan: 'Kế hoạch sản xuất',
+  Order: 'Đơn hàng',
+  Product: 'Sản phẩm',
+  Machine: 'Máy móc',
+  Worker: 'Công nhân',
+  User: 'Người dùng',
+  Factory: 'Nhà máy',
+  Customer: 'Khách hàng',
+  ProductGroup: 'Nhóm sản phẩm',
+  Operation: 'Danh mục công đoạn',
+  DailyProductionTicket: 'Phiếu sản xuất',
+  OutsourcingTicket: 'Phiếu gia công',
+  ProductionPlanDay: 'Chi tiết kế hoạch ngày'
+}[e] ?? e);
 
 const STATUS_CONFIG = {
   DRAFT: { label: 'Nháp', color: 'bg-zinc-400' },
@@ -82,7 +98,7 @@ const ActivityRow = ({ act }) => (
         <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border ${actionBadge(act.action)}`}>
           {actionText(act.action)}
         </span>{' '}
-        <span className="text-zinc-500">{act.entity}</span>
+        <span className="text-zinc-500">{entityLabel(act.entity)}</span>
         {act.entity_id && <span className="text-zinc-400 text-xs"> #{act.entity_id}</span>}
       </p>
       <p className="text-xs text-zinc-400 mt-0.5">{DateTime.fromISO(act.created_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}</p>
@@ -360,10 +376,6 @@ export default function DashboardPage() {
           </h2>
           <p className="text-zinc-500 text-sm mt-0.5">Chào mừng bạn quay trở lại. Chúc bạn một ngày làm việc hiệu quả!</p>
         </div>
-        <Badge variant="outline" className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-500 text-xs font-medium border-zinc-200 shrink-0">
-          <Clock className="w-3.5 h-3.5" />
-          {today}
-        </Badge>
       </div>
 
 
