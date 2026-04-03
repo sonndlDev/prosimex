@@ -224,7 +224,7 @@ const PlanningFormDialog = React.memo(
           isFullOrderMode: editingPlan.is_full_order_mode || false,
           plannedDays: editingPlan.days.map((d) => ({
             date: DateTime.fromISO(d.working_date).toISODate(),
-            hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
+            hours: Math.round(parseFloat(d.planned_work_quantity) / 8),
             is_overtime: d.is_overtime,
           })),
         });
@@ -366,7 +366,7 @@ const PlanningFormDialog = React.memo(
         : startDate;
       replaceDays([
         ...plannedDays,
-        { date: nextDate, hours: "0.00", is_overtime: false },
+        { date: nextDate, hours: "0", is_overtime: false },
       ]);
     };
 
@@ -947,7 +947,7 @@ const PlanningFormDialog = React.memo(
                           <Package className="w-3 h-3 text-emerald-500" /> TỔNG SL ĐƠN/MÃ
                         </span>
                         <div className="text-2xl font-black text-zinc-950 tabular-nums">
-                          {totalOrderQty.toLocaleString()}
+                          {totalOrderQty.toLocaleString('en-US')}
                         </div>
                       </div>
 
@@ -1018,14 +1018,14 @@ const PlanningFormDialog = React.memo(
                       <div className="p-4 rounded-2xl bg-red-50/50 border border-red-100 flex flex-col items-center justify-center">
                         <span className="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1">CẦN SẢN XUẤT</span>
                         <div className="text-3xl font-black text-red-600 tabular-nums">
-                          {remainingQty.toLocaleString()}
+                          {remainingQty.toLocaleString('en-US')}
                         </div>
                       </div>
 
                       <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex flex-col items-center justify-center">
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">TỔNG CÔNG CẦN</span>
                         <div className="text-3xl font-black text-indigo-600 tabular-nums">
-                          {totalDaysNeeded.toFixed(2)}
+                          {Math.round(totalDaysNeeded).toLocaleString('en-US')}
                         </div>
                       </div>
                     </div>

@@ -57,19 +57,19 @@ const PlanningTableRow = React.memo(
           {(
             parseFloat(plan.inventory_input) +
             parseFloat(plan.remaining_quantity)
-          ).toLocaleString()}
+          ).toLocaleString('en-US')}
         </ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums">
-          {parseFloat(plan.inventory_input).toLocaleString()}
+          {parseFloat(plan.inventory_input).toLocaleString('en-US')}
         </ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums font-black text-red-600">
-          {parseFloat(plan.remaining_quantity).toLocaleString()}
+          {parseFloat(plan.remaining_quantity).toLocaleString('en-US')}
         </ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums">{plan.dinh_muc}</ExcelDataCell>
+        <ExcelDataCell className="text-right px-3 tabular-nums">{parseFloat(plan.dinh_muc).toLocaleString('en-US')}</ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums font-bold text-blue-600">
-          {(parseFloat(plan.total_required_work) / 8).toFixed(2)}
+          {(parseFloat(plan.total_required_work) / 8).toLocaleString('en-US')}
         </ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums">0.00</ExcelDataCell>
+        <ExcelDataCell className="text-right px-3 tabular-nums">0</ExcelDataCell>
         <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">
           x
         </ExcelDataCell>
@@ -140,7 +140,7 @@ const PlanningTableRow = React.memo(
                   </span>
                   <ManagedTextField
                     type="number"
-                    value={editDayData ? editDayData.hours : "0.00"}
+                    value={editDayData ? editDayData.hours : "0"}
                     onCommit={(val) => onInlineDayChange(plan, date.key, val)}
                     autoFocus={colIdx === 0}
                     className="w-full border-none shadow-none text-blue-600 focus-visible:ring-0"
@@ -157,8 +157,8 @@ const PlanningTableRow = React.memo(
                         const qty = parseFloat(dayData.planned_work_quantity) || 0;
                         const dinhMuc = parseFloat(plan.dinh_muc) || 0;
                         const base = qty / 8;
-                        const total = base * dinhMuc;
-                        return `${total.toFixed(2)}`;
+                        const total = Math.round(base * dinhMuc);
+                        return total.toLocaleString('en-US');
                       })()
                       : "-"}
                   </span>
