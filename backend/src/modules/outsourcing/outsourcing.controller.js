@@ -122,8 +122,12 @@ export const createTicket = async (req, res) => {
     const created_by = req.user.id;
 
     // Generate auto ticket_code
-    const prefix = type === 'PLATING' ? 'OUT-XM' : 'OUT-DG';
-    const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    // Generate auto ticket_code using local date in server's timezone
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}${month}${day}`;
     
     // Find count of today's tickets
     const countRes = await client.query(

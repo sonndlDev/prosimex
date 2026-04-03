@@ -57,9 +57,9 @@ export const getMachineScheduleCalendar = async (req, res) => {
     res.json({
       machines: machinesRes.rows,
       events: eventsRes.rows.map((ev) => {
-        // Format start as 07:00 and end as 16:30 in ICT (UTC+7)
-        const workingDate = new Date(ev.start);
-        const datePart = workingDate.toISOString().split("T")[0];
+        // Since we configured PG to return ISO-like strings, 
+        // we split on 'T' or space to get the date part
+        const datePart = String(ev.start).split(/[ T]/)[0];
 
         return {
           ...ev,

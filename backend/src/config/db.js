@@ -1,4 +1,13 @@
-import { Pool } from "pg";
+import pg from "pg";
+const { Pool, types } = pg;
+
+// Fix for 1-day shift: Force PG to return DATE and TIMESTAMP as strings, 
+// preventing Node.js from converting them to JS Date objects which get 
+// shifted to UTC during JSON serialization.
+types.setTypeParser(1082, (val) => val); // DATE (YYYY-MM-DD)
+types.setTypeParser(1114, (val) => val ? val.replace(" ", "T") : val); // TIMESTAMP
+types.setTypeParser(1184, (val) => val ? val.replace(" ", "T") : val); // TIMESTAMPTZ
+
 import dotenv from "dotenv";
 dotenv.config();
 
