@@ -12,7 +12,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
 
     // 1. Fetch Machines for the Resource Axis
     let machineQuery =
-      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
+      "SELECT id, name as title FROM machines WHERE deleted_at IS NULL ORDER BY name ASC";
     const machineParams = [];
     if (factory_id && factory_id !== "all") {
       machineQuery += " AND factory_id = $1";

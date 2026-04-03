@@ -79,7 +79,7 @@ const PlanningTableRow = React.memo(
         <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">
           {DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}
         </ExcelDataCell>
-        
+
         <ExcelDataCell className="text-zinc-500 font-mono text-[10px] cursor-help p-0">
           <TooltipProvider>
             <Tooltip>
@@ -136,9 +136,8 @@ const PlanningTableRow = React.memo(
                 <div className="flex flex-col items-center justify-center h-full">
                   <span
                     onClick={() => onInlineOTToggle(plan, date.key)}
-                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${
-                      editDayData?.is_overtime ? "text-red-500" : "text-zinc-400"
-                    } hover:text-red-600 mb-0.5`}
+                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${editDayData?.is_overtime ? "text-red-500" : "text-zinc-400"
+                      } hover:text-red-600 mb-0.5`}
                   >
                     {editDayData?.is_overtime ? "TĂNG CA" : "chuẩn"}
                   </span>
@@ -152,18 +151,18 @@ const PlanningTableRow = React.memo(
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-0.5">
-                   <span className={`text-[7px] font-black uppercase ${dayData?.is_overtime ? "opacity-100" : "opacity-0"}`}>
+                  <span className={`text-[7px] font-black uppercase ${dayData?.is_overtime ? "opacity-100" : "opacity-0"}`}>
                     TC
                   </span>
                   <span className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}>
                     {dayData
                       ? (() => {
-                          const qty = parseFloat(dayData.planned_work_quantity) || 0;
-                          const dinhMuc = parseFloat(plan.dinh_muc) || 0;
-                          const base = qty / 8;
-                          const total = base * dinhMuc;
-                          return `${base.toFixed(2)} (${total.toFixed(2)})`;
-                        })()
+                        const qty = parseFloat(dayData.planned_work_quantity) || 0;
+                        const dinhMuc = parseFloat(plan.dinh_muc) || 0;
+                        const base = qty / 8;
+                        const total = base * dinhMuc;
+                        return `${base.toFixed(2)} (${total.toFixed(2)})`;
+                      })()
                       : "-"}
                   </span>
                 </div>
@@ -234,7 +233,7 @@ const PlanningTableRow = React.memo(
                   </Tooltip>
                 </TooltipProvider>
 
-                <TooltipProvider>
+                {/* <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger render={
                       <Button
@@ -248,7 +247,7 @@ const PlanningTableRow = React.memo(
                     } />
                     <TooltipContent><p>Nhân bản (Clone)</p></TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
+                </TooltipProvider> */}
 
                 <TooltipProvider>
                   <Tooltip>

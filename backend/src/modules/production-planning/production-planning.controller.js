@@ -273,12 +273,26 @@ export const updateProductionPlan = async (req, res) => {
     if (currentPlanRes.rowCount === 0) throw new Error("Plan not found");
     const currentPlan = currentPlanRes.rows[0];
 
-    // 2. Fetch order info
-    const orderRes = await client.query(
-      "SELECT quantity FROM orders WHERE id = $1",
-      [currentPlan.order_id],
-    );
-    const order_quantity = parseFloat(orderRes.rows[0].quantity);
+    // 2. Fetch order info — prioritize product-specific quantity from order_products
+    let order_quantity;
+    const currentProductId = product_id || currentPlan.product_id;
+    if (currentProductId) {
+      const opRes = await client.query(
+        "SELECT quantity FROM order_products WHERE order_id = $1 AND product_id = $2",
+        [currentPlan.order_id, currentProductId],
+      );
+      if (opRes.rowCount > 0 && parseFloat(opRes.rows[0].quantity) > 0) {
+        order_quantity = parseFloat(opRes.rows[0].quantity);
+      }
+    }
+    if (!order_quantity) {
+      const orderRes = await client.query(
+        "SELECT quantity FROM orders WHERE id = $1",
+        [currentPlan.order_id],
+      );
+      if (orderRes.rowCount === 0) throw new Error("Order not found");
+      order_quantity = parseFloat(orderRes.rows[0].quantity);
+    }
 
     // 3. Logic
     const remaining_quantity = order_quantity - parseFloat(inventory_input);
