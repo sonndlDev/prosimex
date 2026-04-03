@@ -10,6 +10,7 @@ import {
   ShoppingCart, CalendarDays, Wrench, Users, Clock, Bell, X,
   ChevronLeft, ChevronRight, Activity, AlertTriangle, UserCheck, TrendingUp
 } from 'lucide-react';
+import { DateTime } from 'luxon';
 
 // ─── Helpers ─────────────────────────────────────────────
 const actionLabel = (a) => ({ CREATE: 'vừa tạo', DELETE: 'vừa xóa', CLONE: 'vừa sao chép' }[a] ?? 'vừa cập nhật');
@@ -84,7 +85,7 @@ const ActivityRow = ({ act }) => (
         <span className="text-zinc-500">{act.entity}</span>
         {act.entity_id && <span className="text-zinc-400 text-xs"> #{act.entity_id}</span>}
       </p>
-      <p className="text-xs text-zinc-400 mt-0.5">{new Date(act.created_at).toLocaleString('vi-VN')}</p>
+      <p className="text-xs text-zinc-400 mt-0.5">{DateTime.fromISO(act.created_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}</p>
     </div>
   </div>
 );
@@ -267,7 +268,7 @@ function ProductionProgressPanel({ orders, loading }) {
             </div>
             <p className="text-xs text-zinc-400 mt-1">
               {parseFloat(o.completed_quantity).toLocaleString('vi-VN')} / {parseFloat(o.total_quantity).toLocaleString('vi-VN')} sản phẩm
-              {o.delivery_date && ` · Hạn: ${new Date(o.delivery_date).toLocaleDateString('vi-VN')}`}
+              {o.delivery_date && ` · Hạn: ${DateTime.fromISO(o.delivery_date).setLocale('vi-VN').toFormat('dd/MM/yyyy')}`}
             </p>
           </div>
         );
@@ -305,18 +306,18 @@ function AttendancePanel({ data, myAttendance, loading }) {
             )}
             {hasCheckedIn && !hasCheckedOut && (
               <p className="text-sm font-semibold text-blue-800">
-                Check-in lúc {new Date(myAttendance.check_in_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                Check-in lúc {DateTime.fromISO(myAttendance.check_in_time).setLocale('vi-VN').toFormat('HH:mm')}
               </p>
             )}
             {hasCheckedOut && (
               <div>
                 <p className="text-sm font-semibold text-emerald-800">
-                  Check-in {new Date(myAttendance.check_in_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                  {' · '}Check-out {new Date(myAttendance.check_out_time).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  Check-in {DateTime.fromISO(myAttendance.check_in_time).setLocale('vi-VN').toFormat('HH:mm')}
+                  {' · '}Check-out {DateTime.fromISO(myAttendance.check_out_time).setLocale('vi-VN').toFormat('HH:mm')}
                 </p>
               </div>
             )}
-            <p className="text-xs text-zinc-500 mt-0.5">Hôm nay, {new Date().toLocaleDateString('vi-VN')}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Hôm nay, {DateTime.now().setLocale('vi-VN').toFormat('dd/MM/yyyy')}</p>
           </div>
         </div>
         <button
@@ -344,7 +345,7 @@ export default function DashboardPage() {
     refetchInterval: 15000,
   });
 
-  const today = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = DateTime.now().setLocale('vi-VN').toFormat('cccc, dd MMMM');
   const urgentCount = metrics?.urgentOrders?.length ?? 0;
 
   return (

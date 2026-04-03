@@ -47,9 +47,6 @@ const PlanningTableRow = React.memo(
         <ExcelDataCell>{plan.sequence_order}</ExcelDataCell>
         <ExcelDataCell className="font-medium">{plan.product_name}</ExcelDataCell>
         <ExcelDataCell
-          style={{
-            backgroundColor: isYellow ? "#fef08a" : isOrange ? "#fed7aa" : "inherit",
-          }}
           className="font-bold text-[10px]"
         >
           {plan.product_group_name}

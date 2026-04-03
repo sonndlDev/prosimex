@@ -606,7 +606,7 @@ function InboundTicketForm({ type }) {
                           </div>
                           <div>
                             <p className="font-black text-lg text-emerald-600 tracking-tight leading-none mb-1">+{h.quantity_returned}</p>
-                            <p className="text-[11px] font-bold text-zinc-400">{new Date(h.returned_at).toLocaleString('vi-VN')}</p>
+                            <p className="text-[11px] font-bold text-zinc-400">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}</p>
                           </div>
                         </div>
                       </div>

@@ -1,6 +1,4 @@
-import React from 'react';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { DateTime } from 'luxon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { History, User, Clock } from 'lucide-react';
 
@@ -17,7 +15,9 @@ export const getAuditColumn = () => ({
     const formatDate = (date) => {
       if (!date) return '---';
       try {
-        return format(new Date(date), 'dd/MM/yyyy HH:mm', { locale: vi });
+        const dt = DateTime.fromISO(date);
+        if (!dt.isValid) return '---';
+        return dt.setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm');
       } catch (e) {
         return '---';
       }

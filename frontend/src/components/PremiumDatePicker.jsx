@@ -1,7 +1,6 @@
 "use client"
-
 import * as React from "react"
-import { format } from "date-fns"
+import { DateTime } from "luxon"
 import { Calendar as CalendarIcon, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -13,20 +12,20 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-export function PremiumDatePicker({ 
-  date, 
-  onSelect, 
+export function PremiumDatePicker({
+  date,
+  onSelect,
   placeholder = "Chọn ngày",
   className,
   disabled = false,
   label = ""
 }) {
-  // Convert string date to Date object if needed
-  const selectedDate = React.useMemo(() => {
+  // Convert string date to Date object if needed for the UI Calendar component
+  const jsDateObject = React.useMemo(() => {
     if (!date) return undefined;
     if (date instanceof Date) return date;
-    const d = new Date(date);
-    return isNaN(d.getTime()) ? undefined : d;
+    const dt = DateTime.fromISO(date);
+    return dt.isValid ? dt.toJSDate() : undefined;
   }, [date]);
 
   const handleSelect = (newDate) => {
@@ -35,11 +34,9 @@ export function PremiumDatePicker({
         onSelect("");
         return;
       }
-      // Format to YYYY-MM-DD for backend compatibility
-      const year = newDate.getFullYear();
-      const month = String(newDate.getMonth() + 1).padStart(2, '0');
-      const day = String(newDate.getDate()).padStart(2, '0');
-      onSelect(`${year}-${month}-${day}`);
+      // Format to yyyy-MM-dd using Luxon for reliable backend compatibility
+      const isoDate = DateTime.fromJSDate(newDate).toFormat('yyyy-MM-dd');
+      onSelect(isoDate);
     }
   };
 
@@ -62,29 +59,29 @@ export function PremiumDatePicker({
                 date ? "text-indigo-600" : "text-zinc-300 group-hover:text-zinc-400"
               )} />
               <span className="truncate">
-                {selectedDate ? format(selectedDate, "dd/MM/yyyy") : placeholder}
+                {jsDateObject ? DateTime.fromJSDate(jsDateObject).toFormat("dd/MM/yyyy") : placeholder}
               </span>
             </div>
-            
+
             {date && !disabled ? (
-                <div 
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelect(undefined);
-                    }}
-                    className="p-1 hover:bg-zinc-100 rounded-full transition-colors mr-[-4px]"
-                >
-                    <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                </div>
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(undefined);
+                }}
+                className="p-1 hover:bg-zinc-100 rounded-full transition-colors mr-[-4px]"
+              >
+                <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+              </div>
             ) : (
-                <div className="w-4 h-4" />
+              <div className="w-4 h-4" />
             )}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0 shadow-2xl border-indigo-50 rounded-2xl overflow-hidden bg-white" align="start">
           <Calendar
             mode="single"
-            selected={selectedDate}
+            selected={jsDateObject}
             onSelect={handleSelect}
             initialFocus
             className="p-4"
