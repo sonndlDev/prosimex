@@ -604,6 +604,10 @@ export const createOrderGeneralPlan = async (req, res) => {
     }
 
     await client.query("UPDATE orders SET status = 'PLANNED' WHERE id = $1", [order_id]);
+    await client.query(
+        `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'BATCH_CREATE', 'ProductionPlan', $2, $3)`,
+        [created_by, order_id, { plan_count: createdPlans.length }]
+    );
     await client.query("COMMIT");
     res.status(201).json({ success: true, count: createdPlans.length });
   } catch (error) {

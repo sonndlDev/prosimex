@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 
 export default function ProductionOutputPage() {
   const queryClient = useQueryClient();
@@ -135,12 +136,11 @@ export default function ProductionOutputPage() {
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row items-end gap-4">
             <div className="w-full md:w-1/4 space-y-2">
-              <Label htmlFor="date">Ngày sản xuất</Label>
-              <Input
-                id="date"
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
+              <Label>Ngày sản xuất</Label>
+              <PremiumDatePicker
+                date={searchDate}
+                onSelect={(val) => setSearchDate(val)}
+                placeholder="Chọn ngày sản xuất"
               />
             </div>
             <div className="w-full md:w-1/4 space-y-2">

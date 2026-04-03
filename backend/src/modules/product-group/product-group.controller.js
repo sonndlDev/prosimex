@@ -168,7 +168,12 @@ export const createProductGroupOperation = async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [id, operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null]
     )
-    res.status(201).json(result.rows[0])
+    const newOp = result.rows[0];
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'ProductGroupOperation', $2, $3)`,
+      [req.user.id, newOp.id, newOp]
+    );
+    res.status(201).json(newOp)
   } catch (error) {
     if (error.code === '23505') {
       return res.status(400).json({ message: 'Sequence order must be unique per product group' })
@@ -185,6 +190,10 @@ export const deleteProductGroupOperation = async (req, res) => {
       [operationId, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES ($1, 'DELETE', 'ProductGroupOperation', $2)`,
+      [req.user.id, operationId]
+    );
     res.json({ message: 'Operation mapping deleted' })
   } catch (error) {
     res.status(500).json({ message: 'Error deleting mapping', error })
@@ -236,7 +245,12 @@ export const updateProductGroupOperation = async (req, res) => {
       [operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null, operationId, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
-    res.json(result.rows[0])
+    const updatedOp = result.rows[0];
+    await pool.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE', 'ProductGroupOperation', $2, $3)`,
+      [req.user.id, updatedOp.id, updatedOp]
+    );
+    res.json(updatedOp)
   } catch (error) {
     res.status(500).json({ message: 'Error updating mapping', error })
   }
@@ -267,6 +281,11 @@ export const reorderProductGroupOperations = async (req, res) => {
         [item.sequence_order, item.id, id]
       )
     }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES ($1, 'REORDER', 'ProductGroupOperations', $2)`,
+      [req.user.id, id]
+    );
     
     await client.query('COMMIT')
     res.json({ message: 'Reordered successfully' })

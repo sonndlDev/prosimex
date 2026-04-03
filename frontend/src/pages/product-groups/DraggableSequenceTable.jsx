@@ -333,7 +333,7 @@ export default function DraggableSequenceTable({
                                 </span>
                               </TableCell>
                               <TableCell>
-                                <div className="flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex justify-center gap-1 transition-opacity">
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>

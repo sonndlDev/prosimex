@@ -34,7 +34,7 @@ export default function GenericTable({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState([]);
-  
+
   // Client-side pagination state (only used if !isServerSide)
   const [clientPage, setClientPage] = useState(1);
   const [clientPageSize, setClientPageSize] = useState(10);
@@ -49,7 +49,7 @@ export default function GenericTable({
   const effectivePageSize = isServerSide ? pageSize : clientPageSize;
   const effectiveTotal = isServerSide ? totalItems : filteredData.length;
   const totalPages = Math.ceil(effectiveTotal / effectivePageSize);
-  
+
   const startIndex = (effectivePage - 1) * effectivePageSize;
   const paginatedData = isServerSide ? data : filteredData.slice(startIndex, startIndex + effectivePageSize);
 
@@ -232,20 +232,17 @@ export default function GenericTable({
                       })}
                       {(onEdit || onDelete || renderActions) && (
                         <TableCell>
-                          <div className={cn(
-                            "flex items-center justify-center gap-1 transition-all duration-200",
-                            renderActions ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                          )}>
+                          <div className="flex items-center justify-center gap-1 transition-all duration-200">
                             {renderActions ? renderActions(row) : (
                               <>
                                 {onEdit && (
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger
-                                          onClick={e => { e.stopPropagation(); onEdit(row); }}
-                                          className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
-                                        >
-                                          <Pencil className="w-4 h-4" />
+                                        onClick={e => { e.stopPropagation(); onEdit(row); }}
+                                        className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
+                                      >
+                                        <Pencil className="w-4 h-4" />
                                       </TooltipTrigger>
                                       <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]"><p>Chỉnh sửa</p></TooltipContent>
                                     </Tooltip>
@@ -255,10 +252,10 @@ export default function GenericTable({
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger
-                                          onClick={e => { e.stopPropagation(); onDelete(row); }}
-                                          className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
+                                        onClick={e => { e.stopPropagation(); onDelete(row); }}
+                                        className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
                                       </TooltipTrigger>
                                       <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]"><p>Xóa bản ghi</p></TooltipContent>
                                     </Tooltip>
@@ -285,8 +282,8 @@ export default function GenericTable({
             </p>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Hiển thị</span>
-              <select 
-                value={effectivePageSize} 
+              <select
+                value={effectivePageSize}
                 onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
                 className="text-xs font-bold bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none focus:border-indigo-300 transition-all"
               >
@@ -294,24 +291,24 @@ export default function GenericTable({
               </select>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold text-zinc-500">
               Trang <span className="text-zinc-950 font-black">{effectivePage}</span> / {totalPages || 1}
             </span>
             <div className="flex gap-1.5">
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 rounded-lg border-zinc-200 hover:bg-zinc-50 transition-all font-bold"
                 disabled={effectivePage === 1}
                 onClick={() => handlePageChange(effectivePage - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
+              <Button
+                variant="outline"
+                size="icon"
                 className="h-8 w-8 rounded-lg border-zinc-200 hover:bg-zinc-50 transition-all font-bold"
                 disabled={effectivePage >= totalPages}
                 onClick={() => handlePageChange(effectivePage + 1)}

@@ -39,16 +39,16 @@ function Calendar({
         week: "flex w-full mt-1",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-bold aria-selected:opacity-100 hover:bg-zinc-100 rounded-lg transition-all flex items-center justify-center relative text-zinc-700"
+          "h-9 w-9 p-0 font-bold aria-selected:opacity-100 hover:!bg-indigo-50 hover:!text-indigo-700 rounded-lg transition-all flex items-center justify-center relative text-zinc-700"
         ),
         day_button: "h-full w-full flex items-center justify-center",
         range_end: "day-range-end",
         selected:
-          "bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white rounded-lg shadow-lg shadow-indigo-100 !opacity-100",
-        today: "bg-emerald-50 text-emerald-700 font-black ring-1 ring-emerald-200 rounded-lg",
+          "!bg-indigo-600 !text-white hover:!bg-indigo-700 hover:!text-white rounded-lg shadow-lg shadow-indigo-100 !opacity-100",
+        today: "bg-indigo-50 text-indigo-600 font-black ring-1 ring-indigo-200 rounded-lg",
         outside:
           "day-outside text-zinc-300 opacity-50 aria-selected:bg-zinc-50/30 aria-selected:text-zinc-300",
-        disabled: "text-zinc-300 opacity-50",
+        disabled: "text-zinc-300 opacity-50 cursor-not-allowed",
         range_middle:
           "aria-selected:bg-indigo-50 aria-selected:text-indigo-900",
         hidden: "invisible",

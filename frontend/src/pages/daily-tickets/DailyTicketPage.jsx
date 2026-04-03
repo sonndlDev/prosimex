@@ -164,6 +164,23 @@ export default function DailyTicketPage() {
               </TooltipProvider>
             </div>
           )}
+          onBulkDelete={(ids) => {
+            const deletableIds = ids.filter(id => {
+              const ticket = tickets.find(t => String(t.id) === String(id));
+              return ticket && ticket.status !== "COMPLETED";
+            });
+            const skipped = ids.length - deletableIds.length;
+            if (deletableIds.length === 0) {
+              toast.error("Không có phiếu nào có thể xóa (phiếu đã hoàn thành không được xóa).");
+              return;
+            }
+            const msg = skipped > 0
+              ? `Xóa ${deletableIds.length} phiếu? (${skipped} phiếu đã hoàn thành sẽ bị bỏ qua)`
+              : `Xóa ${deletableIds.length} phiếu sản xuất?`;
+            if (window.confirm(msg)) {
+              deletableIds.forEach(id => deleteMutation.mutate(id));
+            }
+          }}
         />
       </div>
 

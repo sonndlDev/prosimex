@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus } from "lucide-react";
+import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus, Zap } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +26,9 @@ export default function ProductGroupPage() {
   const [openModal, setOpenModal] = useState(false);
   const [manageOpsModal, setManageOpsModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [quickCreateOpModal, setQuickCreateOpModal] = useState(false);
+  const [quickOpName, setQuickOpName] = useState("");
+  const [quickOpDesc, setQuickOpDesc] = useState("");
 
   // Pagination & Filter State
   const [page, setPage] = useState(1);
@@ -41,11 +44,11 @@ export default function ProductGroupPage() {
   const { data: machinesListData } = useQuery({ queryKey: ["machines"], queryFn: () => machineService.getAll({ limit: 1000 }) });
   const machinesList = machinesListData?.data || [];
 
-  const { data: productGroupsData, isLoading, error } = useQuery({ 
-    queryKey: ["productGroups", page, pageSize, search], 
-    queryFn: () => productGroupService.getAll({ page, limit: pageSize, search }) 
+  const { data: productGroupsData, isLoading, error } = useQuery({
+    queryKey: ["productGroups", page, pageSize, search],
+    queryFn: () => productGroupService.getAll({ page, limit: pageSize, search })
   });
-  
+
   const productGroups = productGroupsData?.data || [];
   const totalItems = productGroupsData?.total || 0;
 
@@ -80,6 +83,34 @@ export default function ProductGroupPage() {
     mutationFn: (orders) => productGroupService.reorderOperations(selectedGroup.id, orders),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }),
   });
+
+  const quickCreateOpMutation = useMutation({
+    mutationFn: operationService.create,
+    onSuccess: (newOp) => {
+      queryClient.invalidateQueries({ queryKey: ["operations"] });
+      // Auto-select the newly created operation in the form
+      setOpValue("operation_id", String(newOp.id));
+      setQuickCreateOpModal(false);
+      setQuickOpName("");
+      setQuickOpDesc("");
+      toast.success(`Đã tạo công đoạn "${newOp.name}" thành công!`);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo công đoạn"),
+  });
+
+  const handleQuickCreateOp = () => {
+    const trimmedName = quickOpName.trim();
+    if (!trimmedName) { toast.error("Vui lòng nhập tên công đoạn!"); return; }
+    // Check duplicate in existing operations list
+    const isDuplicate = operationsList?.some(
+      (o) => o.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      toast.error(`Công đoạn "${trimmedName}" đã tồn tại!`);
+      return;
+    }
+    quickCreateOpMutation.mutate({ name: trimmedName, description: quickOpDesc.trim() || undefined });
+  };
 
   const columns = [
     { id: "name", label: "Tên nhóm" },
@@ -126,8 +157,8 @@ export default function ProductGroupPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhóm mã hàng</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Thiết lập quy trình cho nhóm</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhóm mã hàng</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Thiết lập quy trình cho nhóm</p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
@@ -137,20 +168,20 @@ export default function ProductGroupPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <GenericTable
-        data={productGroups} columns={columns} isLoading={isLoading} error={error}
-        onEdit={handleOpen}
-        onDelete={(g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} nhóm?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
-        actionColWidth={150}
-        isServerSide={true}
-        totalItems={totalItems}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        onSearchChange={setSearch}
-      />
+        <GenericTable
+          data={productGroups} columns={columns} isLoading={isLoading} error={error}
+          onEdit={handleOpen}
+          onDelete={(g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); }}
+          onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} nhóm?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+          actionColWidth={150}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          onSearchChange={setSearch}
+        />
       </div>
 
       {/* Base Form Dialog */}
@@ -176,13 +207,13 @@ export default function ProductGroupPage() {
 
       {/* Operations Routing Dialog */}
       <Dialog open={manageOpsModal} onOpenChange={(v) => { if (!v) setManageOpsModal(false); }}>
-        <DialogContent className="sm:max-w-4xl h-[90vh] p-0 flex flex-col overflow-hidden border-zinc-200">
+        <DialogContent className="sm:max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden border-zinc-200">
           <DialogHeader className="px-6 py-4 border-b border-zinc-100 bg-white shrink-0">
             <DialogTitle className="text-xl font-black tracking-tight">
               Quy trình sản xuất: <span className="text-indigo-600">{selectedGroup?.name}</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30">
             <DraggableSequenceTable
               data={groupOperations} machinesList={machinesList} isLoading={opsLoading}
@@ -197,7 +228,7 @@ export default function ProductGroupPage() {
               <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
               <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600">Thêm bước mới vào quy trình</p>
             </div>
-            
+
             <form onSubmit={handleOpFormSubmit(onAddOp)} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
               <div className="flex flex-wrap lg:flex-nowrap gap-4 items-end">
                 <div className="space-y-1.5 shrink-0">
@@ -206,9 +237,19 @@ export default function ProductGroupPage() {
                     <Input {...field} className="w-20 h-10 font-bold bg-zinc-50 border-zinc-200" placeholder={String(nextSequenceOrder)} />
                   )} />
                 </div>
-                
+
                 <div className="space-y-1.5 flex-1 min-w-[200px]">
-                  <Label className="text-[10px] font-black uppercase text-zinc-400">Công đoạn <span className="text-red-500">*</span></Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase text-zinc-400">Công đoạn <span className="text-red-500">*</span></Label>
+                    <button
+                      type="button"
+                      onClick={() => setQuickCreateOpModal(true)}
+                      className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded-md transition-colors"
+                    >
+                      <Zap className="w-2.5 h-2.5" />
+                      Tạo nhanh
+                    </button>
+                  </div>
                   <Controller name="operation_id" control={opControl} render={({ field }) => (
                     <Popover>
                       <PopoverTrigger asChild>
@@ -315,17 +356,17 @@ export default function ProductGroupPage() {
                 </div>
 
                 <div className="flex gap-2 shrink-0">
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
+                  <Button
+                    type="button"
+                    variant="ghost"
                     onClick={() => setManageOpsModal(false)}
                     className="h-10 px-6 font-bold text-zinc-400 hover:text-zinc-600 uppercase text-[10px] tracking-widest"
                   >
                     Đóng
                   </Button>
-                  <Button 
-                    type="submit" 
-                    disabled={addOpMutation.isPending} 
+                  <Button
+                    type="submit"
+                    disabled={addOpMutation.isPending}
                     className="h-10 px-8 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 rounded-xl"
                   >
                     Thêm bước
@@ -334,6 +375,57 @@ export default function ProductGroupPage() {
               </div>
             </form>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Create Operation Dialog */}
+      <Dialog open={quickCreateOpModal} onOpenChange={(v) => { if (!v) { setQuickCreateOpModal(false); setQuickOpName(""); setQuickOpDesc(""); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-50">
+                <Zap className="w-4 h-4 text-indigo-600" />
+              </span>
+              Tạo nhanh công đoạn
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Tên công đoạn <span className="text-red-500">*</span></Label>
+              <Input
+                value={quickOpName}
+                onChange={(e) => setQuickOpName(e.target.value)}
+                placeholder="Nhập tên công đoạn..."
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleQuickCreateOp(); } }}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mô tả <span className="text-zinc-400 text-xs font-normal">(tuỳ chọn)</span></Label>
+              <textarea
+                value={quickOpDesc}
+                onChange={(e) => setQuickOpDesc(e.target.value)}
+                rows={2}
+                placeholder="Mô tả ngắn về công đoạn..."
+                className="w-full rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none"
+              />
+            </div>
+            <p className="text-[10px] text-zinc-400 font-medium">
+              Hệ thống sẽ kiểm tra nếu công đoạn đã tồn tại và thông báo lỗi.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => { setQuickCreateOpModal(false); setQuickOpName(""); setQuickOpDesc(""); }}>Hủy</Button>
+            <Button
+              type="button"
+              onClick={handleQuickCreateOp}
+              disabled={quickCreateOpMutation.isPending || !quickOpName.trim()}
+              className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              {quickCreateOpMutation.isPending ? "Đang tạo..." : "Tạo công đoạn"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

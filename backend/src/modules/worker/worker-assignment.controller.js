@@ -40,6 +40,11 @@ export const updateAssignments = async (req, res) => {
             }
         }
         
+        await client.query(
+            `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE_ASSIGNMENTS', 'ProductionPlan', $2, $3)`,
+            [req.user.id, production_plan_id, { working_date, worker_ids }]
+        );
+        
         await client.query('COMMIT');
         res.json({ message: 'Assignments updated successfully' });
     } catch (error) {
