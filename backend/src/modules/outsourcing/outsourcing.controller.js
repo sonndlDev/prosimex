@@ -123,12 +123,13 @@ export const createTicket = async (req, res) => {
 
     // Generate auto ticket_code
     // Generate auto ticket_code using local date in server's timezone
+    const prefix = type === "PLATING" ? "OUT-XM" : "OUT-DG";
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const todayStr = `${year}${month}${day}`;
-    
+
     // Find count of today's tickets
     const countRes = await client.query(
       "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
