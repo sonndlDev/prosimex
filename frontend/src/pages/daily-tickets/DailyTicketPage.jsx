@@ -67,24 +67,67 @@ export default function DailyTicketPage() {
       id: "id",
       label: "Mã số phiếu",
       className: "font-bold text-zinc-950",
-      format: (val, row) => `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${val}`
+      format: (val, row) => `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${row.master_id}`
     },
     {
       id: "ticket_date",
-      label: "Ngày sản xuất",
-      className: "font-semibold text-zinc-700",
-      format: (val) => DateTime.fromISO(val).toFormat("dd/MM/yyyy")
+      label: "Ngày",
+      className: "font-semibold text-zinc-700 whitespace-nowrap",
+      format: (val) => DateTime.fromISO(val).toFormat("dd/MM")
     },
     {
-      id: "status",
+      id: "order_name",
+      label: "Đơn hàng",
+      className: "font-bold text-zinc-950",
+    },
+    {
+      id: "po_customer",
+      label: "PO",
+      className: "text-zinc-500",
+    },
+    {
+      id: "product_name",
+      label: "Mã SP",
+      className: "font-medium",
+    },
+    {
+      id: "remaining_quantity",
+      label: "SL Order",
+      className: "text-right font-bold text-orange-600",
+      format: (val) => parseFloat(val) || 0
+    },
+    {
+      id: "operation_name",
+      label: "Công đoạn",
+      format: (val, row) => val || row.fallback_operation_name || "N/A"
+    },
+    {
+      id: "planned_quantity",
+      label: "SL cần SX",
+      className: "text-right font-bold text-zinc-900",
+      format: (val) => parseFloat(val) || 0
+    },
+    {
+      id: "actual_quantity",
+      label: "SL thực tế",
+      className: "text-right font-bold text-blue-600",
+      format: (val) => parseFloat(val) || 0
+    },
+    {
+      id: "notes",
+      label: "Ghi chú",
+      className: "text-zinc-500 italic text-xs",
+    },
+    {
+      id: "ticket_status",
       label: "Trạng thái",
       format: (val) => val === "COMPLETED" ? (
-        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 font-semibold">
-          Đã nhập kết quả
+        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 font-semibold text-[10px] px-1.5 h-5">
+          Xong
         </Badge>
       ) : (
-        <Badge variant="secondary" className="font-semibold">
-          Mới/Bản nháp
+        <Badge variant="secondary" className="font-semibold text-[10px] px-1.5 h-5">
+          Nháp
         </Badge>
       )
     },
@@ -96,8 +139,8 @@ export default function DailyTicketPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => setIsReportOpen(true)} className="h-11 px-6 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
@@ -129,10 +172,10 @@ export default function DailyTicketPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
-                      onClick={() => { setSelectedTicketId(item.id); setIsPrintOpen(true); }}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
-                    >
-                      <Printer className="w-4 h-4" />
+                    onClick={() => { setSelectedTicketId(item.master_id); setIsPrintOpen(true); }}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
+                  >
+                    <Printer className="w-4 h-4" />
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">In Phiếu</TooltipContent>
                 </Tooltip>
@@ -141,10 +184,10 @@ export default function DailyTicketPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
-                      onClick={() => { setSelectedTicketId(item.id); setIsFormOpen(true); }}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
-                    >
-                      <PencilLine className="w-4 h-4" />
+                    onClick={() => { setSelectedTicketId(item.master_id); setIsFormOpen(true); }}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
+                  >
+                    <PencilLine className="w-4 h-4" />
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Chỉnh sửa phiếu</TooltipContent>
                 </Tooltip>
@@ -153,11 +196,11 @@ export default function DailyTicketPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
-                      onClick={() => handleDelete(item.id)}
-                      disabled={item.status === "COMPLETED"}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                    onClick={() => handleDelete(item.master_id)}
+                    disabled={item.ticket_status === "COMPLETED"}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xoá phiếu</TooltipContent>
                 </Tooltip>
@@ -166,8 +209,8 @@ export default function DailyTicketPage() {
           )}
           onBulkDelete={(ids) => {
             const deletableIds = ids.filter(id => {
-              const ticket = tickets.find(t => String(t.id) === String(id));
-              return ticket && ticket.status !== "COMPLETED";
+              const row = tickets.find(t => String(t.id) === String(id));
+              return row && row.ticket_status !== "COMPLETED";
             });
             const skipped = ids.length - deletableIds.length;
             if (deletableIds.length === 0) {
@@ -178,7 +221,12 @@ export default function DailyTicketPage() {
               ? `Xóa ${deletableIds.length} phiếu? (${skipped} phiếu đã hoàn thành sẽ bị bỏ qua)`
               : `Xóa ${deletableIds.length} phiếu sản xuất?`;
             if (window.confirm(msg)) {
-              deletableIds.forEach(id => deleteMutation.mutate(id));
+              const ticketIdsToDelete = new Set();
+              deletableIds.forEach(id => {
+                const row = tickets.find(t => String(t.id) === String(id));
+                if (row) ticketIdsToDelete.add(row.master_id);
+              });
+              ticketIdsToDelete.forEach(tId => deleteMutation.mutate(tId));
             }
           }}
         />

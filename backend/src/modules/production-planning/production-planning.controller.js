@@ -54,7 +54,7 @@ export const getProductionPlans = async (req, res) => {
                 pgo.sequence_order, 
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 op.name as operation_name, 
-                COALESCE(pp.machine_id, pgo.machine_id) as machine_id,
+                pp.machine_id as machine_id,
                 m.name as machine_name,
                 f.name as factory_name,
                 COALESCE(cu.full_name, cu.username) as creator_name,
@@ -65,7 +65,7 @@ export const getProductionPlans = async (req, res) => {
             LEFT JOIN product_groups pg ON p.product_group_id = pg.id
             LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
             LEFT JOIN operations op ON pgo.operation_id = op.id
-            LEFT JOIN machines m ON COALESCE(pp.machine_id, pgo.machine_id) = m.id
+            LEFT JOIN machines m ON pp.machine_id = m.id
             LEFT JOIN factories f ON pp.factory_id = f.id
             LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
             LEFT JOIN users cu ON pp.created_by = cu.id
@@ -180,7 +180,6 @@ export const createProductionPlan = async (req, res) => {
       );
       if (pgoRes.rowCount > 0) {
         const pgo = pgoRes.rows[0];
-        if (!machine_id) machine_id = pgo.machine_id;
         if (!final_dinh_muc) final_dinh_muc = pgo.dinh_muc;
       }
     }
@@ -671,6 +670,64 @@ export const createOrderGeneralPlan = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Create General Order Plan Error:", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+export const stopPlan = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const { stopped_at } = req.body;
+    const user_id = req.user.id;
+
+    if (!stopped_at) {
+      return res.status(400).json({ message: "stopped_at is required" });
+    }
+
+    // 1. Update plan status and stopped_at
+    const planUpdate = await client.query(
+      `UPDATE production_plans 
+       SET status = 'STOPPED', 
+           stopped_at = $1, 
+           updated_at = CURRENT_TIMESTAMP, 
+           modified_by = $2 
+       WHERE id = $3 AND deleted_at IS NULL
+       RETURNING *`,
+      [stopped_at, user_id, id]
+    );
+
+    if (planUpdate.rowCount === 0) {
+      return res.status(404).json({ message: "Plan not found" });
+    }
+
+    // 2. Remove from machine_schedules for days AFTER stopped_at
+    // We keep the schedule up to stopped_at for historical accuracy
+    await client.query(
+      `DELETE FROM machine_schedules 
+       WHERE production_plan_id = $1 
+         AND end_date > $2`,
+      [id, stopped_at]
+    );
+
+    // [Optional] Update or delete production_plan_days after stopped_at?
+    // User said "dừng ở các ngày còn lại", so it makes sense to keep them in DB but mark them as inactive.
+    // However, our UI handles graying out based on stopped_at, so keeping them is fine.
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
+       VALUES ($1, 'STOP', 'ProductionPlan', $2, $3)`,
+      [user_id, id, JSON.stringify({ stopped_at })]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Plan stopped successfully", data: planUpdate.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Stop Plan Error:", error);
+    res.status(500).json({ message: "Error stopping plan", error });
   } finally {
     client.release();
   }

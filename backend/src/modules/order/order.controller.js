@@ -30,12 +30,41 @@ export const getOrders = async (req, res) => {
     const countResult = await pool.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
-    // Get data
+    // Get data with calculated completion percentage
     const dataQuery = `
+      WITH order_completion AS (
+        SELECT 
+          op.order_id,
+          SUM(op.quantity) as total_required,
+          COALESCE((
+            SELECT SUM(dti.actual_quantity) 
+            FROM daily_production_ticket_items dti 
+            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+            WHERE dti.order_id = op.order_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
+          ), 0) as total_sx,
+          COALESCE((
+            SELECT SUM(oti.quantity_out) 
+            FROM outsourcing_tickets ot 
+            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+            WHERE oti.order_id = op.order_id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+          ), 0) as total_plating_out,
+          COALESCE((
+            SELECT SUM(oti.quantity_out) 
+            FROM outsourcing_tickets ot 
+            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+            WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+          ), 0) as total_packaging_out
+        FROM order_products op
+        GROUP BY op.order_id
+      )
       SELECT o.*, c.name as customer_name, 
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
+             CASE 
+               WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
+               ELSE 0 
+             END as completion_percentage,
              COALESCE(
                (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id, 'quantity', op.quantity))
                 FROM order_products op
@@ -48,6 +77,7 @@ export const getOrders = async (req, res) => {
       LEFT JOIN users cu ON o.created_by = cu.id
       LEFT JOIN users mu ON o.modified_by = mu.id
       LEFT JOIN order_ext oe ON o.id = oe.order_id
+      LEFT JOIN order_completion oc ON o.id = oc.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -80,23 +110,26 @@ export const getOrderCompletionReport = async (req, res) => {
         GROUP BY dti.product_id
       ),
       plating_totals AS (
-        SELECT ot.product_id, SUM(ot.quantity_out) as total_plating_out
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
         FROM outsourcing_tickets ot 
-        WHERE ot.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-        GROUP BY ot.product_id
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
       ),
       plating_returns AS (
-        SELECT ot.product_id, SUM(or_t.quantity_returned) as total_plating_returned
+        SELECT oti.product_id, SUM(or_t.quantity_returned) as total_plating_returned
         FROM outsourcing_returns or_t 
-        JOIN outsourcing_tickets ot ON or_t.ticket_id = ot.id 
-        WHERE ot.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-        GROUP BY ot.product_id
+        JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+        JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
       ),
       packaging_totals AS (
-        SELECT ot.product_id, SUM(ot.quantity_out) as total_packaging_out
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_packaging_out
         FROM outsourcing_tickets ot 
-        WHERE ot.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
-        GROUP BY ot.product_id
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
       )
       SELECT 
         p.id as product_id,
@@ -145,6 +178,87 @@ export const getOrderCompletionReport = async (req, res) => {
   } catch (error) {
     console.error("Get Order Completion Report Error:", error);
     res.status(500).json({ message: "Error retrieving order completion report", error });
+  }
+};
+
+export const getOrderSummaryReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if order exists
+    const orderRes = await pool.query("SELECT id, po_auto_code FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (orderRes.rowCount === 0) return res.status(404).json({ message: "Order not found" });
+
+    // Complex query to get summary by identifying first and last stages for each product
+    const query = `
+      WITH product_stages AS (
+          SELECT 
+              op.product_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order ASC LIMIT 1) as start_pgo_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id,
+              (SELECT o.name FROM product_group_operations pgo JOIN operations o ON pgo.operation_id = o.id WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_op_name
+          FROM order_products op
+          JOIN products p ON op.product_id = p.id
+          WHERE op.order_id = $1
+      ),
+      plating_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      plating_returns AS (
+        SELECT oti.product_id, SUM(or_t.quantity_returned) as total_plating_returned
+        FROM outsourcing_returns or_t 
+        JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+        JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      packaging_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_packaging_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      )
+      SELECT 
+          p.id as product_id,
+          p.name as product_name,
+          op.quantity as required_quantity,
+          ps.final_op_name,
+          COALESCE((SELECT SUM(actual_quantity) FROM daily_production_ticket_items WHERE order_id = $1 AND product_id = p.id AND product_group_operation_id = ps.start_pgo_id), 0) as started_quantity,
+          COALESCE((SELECT SUM(actual_quantity) FROM daily_production_ticket_items WHERE order_id = $1 AND product_id = p.id AND product_group_operation_id = ps.final_pgo_id), 0) as finished_quantity,
+          COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
+          COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
+          COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
+      FROM order_products op
+      JOIN products p ON op.product_id = p.id
+      JOIN product_stages ps ON p.id = ps.product_id
+      LEFT JOIN plating_totals pt ON p.id = pt.product_id
+      LEFT JOIN plating_returns pr ON p.id = pr.product_id
+      LEFT JOIN packaging_totals pkt ON p.id = pkt.product_id
+      WHERE op.order_id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+    const details = result.rows;
+
+    const totals = {
+      required: details.reduce((sum, row) => sum + parseFloat(row.required_quantity || 0), 0),
+      started: details.reduce((sum, row) => sum + parseFloat(row.started_quantity || 0), 0),
+      finished: details.reduce((sum, row) => sum + parseFloat(row.finished_quantity || 0), 0)
+    };
+
+    res.json({
+      order: orderRes.rows[0],
+      totals,
+      details
+    });
+  } catch (error) {
+    console.error("Get Order Summary Report Error:", error);
+    res.status(500).json({ message: "Error retrieving order summary report", error: error.message });
   }
 };
 

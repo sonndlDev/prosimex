@@ -32,6 +32,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
     let scheduleQuery = `
             SELECT 
                 ppd.id,
+                pp.id as production_plan_id,
                 ${unassignedMode ? "'unassigned'" : 'pp.machine_id'} as "resourceId",
                 COALESCE(o.order_code, p.name, 'L-' || pp.id) as title,
                 o.order_code,
@@ -41,7 +42,9 @@ export const getMachineScheduleCalendar = async (req, res) => {
                 ppd.working_date as start,
                 ppd.working_date as end,
                 (ppd.planned_work_quantity / 8.0) as planned_work_quantity,
-                pp.status as color_status
+                pp.status as color_status,
+                pp.stopped_at as stopped_at,
+                pp.status as status
             FROM production_plan_days ppd
             JOIN production_plans pp ON ppd.production_plan_id = pp.id
             ${unassignedMode ? "LEFT JOIN machines m ON pp.machine_id = m.id" : "JOIN machines m ON pp.machine_id = m.id"}

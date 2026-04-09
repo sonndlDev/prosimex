@@ -8,6 +8,7 @@ import { productGroupService } from "../../services/product-group.service";
 import GenericTable from "../../components/GenericTable";
 import { toast } from "sonner";
 import CompletionReportDialog from "./components/CompletionReportDialog";
+import OrderSummaryDialog from "./components/OrderSummaryDialog";
 import CompletionPercentageCell from "./components/CompletionPercentageCell";
 import WarehouseDetailsDialog from "./components/WarehouseDetailsDialog";
 import { getAuditColumn } from "../../utils/audit";
@@ -71,10 +72,12 @@ import {
   Layers,
   MoreHorizontal,
   Warehouse,
-  Pencil
+  Pencil,
+  LayoutDashboard
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const defaultValues = {
   order_code: "",
@@ -109,6 +112,9 @@ export default function OrderPage() {
 
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
   const [warehouseOrder, setWarehouseOrder] = useState(null);
+
+  const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
+  const [summaryOrderId, setSummaryOrderId] = useState(null);
 
   const {
     control,
@@ -207,6 +213,30 @@ export default function OrderPage() {
   };
 
   const columns = [
+    {
+      id: "report_action",
+      label: "Báo cáo",
+      className: "w-[60px] text-center",
+      format: (_, row) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+                setSummaryOrderId(row.id);
+                setOpenSummaryDialog(true);
+              }}
+              className="p-2 mx-auto rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </TooltipTrigger>
+            <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+              <p>Báo cáo tổng hợp</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    },
     { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
     { id: "customer_name", label: "Tên khách", className: "font-medium" },
     { id: "person_in_charge", label: "Người theo dõi đơn hàng" },
@@ -253,13 +283,21 @@ export default function OrderPage() {
       id: "completion_percentage",
       label: "Phần trăm hoàn thành đơn hàng",
       format: (value, row) => (
-        <CompletionPercentageCell
-          orderId={row.id}
-          onClick={() => {
+        <div
+          className="flex justify-center items-center h-full w-full cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
             setReportOrderId(row.id);
             setOpenCompletionReport(true);
           }}
-        />
+        >
+          <Badge
+            variant={(row.completion_percentage || 0) >= 100 ? "success" : (row.completion_percentage || 0) > 0 ? "warning" : "outline"}
+            className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100"
+          >
+            {(row.completion_percentage || 0)}%
+          </Badge>
+        </div>
       )
     },
     { id: "note", label: "Ghi chú", className: "max-w-[150px] truncate" },
@@ -372,8 +410,6 @@ export default function OrderPage() {
           columns={columns}
           isLoading={isLoading}
           error={error}
-          onEdit={handleOpen}
-          onDelete={handleDelete}
           onBulkDelete={handleBulkDelete}
           isServerSide={true}
           totalItems={totalItems}
@@ -382,6 +418,8 @@ export default function OrderPage() {
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onSearchChange={setSearch}
+          onEdit={handleOpen}
+          onDelete={handleDelete}
         />
       </div>
 
@@ -931,6 +969,15 @@ export default function OrderPage() {
         onClose={() => {
           setOpenCompletionReport(false);
           setReportOrderId(null);
+        }}
+      />
+
+      <OrderSummaryDialog
+        orderId={summaryOrderId}
+        open={openSummaryDialog}
+        onClose={() => {
+          setOpenSummaryDialog(false);
+          setSummaryOrderId(null);
         }}
       />
     </div>

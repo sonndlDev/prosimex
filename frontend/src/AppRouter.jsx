@@ -22,11 +22,13 @@ const UserPage = React.lazy(() => import("./pages/auth/UserPage"));
 const CustomerPage = React.lazy(() => import("./pages/customers/CustomerPage"));
 const OrderPage = React.lazy(() => import("./pages/orders/OrderPage"));
 const WarehousePage = React.lazy(() => import("./pages/warehouse/WarehousePage"));
+const SuppliersPage = React.lazy(() => import("./pages/suppliers/SuppliersPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
 const DailyTicketPage = React.lazy(() => import("./pages/daily-tickets/DailyTicketPage"));
 const ProductionOutputPage = React.lazy(() => import("./pages/daily-tickets/ProductionOutputPage"));
 const OutsourcingPage = React.lazy(() => import("./pages/outsourcing/OutsourcingPage"));
 const SchedulePage = React.lazy(() => import("./pages/schedule/SchedulePage"));
+const ProductInventoryPage = React.lazy(() => import("./pages/inventory/ProductInventoryPage"));
 const AttendancePage = React.lazy(
   () => import("./pages/attendance/AttendancePage"),
 );
@@ -112,6 +114,9 @@ export default function AppRouter() {
               >
                 <Route path="/customers" element={<CustomerPage />} />
               </Route>
+              <Route element={<ProtectedRoute requiredPermission="suppliers" />}>
+                <Route path="/suppliers" element={<SuppliersPage />} />
+              </Route>
               <Route element={<ProtectedRoute requiredPermission="orders" />}>
                 <Route path="/orders" element={<OrderPage />} />
               </Route>
@@ -132,6 +137,9 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="schedule" />}>
                 <Route path="/schedule" element={<SchedulePage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="productInventory" />}>
+                <Route path="/product-inventory" element={<ProductInventoryPage />} />
               </Route>
 
               <Route element={<ProtectedRoute requiredPermission="machines" />}>

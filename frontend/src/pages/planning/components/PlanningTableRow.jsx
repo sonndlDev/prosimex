@@ -66,9 +66,9 @@ const PlanningTableRow = React.memo(
           {parseFloat(plan.remaining_quantity).toLocaleString('en-US')}
         </ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums">{parseFloat(plan.dinh_muc).toLocaleString('en-US')}</ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums font-bold text-blue-600">
+        {/* <ExcelDataCell className="text-right px-3 tabular-nums font-bold text-blue-600">
           {(parseFloat(plan.total_required_work) / 8).toLocaleString('en-US')}
-        </ExcelDataCell>
+        </ExcelDataCell> */}
         <ExcelDataCell className="text-right px-3 tabular-nums">0</ExcelDataCell>
         <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">
           x
@@ -103,8 +103,17 @@ const PlanningTableRow = React.memo(
 
           let cellBg = "inherit";
           let textColor = "inherit";
+
+          const isStopped = plan.status === 'STOPPED';
+          const stoppedAt = plan.stopped_at ? DateTime.fromISO(plan.stopped_at) : null;
+          const currentCellDate = DateTime.fromISO(date.key);
+          const isActuallyStopped = isStopped && stoppedAt && currentCellDate.startOf('day') > stoppedAt.startOf('day');
+
           if (dayData) {
-            if (!plan.machine_id) {
+            if (isActuallyStopped) {
+              cellBg = "#94a3b8"; // Slate gray for stopped days
+              textColor = "#fff";
+            } else if (!plan.machine_id) {
               // Nếu không có máy, luôn hiển thị màu xanh theo yêu cầu
               cellBg = "#22c55e"; // Green
               textColor = "#fff";

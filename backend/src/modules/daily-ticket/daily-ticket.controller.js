@@ -15,7 +15,10 @@ export const getTickets = async (req, res) => {
     }
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM daily_production_tickets dt ${whereClause}`,
+      `SELECT COUNT(*) 
+       FROM daily_production_ticket_items dti
+       JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+       ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].count);
@@ -23,14 +26,33 @@ export const getTickets = async (req, res) => {
     const result = await pool.query(
       `
             SELECT 
-                dt.*,
+                dti.id as id,
+                dt.id as master_id,
+                dt.status as ticket_status,
+                dt.ticket_date,
+                dt.created_at,
+                o.name as order_name,
+                o.po_customer,
+                p.name as product_name,
+                op.name as fallback_operation_name,
+                dti.operation_name,
+                dti.planned_quantity,
+                dti.actual_quantity,
+                dti.notes,
+                pp.remaining_quantity,
                 COALESCE(cu.full_name, cu.username) as creator_name,
                 COALESCE(mu.full_name, mu.username) as modifier_name
-            FROM daily_production_tickets dt
+            FROM daily_production_ticket_items dti
+            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+            LEFT JOIN orders o ON dti.order_id = o.id
+            LEFT JOIN products p ON dti.product_id = p.id
+            LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
+            LEFT JOIN operations op ON pgo.operation_id = op.id
+            LEFT JOIN production_plans pp ON pp.order_id = dti.order_id AND pp.product_id = dti.product_id AND pp.product_group_operation_id = dti.product_group_operation_id AND pp.deleted_at IS NULL
             LEFT JOIN users cu ON dt.created_by = cu.id
             LEFT JOIN users mu ON dt.modified_by = mu.id
             ${whereClause}
-            ORDER BY dt.ticket_date DESC, dt.created_at DESC
+            ORDER BY dt.ticket_date DESC, dti.id ASC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
         `,
       [...queryParams, limit, offset]
@@ -54,7 +76,7 @@ export const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const ticketRes = await pool.query(
+    let ticketRes = await pool.query(
       `SELECT dt.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
        FROM daily_production_tickets dt
        LEFT JOIN users cu ON dt.created_by = cu.id
@@ -62,6 +84,25 @@ export const getTicketById = async (req, res) => {
        WHERE dt.id = $1 AND dt.deleted_at IS NULL`,
       [id]
     );
+
+    // [Refinement] If not found by ticket ID, check if it's an item ID
+    if (ticketRes.rowCount === 0) {
+      const itemFallback = await pool.query(
+        "SELECT ticket_id FROM daily_production_ticket_items WHERE id = $1",
+        [id]
+      );
+      if (itemFallback.rowCount > 0) {
+        const fallbackTicketId = itemFallback.rows[0].ticket_id;
+        ticketRes = await pool.query(
+          `SELECT dt.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+           FROM daily_production_tickets dt
+           LEFT JOIN users cu ON dt.created_by = cu.id
+           LEFT JOIN users mu ON dt.modified_by = mu.id
+           WHERE dt.id = $1 AND dt.deleted_at IS NULL`,
+          [fallbackTicketId]
+        );
+      }
+    }
 
     if (ticketRes.rowCount === 0) {
       return res.status(404).json({ message: "Ticket not found" });
@@ -76,7 +117,8 @@ export const getTicketById = async (req, res) => {
               p.name as product_name,
               pg.name as product_group_name,
               op.name as pgo_operation_name,
-              m.name as pgo_machine_name
+              m.name as pgo_machine_name,
+              pp.remaining_quantity
        FROM daily_production_ticket_items dti
        LEFT JOIN orders o ON dti.order_id = o.id
        LEFT JOIN customers c ON o.customer_id = c.id
@@ -85,6 +127,7 @@ export const getTicketById = async (req, res) => {
        LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
        LEFT JOIN operations op ON pgo.operation_id = op.id
        LEFT JOIN machines m ON pgo.machine_id = m.id
+       LEFT JOIN production_plans pp ON pp.order_id = dti.order_id AND pp.product_id = dti.product_id AND pp.product_group_operation_id = dti.product_group_operation_id AND pp.deleted_at IS NULL
        WHERE dti.ticket_id = $1`,
       [id]
     );
@@ -115,7 +158,7 @@ export const createTicket = async (req, res) => {
 
     if (items && items.length > 0) {
       const itemValues = items
-        .map((_, i) => `($1, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, $${i * 5 + 6})`)
+        .map((_, i) => `($1, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, $${i * 7 + 8})`)
         .join(", ");
       const itemParams = [
         newTicket.id,
@@ -125,11 +168,13 @@ export const createTicket = async (req, res) => {
           item.product_group_operation_id || null,
           item.operation_name || null,
           item.planned_quantity || 0,
+          item.actual_quantity || 0,
+          item.notes ? String(item.notes) : null
         ]),
       ];
       await client.query(
         `INSERT INTO daily_production_ticket_items 
-           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity)
+           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes)
            VALUES ${itemValues}`,
         itemParams,
       );
@@ -184,7 +229,7 @@ export const updateTicket = async (req, res) => {
 
     if (items && items.length > 0) {
       const itemValues = items
-        .map((_, i) => `($1, $${i * 5 + 2}, $${i * 5 + 3}, $${i * 5 + 4}, $${i * 5 + 5}, $${i * 5 + 6})`)
+        .map((_, i) => `($1, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, $${i * 7 + 8})`)
         .join(", ");
       const itemParams = [
         id,
@@ -194,11 +239,13 @@ export const updateTicket = async (req, res) => {
           item.product_group_operation_id || null,
           item.operation_name || null,
           item.planned_quantity || 0,
+          item.actual_quantity || 0,
+          item.notes ? String(item.notes) : null
         ]),
       ];
       await client.query(
         `INSERT INTO daily_production_ticket_items 
-           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity)
+           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes)
            VALUES ${itemValues}`,
         itemParams,
       );
@@ -242,12 +289,13 @@ export const updateTicketResults = async (req, res) => {
     if (items && items.length > 0) {
       const itemIds = items.map(i => parseInt(i.id));
       const actualQtys = items.map(i => parseFloat(i.actual_quantity) || 0);
+      const notesArr = items.map(i => i.notes ? String(i.notes) : null);
       await client.query(
         `UPDATE daily_production_ticket_items AS dti
-         SET actual_quantity = v.qty, updated_at = CURRENT_TIMESTAMP
-         FROM (SELECT unnest($1::int[]) AS id, unnest($2::numeric[]) AS qty) AS v
+         SET actual_quantity = v.qty, notes = v.note, updated_at = CURRENT_TIMESTAMP
+         FROM (SELECT unnest($1::int[]) AS id, unnest($2::numeric[]) AS qty, unnest($4::text[]) AS note) AS v
          WHERE dti.id = v.id AND dti.ticket_id = $3`,
-        [itemIds, actualQtys, id],
+        [itemIds, actualQtys, id, notesArr],
       );
     }
 
@@ -354,6 +402,7 @@ export const getPlanVsActualReport = async (req, res) => {
         ) as plan_days,
         (
             SELECT json_agg(json_build_object(
+                'master_id', dt.id,
                 'ticket_date', dt.ticket_date,
                 'actual_quantity', dti.actual_quantity
             ))

@@ -104,30 +104,30 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-              <Command className="w-full">
-                  <CommandInput placeholder="Tìm đơn hàng..." />
-                  <CommandList className="max-h-[300px] p-1">
-                      <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
-                      <CommandGroup>
-                        {uniqueOrders.map(o => (
-                            <CommandItem
-                                key={o.id}
-                                value={o.name}
-                                onSelect={() => {
-                                    field.onChange(String(o.id));
-                                    setValue(`items.${index}.product_id`, "");
-                                    setValue(`items.${index}.product_group_operation_id`, "");
-                                    setValue(`items.${index}.planned_quantity`, "");
-                                }}
-                                className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
-                            >
-                                <span className="text-xs font-bold">{o.name}</span>
-                                <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
-                            </CommandItem>
-                        ))}
-                      </CommandGroup>
-                  </CommandList>
-              </Command>
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm đơn hàng..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandGroup>
+                  {uniqueOrders.map(o => (
+                    <CommandItem
+                      key={o.id}
+                      value={o.name}
+                      onSelect={() => {
+                        field.onChange(String(o.id));
+                        setValue(`items.${index}.product_id`, "");
+                        setValue(`items.${index}.product_group_operation_id`, "");
+                        setValue(`items.${index}.planned_quantity`, "");
+                      }}
+                      className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
+                    >
+                      <span className="text-xs font-bold">{o.name}</span>
+                      <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           </PopoverContent>
         </Popover>
       )} />
@@ -135,94 +135,94 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       {/* Product */}
       <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
         <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    disabled={!selectedOrderId || isCompleted}
-                    className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
-                >
-                   <div className="flex items-center gap-1.5 truncate">
-                        <Package className="h-3 w-3 text-indigo-500 shrink-0" />
-                        <span className="truncate">
-                            {availableProducts.find(p => String(p.id) === String(field.value))?.name || "Sản phẩm"}
-                        </span>
-                    </div>
-                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                <Command className="w-full">
-                    <CommandInput placeholder="Tìm mã hàng..." />
-                    <CommandList className="max-h-[300px] p-1">
-                        <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
-                        <CommandGroup>
-                            {availableProducts.map(p => (
-                                <CommandItem
-                                    key={p.id}
-                                    value={p.name}
-                                    onSelect={() => {
-                                        field.onChange(String(p.id));
-                                        setValue(`items.${index}.product_group_operation_id`, "");
-                                        setValue(`items.${index}.planned_quantity`, "");
-                                    }}
-                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
-                                >
-                                    <span className="text-xs font-bold">{p.name}</span>
-                                    <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              disabled={!selectedOrderId || isCompleted}
+              className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Package className="h-3 w-3 text-indigo-500 shrink-0" />
+                <span className="truncate">
+                  {availableProducts.find(p => String(p.id) === String(field.value))?.name || "Sản phẩm"}
+                </span>
+              </div>
+              <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm mã hàng..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandGroup>
+                  {availableProducts.map(p => (
+                    <CommandItem
+                      key={p.id}
+                      value={p.name}
+                      onSelect={() => {
+                        field.onChange(String(p.id));
+                        setValue(`items.${index}.product_group_operation_id`, "");
+                        setValue(`items.${index}.planned_quantity`, "");
+                      }}
+                      className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
+                    >
+                      <span className="text-xs font-bold">{p.name}</span>
+                      <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
         </Popover>
       )} />
 
       {/* Operation */}
       <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
         <Popover>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    disabled={!selectedProductId || isCompleted}
-                    className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
-                >
-                    <div className="flex items-center gap-1.5 truncate">
-                        <Settings className="h-3 w-3 text-indigo-500 shrink-0" />
-                        <span className="truncate">
-                            {availableOperations.find(o => String(o.id) === String(field.value))?.name || "Công đoạn"}
-                        </span>
-                    </div>
-                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                <Command className="w-full">
-                    <CommandInput placeholder="Tìm công đoạn..." />
-                    <CommandList className="max-h-[300px] p-1">
-                        <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
-                        <CommandGroup>
-                            {availableOperations.map(op => (
-                                <CommandItem
-                                    key={op.id}
-                                    value={op.name}
-                                    onSelect={() => {
-                                        field.onChange(String(op.id));
-                                        const found = availableOperations.find(o => String(o.id) === String(op.id));
-                                        if (found) setValue(`items.${index}.operation_name`, found.name);
-                                    }}
-                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
-                                >
-                                    <span className="text-xs font-bold">{op.name}</span>
-                                    <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              disabled={!selectedProductId || isCompleted}
+              className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Settings className="h-3 w-3 text-indigo-500 shrink-0" />
+                <span className="truncate">
+                  {availableOperations.find(o => String(o.id) === String(field.value))?.name || "Công đoạn"}
+                </span>
+              </div>
+              <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm công đoạn..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandGroup>
+                  {availableOperations.map(op => (
+                    <CommandItem
+                      key={op.id}
+                      value={op.name}
+                      onSelect={() => {
+                        field.onChange(String(op.id));
+                        const found = availableOperations.find(o => String(o.id) === String(op.id));
+                        if (found) setValue(`items.${index}.operation_name`, found.name);
+                      }}
+                      className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
+                    >
+                      <span className="text-xs font-bold">{op.name}</span>
+                      <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
         </Popover>
       )} />
 
@@ -316,9 +316,9 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           <div className="w-52 space-y-1.5">
             <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Ngày sản xuất</Label>
             <Controller name="ticket_date" control={control} render={({ field }) => (
-              <PremiumDatePicker 
-                date={field.value} 
-                onSelect={field.onChange} 
+              <PremiumDatePicker
+                date={field.value}
+                onSelect={field.onChange}
                 disabled={isCompleted}
               />
             )} />

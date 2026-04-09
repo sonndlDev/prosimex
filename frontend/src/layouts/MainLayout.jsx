@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Factory, Settings, CalendarDays, Users, LogOut,
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
-  Hammer, UserCircle, Warehouse, Calendar
+  Hammer, UserCircle, Warehouse, Calendar, Layers
 } from "lucide-react";
 import { DateTime } from "luxon";
 
@@ -25,13 +25,15 @@ const menuItems = [
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
+  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "warehouse" },
   { type: "subheader", text: "Dữ liệu gốc" },
   { text: "Khách hàng", icon: Store, path: "/customers", permission: "customers" },
+  { text: "Nhà cung cấp", icon: Store, path: "/suppliers", permission: "suppliers" },
   { text: "Nhà máy", icon: Factory, path: "/factories", permission: "factories" },
   { text: "Máy móc", icon: Wrench, path: "/machines", permission: "machines" },
-  { text: "Công đoạn", icon: Settings, path: "/operations", permission: "operations" },
   { text: "Nhóm mã hàng", icon: Tag, path: "/product-groups", permission: "product_groups" },
   { text: "Mã hàng", icon: Package, path: "/products", permission: "products" },
+  { text: "Công đoạn", icon: Settings, path: "/operations", permission: "operations" },
   { type: "subheader", text: "Hệ thống" },
   { text: "Chấm công", icon: Clock, path: "/attendance", permission: "attendance" },
   { text: "Quản lý chấm công", icon: Clock, path: "/attendance/management", permission: "attendance_management" },

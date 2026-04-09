@@ -16,7 +16,9 @@ import {
   ChevronsUpDown,
   X,
   Timer,
-  Layers
+  Layers,
+  Eye,
+  EyeOff
 } from "lucide-react";
 
 // Shadcn UI
@@ -60,6 +62,7 @@ export default function PlanningPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [openFilter, setOpenFilter] = useState(false);
+  const [showPastDays, setShowPastDays] = useState(false);
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -98,9 +101,19 @@ export default function PlanningPage() {
     const metrics = {};
 
     plans.forEach((plan) => {
+      const isStopped = plan.status === 'STOPPED';
+      const stoppedAt = plan.stopped_at ? DateTime.fromISO(plan.stopped_at) : null;
+      
       const daysToUse = inlineEditingId === plan.id ? inlineEditDays : plan.days;
       daysToUse?.forEach((day) => {
         const dateISO = day.working_date ? DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd") : day.date;
+        const currentDate = DateTime.fromISO(dateISO);
+
+        // Nếu kế hoạch đã dừng và ngày hiện tại trễ hơn ngày dừng -> Bỏ qua không tính công suất
+        if (isStopped && stoppedAt && currentDate.startOf('day') > stoppedAt.startOf('day')) {
+          return;
+        }
+
         const machineId = plan.machine_id || "unknown";
         const hours = day.hours ? parseFloat(day.hours) : parseFloat(day.planned_work_quantity) / 8;
 
@@ -124,13 +137,16 @@ export default function PlanningPage() {
         dates.add(DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd"));
       });
     });
-    return Array.from(dates)
-      .sort()
+    const sortedDates = Array.from(dates).sort();
+    const todayStr = DateTime.now().toFormat("yyyy-MM-dd");
+
+    return sortedDates
+      .filter((d) => showPastDays || d >= todayStr)
       .map((d) => ({
         key: d,
         label: DateTime.fromISO(d).toFormat("dd-MM"),
       }));
-  }, [plans]);
+  }, [plans, showPastDays]);
 
   // ─── Mutations ─────────────────────────────────────────
   const createMutation = useMutation({
@@ -366,6 +382,18 @@ export default function PlanningPage() {
           </Popover>
 
           <Button
+            variant="outline"
+            onClick={() => setShowPastDays(!showPastDays)}
+            className={cn(
+              "h-10 gap-2 font-bold px-4 bg-white border-zinc-200 transition-all",
+              showPastDays ? "text-indigo-600 border-indigo-200 bg-indigo-50/30" : "text-zinc-600"
+            )}
+          >
+            {showPastDays ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
+          </Button>
+
+          <Button
             onClick={() => { setEditingPlan(null); setOpenModal(true); }}
             className="h-10 gap-2 font-black px-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 transition-all border-none"
           >
@@ -410,7 +438,6 @@ export default function PlanningPage() {
                 <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2} className="text-red-600">Còn lại</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Định mức</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Tổng công</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Đã SX</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Mẫu</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Bắt đầu</ExcelHeaderCell>

@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scheduleService } from '../../services/schedule.service';
+import { planningService } from '../../services/planning.service';
 import { factoryService } from '../../services/factory.service';
+import { toast } from 'sonner';
 import { DateTime } from 'luxon';
 import { 
     ChevronLeft, 
@@ -45,6 +47,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSchedule from './components/CustomSchedule';
 
 export default function SchedulePage() {
+    const queryClient = useQueryClient();
     const [factoryId, setFactoryId] = useState('all');
     const [viewType, setViewType] = useState('month'); // day, week, month
     const [activeTab, setActiveTab] = useState('assigned'); // assigned, unassigned
@@ -77,6 +80,19 @@ export default function SchedulePage() {
             activeTab === 'unassigned'
         ),
     });
+
+    const stopMutation = useMutation({
+        mutationFn: ({ id, stopped_at }) => planningService.stop(id, stopped_at),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['schedule'] });
+            toast.success("Đã dừng công đoạn thành công");
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi dừng công đoạn"),
+    });
+
+    const handleStop = (id, date) => {
+        stopMutation.mutate({ id, stopped_at: date });
+    };
 
     const handlePrev = () => {
         if (viewType === 'day') setCurrentDate(prev => prev.minus({ days: 1 }));
@@ -263,6 +279,8 @@ export default function SchedulePage() {
                                 events={scheduleData?.events || []} 
                                 dateRange={dateRange}
                                 viewType={viewType}
+                                onStop={handleStop}
+                                isStopping={stopMutation.isPending}
                             />
                         </div>
                     </div>

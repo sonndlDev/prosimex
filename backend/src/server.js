@@ -22,6 +22,8 @@ import attendanceRoutes from './modules/attendance/attendance.routes.js'
 import dailyTicketRoutes from './modules/daily-ticket/daily-ticket.routes.js'
 import outsourcingRoutes from './modules/outsourcing/outsourcing.routes.js'
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js'
+import supplierRoutes from './modules/supplier/supplier.routes.js'
+import productInventoryRoutes from './modules/product-inventory/product-inventory.routes.js'
 
 const app = express()
 
@@ -47,6 +49,8 @@ app.use('/api/attendance', attendanceRoutes)
 app.use('/api/daily-tickets', dailyTicketRoutes)
 app.use('/api/outsourcing', outsourcingRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/suppliers', supplierRoutes)
+app.use('/api/product-inventory', productInventoryRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {

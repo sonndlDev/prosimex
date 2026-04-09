@@ -16,9 +16,19 @@ function Tooltip({
 }
 
 function TooltipTrigger({
+  asChild,
+  children,
   ...props
 }) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      render={asChild ? children : undefined}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </TooltipPrimitive.Trigger>
+  );
 }
 
 function TooltipContent({

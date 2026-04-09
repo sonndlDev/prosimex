@@ -25,4 +25,8 @@ export const orderService = {
         const { data } = await api.put(`/orders/${id}/warehouse-details`, payload);
         return data;
     },
+    getSummaryReport: async (id) => {
+        const { data } = await api.get(`/orders/${id}/summary-report`);
+        return data;
+    },
 };

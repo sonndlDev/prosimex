@@ -57,6 +57,7 @@ export default function ProductionOutputPage() {
             operation_name: item.operation_name || item.pgo_operation_name,
             planned_quantity: parseFloat(item.planned_quantity),
             actual_quantity: parseFloat(item.actual_quantity) || "",
+            notes: item.notes || "",
           }))
         );
       }
@@ -77,7 +78,7 @@ export default function ProductionOutputPage() {
     if (searchTicketId.length >= 9 && /^\d+$/.test(searchTicketId)) {
       const datePart = searchTicketId.substring(0, 8);
       const idPart = searchTicketId.substring(8);
-      
+
       const parsedDate = DateTime.fromFormat(datePart, "yyyyMMdd");
       if (parsedDate.isValid) {
         finalDate = parsedDate.toISODate();
@@ -115,6 +116,7 @@ export default function ProductionOutputPage() {
     const payload = data.items.map((item) => ({
       id: item.id,
       actual_quantity: parseFloat(item.actual_quantity) || 0,
+      notes: item.notes || null,
     }));
     updateMutation.mutate(payload);
   };
@@ -127,8 +129,8 @@ export default function ProductionOutputPage() {
 
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Nhập Sản Lượng</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Kết quả kiểm tra và báo cáo sản xuất hàng ngày</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Nhập Sản Lượng</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Kết quả kiểm tra và báo cáo sản xuất hàng ngày</p>
         </div>
       </div>
 
@@ -194,7 +196,8 @@ export default function ProductionOutputPage() {
                 <TableHead>Mã hàng</TableHead>
                 <TableHead>Công đoạn</TableHead>
                 <TableHead className="text-right">SL Kế Hoạch</TableHead>
-                <TableHead className="text-right w-[200px]">SL Thực Tế</TableHead>
+                <TableHead className="text-right w-[180px]">SL Thực Tế</TableHead>
+                <TableHead className="w-[200px]">Ghi chú</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,6 +221,20 @@ export default function ProductionOutputPage() {
                           disabled={isCompleted || updateMutation.isPending}
                           className={`text-right font-bold w-full ${!isCompleted ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
                           min={0}
+                        />
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Controller
+                      name={`items.${index}.notes`}
+                      control={control}
+                      render={({ field: inputField }) => (
+                        <Input
+                          {...inputField}
+                          placeholder="Ghi chú nếu có..."
+                          disabled={isCompleted || updateMutation.isPending}
+                          className="text-xs h-9 border-zinc-300"
                         />
                       )}
                     />

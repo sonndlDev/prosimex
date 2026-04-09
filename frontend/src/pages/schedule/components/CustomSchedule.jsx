@@ -6,9 +6,33 @@ const COLUMN_WIDTH = 50; // px
 const ROW_HEIGHT = 25;
 const RESOURCE_WIDTH = 250;
 const HEADER_HEIGHT = 100;
+import { SquareStop, Loader2 as LoaderIcon } from 'lucide-react';
 
-export default function CustomSchedule({ resources = [], events = [], dateRange }) {
+export default function CustomSchedule({ resources = [], events = [], dateRange, onStop, isStopping }) {
     const [hoveredEvent, setHoveredEvent] = useState(null);
+    const [leaveTimeout, setLeaveTimeout] = useState(null);
+
+    const handleMouseEnter = (event, layout, left, width, isStopped) => {
+        if (leaveTimeout) {
+            clearTimeout(leaveTimeout);
+            setLeaveTimeout(null);
+        }
+        setHoveredEvent({ ...event, layoutTop: layout.top, left, width, isStopped });
+    };
+
+    const handleMouseLeave = () => {
+        const timeout = setTimeout(() => {
+            setHoveredEvent(null);
+        }, 100); // 100ms buffer
+        setLeaveTimeout(timeout);
+    };
+
+    const handleTooltipMouseEnter = () => {
+        if (leaveTimeout) {
+            clearTimeout(leaveTimeout);
+            setLeaveTimeout(null);
+        }
+    };
     const start = useMemo(() => DateTime.fromISO(dateRange.start), [dateRange.start]);
     const end = useMemo(() => DateTime.fromISO(dateRange.end), [dateRange.end]);
 
@@ -28,6 +52,14 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
         const totals = {};
         events.forEach(event => {
             const dateStr = DateTime.fromISO(event.start).toISODate();
+            const eventDate = DateTime.fromISO(event.start);
+            const stoppedAt = event.stopped_at ? DateTime.fromISO(event.stopped_at) : null;
+
+            // Nếu đã dừng và ngày hiện tại trễ hơn ngày dừng -> Không tính vào tổng công
+            if (stoppedAt && eventDate.startOf('day') > stoppedAt.startOf('day')) {
+                return;
+            }
+
             const cong = parseFloat(event.planned_work_quantity) || 0;
             totals[dateStr] = (totals[dateStr] || 0) + cong;
         });
@@ -188,26 +220,29 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                 const left = getPosition(eStart);
                                 const width = COLUMN_WIDTH;
 
-                                return (
-                                    <div
-                                        key={event.id}
-                                        style={{
-                                            top: layout.top + (event.laneIndex * ROW_HEIGHT) + 4,
-                                            left: left,
-                                            width: width,
-                                            height: ROW_HEIGHT - 8,
-                                            backgroundColor: event.backgroundColor || '#2563eb',
-                                        }}
-                                        className="absolute flex flex-col items-center justify-center px-1 text-white text-[10px] font-black shadow-sm border border-white/20 cursor-pointer overflow-hidden z-10 hover:shadow-lg transition-shadow"
-                                        onMouseEnter={() => setHoveredEvent({ ...event, layoutTop: layout.top, left, width })}
-                                        onMouseLeave={() => setHoveredEvent(null)}
-                                    >
-                                        <span className="text-[12px] leading-tight font-black">
-                                            {Number(event.planned_work_quantity).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
-                                        </span>
-                                        <span className="text-[7px] opacity-80 truncate w-full text-center font-bold tracking-tighter uppercase">{event.product_name || event.title}</span>
-                                    </div>
-                                );
+                                    const isStopped = event.stopped_at && DateTime.fromISO(event.start).startOf('day') > DateTime.fromISO(event.stopped_at).startOf('day');
+                                    const bgColor = isStopped ? '#94a3b8' : (event.backgroundColor || '#2563eb');
+
+                                    return (
+                                        <div
+                                            key={event.id}
+                                            style={{
+                                                top: layout.top + (event.laneIndex * ROW_HEIGHT) + 4,
+                                                left: left,
+                                                width: width,
+                                                height: ROW_HEIGHT - 8,
+                                                backgroundColor: bgColor,
+                                            }}
+                                            className="absolute flex flex-col items-center justify-center px-1 text-white text-[10px] font-black shadow-sm border border-white/20 cursor-pointer overflow-hidden z-10 hover:shadow-lg transition-shadow"
+                                            onMouseEnter={() => handleMouseEnter(event, layout, left, width, isStopped)}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <span className="text-[12px] leading-tight font-black">
+                                                {Number(event.planned_work_quantity).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
+                                            </span>
+                                            <span className="text-[7px] opacity-80 truncate w-full text-center font-bold tracking-tighter uppercase">{event.product_name || event.title}</span>
+                                        </div>
+                                    );
                             })
                         )}
 
@@ -226,7 +261,9 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                         left: hoveredEvent.left + (hoveredEvent.width / 2),
                                         transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
                                     }}
-                                    className="absolute z-[100] pointer-events-none"
+                                    className="absolute z-[100]"
+                                    onMouseEnter={handleTooltipMouseEnter}
+                                    onMouseLeave={handleMouseLeave}
                                 >
                                     <div className="bg-zinc-950 p-3 shadow-2xl rounded-xl min-w-[220px] border border-zinc-800 space-y-3 relative">
                                         {!showBelow && (
@@ -265,6 +302,26 @@ export default function CustomSchedule({ resources = [], events = [], dateRange 
                                                 {Number(hoveredEvent.planned_work_quantity).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
                                             </span>
                                         </div>
+
+                                        {!hoveredEvent.stopped_at && onStop && (
+                                            <button
+                                                className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 transition-colors active:scale-95 disabled:opacity-50"
+                                                disabled={isStopping}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onStop(hoveredEvent.production_plan_id || hoveredEvent.id, DateTime.fromISO(hoveredEvent.start).toISODate());
+                                                }}
+                                            >
+                                                {isStopping ? <LoaderIcon className="w-3 h-3 animate-spin" /> : <SquareStop className="w-3 h-3" />}
+                                                DỪNG LẠI
+                                            </button>
+                                        )}
+                                        {hoveredEvent.stopped_at && (
+                                            <div className="w-full bg-zinc-800 text-zinc-400 py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 border border-zinc-700">
+                                                <SquareStop className="w-3 h-3" />
+                                                ĐÃ DỪNG TỪ {DateTime.fromISO(hoveredEvent.stopped_at).toFormat('dd/MM')}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );

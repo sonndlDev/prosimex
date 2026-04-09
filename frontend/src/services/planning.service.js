@@ -30,4 +30,8 @@ export const planningService = {
         const { data } = await api.post(`/production-plans/clone/${id}`);
         return data;
     },
+    stop: async (id, stopped_at) => {
+        const { data } = await api.put(`/production-plans/${id}/stop`, { stopped_at });
+        return data;
+    },
 };

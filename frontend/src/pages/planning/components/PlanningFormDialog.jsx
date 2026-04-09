@@ -664,14 +664,6 @@ const PlanningFormDialog = React.memo(
                                           value={op.operation_name}
                                           onSelect={() => {
                                             field.onChange(String(op.id));
-                                            const found = operations?.find(o => String(o.id) === String(op.id));
-                                            if (found?.machine_ids?.length > 0) {
-                                              setValue("selectedMachineId", String(found.machine_ids[0]));
-                                            } else if (found?.machine_id) {
-                                              setValue("selectedMachineId", String(found.machine_id));
-                                            } else {
-                                              setValue("selectedMachineId", "");
-                                            }
                                           }}
                                           className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                                         >
@@ -824,7 +816,7 @@ const PlanningFormDialog = React.memo(
                 </div>
 
                 {/* Third Party Toggle Block */}
-                <div className="pt-2">
+                {/* <div className="pt-2">
                   <button
                     type="button"
                     onClick={() => setValue("isOutsourced", !isOutsourced)}
@@ -861,7 +853,7 @@ const PlanningFormDialog = React.memo(
                       )} />
                     </div>
                   </button>
-                </div>
+                </div> */}
               </div>
               {/* Factory / Outsourcing */}
               {(selectedOpId || isFullOrderMode) && (

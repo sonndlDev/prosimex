@@ -172,6 +172,9 @@ export const updateUser = async (req, res) => {
     // Convert empty strings to null for database compatibility
     const finalFactoryId = factory_id === '' ? null : factory_id;
     const finalIsActive = is_active === '' ? null : is_active;
+    const finalFullName = full_name === '' ? null : full_name;
+    const finalPhone = phone === '' ? null : phone;
+    const finalEmail = email === '' ? null : email;
 
     const result = await pool.query(
       `UPDATE users 
@@ -186,7 +189,7 @@ export const updateUser = async (req, res) => {
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = $9 AND deleted_at IS NULL
              RETURNING id, username, full_name, phone, email, role_id, factory_id, is_active, permissions`,
-      [finalRoleId, finalFactoryId, finalIsActive, password_hash, req.body.permissions ? JSON.stringify(req.body.permissions) : null, full_name, phone, email, id]
+      [finalRoleId, finalFactoryId, finalIsActive, password_hash, req.body.permissions ? JSON.stringify(req.body.permissions) : null, finalFullName, finalPhone, finalEmail, id]
     )
 
     if (result.rowCount === 0) return res.status(404).json({ message: 'User not found' })
