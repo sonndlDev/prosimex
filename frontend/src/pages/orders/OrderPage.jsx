@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
@@ -73,7 +73,9 @@ import {
   MoreHorizontal,
   Warehouse,
   Pencil,
-  LayoutDashboard
+  LayoutDashboard,
+  Search,
+  X
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
@@ -105,7 +107,31 @@ export default function OrderPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  
+  const initialFilters = {
+    startDate: "",
+    endDate: "",
+    dateType: "received",
+    status: "ALL",
+    customer_id: "ALL",
+    product_id: "ALL",
+    person_in_charge: "",
+    location: "",
+    search: "",
+  };
+
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+
+  const handleSearch = useCallback((newFilters) => {
+    setPage(1);
+    setAppliedFilters(newFilters);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setPage(1);
+    setAppliedFilters(initialFilters);
+  }, [initialFilters]);
+
 
   const [openCompletionReport, setOpenCompletionReport] = useState(false);
   const [reportOrderId, setReportOrderId] = useState(null);
@@ -156,9 +182,11 @@ export default function OrderPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["orders", page, pageSize, search],
-    queryFn: () => orderService.getAll({ page, limit: pageSize, search })
+    queryKey: ["orders", page, pageSize, appliedFilters],
+    queryFn: () => orderService.getAll({ page, limit: pageSize, ...appliedFilters })
   });
+
+
 
   const orders = ordersData?.data || [];
   const totalItems = ordersData?.total || 0;
@@ -404,6 +432,17 @@ export default function OrderPage() {
         </div>
       </div>
 
+      <OrderFilterBar 
+        customers={customers}
+        products={products}
+        onSearch={handleSearch}
+        onReset={handleReset}
+        initialFilters={initialFilters}
+      />
+
+
+
+
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <GenericTable
           data={orders}
@@ -417,10 +456,11 @@ export default function OrderPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
-          onSearchChange={setSearch}
           onEdit={handleOpen}
           onDelete={handleDelete}
         />
+
+
       </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
@@ -983,3 +1023,119 @@ export default function OrderPage() {
     </div>
   );
 }
+
+const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFilters }) => {
+  const [tempFilters, setTempFilters] = useState(initialFilters);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSearch(tempFilters);
+  };
+
+  const handleClear = () => {
+    setTempFilters(initialFilters);
+    onReset();
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+      <form 
+        className="flex flex-wrap gap-4 items-end"
+        onSubmit={handleSubmit}
+      >
+        {/* Date Group */}
+        <div className="flex flex-col gap-1.5 line-height-none">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ngày nhận đơn</label>
+          <div className="flex items-center gap-2">
+            <Input 
+              type="date" 
+              value={tempFilters.startDate} 
+              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value, dateType: "received" }))} 
+              className="h-9 text-xs font-bold w-40 rounded-xl border-zinc-200" 
+            />
+            <span className="text-zinc-400 font-bold">→</span>
+            <Input 
+              type="date" 
+              value={tempFilters.endDate} 
+              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value, dateType: "received" }))} 
+              className="h-9 text-xs font-bold w-40 rounded-xl border-zinc-200" 
+            />
+          </div>
+        </div>
+
+        {/* Customer */}
+        <div className="flex flex-col gap-1.5 min-w-[200px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tên khách</label>
+          <Select value={tempFilters.customer_id} onValueChange={val => setTempFilters(prev => ({ ...prev, customer_id: val }))}>
+            <SelectTrigger className="h-9 text-xs font-bold rounded-xl border-zinc-200">
+              <SelectValue placeholder="Tất cả" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả khách hàng</SelectItem>
+              {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Product */}
+        <div className="flex flex-col gap-1.5 min-w-[200px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Mã hàng</label>
+          <Select value={tempFilters.product_id} onValueChange={val => setTempFilters(prev => ({ ...prev, product_id: val }))}>
+            <SelectTrigger className="h-9 text-xs font-bold rounded-xl border-zinc-200">
+              <SelectValue placeholder="Tất cả" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả sản phẩm</SelectItem>
+              {products.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Meta Fields */}
+        <div className="flex flex-col gap-1.5 min-w-[180px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Người theo dõi đơn hàng</label>
+          <Input 
+            placeholder="Tên nhân viên..." 
+            value={tempFilters.person_in_charge} 
+            onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))} 
+            className="h-9 text-xs font-bold rounded-xl border-zinc-200" 
+          />
+        </div>
+
+        {/* Search */}
+        <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Input
+              placeholder="Mã đơn, PO, tên đơn..."
+              value={tempFilters.search}
+              onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="pl-9 h-9 text-xs font-bold rounded-xl border-zinc-200"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+          >
+            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+          </Button>
+          
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
+          >
+            <X className="w-4 h-4" /> Reset
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+});
+

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
@@ -11,14 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { DateTime } from "luxon";
-import { 
-    Package, 
-    Layers, 
-    Plus, 
-    Search, 
-    Check, 
-    ChevronsUpDown, 
-    Save, 
+import {
+    Package,
+    Layers,
+    Plus,
+    Search,
+    Check,
+    ChevronsUpDown,
+    Save,
     History,
     X,
     ClipboardList,
@@ -26,34 +26,53 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
 } from "@/components/ui/command";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProductInventoryPage() {
     const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [search, setSearch] = useState("");
+
+    const initialFilters = {
+        search: "",
+        inventory_type: "ALL"
+    };
+
+    const [tempFilters, setTempFilters] = useState(initialFilters);
+    const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+
+    const handleSearch = useCallback((filters) => {
+        setPage(1);
+        setAppliedFilters(filters);
+    }, []);
+
+    const handleReset = useCallback(() => {
+        setPage(1);
+        setAppliedFilters(initialFilters);
+    }, [initialFilters]);
+
 
     // Form states
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -76,9 +95,10 @@ export default function ProductInventoryPage() {
     });
 
     const { data: inventoryData, isLoading: isLoadingHistory } = useQuery({
-        queryKey: ["product-inventory", page, pageSize, search],
-        queryFn: () => inventoryService.getAll({ page, limit: pageSize, search })
+        queryKey: ["product-inventory", page, pageSize, appliedFilters],
+        queryFn: () => inventoryService.getAll({ page, limit: pageSize, ...appliedFilters })
     });
+
 
     // Mutations
     const saveMutation = useMutation({
@@ -154,15 +174,15 @@ export default function ProductInventoryPage() {
     };
 
     const tableColumns = [
-        { 
-            id: "product_name", 
-            label: "Mã hàng", 
+        {
+            id: "product_name",
+            label: "Mã hàng",
             className: "font-black text-indigo-600",
-            format: (v) => <div className="flex items-center gap-2"><Package className="w-3 h-3"/> {v}</div>
+            format: (v) => <div className="flex items-center gap-2"><Package className="w-3 h-3" /> {v}</div>
         },
-        { 
-            id: "operation_name", 
-            label: "Công đoạn", 
+        {
+            id: "operation_name",
+            label: "Công đoạn",
             className: "font-bold text-zinc-700",
             format: (v, row) => (
                 <div className="flex flex-col gap-1">
@@ -176,17 +196,17 @@ export default function ProductInventoryPage() {
                 </div>
             )
         },
-        { 
-            id: "quantity", 
-            label: "Số lượng", 
+        {
+            id: "quantity",
+            label: "Số lượng",
             className: "font-black text-right",
             format: (v) => <span className="text-blue-600">{Number(v).toLocaleString()}</span>
         },
         { id: "note", label: "Ghi chú", className: "text-zinc-500 italic text-xs max-w-[200px] truncate" },
         { id: "recorder_name", label: "Người nhập", className: "font-medium text-xs" },
-        { 
-            id: "recorded_at", 
-            label: "Ngày nhập", 
+        {
+            id: "recorded_at",
+            label: "Ngày nhập",
             format: (v) => DateTime.fromISO(v).toFormat("dd/MM/yyyy HH:mm")
         }
     ];
@@ -205,7 +225,7 @@ export default function ProductInventoryPage() {
                     </div>
                 </div>
 
-                <Button 
+                <Button
                     onClick={() => setIsModalOpen(true)}
                     className="h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-95 border-none px-6 gap-2"
                 >
@@ -224,6 +244,13 @@ export default function ProductInventoryPage() {
                                 Lịch sử nhập tồn kho
                             </CardTitle>
                         </CardHeader>
+
+                        <InventoryFilterBar
+                            initialFilters={initialFilters}
+                            onSearch={handleSearch}
+                            onReset={handleReset}
+                        />
+
                         <CardContent className="p-0 flex-1 flex flex-col">
                             <GenericTable
                                 data={inventoryData?.data || []}
@@ -235,7 +262,6 @@ export default function ProductInventoryPage() {
                                 pageSize={pageSize}
                                 onPageChange={setPage}
                                 onPageSizeChange={setPageSize}
-                                onSearchChange={setSearch}
                                 className="border-none"
                             />
                         </CardContent>
@@ -315,8 +341,8 @@ export default function ProductInventoryPage() {
                                                     variant={selectedOps.find(o => o.id === op.id) ? "default" : "outline"}
                                                     className={cn(
                                                         "cursor-pointer font-bold px-3 py-1.5 transition-all active:scale-95 text-[10px] uppercase tracking-tight",
-                                                        selectedOps.find(o => o.id === op.id) 
-                                                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 border-none" 
+                                                        selectedOps.find(o => o.id === op.id)
+                                                            ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 border-none"
                                                             : "bg-white text-zinc-500 hover:text-indigo-600 hover:border-indigo-300 border-zinc-200 shadow-sm"
                                                     )}
                                                     onClick={() => toggleOp(op)}
@@ -346,8 +372,8 @@ export default function ProductInventoryPage() {
                                                                 <button
                                                                     className={cn(
                                                                         "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
-                                                                        formItems[op.id]?.inventory_type === 'BTP' 
-                                                                            ? "bg-white text-orange-600 shadow-sm" 
+                                                                        formItems[op.id]?.inventory_type === 'BTP'
+                                                                            ? "bg-white text-orange-600 shadow-sm"
                                                                             : "text-zinc-400 hover:text-zinc-600"
                                                                     )}
                                                                     onClick={() => handleInputChange(op.id, 'inventory_type', 'BTP')}
@@ -357,8 +383,8 @@ export default function ProductInventoryPage() {
                                                                 <button
                                                                     className={cn(
                                                                         "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
-                                                                        formItems[op.id]?.inventory_type === 'TP' 
-                                                                            ? "bg-white text-emerald-600 shadow-sm" 
+                                                                        formItems[op.id]?.inventory_type === 'TP'
+                                                                            ? "bg-white text-emerald-600 shadow-sm"
                                                                             : "text-zinc-400 hover:text-zinc-600"
                                                                     )}
                                                                     onClick={() => handleInputChange(op.id, 'inventory_type', 'TP')}
@@ -374,18 +400,18 @@ export default function ProductInventoryPage() {
                                                     <div className="grid grid-cols-3 gap-3">
                                                         <div className="col-span-1 space-y-1.5">
                                                             <Label className="text-[10px] font-black uppercase text-zinc-400">Số lượng</Label>
-                                                            <Input 
-                                                                type="number" 
+                                                            <Input
+                                                                type="number"
                                                                 placeholder="0"
-                                                                className="h-10 font-black text-blue-600 focus:ring-indigo-500" 
+                                                                className="h-10 font-black text-blue-600 focus:ring-indigo-500"
                                                                 value={formItems[op.id]?.quantity || ''}
                                                                 onChange={(e) => handleInputChange(op.id, 'quantity', e.target.value)}
                                                             />
                                                         </div>
                                                         <div className="col-span-2 space-y-1.5">
                                                             <Label className="text-[10px] font-black uppercase text-zinc-400">Ghi chú</Label>
-                                                            <Input 
-                                                                placeholder="Nhập ghi chú..." 
+                                                            <Input
+                                                                placeholder="Nhập ghi chú..."
                                                                 className="h-10 text-sm font-medium"
                                                                 value={formItems[op.id]?.note || ''}
                                                                 onChange={(e) => handleInputChange(op.id, 'note', e.target.value)}
@@ -402,8 +428,8 @@ export default function ProductInventoryPage() {
                     </div>
 
                     <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
-                        <Button 
-                            variant="ghost" 
+                        <Button
+                            variant="ghost"
                             onClick={() => {
                                 setIsModalOpen(false);
                                 resetForm();
@@ -412,7 +438,7 @@ export default function ProductInventoryPage() {
                         >
                             Hủy
                         </Button>
-                        <Button 
+                        <Button
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 px-8"
                             disabled={!selectedProduct || selectedOps.length === 0 || saveMutation.isPending}
                             onClick={handleSave}
@@ -427,3 +453,73 @@ export default function ProductInventoryPage() {
         </div>
     );
 }
+
+const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
+    const [tempFilters, setTempFilters] = useState(initialFilters);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSearch(tempFilters);
+    };
+
+    const handleClear = () => {
+        setTempFilters(initialFilters);
+        onReset();
+    };
+
+    return (
+        <div className="bg-white px-6 py-4 border-b border-zinc-100">
+            <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
+                <div className="flex flex-col gap-1.5 min-w-[200px]">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Loại tồn kho</label>
+                    <Select
+                        value={tempFilters.inventory_type}
+                        onValueChange={val => setTempFilters(prev => ({ ...prev, inventory_type: val }))}
+                    >
+                        <SelectTrigger className="h-9 text-xs font-bold border-zinc-200 rounded-xl">
+                            <SelectValue placeholder="Tất cả" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Tất cả</SelectItem>
+                            <SelectItem value="BTP">Bán thành phẩm (BTP)</SelectItem>
+                            <SelectItem value="TP">Thành phẩm (TP)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                        <Input
+                            placeholder="Mã hàng, tên sản phẩm..."
+                            value={tempFilters.search}
+                            onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
+                            className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <Button
+                        type="submit"
+                        className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+                    >
+                        <Search className="w-3.5 h-3.5" /> Tìm kiếm
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClear}
+                        className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
+                    >
+                        <X className="w-4 h-4" /> Reset
+                    </Button>
+                </div>
+            </form>
+        </div>
+    );
+});
+

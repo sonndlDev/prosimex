@@ -24,6 +24,7 @@ import outsourcingRoutes from './modules/outsourcing/outsourcing.routes.js'
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js'
 import supplierRoutes from './modules/supplier/supplier.routes.js'
 import productInventoryRoutes from './modules/product-inventory/product-inventory.routes.js'
+import { startScheduler } from './workers/scheduler.js'
 
 const app = express()
 
@@ -71,4 +72,5 @@ app.get('/', (req, res) => {
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Hello PiTunDev, MES API is running at http://${hostname}:${port}/`)
+  startScheduler()
 })

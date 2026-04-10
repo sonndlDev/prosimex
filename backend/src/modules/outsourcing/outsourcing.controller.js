@@ -209,8 +209,8 @@ export const addReturnEntry = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // We now target ticket_item_id instead of ticket_id
-    const { ticket_id, ticket_item_id, quantity_returned } = req.body;
+    const { ticket_id } = req.params;
+    const { ticket_item_id, quantity_returned } = req.body;
     const created_by = req.user.id;
 
     // Insert return entry

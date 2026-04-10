@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
@@ -18,6 +18,16 @@ import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import DailyTicketReportDialog from "./components/DailyTicketReportDialog";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, X } from "lucide-react";
+
 
 export default function DailyTicketPage() {
   const queryClient = useQueryClient();
@@ -27,14 +37,37 @@ export default function DailyTicketPage() {
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const initialFilters = {
+    startDate: "",
+    endDate: "",
+    status: "ALL",
+    search: "",
+  };
+
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+
+  const handleSearch = useCallback((newFilters) => {
+    setPage(1);
+    setAppliedFilters(newFilters);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setPage(1);
+    setAppliedFilters(initialFilters);
+  }, [initialFilters]);
 
   const { data: ticketData, isLoading, error } = useQuery({
-    queryKey: ["daily-tickets", page, pageSize],
-    queryFn: () => dailyTicketService.getAll({ page, limit: pageSize }),
+    queryKey: ["daily-tickets", page, pageSize, appliedFilters],
+    queryFn: () => dailyTicketService.getAll({ 
+      page, 
+      limit: pageSize,
+      ...appliedFilters
+    }),
   });
 
   const tickets = ticketData?.data || [];
   const totalItems = ticketData?.total || 0;
+
 
   const deleteMutation = useMutation({
     mutationFn: dailyTicketService.delete,
@@ -154,6 +187,14 @@ export default function DailyTicketPage() {
         </div>
       </div>
 
+      <DailyTicketFilterBar 
+        onSearch={handleSearch}
+        onReset={handleReset}
+        initialFilters={initialFilters}
+      />
+
+
+
       {/* Table with GenericTable */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <GenericTable
@@ -255,3 +296,92 @@ export default function DailyTicketPage() {
     </div>
   );
 }
+
+const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
+  const [tempFilters, setTempFilters] = useState(initialFilters);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSearch(tempFilters);
+  };
+
+  const handleClear = () => {
+    setTempFilters(initialFilters);
+    onReset();
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
+      <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ngày lập phiếu</label>
+          <div className="flex items-center gap-2">
+            <Input 
+              type="date" 
+              value={tempFilters.startDate} 
+              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
+              className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
+            />
+            <span className="text-zinc-400 font-bold">→</span>
+            <Input 
+              type="date" 
+              value={tempFilters.endDate} 
+              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
+              className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5 min-w-[160px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Trạng thái</label>
+          <Select 
+            value={tempFilters.status} 
+            onValueChange={val => setTempFilters(prev => ({ ...prev, status: val }))}
+          >
+            <SelectTrigger className="h-9 text-xs font-bold border-zinc-200 rounded-xl">
+              <SelectValue placeholder="Tất cả" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả</SelectItem>
+              <SelectItem value="PENDING">Nháp</SelectItem>
+              <SelectItem value="COMPLETED">Xong</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Input 
+              placeholder="Mã đơn, PO, sản phẩm..." 
+              value={tempFilters.search}
+              onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button 
+            type="submit"
+            className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+          >
+            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+          </Button>
+          
+          <Button 
+            type="button"
+            variant="ghost" 
+            size="sm"
+            onClick={handleClear}
+            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
+          >
+            <X className="w-4 h-4" /> Reset
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+});
+

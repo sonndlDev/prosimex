@@ -119,7 +119,7 @@ function OutsourcingContent({ type }) {
                     : "text-zinc-400 hover:text-zinc-600"
                 )}
               >
-                Phiếu ĐI
+                {type === 'PACKAGING' ? 'SL Đóng gói' : 'Phiếu ĐI'}
               </TabsTrigger>
               {type !== 'PACKAGING' && (
                 <TabsTrigger
@@ -375,7 +375,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       }
       const res = await outsourcingService.create(payload);
       setCreatedTicket(res);
-      toast.success("Tạo phiếu đi thành công!");
+      toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
       // Reset form
       setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "" }]);
     } catch (error) {
@@ -500,12 +500,21 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                               </select>
                           </div>
                         )}
-                        {type !== 'PACKAGING' && (
-                          <div className="space-y-1.5 bg-blue-50/50 p-2 rounded-lg border border-blue-100">
-                              <Label className="text-[10px] font-bold text-blue-700 uppercase">SL Xuất *</Label>
-                              <Input type="number" placeholder="0" className="h-9 font-bold text-blue-900 border-blue-200" value={item.quantity_out} onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)} />
-                          </div>
-                        )}
+                        <div className={cn(
+                          "space-y-1.5 p-2 rounded-lg border",
+                          type === 'PACKAGING' ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
+                        )}>
+                            <Label className={cn("text-[10px] font-bold uppercase", type === 'PACKAGING' ? "text-emerald-700" : "text-blue-700")}>
+                                {type === 'PACKAGING' ? 'SL Đóng gói *' : 'SL Xuất *'}
+                            </Label>
+                            <Input 
+                              type="number" 
+                              placeholder="0" 
+                              className={cn("h-9 font-bold", type === 'PACKAGING' ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")} 
+                              value={item.quantity_out} 
+                              onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)} 
+                            />
+                        </div>
                     </div>
 
                     {type !== 'PACKAGING' && (
@@ -539,7 +548,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
             className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 text-base shadow-lg shadow-blue-600/20"
           >
             <Plus className="w-5 h-5" />
-            Tạo phiếu xuất gia công
+            {type === 'PACKAGING' ? 'Lưu SL đóng gói' : 'Tạo phiếu xuất gia công'}
           </Button>
         </div>
       </form>
@@ -551,7 +560,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
-            <h3 className="font-bold text-emerald-900 text-lg">Tạo phiếu thành công!</h3>
+            <h3 className="font-bold text-emerald-900 text-lg">{type === 'PACKAGING' ? 'Ghi nhận SL đóng gói thành công!' : 'Tạo phiếu thành công!'}</h3>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-xl border border-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] gap-4">
             <div>

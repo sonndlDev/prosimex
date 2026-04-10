@@ -2,7 +2,7 @@ import pool from '../../config/db.js';
 
 export const getInventory = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "", inventory_type = "ALL" } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -14,6 +14,12 @@ export const getInventory = async (req, res) => {
       queryParams.push(`%${search}%`);
       whereClause += ` AND (p.name ILIKE $${queryParams.length} OR o.name ILIKE $${queryParams.length})`;
     }
+
+    if (inventory_type && inventory_type !== "ALL") {
+      queryParams.push(inventory_type);
+      whereClause += ` AND pi.inventory_type = $${queryParams.length}`;
+    }
+
 
     // Get total count
     const countQuery = `

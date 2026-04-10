@@ -118,7 +118,7 @@ export default function GenericTable({
           ) : title}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative w-full sm:w-64">
+          {/* <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
             <Input
               placeholder="Tìm kiếm nhanh..."
@@ -126,7 +126,7 @@ export default function GenericTable({
               onChange={e => handleSearch(e.target.value)}
               className="pl-9 bg-white border-zinc-200 h-9 text-xs font-medium rounded-xl"
             />
-          </div>
+          </div> */}
           {onBulkDelete && selected.length > 0 && (
             <Button
               variant="outline"

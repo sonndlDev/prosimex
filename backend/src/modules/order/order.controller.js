@@ -2,7 +2,20 @@ import pool from "../../config/db.js";
 
 export const getOrders = async (req, res) => {
   try {
-    const { factory_id, page = 1, limit = 10, search = "" } = req.query;
+    const {
+      factory_id,
+      page = 1,
+      limit = 10,
+      search = "",
+      startDate,
+      endDate,
+      dateType = "received",
+      status,
+      customer_id,
+      product_id,
+      person_in_charge,
+      location,
+    } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -17,7 +30,46 @@ export const getOrders = async (req, res) => {
 
     if (search) {
       queryParams.push(`%${search}%`);
-      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.order_code ILIKE $${queryParams.length} OR c.name ILIKE $${queryParams.length})`;
+      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.order_code ILIKE $${queryParams.length} OR c.name ILIKE $${queryParams.length} OR o.po_customer ILIKE $${queryParams.length})`;
+    }
+
+    if (status && status !== "ALL") {
+      queryParams.push(status);
+      whereClause += ` AND o.status = $${queryParams.length}`;
+    }
+
+    if (customer_id && customer_id !== "ALL") {
+      queryParams.push(customer_id);
+      whereClause += ` AND o.customer_id = $${queryParams.length}`;
+    }
+
+    if (product_id && product_id !== "ALL") {
+      queryParams.push(product_id);
+      whereClause += ` AND EXISTS (SELECT 1 FROM order_products op_f WHERE op_f.order_id = o.id AND op_f.product_id = $${queryParams.length})`;
+    }
+
+    if (person_in_charge) {
+      queryParams.push(`%${person_in_charge}%`);
+      whereClause += ` AND o.person_in_charge ILIKE $${queryParams.length}`;
+    }
+
+    if (location) {
+      queryParams.push(`%${location}%`);
+      whereClause += ` AND o.production_location ILIKE $${queryParams.length}`;
+    }
+
+    if (startDate && endDate) {
+      let dateCol = "o.received_date";
+      if (dateType === "shipping") dateCol = "oe.expected_shipping_date";
+      else if (dateType === "container")
+        dateCol = "oe.expected_container_shipping_date";
+      else if (dateType === "production_start")
+        dateCol = "oe.production_start_date";
+
+      queryParams.push(startDate);
+      whereClause += ` AND ${dateCol} >= $${queryParams.length}`;
+      queryParams.push(endDate);
+      whereClause += ` AND ${dateCol} <= $${queryParams.length}`;
     }
 
     // Get total count
@@ -25,12 +77,13 @@ export const getOrders = async (req, res) => {
       SELECT COUNT(*) 
       FROM orders o
       JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN order_ext oe ON o.id = oe.order_id
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
-    // Get data with calculated completion percentage
+    // Get data with calculated completion percentage (includes joins needed for whereClause)
     const dataQuery = `
       WITH order_completion AS (
         SELECT 
@@ -83,19 +136,24 @@ export const getOrders = async (req, res) => {
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
 
-    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
-    
+    const result = await pool.query(dataQuery, [
+      ...queryParams,
+      limitInt,
+      offsetInt,
+    ]);
+
     res.json({
       data: result.rows,
       total,
       page: pageInt,
-      limit: limitInt
+      limit: limitInt,
     });
   } catch (error) {
     console.error("Get Orders Error:", error);
     res.status(500).json({ message: "Error retrieving orders", error });
   }
 };
+
 
 export const getOrderCompletionReport = async (req, res) => {
   try {

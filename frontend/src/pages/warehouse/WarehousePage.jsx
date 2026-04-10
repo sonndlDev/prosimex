@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
 import GenericTable from "../../components/GenericTable";
@@ -6,21 +6,38 @@ import WarehouseDetailsDialog from "../orders/components/WarehouseDetailsDialog"
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateTime } from "luxon";
-import { Pencil } from "lucide-react";
+import { Pencil, Search, X } from "lucide-react";
 import { getAuditColumn } from "../../utils/audit";
+import { Input } from "@/components/ui/input";
+
 
 export default function WarehousePage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  
+  const [tempSearch, setTempSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
+
+  const handleSearch = useCallback((val) => {
+    setPage(1);
+    setAppliedSearch(val);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setPage(1);
+    setTempSearch("");
+    setAppliedSearch("");
+  }, []);
+
   
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
   const [warehouseOrder, setWarehouseOrder] = useState(null);
 
   const { data: ordersData, isLoading, error } = useQuery({
-    queryKey: ["orders", page, pageSize, search],
-    queryFn: () => orderService.getAll({ page, limit: pageSize, search })
+    queryKey: ["orders", page, pageSize, appliedSearch],
+    queryFn: () => orderService.getAll({ page, limit: pageSize, search: appliedSearch })
   });
+
 
   const orders = ordersData?.data || [];
   const totalItems = ordersData?.total || 0;
@@ -53,6 +70,13 @@ export default function WarehousePage() {
         </div>
       </div>
 
+      <WarehouseFilterBar 
+        value={tempSearch}
+        onChange={setTempSearch}
+        onSearch={() => handleSearch(tempSearch)}
+        onReset={handleReset}
+      />
+
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         <GenericTable
           data={orders}
@@ -65,7 +89,7 @@ export default function WarehousePage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
-          onSearchChange={setSearch}
+
           renderActions={(row) => (
             <div className="flex items-center justify-center gap-1">
               <TooltipProvider>
@@ -96,3 +120,49 @@ export default function WarehousePage() {
     </div>
   );
 }
+
+const WarehouseFilterBar = memo(({ value, onChange, onSearch, onReset }) => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSearch();
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+      <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-1.5 flex-1 min-w-[300px]">
+          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Input 
+              placeholder="Mã đơn hàng, tên khách hàng..." 
+              value={value}
+              onChange={e => onChange(e.target.value)}
+              className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button 
+            type="submit"
+            className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+          >
+            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+          </Button>
+          
+          <Button 
+            type="button"
+            variant="ghost" 
+            size="sm"
+            onClick={onReset}
+            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
+          >
+            <X className="w-4 h-4" /> Reset
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+});
+

@@ -8,7 +8,8 @@ import {
   updateTicket,
   updateTicketResults,
   deleteTicket,
-  getPlanVsActualReport
+  getPlanVsActualReport,
+  triggerAutoGenerate
 } from "./daily-ticket.controller.js";
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.use(verifyToken);
 
 router.get("/", getTickets);
 router.get("/report/plan-vs-actual", getPlanVsActualReport);
+router.post("/auto-generate", authorize(["ADMIN", "PLANNER"], "daily_tickets"), triggerAutoGenerate);
 router.get("/:id", getTicketById);
 router.post("/", authorize(["ADMIN", "PLANNER"], "daily_tickets"), createTicket);
 router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], "daily_tickets"), updateTicket);

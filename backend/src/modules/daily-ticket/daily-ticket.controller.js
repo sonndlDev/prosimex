@@ -1,23 +1,38 @@
 import pool from "../../config/db.js";
+import { generateDailyTickets } from "../../workers/dailyTicketWorker.js";
 
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
   try {
-    const { page = 1, limit = 10, date } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, search, status } = req.query;
     const offset = (page - 1) * limit;
 
     let whereClause = "WHERE dt.deleted_at IS NULL";
     const queryParams = [];
 
-    if (date) {
-      queryParams.push(date);
-      whereClause += ` AND dt.ticket_date = $${queryParams.length}`;
+    if (startDate) {
+      queryParams.push(startDate);
+      whereClause += ` AND dt.ticket_date >= $${queryParams.length}`;
+    }
+    if (endDate) {
+      queryParams.push(endDate);
+      whereClause += ` AND dt.ticket_date <= $${queryParams.length}`;
+    }
+    if (status && status !== "ALL") {
+      queryParams.push(status);
+      whereClause += ` AND dt.status = $${queryParams.length}`;
+    }
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.po_customer ILIKE $${queryParams.length} OR p.name ILIKE $${queryParams.length})`;
     }
 
     const countResult = await pool.query(
       `SELECT COUNT(*) 
        FROM daily_production_ticket_items dti
        JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+       LEFT JOIN orders o ON dti.order_id = o.id
+       LEFT JOIN products p ON dti.product_id = p.id
        ${whereClause}`,
       queryParams
     );
@@ -70,6 +85,7 @@ export const getTickets = async (req, res) => {
     res.status(500).json({ message: "Error retrieving daily tickets", error });
   }
 };
+
 
 // GET /api/daily-tickets/:id
 export const getTicketById = async (req, res) => {
@@ -434,5 +450,41 @@ export const getPlanVsActualReport = async (req, res) => {
   } catch (error) {
     console.error("Get Plan Vs Actual Report Error:", error);
     res.status(500).json({ message: "Error retrieving report", error });
+  }
+};
+
+// POST /api/daily-tickets/auto-generate
+// Trigger thủ công việc tự động lập phiếu sản xuất cho 1 ngày cụ thể
+// Body: { date?: "YYYY-MM-DD" }  — nếu không truyền date thì dùng ngày hôm nay
+export const triggerAutoGenerate = async (req, res) => {
+  try {
+    const { date } = req.body;
+
+    // Default là ngày hôm nay theo giờ Việt Nam nếu không truyền date
+    const targetDate =
+      date ||
+      new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+
+    // Validate format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+      return res
+        .status(400)
+        .json({ message: "Invalid date format. Use YYYY-MM-DD." });
+    }
+
+    const result = await generateDailyTickets(targetDate);
+
+    res.json({
+      message: `Auto-generation completed for ${targetDate}`,
+      date: targetDate,
+      created: result.created,
+      skipped: result.skipped,
+      ticketIds: result.ticketIds,
+    });
+  } catch (error) {
+    console.error("Trigger Auto-Generate Error:", error);
+    res
+      .status(500)
+      .json({ message: "Error during auto-generation", error: error.message });
   }
 };

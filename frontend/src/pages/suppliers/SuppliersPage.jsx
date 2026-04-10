@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
+
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supplierService } from "../../services/supplier.service";
@@ -28,10 +30,30 @@ export default function SuppliersPage() {
     queryFn: () => supplierService.getAll({ search }),
   });
 
-  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["suppliers"] }); handleClose(); } };
+  const mutationOpts = { 
+    onSuccess: () => { 
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] }); 
+      handleClose(); 
+      toast.success(selectedSupplier ? "Cập nhật thành công!" : "Tạo mới thành công!");
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+    }
+  };
   const createMutation = useMutation({ mutationFn: supplierService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => supplierService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: supplierService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["suppliers"] }) });
+  const deleteMutation = useMutation({ 
+    mutationFn: supplierService.delete, 
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      toast.success("Xóa thành công!");
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Không thể xóa nhà cung cấp");
+    }
+  });
 
   const columns = [
     { id: "code", label: "Mã NCC" },
