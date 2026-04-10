@@ -28,9 +28,9 @@ export const getTickets = async (req, res) => {
     }
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) 
-       FROM daily_production_ticket_items dti
-       JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+      `SELECT COUNT(DISTINCT dt.id)
+       FROM daily_production_tickets dt
+       LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
        LEFT JOIN orders o ON dti.order_id = o.id
        LEFT JOIN products p ON dti.product_id = p.id
        ${whereClause}`,
@@ -41,33 +41,46 @@ export const getTickets = async (req, res) => {
     const result = await pool.query(
       `
             SELECT 
-                dti.id as id,
+                MIN(dti.id) as id,
                 dt.id as master_id,
                 dt.status as ticket_status,
                 dt.ticket_date,
                 dt.created_at,
-                o.name as order_name,
-                o.po_customer,
-                p.name as product_name,
-                op.name as fallback_operation_name,
-                dti.operation_name,
-                dti.planned_quantity,
-                dti.actual_quantity,
-                dti.notes,
-                pp.remaining_quantity,
+                m.name as machine_name,
+                STRING_AGG(DISTINCT o.name, ', ') as order_name,
+                STRING_AGG(DISTINCT o.po_customer, ', ') as po_customer,
+                STRING_AGG(DISTINCT p.name, ', ') as product_name,
+                STRING_AGG(DISTINCT op.name, ', ') as fallback_operation_name,
+                STRING_AGG(DISTINCT dti.operation_name, ', ') as operation_name,
+                SUM(dti.planned_quantity) as planned_quantity,
+                SUM(dti.actual_quantity) as actual_quantity,
+                STRING_AGG(DISTINCT dti.notes, '; ') as notes,
+                MAX(pp.remaining_quantity) as remaining_quantity,
                 COALESCE(cu.full_name, cu.username) as creator_name,
                 COALESCE(mu.full_name, mu.username) as modifier_name
-            FROM daily_production_ticket_items dti
-            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+            FROM daily_production_tickets dt
+            LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
             LEFT JOIN orders o ON dti.order_id = o.id
             LEFT JOIN products p ON dti.product_id = p.id
             LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
             LEFT JOIN operations op ON pgo.operation_id = op.id
-            LEFT JOIN production_plans pp ON pp.order_id = dti.order_id AND pp.product_id = dti.product_id AND pp.product_group_operation_id = dti.product_group_operation_id AND pp.deleted_at IS NULL
+            LEFT JOIN machines m ON dt.machine_id = m.id
+            LEFT JOIN production_plans pp ON pp.id = COALESCE(
+                dti.production_plan_id,
+                (SELECT id FROM production_plans 
+                 WHERE order_id = dti.order_id 
+                   AND product_id = dti.product_id 
+                   AND product_group_operation_id = dti.product_group_operation_id 
+                   AND deleted_at IS NULL 
+                 LIMIT 1)
+            )
             LEFT JOIN users cu ON dt.created_by = cu.id
             LEFT JOIN users mu ON dt.modified_by = mu.id
             ${whereClause}
-            ORDER BY dt.ticket_date DESC, dti.id ASC
+            GROUP BY 
+                dt.id, dt.status, dt.ticket_date, dt.created_at, m.name,
+                cu.full_name, cu.username, mu.full_name, mu.username
+            ORDER BY dt.ticket_date DESC, dt.id DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
         `,
       [...queryParams, limit, offset]
@@ -93,8 +106,9 @@ export const getTicketById = async (req, res) => {
     const { id } = req.params;
 
     let ticketRes = await pool.query(
-      `SELECT dt.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+      `SELECT dt.*, m.name as machine_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
        FROM daily_production_tickets dt
+       LEFT JOIN machines m ON dt.machine_id = m.id
        LEFT JOIN users cu ON dt.created_by = cu.id
        LEFT JOIN users mu ON dt.modified_by = mu.id
        WHERE dt.id = $1 AND dt.deleted_at IS NULL`,
@@ -143,7 +157,15 @@ export const getTicketById = async (req, res) => {
        LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
        LEFT JOIN operations op ON pgo.operation_id = op.id
        LEFT JOIN machines m ON pgo.machine_id = m.id
-       LEFT JOIN production_plans pp ON pp.order_id = dti.order_id AND pp.product_id = dti.product_id AND pp.product_group_operation_id = dti.product_group_operation_id AND pp.deleted_at IS NULL
+       LEFT JOIN production_plans pp ON pp.id = COALESCE(
+            dti.production_plan_id,
+            (SELECT id FROM production_plans 
+             WHERE order_id = dti.order_id 
+               AND product_id = dti.product_id 
+               AND product_group_operation_id = dti.product_group_operation_id 
+               AND deleted_at IS NULL 
+             LIMIT 1)
+        )
        WHERE dti.ticket_id = $1`,
       [id]
     );
@@ -174,7 +196,7 @@ export const createTicket = async (req, res) => {
 
     if (items && items.length > 0) {
       const itemValues = items
-        .map((_, i) => `($1, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, $${i * 7 + 8})`)
+        .map((_, i) => `($1, $${i * 8 + 2}, $${i * 8 + 3}, $${i * 8 + 4}, $${i * 8 + 5}, $${i * 8 + 6}, $${i * 8 + 7}, $${i * 8 + 8}, $${i * 8 + 9})`)
         .join(", ");
       const itemParams = [
         newTicket.id,
@@ -185,12 +207,13 @@ export const createTicket = async (req, res) => {
           item.operation_name || null,
           item.planned_quantity || 0,
           item.actual_quantity || 0,
-          item.notes ? String(item.notes) : null
+          item.notes ? String(item.notes) : null,
+          item.production_plan_id || null
         ]),
       ];
       await client.query(
         `INSERT INTO daily_production_ticket_items 
-           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes)
+           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes, production_plan_id)
            VALUES ${itemValues}`,
         itemParams,
       );
@@ -245,7 +268,7 @@ export const updateTicket = async (req, res) => {
 
     if (items && items.length > 0) {
       const itemValues = items
-        .map((_, i) => `($1, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, $${i * 7 + 8})`)
+        .map((_, i) => `($1, $${i * 8 + 2}, $${i * 8 + 3}, $${i * 8 + 4}, $${i * 8 + 5}, $${i * 8 + 6}, $${i * 8 + 7}, $${i * 8 + 8}, $${i * 8 + 9})`)
         .join(", ");
       const itemParams = [
         id,
@@ -256,12 +279,13 @@ export const updateTicket = async (req, res) => {
           item.operation_name || null,
           item.planned_quantity || 0,
           item.actual_quantity || 0,
-          item.notes ? String(item.notes) : null
+          item.notes ? String(item.notes) : null,
+          item.production_plan_id || null
         ]),
       ];
       await client.query(
         `INSERT INTO daily_production_ticket_items 
-           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes)
+           (ticket_id, order_id, product_id, product_group_operation_id, operation_name, planned_quantity, actual_quantity, notes, production_plan_id)
            VALUES ${itemValues}`,
         itemParams,
       );
@@ -424,11 +448,14 @@ export const getPlanVsActualReport = async (req, res) => {
             ))
             FROM daily_production_ticket_items dti
             JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
-            WHERE dti.order_id = pp.order_id 
-              AND (dti.product_id IS NOT DISTINCT FROM pp.product_id)
-              AND (dti.product_group_operation_id IS NOT DISTINCT FROM pp.product_group_operation_id)
-              AND dt.deleted_at IS NULL
-              AND dt.status = 'COMPLETED'
+            WHERE (dti.production_plan_id = pp.id
+               OR (dti.production_plan_id IS NULL 
+                   AND dti.order_id = pp.order_id 
+                   AND (dti.product_id IS NOT DISTINCT FROM pp.product_id)
+                   AND (dti.product_group_operation_id IS NOT DISTINCT FROM pp.product_group_operation_id)
+                  ))
+               AND dt.deleted_at IS NULL
+               AND dt.status = 'COMPLETED'
         ) as actual_tickets
       FROM production_plans pp
       LEFT JOIN orders o ON pp.order_id = o.id

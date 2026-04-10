@@ -24,6 +24,8 @@ export function startScheduler() {
         timeZone: "Asia/Ho_Chi_Minh",
       });
 
+      console.log(targetDate);
+
       console.log(
         `[Scheduler] Triggered at ${new Date().toISOString()} — generating tickets for ${targetDate}`
       );

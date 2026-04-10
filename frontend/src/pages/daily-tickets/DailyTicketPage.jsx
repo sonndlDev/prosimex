@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2 } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye } from "lucide-react";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import DailyTicketReportDialog from "./components/DailyTicketReportDialog";
@@ -109,47 +109,47 @@ export default function DailyTicketPage() {
       format: (val) => DateTime.fromISO(val).toFormat("dd/MM")
     },
     {
+      id: "machine_name",
+      label: "Máy",
+      className: "font-bold text-indigo-600 italic",
+    },
+    {
       id: "order_name",
       label: "Đơn hàng",
-      className: "font-bold text-zinc-950",
+      className: "font-bold text-zinc-950 max-w-[150px] truncate",
     },
     {
       id: "po_customer",
       label: "PO",
-      className: "text-zinc-500",
+      className: "text-zinc-500 max-w-[100px] truncate",
     },
     {
       id: "product_name",
       label: "Mã SP",
-      className: "font-medium",
-    },
-    {
-      id: "remaining_quantity",
-      label: "SL Order",
-      className: "text-right font-bold text-orange-600",
-      format: (val) => parseFloat(val) || 0
-    },
-    {
-      id: "operation_name",
-      label: "Công đoạn",
-      format: (val, row) => val || row.fallback_operation_name || "N/A"
+      className: "font-medium max-w-[150px] truncate",
     },
     {
       id: "planned_quantity",
-      label: "SL cần SX",
+      label: "Tổng SL KH",
       className: "text-right font-bold text-zinc-900",
       format: (val) => parseFloat(val) || 0
     },
     {
       id: "actual_quantity",
-      label: "SL thực tế",
+      label: "Tổng SL TT",
       className: "text-right font-bold text-blue-600",
       format: (val) => parseFloat(val) || 0
     },
     {
+      id: "operation_name",
+      label: "Công đoạn",
+      className: "max-w-[200px] truncate",
+      format: (val, row) => val || row.fallback_operation_name || "N/A"
+    },
+    {
       id: "notes",
       label: "Ghi chú",
-      className: "text-zinc-500 italic text-xs",
+      className: "text-zinc-500 italic text-xs max-w-[100px] truncate",
     },
     {
       id: "ticket_status",
@@ -210,6 +210,18 @@ export default function DailyTicketPage() {
           onPageSizeChange={setPageSize}
           renderActions={(item) => (
             <div className="flex items-center gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    onClick={() => { setSelectedTicketId(item.master_id); setIsFormOpen(true); }}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xem chi tiết</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger

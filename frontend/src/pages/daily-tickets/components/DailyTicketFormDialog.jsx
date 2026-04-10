@@ -312,16 +312,28 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-5 py-2">
-          {/* Date */}
-          <div className="w-52 space-y-1.5">
-            <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Ngày sản xuất</Label>
-            <Controller name="ticket_date" control={control} render={({ field }) => (
-              <PremiumDatePicker
-                date={field.value}
-                onSelect={field.onChange}
-                disabled={isCompleted}
-              />
-            )} />
+          <div className="flex gap-10">
+            {/* Date */}
+            <div className="w-52 space-y-1.5">
+              <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Ngày sản xuất</Label>
+              <Controller name="ticket_date" control={control} render={({ field }) => (
+                <PremiumDatePicker
+                  date={field.value}
+                  onSelect={field.onChange}
+                  disabled={isCompleted}
+                />
+              )} />
+            </div>
+
+            {/* Machine (Read only or info) */}
+            {ticket?.machine_name && (
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Máy / Chuyền</Label>
+                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-black text-indigo-600">
+                  {ticket.machine_name}
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator />
