@@ -58,8 +58,8 @@ export default function DailyTicketPage() {
 
   const { data: ticketData, isLoading, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
-    queryFn: () => dailyTicketService.getAll({ 
-      page, 
+    queryFn: () => dailyTicketService.getAll({
+      page,
       limit: pageSize,
       ...appliedFilters
     }),
@@ -187,7 +187,7 @@ export default function DailyTicketPage() {
         </div>
       </div>
 
-      <DailyTicketFilterBar 
+      <DailyTicketFilterBar
         onSearch={handleSearch}
         onReset={handleReset}
         initialFilters={initialFilters}
@@ -210,7 +210,7 @@ export default function DailyTicketPage() {
           onPageSizeChange={setPageSize}
           renderActions={(item) => (
             <div className="flex items-center gap-1">
-              <TooltipProvider>
+              {/* <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
                     onClick={() => { setSelectedTicketId(item.master_id); setIsFormOpen(true); }}
@@ -220,7 +220,7 @@ export default function DailyTicketPage() {
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xem chi tiết</TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
+              </TooltipProvider> */}
 
               <TooltipProvider>
                 <Tooltip>
@@ -328,16 +328,16 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ngày lập phiếu</label>
           <div className="flex items-center gap-2">
-            <Input 
-              type="date" 
-              value={tempFilters.startDate} 
+            <Input
+              type="date"
+              value={tempFilters.startDate}
               onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
               className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
             />
             <span className="text-zinc-400 font-bold">→</span>
-            <Input 
-              type="date" 
-              value={tempFilters.endDate} 
+            <Input
+              type="date"
+              value={tempFilters.endDate}
               onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
               className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
             />
@@ -346,8 +346,8 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
 
         <div className="flex flex-col gap-1.5 min-w-[160px]">
           <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Trạng thái</label>
-          <Select 
-            value={tempFilters.status} 
+          <Select
+            value={tempFilters.status}
             onValueChange={val => setTempFilters(prev => ({ ...prev, status: val }))}
           >
             <SelectTrigger className="h-9 text-xs font-bold border-zinc-200 rounded-xl">
@@ -365,8 +365,8 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
           <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <Input 
-              placeholder="Mã đơn, PO, sản phẩm..." 
+            <Input
+              placeholder="Mã đơn, PO, sản phẩm..."
               value={tempFilters.search}
               onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
               className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
@@ -375,16 +375,16 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
         </div>
 
         <div className="flex gap-2">
-          <Button 
+          <Button
             type="submit"
             className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
           >
             <Search className="w-3.5 h-3.5" /> Tìm kiếm
           </Button>
-          
-          <Button 
+
+          <Button
             type="button"
-            variant="ghost" 
+            variant="ghost"
             size="sm"
             onClick={handleClear}
             className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
