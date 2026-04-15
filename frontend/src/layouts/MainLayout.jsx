@@ -25,7 +25,7 @@ const menuItems = [
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
-  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "warehouse" },
+  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "product_inventory" },
   { type: "subheader", text: "Dữ liệu gốc" },
   { text: "Khách hàng", icon: Store, path: "/customers", permission: "customers" },
   { text: "Nhà cung cấp", icon: Store, path: "/suppliers", permission: "suppliers" },
