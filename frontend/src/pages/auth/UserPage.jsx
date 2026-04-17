@@ -28,6 +28,7 @@ const PERMISSION_GROUPS = [
       { key: "orders", label: "Đơn hàng" },
       { key: "warehouse", label: "Thông tin kho" },
       { key: "product_inventory", label: "Tồn kho BTP & TP" },
+      { key: "plan_vs_actual", label: "Báo cáo KH vs TT" },
     ]
   },
   {
@@ -245,10 +246,10 @@ export default function UserPage() {
                           {selectedUser ? "Mật khẩu hệ thống" : "Mật khẩu"} {!selectedUser && <span className="text-red-500">*</span>}
                         </Label>
                         {selectedUser && (
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setIsChangingPassword(!isChangingPassword)}
                             className={cn("h-6 px-2 text-[10px] font-black uppercase tracking-tighter rounded-md transition-all", isChangingPassword ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200")}
                           >
@@ -258,20 +259,20 @@ export default function UserPage() {
                       </div>
                       <div className="relative">
                         <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
-                        <Controller 
-                          name="password" 
-                          control={control} 
+                        <Controller
+                          name="password"
+                          control={control}
                           render={({ field }) => (
-                            <Input 
-                              {...field} 
-                              type="password" 
+                            <Input
+                              {...field}
+                              type="password"
                               disabled={selectedUser && !isChangingPassword}
-                              required={!selectedUser} 
+                              required={!selectedUser}
                               className={cn("pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500 transition-all", selectedUser && !isChangingPassword && "opacity-30 bg-zinc-50 select-none cursor-not-allowed")}
-                              autoComplete="new-password" 
+                              autoComplete="new-password"
                               placeholder={selectedUser && !isChangingPassword ? "••••••••••••" : "Nhập mật khẩu mới..."}
                             />
-                          )} 
+                          )}
                         />
                       </div>
                     </div>
