@@ -12,12 +12,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw } from "lucide-react";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
-import DailyTicketReportDialog from "./components/DailyTicketReportDialog";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,16 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, X } from "lucide-react";
 
 
 export default function DailyTicketPage() {
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
-  const [isReportOpen, setIsReportOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const initialFilters = {
     startDate: "",
@@ -176,10 +174,10 @@ export default function DailyTicketPage() {
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setIsReportOpen(true)} className="h-11 px-6 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
+          {/* <Button variant="outline" onClick={() => navigate("/plan-vs-actual")} className="h-11 px-6 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
             <BarChart2 className="w-4 h-4 text-indigo-500" />
             Báo cáo KH vs TT
-          </Button>
+          </Button> */}
           <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 gap-2">
             <Plus className="w-4 h-4" />
             Tạo Phiếu Mới
@@ -299,12 +297,6 @@ export default function DailyTicketPage() {
           onClose={() => { setIsPrintOpen(false); setSelectedTicketId(null); }}
         />
       )}
-      {isReportOpen && (
-        <DailyTicketReportDialog
-          open={isReportOpen}
-          onClose={() => setIsReportOpen(false)}
-        />
-      )}
     </div>
   );
 }
@@ -323,77 +315,89 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
-      <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ngày lập phiếu</label>
-          <div className="flex items-center gap-2">
+    <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+      <form
+        className="flex flex-col xl:flex-row items-center gap-4"
+        onSubmit={handleSubmit}
+      >
+        {/* Search Input */}
+        <div className="w-full xl:w-[320px] shrink-0">
+          <div className="relative group">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Input
+              placeholder="Mã đơn, mã SP, định mức..."
+              value={tempFilters.search}
+              onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+            />
+          </div>
+        </div>
+
+        {/* Filters Grid */}
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Trạng thái */}
+          <Select
+            value={tempFilters.ticket_status}
+            onValueChange={val => setTempFilters(prev => ({ ...prev, ticket_status: val }))}
+          >
+            <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Trạng thái:</span>
+                <SelectValue placeholder="Tất cả" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả phiêú</SelectItem>
+              <SelectItem value="DRAFT">Nháp</SelectItem>
+              <SelectItem value="COMPLETED">Xong</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Khoảng ngày */}
+          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
             <Input
               type="date"
               value={tempFilters.startDate}
               onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
-              className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
+              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
             />
-            <span className="text-zinc-400 font-bold">→</span>
+            <span className="text-zinc-300 mx-0.5">—</span>
             <Input
               type="date"
               value={tempFilters.endDate}
               onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
-              className="h-9 text-xs font-bold border-zinc-200 rounded-xl w-40"
+              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
             />
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5 min-w-[160px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Trạng thái</label>
-          <Select
-            value={tempFilters.status}
-            onValueChange={val => setTempFilters(prev => ({ ...prev, status: val }))}
-          >
-            <SelectTrigger className="h-9 text-xs font-bold border-zinc-200 rounded-xl">
-              <SelectValue placeholder="Tất cả" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả</SelectItem>
-              <SelectItem value="PENDING">Nháp</SelectItem>
-              <SelectItem value="COMPLETED">Xong</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <Input
-              placeholder="Mã đơn, PO, sản phẩm..."
-              value={tempFilters.search}
-              onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
+        {/* Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             type="submit"
-            className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+            className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
           >
-            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+            Tìm kiếm
           </Button>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
-          >
-            <X className="w-4 h-4" /> Reset
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClear}
+                  className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-[10px] font-bold">Đặt lại bộ lọc</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </form>
     </div>
   );
 });
-

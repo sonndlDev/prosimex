@@ -11,7 +11,8 @@ import {
   LayoutDashboard, Factory, Settings, CalendarDays, Users, LogOut,
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
-  Hammer, UserCircle, Warehouse, Calendar, Layers
+  Hammer, UserCircle, Warehouse, Calendar, Layers,
+  BarChart2
 } from "lucide-react";
 import { DateTime } from "luxon";
 
@@ -26,6 +27,8 @@ const menuItems = [
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
   { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "warehouse" },
+  { text: "Báo cáo KH vs TT", icon: BarChart2, path: "/plan-vs-actual", permission: "daily_tickets_plan" },
+
   { type: "subheader", text: "Dữ liệu gốc" },
   { text: "Khách hàng", icon: Store, path: "/customers", permission: "customers" },
   { text: "Nhà cung cấp", icon: Store, path: "/suppliers", permission: "suppliers" },

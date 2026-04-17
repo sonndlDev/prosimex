@@ -22,7 +22,8 @@ import {
     History,
     X,
     ClipboardList,
-    Boxes
+    Boxes,
+    RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -49,6 +50,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function ProductInventoryPage() {
     const queryClient = useQueryClient();
@@ -468,16 +470,33 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
     };
 
     return (
-        <div className="bg-white px-6 py-4 border-b border-zinc-100">
-            <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
-                <div className="flex flex-col gap-1.5 min-w-[200px]">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Loại tồn kho</label>
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+            <form className="flex flex-col xl:flex-row items-center gap-4" onSubmit={handleSubmit}>
+                {/* Search */}
+                <div className="flex-1 w-full">
+                    <div className="relative group">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+                        <Input
+                            placeholder="Tìm mã hàng, tên sản phẩm..."
+                            value={tempFilters.search}
+                            onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
+                            className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Filters Grid */}
+                <div className="w-full xl:w-64 shrink-0">
+                    {/* Loại tồn kho */}
                     <Select
                         value={tempFilters.inventory_type}
                         onValueChange={val => setTempFilters(prev => ({ ...prev, inventory_type: val }))}
                     >
-                        <SelectTrigger className="h-9 text-xs font-bold border-zinc-200 rounded-xl">
-                            <SelectValue placeholder="Tất cả" />
+                        <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Loại:</span>
+                                <SelectValue placeholder="Tất cả" />
+                            </div>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="ALL">Tất cả</SelectItem>
@@ -487,36 +506,30 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
                     </Select>
                 </div>
 
-                <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                        <Input
-                            placeholder="Mã hàng, tên sản phẩm..."
-                            value={tempFilters.search}
-                            onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-                            className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex gap-2">
+                {/* Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
                     <Button
                         type="submit"
-                        className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+                        className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
                     >
-                        <Search className="w-3.5 h-3.5" /> Tìm kiếm
+                        Lọc kết quả
                     </Button>
 
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClear}
-                        className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
-                    >
-                        <X className="w-4 h-4" /> Reset
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleClear}
+                                    className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                                >
+                                    <RotateCcw className="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p className="text-[10px] font-bold">Đặt lại bộ lọc</p></TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </form>
         </div>

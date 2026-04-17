@@ -75,7 +75,8 @@ import {
   Pencil,
   LayoutDashboard,
   Search,
-  X
+  X,
+  RotateCcw
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
@@ -107,7 +108,7 @@ export default function OrderPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
+
   const initialFilters = {
     startDate: "",
     endDate: "",
@@ -265,7 +266,8 @@ export default function OrderPage() {
         </TooltipProvider>
       )
     },
-    { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
+    { id: "po_auto_code", label: "PO", className: "font-bold text-blue-600" },
+    { id: "name", label: "Tên đơn hàng", className: "font-semibold text-zinc-900" },
     { id: "customer_name", label: "Tên khách", className: "font-medium" },
     { id: "person_in_charge", label: "Người theo dõi đơn hàng" },
     {
@@ -432,7 +434,7 @@ export default function OrderPage() {
         </div>
       </div>
 
-      <OrderFilterBar 
+      <OrderFilterBar
         customers={customers}
         products={products}
         onSearch={handleSearch}
@@ -458,6 +460,7 @@ export default function OrderPage() {
           onPageSizeChange={setPageSize}
           onEdit={handleOpen}
           onDelete={handleDelete}
+          maxHeight="calc(100vh - 425px)"
         />
 
 
@@ -616,10 +619,18 @@ export default function OrderPage() {
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-bold text-zinc-400">Mã PO Hệ thống (Tự động)</Label>
-                          <div className="bg-zinc-50 border border-zinc-200 rounded-md h-10 flex items-center px-3 font-bold text-blue-700 opacity-80 text-sm">
-                            {formPoAutoCode || (selectedOrder ? "N/A" : "Tự động tạo...")}
-                          </div>
+                          <Label className="text-xs font-bold">Mã PO Hệ thống</Label>
+                          <Controller
+                            name="po_auto_code"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                {...field}
+                                className="bg-white border-zinc-200 h-10"
+                                placeholder="Có thể nhập tay hoặc để trống"
+                              />
+                            )}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1038,101 +1049,134 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm space-y-4">
-      <form 
-        className="flex flex-wrap gap-4 items-end"
+    <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+      <form
+        className="flex flex-col xl:flex-row items-center gap-4"
         onSubmit={handleSubmit}
       >
-        {/* Date Group */}
-        <div className="flex flex-col gap-1.5 line-height-none">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Ngày nhận đơn</label>
-          <div className="flex items-center gap-2">
-            <Input 
-              type="date" 
-              value={tempFilters.startDate} 
-              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value, dateType: "received" }))} 
-              className="h-9 text-xs font-bold w-40 rounded-xl border-zinc-200" 
-            />
-            <span className="text-zinc-400 font-bold">→</span>
-            <Input 
-              type="date" 
-              value={tempFilters.endDate} 
-              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value, dateType: "received" }))} 
-              className="h-9 text-xs font-bold w-40 rounded-xl border-zinc-200" 
-            />
-          </div>
-        </div>
-
-        {/* Customer */}
-        <div className="flex flex-col gap-1.5 min-w-[200px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tên khách</label>
-          <Select value={tempFilters.customer_id} onValueChange={val => setTempFilters(prev => ({ ...prev, customer_id: val }))}>
-            <SelectTrigger className="h-9 text-xs font-bold rounded-xl border-zinc-200">
-              <SelectValue placeholder="Tất cả" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả khách hàng</SelectItem>
-              {customers.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Product */}
-        <div className="flex flex-col gap-1.5 min-w-[200px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Mã hàng</label>
-          <Select value={tempFilters.product_id} onValueChange={val => setTempFilters(prev => ({ ...prev, product_id: val }))}>
-            <SelectTrigger className="h-9 text-xs font-bold rounded-xl border-zinc-200">
-              <SelectValue placeholder="Tất cả" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả sản phẩm</SelectItem>
-              {products.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Meta Fields */}
-        <div className="flex flex-col gap-1.5 min-w-[180px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Người theo dõi đơn hàng</label>
-          <Input 
-            placeholder="Tên nhân viên..." 
-            value={tempFilters.person_in_charge} 
-            onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))} 
-            className="h-9 text-xs font-bold rounded-xl border-zinc-200" 
-          />
-        </div>
-
-        {/* Search */}
-        <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+        {/* Search Input - Tăng độ rộng để dễ nhìn */}
+        <div className="w-full xl:w-[350px] shrink-0">
+          <div className="relative group">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
             <Input
               placeholder="Mã đơn, PO, tên đơn..."
               value={tempFilters.search}
               onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="pl-9 h-9 text-xs font-bold rounded-xl border-zinc-200"
+              className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
             />
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Filters Row - Sử dụng flex-1 để co giãn tự nhiên */}
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Customer */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Khách:</span>
+                  <span className="truncate text-[11px]">
+                    {tempFilters.customer_id === 'ALL' || !tempFilters.customer_id
+                      ? "Tất cả"
+                      : customers.find(c => String(c.id) === String(tempFilters.customer_id))?.name}
+                  </span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm khách hàng..." />
+                <CommandList className="max-h-[300px] p-1">
+                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy khách hàng</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="ALL"
+                      onSelect={() => setTempFilters(prev => ({ ...prev, customer_id: 'ALL' }))}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                    >
+                      <span className="text-[11px] font-bold">Tất cả khách hàng</span>
+                      <Check className={cn("h-4 w-4 text-indigo-600", (tempFilters.customer_id === 'ALL' || !tempFilters.customer_id) ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                    {customers.map((c) => (
+                      <CommandItem
+                        key={c.id}
+                        value={c.name}
+                        onSelect={() => setTempFilters(prev => ({ ...prev, customer_id: String(c.id) }))}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                      >
+                        <span className="text-[11px] font-bold">{c.name}</span>
+                        <Check className={cn("h-4 w-4 text-indigo-600", String(tempFilters.customer_id) === String(c.id) ? "opacity-100" : "opacity-0")} />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Person In Charge (NV) */}
+          <div className="relative group">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">NPT:</span>
+            </div>
+            <Input
+              placeholder="Tên nhân viên..."
+              value={tempFilters.person_in_charge}
+              onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))}
+              className="pl-10 h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
+            />
+          </div>
+
+          {/* Date Picker Range - Tối ưu padding và font để không bị vỡ */}
+          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
+            <Input
+              type="date"
+              value={tempFilters.startDate}
+              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value, dateType: "received" }))}
+              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
+            />
+            <span className="text-zinc-300 mx-0.5">—</span>
+            <Input
+              type="date"
+              value={tempFilters.endDate}
+              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value, dateType: "received" }))}
+              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
+            />
+          </div>
+        </div>
+
+        {/* Buttons - Cố định bên phải */}
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             type="submit"
-            className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
+            className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-95"
           >
-            <Search className="w-3.5 h-3.5" /> Tìm kiếm
+            Lọc kết quả
           </Button>
-          
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
-          >
-            <X className="w-4 h-4" /> Reset
-          </Button>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleClear}
+                  className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-[10px] font-bold">Đặt lại bộ lọc</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </form>
     </div>

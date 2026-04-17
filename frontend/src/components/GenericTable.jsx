@@ -9,7 +9,57 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
-import { Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight, RotateCcw, X } from 'lucide-react';
+
+const TableSearchFilter = React.memo(({ onSearch, initialValue = "" }) => {
+  const [val, setVal] = React.useState(initialValue);
+  
+  return (
+    <form 
+      onSubmit={(e) => { e.preventDefault(); onSearch(val); }} 
+      className="flex items-center gap-2 w-full sm:w-auto"
+    >
+      <div className="relative w-full sm:w-64 group">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+        <Input
+          placeholder="Tìm kiếm..."
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          className="pl-9 bg-zinc-50/50 hover:bg-white focus:bg-white border-zinc-200/80 h-9 text-xs font-bold rounded-xl transition-all focus-visible:ring-indigo-500/30"
+        />
+      </div>
+      
+      <div className="flex items-center gap-1.5">
+        <Button 
+          type="submit" 
+          size="sm" 
+          className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95 border-none"
+        >
+          Lọc
+        </Button>
+
+        {val !== "" && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  size="icon" 
+                  onClick={() => { setVal(""); onSearch(""); }}
+                  className="h-9 w-9 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-xl border-zinc-200/80 transition-all"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p className="text-[10px] font-bold">Xóa tìm kiếm</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+    </form>
+  )
+});
 
 export default function GenericTable({
   title,
@@ -31,6 +81,7 @@ export default function GenericTable({
   onPageSizeChange,
   onSearchChange,
   renderActions,
+  maxHeight = "calc(100vh - 320px)",
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState([]);
@@ -118,15 +169,9 @@ export default function GenericTable({
           ) : title}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <Input
-              placeholder="Tìm kiếm nhanh..."
-              value={searchTerm}
-              onChange={e => handleSearch(e.target.value)}
-              className="pl-9 bg-white border-zinc-200 h-9 text-xs font-medium rounded-xl"
-            />
-          </div> */}
+          {(onSearchChange !== undefined || !isServerSide) && (
+            <TableSearchFilter onSearch={handleSearch} initialValue={searchTerm} />
+          )}
           {onBulkDelete && selected.length > 0 && (
             <Button
               variant="outline"
@@ -149,7 +194,10 @@ export default function GenericTable({
 
       {/* Table Container */}
       <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
+        <div
+          className="overflow-x-auto overflow-y-auto"
+          style={{ maxHeight }}
+        >
           <Table>
             <TableHeader className="bg-zinc-50/50 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent border-b border-zinc-100">

@@ -585,9 +585,17 @@ export const createOrderGeneralPlan = async (req, res) => {
         const pQty = parseFloat(p.quantity);
         const pDaysNeeded = Math.ceil(pQty / avgItemNormPerDay);
         const pStart = new Date(sequentialStart);
-        const pEnd = new Date(sequentialStart);
-        pEnd.setDate(pEnd.getDate() + pDaysNeeded - 1);
-        
+        // Skip sundays during pStart to pEnd
+        let workingDaysCount = 0;
+        let iterDate = new Date(pStart);
+        while(workingDaysCount < pDaysNeeded) {
+           if (iterDate.getDay() !== 0) workingDaysCount++;
+           if (workingDaysCount < pDaysNeeded) {
+               iterDate.setDate(iterDate.getDate() + 1);
+           }
+        }
+        const pEnd = iterDate;
+
         sequentialStart = new Date(pEnd);
         sequentialStart.setDate(sequentialStart.getDate() + 1);
 
@@ -639,11 +647,14 @@ export const createOrderGeneralPlan = async (req, res) => {
 
       // Insert Days — Standard 8h per day (Bulk INSERT)
       const generatedDays = [];
-      for (let i = 0; i < pDaysNeeded; i++) {
-        const d = new Date(pStart);
-        d.setDate(d.getDate() + i);
-        if (d > pEnd) break;
-        generatedDays.push(d);
+      let currentDate = new Date(pStart);
+      while(generatedDays.length < pDaysNeeded && currentDate <= pEnd) {
+         if (currentDate.getDay() !== 0) { // NO SUNDAY
+            generatedDays.push(new Date(currentDate));
+         } else {
+            pEnd.setDate(pEnd.getDate() + 1);
+         }
+         currentDate.setDate(currentDate.getDate() + 1);
       }
       if (generatedDays.length > 0) {
         // Fix: Use separate parameters for each value instead of reusing $3 and $4 which might point to dates

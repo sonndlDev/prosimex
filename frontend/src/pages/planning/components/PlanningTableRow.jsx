@@ -44,7 +44,6 @@ const PlanningTableRow = React.memo(
     return (
       <tr className="hover:bg-zinc-50 border-b border-zinc-200 transition-colors even:bg-zinc-50/30">
         <ExcelDataCell>{idx + 1}</ExcelDataCell>
-        <ExcelDataCell>{plan.sequence_order}</ExcelDataCell>
         <ExcelDataCell className="font-medium">{plan.product_name}</ExcelDataCell>
         <ExcelDataCell
           className="font-bold text-[10px]"

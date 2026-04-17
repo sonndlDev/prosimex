@@ -28,11 +28,11 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
         enabled: !!orderId && open
     });
 
-    const totals = summaryData?.totals || { required: 0, started: 0, finished: 0 };
+    const totals = summaryData?.totals || { required: 0, started: 0, finished: 0, total_sx: 0 };
     const details = summaryData?.details || [];
     const poCode = summaryData?.order?.po_auto_code || "---";
 
-    const completionRate = totals.required > 0 ? (totals.finished / totals.required) * 100 : 0;
+    const completionRate = totals.required > 0 ? (totals.total_sx / totals.required) * 100 : 0;
     const startedRate = totals.required > 0 ? (totals.started / totals.required) * 100 : 0;
 
     const columns = [
@@ -49,8 +49,8 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
             format: (v) => Number(v).toLocaleString()
         },
         {
-            id: "finished_quantity",
-            label: "Đã hoàn thành",
+            id: "total_sx_quantity",
+            label: "Đã hoàn thành\n(Tổng SL TT)",
             className: "font-black text-center text-emerald-600",
             format: (v) => Number(v).toLocaleString()
         },
@@ -60,6 +60,13 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
             className: "font-black text-center text-blue-600",
             format: (v) => Number(v).toLocaleString()
         },
+
+        // {
+        //     id: "finished_quantity",
+        //     label: "C.Đoạn cuối)",
+        //     className: "font-black text-center text-blue-600",
+        //     format: (v) => Number(v).toLocaleString()
+        // },
         {
             id: "plating_out_quantity",
             label: "Xi mạ đi",
@@ -125,7 +132,7 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Đã hoàn thành</p>
-                                            <h3 className="text-2xl font-black text-emerald-950 tabular-nums">{totals.finished.toLocaleString()}</h3>
+                                            <h3 className="text-2xl font-black text-emerald-950 tabular-nums">{totals.total_sx?.toLocaleString()}</h3>
                                             <div className="flex items-center gap-1 mt-0.5">
                                                 <TrendingUp className="w-3 h-3 text-emerald-500" />
                                                 <span className="text-[10px] font-bold text-emerald-600">{completionRate.toFixed(1)}%</span>

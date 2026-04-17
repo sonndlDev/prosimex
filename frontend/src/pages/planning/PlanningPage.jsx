@@ -103,7 +103,7 @@ export default function PlanningPage() {
     plans.forEach((plan) => {
       const isStopped = plan.status === 'STOPPED';
       const stoppedAt = plan.stopped_at ? DateTime.fromISO(plan.stopped_at) : null;
-      
+
       const daysToUse = inlineEditingId === plan.id ? inlineEditDays : plan.days;
       daysToUse?.forEach((day) => {
         const dateISO = day.working_date ? DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd") : day.date;
@@ -127,6 +127,20 @@ export default function PlanningPage() {
     });
     return metrics;
   }, [plans, inlineEditingId, inlineEditDays]);
+
+  // Aggregates total shifts (công) across all machines per day
+  const dailyTotalCong = useMemo(() => {
+    if (!dailyMachineMetrics) return {};
+    const totals = {};
+    Object.keys(dailyMachineMetrics).forEach((dateISO) => {
+      let daySum = 0;
+      Object.values(dailyMachineMetrics[dateISO]).forEach((m) => {
+        daySum += m.totalHours;
+      });
+      totals[dateISO] = daySum;
+    });
+    return totals;
+  }, [dailyMachineMetrics]);
 
   // ─── Date Columns ──────────────────────────────────────
   const dateColumns = useMemo(() => {
@@ -399,6 +413,58 @@ export default function PlanningPage() {
           >
             <Plus className="w-4 h-4" /> Lập kế hoạch
           </Button>
+
+          <Button
+            onClick={() => {
+              if (!plans || plans.length === 0) {
+                toast.warning("Không có dữ liệu để xuất");
+                return;
+              }
+              import("xlsx").then((XLSX) => {
+                const worksheetData = plans.map((plan, i) => {
+                   const row = {
+                     "STT": i + 1,
+                     "Tên mã hàng": plan.product_name,
+                     "Nhóm mã": plan.product_group_name,
+                     "Công đoạn": plan.operation_name,
+                     "Máy": plan.machine_name,
+                     "SL đơn": parseFloat(plan.inventory_input) + parseFloat(plan.remaining_quantity),
+                     "Tồn kho": plan.inventory_input,
+                     "Còn lại": plan.remaining_quantity,
+                     "Định mức": plan.dinh_muc,
+                     "Đã SX": 0,
+                     "Mẫu": "x",
+                     "Bắt đầu": DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM"),
+                     "Kết thúc": DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")
+                   };
+                   
+                   dateColumns.forEach(date => {
+                       const dayData = plan.days?.find(
+                         (d) => DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd") === date.key
+                       );
+                       if (dayData) {
+                          const qty = parseFloat(dayData.planned_work_quantity) || 0;
+                          const dinhMuc = parseFloat(plan.dinh_muc) || 0;
+                          const base = qty / 8;
+                          const total = Math.round(base * dinhMuc);
+                          row[date.label] = total;
+                       } else {
+                          row[date.label] = "";
+                       }
+                   });
+                   return row;
+                });
+                const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "KeHoach");
+                XLSX.writeFile(workbook, `KeHoach_SanXuat_${DateTime.now().toFormat('yyyyMMdd')}.xlsx`);
+              });
+            }}
+            variant="outline"
+            className="h-10 gap-2 font-black px-6 border-zinc-200 text-zinc-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all"
+          >
+             Xuất Excel
+          </Button>
         </div>
       </div>
 
@@ -428,7 +494,6 @@ export default function PlanningPage() {
           <table className="w-full border-collapse border-spacing-0">
             <thead className="sticky top-0 z-20 shadow-sm">
               <tr className="bg-zinc-100">
-                <ExcelHeaderCell rowSpan={2}>STT</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tên mã hàng</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Nhóm mã</ExcelHeaderCell>
@@ -462,9 +527,19 @@ export default function PlanningPage() {
                   {dateColumns.map((date) => (
                     <ExcelHeaderCell
                       key={date.key}
-                      className="bg-sky-50/50 text-[9px] min-w-[50px] p-1 h-8"
+                      className="bg-sky-50/50 text-[9px] min-w-[54px] p-1 h-auto py-2"
                     >
-                      {date.label}
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] font-black text-blue-600 bg-blue-100/50 px-1.5 py-0.5 rounded-full leading-none">
+                            {Number(dailyTotalCong[date.key] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
+                          </span>
+                          <span className="text-[6px] font-black text-zinc-400 uppercase tracking-tighter mt-0.5">CÔNG</span>
+                        </div>
+                        <span className="text-zinc-600 border-t border-sky-100 w-full pt-1 mt-0.5 font-bold">
+                          {date.label}
+                        </span>
+                      </div>
                     </ExcelHeaderCell>
                   ))}
                 </tr>

@@ -32,36 +32,32 @@ export default function OutsourcingPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col md:flex-row gap-6">
-        <div className="w-full md:w-30 lg:w-60 shrink-0">
-          <TabsList className="flex flex-col h-auto bg-zinc-100 p-2 border border-zinc-200 shadow-inner rounded-3xl w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-6">
+        <div className="flex justify-start">
+          <TabsList className="flex flex-row h-12 bg-zinc-100 p-1 border border-zinc-200 shadow-inner rounded-full w-full max-w-lg">
             <TabsTrigger
               value="plating"
               className={cn(
-                "w-full justify-start py-4 px-5 text-left font-black text-sm rounded-2xl mb-2 transition-all duration-300 group",
+                "flex-1 h-full font-black text-xs rounded-full transition-all duration-300 group gap-2",
                 activeTab === "plating"
-                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50 translate-x-1"
+                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50"
                   : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700"
               )}
             >
-              <div className="flex items-center gap-3">
-                <PaintBucket className={cn("w-5 h-5 transition-transform duration-300", activeTab === "plating" ? "scale-110" : "opacity-60")} />
-                Xi mạ - Sơn
-              </div>
+              <PaintBucket className={cn("w-4 h-4 transition-transform duration-300", activeTab === "plating" ? "scale-110" : "opacity-60")} />
+              Xi mạ - Sơn
             </TabsTrigger>
             <TabsTrigger
               value="packaging"
               className={cn(
-                "w-full justify-start py-4 px-5 text-left font-black text-sm rounded-2xl transition-all duration-300 group",
+                "flex-1 h-full font-black text-xs rounded-full transition-all duration-300 group gap-2",
                 activeTab === "packaging"
-                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50 translate-x-1"
+                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50"
                   : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700"
               )}
             >
-              <div className="flex items-center gap-3">
-                <Package className={cn("w-5 h-5 transition-transform duration-300", activeTab === "packaging" ? "scale-110" : "opacity-60")} />
-                Đóng gói
-              </div>
+              <Package className={cn("w-4 h-4 transition-transform duration-300", activeTab === "packaging" ? "scale-110" : "opacity-60")} />
+              Đóng gói
             </TabsTrigger>
           </TabsList>
         </div>
@@ -80,7 +76,7 @@ export default function OutsourcingPage() {
 }
 
 function OutsourcingContent({ type }) {
-  const [subTab, setSubTab] = useState("out");
+  const [subTab, setSubTab] = useState("history");
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -109,11 +105,22 @@ function OutsourcingContent({ type }) {
       <CardHeader className="p-0 border-b border-zinc-100 bg-white">
         <div className="px-6 pt-6">
           <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-            <TabsList className="flex w-full bg-zinc-100 p-1 rounded-full border border-zinc-200 max-w-lg h-12 shadow-inner">
+            <TabsList className="flex w-full bg-zinc-100 p-1 rounded-full border border-zinc-200 max-w-md h-10 shadow-inner">
+              <TabsTrigger
+                value="history"
+                className={cn(
+                  "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
+                  subTab === "history"
+                    ? "bg-white text-indigo-600 shadow-md"
+                    : "text-zinc-400 hover:text-zinc-600"
+                )}
+              >
+                Danh sách
+              </TabsTrigger>
               <TabsTrigger
                 value="out"
                 className={cn(
-                  "flex-1 font-black rounded-full py-2 transition-all text-xs uppercase tracking-widest",
+                  "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
                   subTab === "out"
                     ? "bg-white text-indigo-600 shadow-md"
                     : "text-zinc-400 hover:text-zinc-600"
@@ -125,7 +132,7 @@ function OutsourcingContent({ type }) {
                 <TabsTrigger
                   value="in"
                   className={cn(
-                    "flex-1 font-black rounded-full py-2 transition-all text-xs uppercase tracking-widest",
+                    "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
                     subTab === "in"
                       ? "bg-white text-indigo-600 shadow-md"
                       : "text-zinc-400 hover:text-zinc-600"
@@ -134,17 +141,6 @@ function OutsourcingContent({ type }) {
                   Phiếu VỀ
                 </TabsTrigger>
               )}
-              <TabsTrigger
-                value="history"
-                className={cn(
-                  "flex-1 font-black rounded-full py-2 transition-all text-xs uppercase tracking-widest",
-                  subTab === "history"
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-zinc-400 hover:text-zinc-600"
-                )}
-              >
-                Danh sách
-              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -657,8 +653,9 @@ function InboundTicketForm({ type }) {
       </div>
 
       {ticketData && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 animate-in slide-in-from-bottom-4 duration-500 pt-4">
-          <div className="lg:col-span-3 space-y-6">
+        <div className="flex flex-col gap-10 animate-in slide-in-from-bottom-4 duration-500 pt-4">
+          {/* Main Info & Items */}
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-3">
                 Thông tin chung
@@ -666,7 +663,7 @@ function InboundTicketForm({ type }) {
                 </h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-sm bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 text-sm bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
               <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nhà cung cấp</p>
                 <div className="flex items-center gap-2">
@@ -685,7 +682,7 @@ function InboundTicketForm({ type }) {
                     </p>
                 </div>
               </div>
-              <div className="space-y-1.5 col-span-2">
+              <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tình trạng tổng</p>
                 <div className="flex items-center">
                   <span className={cn(
@@ -698,7 +695,7 @@ function InboundTicketForm({ type }) {
                   </span>
                 </div>
               </div>
-              <div className="col-span-2 pt-4 mt-2 border-t border-zinc-100">
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-4 mt-2 border-t border-zinc-100">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Xuất đi</p>
@@ -718,89 +715,89 @@ function InboundTicketForm({ type }) {
                     <Settings className="w-4 h-4 text-zinc-400" />
                     Các phần cần nhập về
                 </h4>
-                {ticketData.items && ticketData.items.map((item, idx) => {
-                    const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
-                    return (
-                    <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
-                        <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx+1}</span>
-                                <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
-                                {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
-                            </div>
-                            <div className="text-right space-y-0.5">
-                                <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
-                                <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
-                            </div>
-                        </div>
-                        
-                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
-                        </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {ticketData.items && ticketData.items.map((item, idx) => {
+                      const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
+                      return (
+                      <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                          <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                  <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx+1}</span>
+                                  <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
+                                  {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
+                              </div>
+                              <div className="text-right space-y-0.5">
+                                  <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
+                                  <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
+                              </div>
+                          </div>
+                          
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
+                          </div>
 
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                            <div className="relative flex-1">
-                            <Input
-                                type="number"
-                                placeholder="Nhập thêm..."
-                                value={returnQtys[item.id] || ""}
-                                onChange={e => setReturnQtys({ ...returnQtys, [item.id]: e.target.value })}
-                                className="h-10 bg-indigo-50/30 text-sm font-bold tabular-nums border-indigo-200 focus-visible:ring-indigo-600 pl-3"
-                            />
-                            </div>
-                            <Button
-                                onClick={() => handleAddReturn(item.id)}
-                                disabled={loadingReturn}
-                                className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
-                            >
-                                <Check className="w-4 h-4" /> Xác nhận
-                            </Button>
-                        </div>
-                    </div>
-                )})}
+                          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                              <div className="relative flex-1">
+                              <Input
+                                  type="number"
+                                  placeholder="Nhập thêm..."
+                                  value={returnQtys[item.id] || ""}
+                                  onChange={e => setReturnQtys({ ...returnQtys, [item.id]: e.target.value })}
+                                  className="h-10 bg-indigo-50/30 text-sm font-bold tabular-nums border-indigo-200 focus-visible:ring-indigo-600 pl-3"
+                              />
+                              </div>
+                              <Button
+                                  onClick={() => handleAddReturn(item.id)}
+                                  disabled={loadingReturn}
+                                  className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
+                              >
+                                  <Check className="w-4 h-4" /> Xác nhận
+                              </Button>
+                          </div>
+                      </div>
+                  )})}
+                </div>
             </div>
-
           </div>
 
-          <div className="lg:col-span-2 space-y-4">
+          {/* History Section Below */}
+          <div className="space-y-4 pt-6 border-t border-zinc-100">
             <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-2">
               Lịch sử nhập
               <span className="bg-zinc-100 text-zinc-600 text-xs px-2 py-0.5 rounded-full">{history.length}</span>
             </h3>
 
-            <div className="bg-white border border-zinc-200 rounded-2xl p-2 shadow-sm min-h-[300px]">
-              {history.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center h-full">
-                  <AlertCircle className="w-10 h-10 text-zinc-300 mb-3" />
-                  <p className="text-zinc-500 font-medium text-sm">Chưa có bản ghi nào</p>
-                  <p className="text-zinc-400 text-xs mt-1 max-w-[200px]">Bạn hãy nhập số lượng để ghi nhận lịch sử.</p>
-                </div>
-              ) : (
-                <div className="space-y-1 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
-                  {history.map((h, i) => (
-                    <div key={h.id} className="flex flex-col p-4 bg-white border border-transparent hover:border-zinc-100 hover:bg-zinc-50 rounded-xl transition-colors group">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-xs shrink-0 shadow-sm border border-emerald-200">
-                            #{history.length - i}
-                          </div>
-                          <div>
-                            <p className="font-black text-lg text-emerald-600 tracking-tight leading-none mb-1">+{h.quantity_returned}</p>
-                            <p className="text-xs font-bold text-zinc-700 truncate max-w-[150px]">{h.product_name}</p>
-                            <p className="text-[11px] font-bold text-zinc-400 mt-1">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}</p>
-                          </div>
+            {history.length === 0 ? (
+              <div className="bg-white border border-zinc-200 rounded-2xl p-16 flex flex-col items-center justify-center text-center shadow-sm">
+                <AlertCircle className="w-10 h-10 text-zinc-300 mb-3" />
+                <p className="text-zinc-500 font-medium text-sm">Chưa có bản ghi nào</p>
+                <p className="text-zinc-400 text-xs mt-1 max-w-[200px]">Bạn hãy nhập số lượng để ghi nhận lịch sử.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {history.map((h, i) => (
+                  <div key={h.id} className="flex flex-col p-4 bg-white border border-zinc-200 hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-xs shrink-0 shadow-sm border border-emerald-200">
+                          #{history.length - i}
+                        </div>
+                        <div>
+                          <p className="font-black text-lg text-emerald-600 tracking-tight leading-none mb-1">+{h.quantity_returned}</p>
+                          <p className="text-xs font-bold text-zinc-700 truncate max-w-[150px]">{h.product_name}</p>
                         </div>
                       </div>
-                      <div className="flex justify-end content-end mt-1">
-                        <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2.5 py-1 rounded-md">
-                          Bởi: {h.created_by_username || "Hệ thống"}
-                        </span>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <div className="flex justify-between items-end mt-2 pt-2 border-t border-zinc-100/50">
+                      <p className="text-[10px] font-bold text-zinc-400">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM HH:mm')}</p>
+                      <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">
+                        {h.created_by_username || "Hệ thống"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -850,7 +847,7 @@ function OutsourcingHistory({ type, orders, products }) {
     }
   };
 
-  const columns = [
+  let columns = [
     {
       id: "ticket_code",
       label: "Mã phiếu",
@@ -897,6 +894,19 @@ function OutsourcingHistory({ type, orders, products }) {
     },
     getAuditColumn()
   ];
+
+  if (type === 'PACKAGING') {
+     columns = [
+       { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-zinc-700 max-w-[150px] truncate", format: (val) => val || "—" },
+       { id: "product_name", label: "Gồm Mã hàng", className: "font-medium max-w-[150px] truncate", format: (val) => val || "—" },
+       { id: "quantity_out", label: "Đã đóng gói", className: "font-black text-blue-600 tabular-nums text-right", format: (val) => parseFloat(val).toLocaleString() },
+       { id: "status", label: "Trạng thái", format: (val) => {
+         if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
+         return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Hoàn thành</Badge>;
+       }},
+       getAuditColumn()
+     ];
+  }
 
   return (
     <div className="space-y-4">

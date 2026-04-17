@@ -71,5 +71,16 @@ export const dailyTicketService = {
             console.error('Error deleting ticket:', error);
             throw error;
         }
+    },
+
+    manualOutput: async (payload) => {
+        try {
+            const { data } = await api.post('/daily-tickets/manual-output', payload);
+            return data;
+        } catch (error) {
+            console.error('Error saving manual output:', error);
+            throw error;
+        }
     }
 };
+

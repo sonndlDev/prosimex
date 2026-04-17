@@ -286,8 +286,9 @@ export const getOrderSummaryReport = async (req, res) => {
           p.name as product_name,
           op.quantity as required_quantity,
           ps.final_op_name,
-          COALESCE((SELECT SUM(actual_quantity) FROM daily_production_ticket_items WHERE order_id = $1 AND product_id = p.id AND product_group_operation_id = ps.start_pgo_id), 0) as started_quantity,
-          COALESCE((SELECT SUM(actual_quantity) FROM daily_production_ticket_items WHERE order_id = $1 AND product_id = p.id AND product_group_operation_id = ps.final_pgo_id), 0) as finished_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.start_pgo_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as started_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.final_pgo_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as finished_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as total_sx_quantity,
           COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
           COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
           COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
@@ -306,7 +307,8 @@ export const getOrderSummaryReport = async (req, res) => {
     const totals = {
       required: details.reduce((sum, row) => sum + parseFloat(row.required_quantity || 0), 0),
       started: details.reduce((sum, row) => sum + parseFloat(row.started_quantity || 0), 0),
-      finished: details.reduce((sum, row) => sum + parseFloat(row.finished_quantity || 0), 0)
+      finished: details.reduce((sum, row) => sum + parseFloat(row.finished_quantity || 0), 0),
+      total_sx: details.reduce((sum, row) => sum + parseFloat(row.total_sx_quantity || 0), 0)
     };
 
     res.json({
@@ -331,6 +333,7 @@ export const createOrder = async (req, res) => {
       product_items,
       product_ids,
       po_customer,
+      po_auto_code,
       received_date,
       delivery_date,
       quantity,
@@ -388,12 +391,10 @@ export const createOrder = async (req, res) => {
       );
     }
 
-    // Business rule: After insert, po_auto_code = PO_{order.id}_{po_customer}
-    const po_auto_code = `PO_${orderId}_${po_customer}`;
-
+    // Insert po_auto_code during creation directly, since it is now manual
     const updateRes = await client.query(
       "UPDATE orders SET po_auto_code = $1 WHERE id = $2 RETURNING *",
-      [po_auto_code, orderId],
+      [po_auto_code || null, orderId],
     );
 
     const newOrder = updateRes.rows[0];
@@ -436,6 +437,7 @@ export const updateOrder = async (req, res) => {
       status,
       product_ids,
       product_items,
+      po_auto_code,
       production_start_date,
       expected_shipping_date,
       expected_container_shipping_date,
@@ -453,10 +455,9 @@ export const updateOrder = async (req, res) => {
     }
     const beforeData = currentOrderRes.rows[0];
 
-    // Re-calculate po_auto_code if po_customer changes
-    let po_auto_code = beforeData.po_auto_code;
-    if (po_customer && po_customer !== beforeData.po_customer) {
-      po_auto_code = `PO_${id}_${po_customer}`;
+    // po_auto_code is now manual, we take it directly from req.body
+    if (po_auto_code === undefined) {
+      po_auto_code = beforeData.po_auto_code;
     }
 
     // Sync Products - support both product_items (new) and product_ids (legacy)

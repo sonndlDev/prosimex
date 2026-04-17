@@ -12,8 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, Loader2, Calendar as CalendarIcon, Check, ChevronsUpDown, Package, Settings, ShoppingCart } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Trash2, Plus, Loader2, Calendar as CalendarIcon, Check, ChevronsUpDown, Package, Settings, ShoppingCart, FileSpreadsheet } from "lucide-react";
 import { PremiumDatePicker } from "../../../components/PremiumDatePicker";
+import { orderService } from "../../../services/order.service";
+import { productService } from "../../../services/product.service";
+import { operationService } from "../../../services/operation.service";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -29,12 +33,28 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watchItems }) => {
+const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watchItems, isManualMode, manualOrders, manualProducts, manualOperations }) => {
   const selectedOrderId = watchItems[index]?.order_id;
   const selectedProductId = watchItems[index]?.product_id;
 
   const availableProducts = useMemo(() => {
     const map = new Map();
+
+    if (isManualMode && manualProducts) {
+      // Add all products uniquely by NAME to avoid visual duplicates
+      manualProducts.forEach(p => {
+        if (!map.has(p.name)) {
+          map.set(p.name, { id: p.id, name: p.name });
+        }
+      });
+      // Optionally fallback context for current value
+      const self = watchItems[index];
+      if (self?.product_id && self?.product_name && !map.has(self.product_name)) {
+        map.set(self.product_name, { id: self.product_id, name: self.product_name });
+      }
+      return Array.from(map.values());
+    }
+
     // From plans
     if (selectedOrderId && plans) {
       plans
@@ -49,9 +69,24 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       map.set(self.product_id, { id: self.product_id, name: self.product_name });
     }
     return Array.from(map.values());
-  }, [selectedOrderId, plans, watchItems, index]);
+  }, [selectedOrderId, plans, watchItems, index, isManualMode, manualProducts]);
 
   const availableOperations = useMemo(() => {
+    const map = new Map();
+
+    if (isManualMode && manualOperations) {
+      manualOperations.forEach(o => {
+        if (!map.has(o.name)) {
+          map.set(o.name, { id: o.id, name: o.name });
+        }
+      });
+      const self = watchItems[index];
+      if (self?.product_group_operation_id && self?.operation_name && !map.has(self.operation_name)) {
+        map.set(self.operation_name, { id: self.product_group_operation_id, name: self.operation_name });
+      }
+      return Array.from(map.values());
+    }
+
     if (!selectedProductId || !plans) return [];
     const ops = plans
       .filter(p => String(p.order_id) === String(selectedOrderId) && String(p.product_id) === String(selectedProductId))
@@ -63,11 +98,25 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       ops.push({ id: self.product_group_operation_id, name: self.operation_name });
     }
     return ops;
-  }, [selectedOrderId, selectedProductId, plans, watchItems, index]);
+  }, [selectedOrderId, selectedProductId, plans, watchItems, index, isManualMode, manualOperations]);
 
   // Derive order name from plans OR from the current form item (for backup during loading/editing)
   const uniqueOrders = useMemo(() => {
     const map = new Map();
+
+    if (isManualMode && manualOrders) {
+      manualOrders.forEach(o => {
+        if (!map.has(o.id)) {
+          map.set(o.id, { id: o.id, name: o.order_code || o.name || `#${o.id}` });
+        }
+      });
+      const self = watchItems[index];
+      if (self?.order_id && self?.order_name && !map.has(self.order_id)) {
+        map.set(self.order_id, { id: self.order_id, name: self.order_name });
+      }
+      return Array.from(map.values());
+    }
+
     // 1. Add from plans (the live pool)
     plans?.forEach(p => {
       if (!map.has(p.order_id)) {
@@ -80,7 +129,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       map.set(self.order_id, { id: self.order_id, name: self.order_name });
     }
     return Array.from(map.values());
-  }, [plans, watchItems, index]);
+  }, [plans, watchItems, index, isManualMode, manualOrders]);
 
   return (
     <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_36px] gap-2 items-center">
@@ -243,7 +292,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
 export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
   const queryClient = useQueryClient();
   const { control, handleSubmit, watch, reset, setValue } = useForm({
-    defaultValues: { ticket_date: DateTime.local().toISODate(), items: [] },
+    defaultValues: { ticket_date: DateTime.local().toISODate(), is_manual: false, items: [] },
   });
 
   const { data: ticket } = useQuery({
@@ -256,19 +305,25 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const ticketDate = watch("ticket_date");
   const watchItems = watch("items");
+  const watchIsManual = watch("is_manual");
 
   const { data: plansData } = useQuery({
     queryKey: ["plans-by-date", ticketDate],
     queryFn: () => planningService.getAll({ working_date: ticketDate, limit: 100 }),
-    enabled: !!ticketDate && open,
+    enabled: !!ticketDate && open && !watchIsManual,
   });
   const plans = plansData?.data || [];
+
+  const { data: manualOrdersResp } = useQuery({ queryKey: ["all-orders"], queryFn: () => orderService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
+  const { data: manualProductsResp } = useQuery({ queryKey: ["all-products"], queryFn: () => productService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
+  const { data: manualOperationsResp } = useQuery({ queryKey: ["all-operations"], queryFn: () => operationService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
 
   useEffect(() => {
     if (!open) { reset({ ticket_date: DateTime.local().toISODate(), items: [] }); return; }
     if (ticketId && ticket) {
       reset({
         ticket_date: DateTime.fromISO(ticket.ticket_date).toISODate(),
+        is_manual: ticket.is_manual || false,
         items: ticket.items?.map(item => ({
           order_id: item.order_id || "",
           order_name: item.order_name || item.order_code || "",
@@ -279,7 +334,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           planned_quantity: item.planned_quantity ? parseFloat(item.planned_quantity) : "",
         })) || [],
       });
-    } else if (!ticketId) { reset({ ticket_date: DateTime.local().toISODate(), items: [] }); }
+    } else if (!ticketId) { reset({ ticket_date: DateTime.local().toISODate(), is_manual: false, items: [] }); }
   }, [open, ticket, ticketId, reset]);
 
   const createMutation = useMutation({
@@ -351,7 +406,12 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
             <div className="space-y-2">
               {fields.map((field, index) => (
                 <TicketRow key={field.id} index={index} control={control} setValue={setValue}
-                  remove={remove} plans={plans} isCompleted={isCompleted} watchItems={watchItems} />
+                  remove={remove} plans={plans} isCompleted={isCompleted} watchItems={watchItems}
+                  isManualMode={watchIsManual}
+                  manualOrders={manualOrdersResp?.data}
+                  manualProducts={manualProductsResp?.data}
+                  manualOperations={manualOperationsResp?.data}
+                />
               ))}
             </div>
           </div>

@@ -98,7 +98,7 @@ const PlanningFormDialog = React.memo(
       startDate: "",
       endDate: "",
       manualDinhMuc: "",
-      selectedMachineId: "",
+      selectedMachineIds: [],
       isFullOrderMode: false,
       plannedDays: [],
       case2Items: [],
@@ -128,7 +128,7 @@ const PlanningFormDialog = React.memo(
     const startDate = watch("startDate");
     const endDate = watch("endDate");
     const manualDinhMuc = watch("manualDinhMuc");
-    const selectedMachineId = watch("selectedMachineId");
+    const selectedMachineIds = watch("selectedMachineIds") || [];
     const isFullOrderMode = watch("isFullOrderMode");
     const plannedDays = watch("plannedDays");
     const case2Items = watch("case2Items");
@@ -210,6 +210,12 @@ const PlanningFormDialog = React.memo(
     // Reset form when opening/closing or switching between create/edit
     useEffect(() => {
       if (open && editingPlan) {
+        // Hỗ trợ cả machine_id (cũ) lẫn machine_ids (mới)
+        const machineIds = editingPlan.machine_ids
+          ? editingPlan.machine_ids.map(String)
+          : editingPlan.machine_id
+            ? [String(editingPlan.machine_id)]
+            : [];
         reset({
           selectedOrderId: editingPlan.order_id,
           selectedProductId: editingPlan.product_id,
@@ -220,7 +226,7 @@ const PlanningFormDialog = React.memo(
           manualDinhMuc: editingPlan.dinh_muc || "",
           startDate: DateTime.fromISO(editingPlan.planned_start_date).toISODate(),
           endDate: DateTime.fromISO(editingPlan.planned_end_date).toISODate(),
-          selectedMachineId: editingPlan.machine_id || "",
+          selectedMachineIds: machineIds,
           isFullOrderMode: editingPlan.is_full_order_mode || false,
           plannedDays: editingPlan.days.map((d) => ({
             date: DateTime.fromISO(d.working_date).toISODate(),
@@ -239,7 +245,7 @@ const PlanningFormDialog = React.memo(
           startDate: "",
           endDate: "",
           manualDinhMuc: "",
-          selectedMachineId: "",
+          selectedMachineIds: [],
           isFullOrderMode: false,
           plannedDays: [],
           case2Items: [],
@@ -346,16 +352,15 @@ const PlanningFormDialog = React.memo(
       replaceCase2(currentItems);
     };
 
-    // Auto-calculate schedule: use debounced value to avoid lag on rapid input
     useEffect(() => {
       if (startDate && debouncedTotalDaysNeeded > 0 && !isFullOrderMode) {
-        const newDays = autoCalculateSchedule(debouncedTotalDaysNeeded, startDate);
+        const newDays = autoCalculateSchedule(debouncedTotalDaysNeeded, startDate, [], selectedMachineIds);
         replaceDays(newDays);
       }
-    }, [debouncedTotalDaysNeeded, startDate, isFullOrderMode]);
+    }, [debouncedTotalDaysNeeded, startDate, isFullOrderMode, selectedMachineIds]);
 
     const handleDayChange = (index, value) => {
-      const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded);
+      const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded, selectedMachineIds);
       replaceDays(newDays);
     };
 
@@ -373,23 +378,22 @@ const PlanningFormDialog = React.memo(
     const handleStartDateChange = (val) => {
       setValue("startDate", val);
       if (val && totalDaysNeeded > 0 && !isFullOrderMode) {
-        const newDays = autoCalculateSchedule(totalDaysNeeded, val);
+        const newDays = autoCalculateSchedule(totalDaysNeeded, val, [], selectedMachineIds);
         replaceDays(newDays);
       }
     };
 
     const handleFormSubmit = () => {
-      const data = {
+      const baseData = {
         isFullOrderMode,
         order_id: selectedOrderId,
-        machine_id: selectedMachineId || null,
         factory_id: isOutsourced ? (selectedFactoryId || null) : null,
         is_outsourced: isOutsourced,
       };
 
       if (isFullOrderMode) {
         onSubmit({
-          ...data,
+          ...baseData,
           planned_start_date: startDate,
           endDate: endDate,
           items: case2Items.filter((i) => i.isSelected),
@@ -397,8 +401,40 @@ const PlanningFormDialog = React.memo(
         return;
       }
 
+      // Nếu tạo mới và chọn nhiều máy -> Tách thành nhiều kế hoạch
+      if (!editingPlan && selectedMachineIds.length > 1) {
+        selectedMachineIds.forEach(mId => {
+          const mDays = plannedDays
+            .filter(d => d.machineHours?.[mId] && parseFloat(d.machineHours[mId]) > 0)
+            .map(d => ({
+              date: d.date,
+              hours: (parseFloat(d.machineHours[mId]) * 8).toFixed(2),
+              is_overtime: d.is_overtime || false,
+            }));
+
+          if (mDays.length > 0) {
+            onSubmit({
+              ...baseData,
+              machine_id: mId,
+              machine_ids: [mId],
+              product_id: selectedProductId || null,
+              product_group_operation_id: selectedOpId || null,
+              inventory_input: inventory,
+              dinh_muc: dinhMuc,
+              planned_start_date: mDays[0].date,
+              endDate: mDays[mDays.length - 1].date,
+              days: mDays,
+            });
+          }
+        });
+        return;
+      }
+
+      // Trường hợp sửa hoặc chỉ 1 máy (hoặc dự phòng)
       onSubmit({
-        ...data,
+        ...baseData,
+        machine_ids: selectedMachineIds.length > 0 ? selectedMachineIds : null,
+        machine_id: selectedMachineIds.length > 0 ? selectedMachineIds[0] : null,
         product_id: selectedProductId || null,
         product_group_operation_id: selectedOpId || null,
         inventory_input: inventory,
@@ -406,11 +442,12 @@ const PlanningFormDialog = React.memo(
         planned_start_date: startDate,
         endDate: endDate,
         days: plannedDays
-          .filter((d) => parseFloat(d.hours) > 0)
+          .filter((d) => parseFloat(d.hours) > 0 || (d.machineHours && Object.values(d.machineHours).some(h => parseFloat(h) > 0)))
           .map((d) => ({
             date: d.date,
             hours: (parseFloat(d.hours) * 8).toFixed(2),
             is_overtime: d.is_overtime || false,
+            machine_hours: d.machineHours || {},
           })),
       });
     };
@@ -437,7 +474,7 @@ const PlanningFormDialog = React.memo(
           <div className="flex-1 overflow-auto bg-white/50">
             <div className="p-6 space-y-8">
               {/* Tabs for Mode selection */}
-              <Tabs
+              {/* <Tabs
                 value={isFullOrderMode ? "full" : "single"}
                 onValueChange={(val) => {
                   const currentOrder = selectedOrderId;
@@ -469,7 +506,7 @@ const PlanningFormDialog = React.memo(
                     Tạo theo đơn chung (Case 2)
                   </TabsTrigger>
                 </TabsList>
-              </Tabs>
+              </Tabs> */}
 
               {/* Steps 1-3: Linear Workflow Layout */}
               <div className="relative space-y-8">
@@ -526,9 +563,16 @@ const PlanningFormDialog = React.memo(
                                       key={o.id}
                                       value={o.name}
                                       onSelect={() => {
+                                        if (String(o.id) === String(field.value)) return;
                                         field.onChange(String(o.id));
                                         setValue("selectedProductId", "");
                                         setValue("selectedOpId", "");
+                                        setValue("selectedMachineIds", []);
+                                        setValue("startDate", "");
+                                        setValue("endDate", "");
+                                        setValue("manualDinhMuc", "");
+                                        setValue("inventory", 0);
+                                        replaceDays([]);
                                       }}
                                       className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                                     >
@@ -595,8 +639,14 @@ const PlanningFormDialog = React.memo(
                                         key={p.id}
                                         value={p.name}
                                         onSelect={() => {
+                                          if (String(p.id) === String(field.value)) return;
                                           field.onChange(String(p.id));
                                           setValue("selectedOpId", "");
+                                          setValue("selectedMachineIds", []);
+                                          setValue("startDate", "");
+                                          setValue("endDate", "");
+                                          setValue("manualDinhMuc", "");
+                                          replaceDays([]);
                                         }}
                                         className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                                       >
@@ -663,7 +713,12 @@ const PlanningFormDialog = React.memo(
                                           key={op.id}
                                           value={op.operation_name}
                                           onSelect={() => {
+                                            if (String(op.id) === String(field.value)) return;
                                             field.onChange(String(op.id));
+                                            setValue("selectedMachineIds", []);
+                                            setValue("startDate", "");
+                                            setValue("endDate", "");
+                                            replaceDays([]);
                                           }}
                                           className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                                         >
@@ -683,18 +738,34 @@ const PlanningFormDialog = React.memo(
                         />
                       </div>
 
-                      {/* Step 4: Machine (Inside Single Mode) */}
+                      {/* Step 4: Machine Multi-Select (Inside Single Mode) */}
                       <div className="flex flex-col gap-3 group">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3b</div>
                           <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất</Label>
+                          {selectedMachineIds.length > 0 && (
+                            <Badge className="text-[9px] font-black bg-amber-100 text-amber-700 border-amber-200 px-1.5 py-0.5">
+                              {selectedMachineIds.length} máy
+                            </Badge>
+                          )}
                         </div>
                         <Controller
-                          name="selectedMachineId"
+                          name="selectedMachineIds"
                           control={control}
                           render={({ field }) => {
                             const availableMachineIds = (selectedOp?.machine_ids || (selectedOp?.machine_id ? [selectedOp.machine_id] : [])).map(String);
                             const availableMachines = selectedOp ? machines?.filter(m => availableMachineIds.includes(String(m.id))) : [];
+                            const currentIds = field.value || [];
+
+                            const toggleMachine = (id) => {
+                              const sid = String(id);
+                              const next = currentIds.includes(sid)
+                                ? currentIds.filter(x => x !== sid)
+                                : [...currentIds, sid];
+                              field.onChange(next);
+                              // Clear ngày khi thay đổi máy
+                              replaceDays([]);
+                            };
 
                             return (
                               <Popover>
@@ -714,7 +785,10 @@ const PlanningFormDialog = React.memo(
                                         <Cpu className="h-4 w-4 text-amber-600" />
                                       </div>
                                       <span className="truncate leading-tight">
-                                        {machines?.find(m => String(m.id) === String(field.value))?.name || (!selectedOp ? "Hãy chọn công đoạn" : (!isOutsourced ? "Chọn máy..." : "Gia công ngoài"))}
+                                        {currentIds.length === 0
+                                          ? (!selectedOp ? "Hãy chọn công đoạn" : (!isOutsourced ? "Chọn máy..." : "Gia công ngoài"))
+                                          : currentIds.map(id => machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
+                                        }
                                       </span>
                                     </div>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
@@ -726,20 +800,26 @@ const PlanningFormDialog = React.memo(
                                     <CommandList className="max-h-[300px] p-1">
                                       <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có máy</CommandEmpty>
                                       <CommandGroup>
-                                        {availableMachines?.map((m) => (
-                                          <CommandItem
-                                            key={m.id}
-                                            value={m.name}
-                                            onSelect={() => field.onChange(String(m.id))}
-                                            className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                                          >
-                                            <div className="flex flex-col gap-0.5">
-                                              <span className="text-xs font-bold">{m.name}</span>
-                                              <span className="text-[10px] text-zinc-400 font-medium">Khu vực: Xưởng 1 • Công nghệ: {m.type || "Tiện/Phay"}</span>
-                                            </div>
-                                            <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(m.id) ? "opacity-100" : "opacity-0")} />
-                                          </CommandItem>
-                                        ))}
+                                        {availableMachines?.map((m) => {
+                                          const isChecked = currentIds.includes(String(m.id));
+                                          return (
+                                            <CommandItem
+                                              key={m.id}
+                                              value={m.name}
+                                              onSelect={() => toggleMachine(m.id)}
+                                              className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors mb-1 last:mb-0"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <Checkbox checked={isChecked} className="pointer-events-none" />
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="text-xs font-bold">{m.name}</span>
+                                                  <span className="text-[10px] text-zinc-400 font-medium">Công nghệ: {m.type || "Tiện/Phay"}</span>
+                                                </div>
+                                              </div>
+                                              {isChecked && <Check className="h-4 w-4 text-indigo-600" />}
+                                            </CommandItem>
+                                          );
+                                        })}
                                       </CommandGroup>
                                     </CommandList>
                                   </Command>
@@ -757,59 +837,84 @@ const PlanningFormDialog = React.memo(
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">3</div>
                         <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">Máy sản xuất chung</Label>
+                        {selectedMachineIds.length > 0 && (
+                          <Badge className="text-[9px] font-black bg-amber-100 text-amber-700 border-amber-200 px-1.5 py-0.5">
+                            {selectedMachineIds.length} máy
+                          </Badge>
+                        )}
                       </div>
                       <Controller
-                        name="selectedMachineId"
+                        name="selectedMachineIds"
                         control={control}
-                        render={({ field }) => (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                disabled={isOutsourced}
-                                className={cn(
-                                  "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
-                                  "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5"
-                                )}
-                              >
-                                <div className="flex items-center gap-3 truncate">
-                                  <div className="p-2 bg-amber-50 rounded-lg shrink-0">
-                                    <Cpu className="h-4 w-4 text-amber-600" />
+                        render={({ field }) => {
+                          const currentIds = field.value || [];
+                          const toggleMachine = (id) => {
+                            const sid = String(id);
+                            const next = currentIds.includes(sid)
+                              ? currentIds.filter(x => x !== sid)
+                              : [...currentIds, sid];
+                            field.onChange(next);
+                            replaceDays([]);
+                          };
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  disabled={isOutsourced}
+                                  className={cn(
+                                    "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                    "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3 truncate">
+                                    <div className="p-2 bg-amber-50 rounded-lg shrink-0">
+                                      <Cpu className="h-4 w-4 text-amber-600" />
+                                    </div>
+                                    <span className="truncate leading-tight">
+                                      {currentIds.length === 0
+                                        ? (!isOutsourced ? "Chọn máy..." : "Gia công ngoài")
+                                        : currentIds.map(id => machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
+                                      }
+                                    </span>
                                   </div>
-                                  <span className="truncate leading-tight">
-                                    {machines?.find(m => String(m.id) === String(field.value))?.name || (!isOutsourced ? "Chọn máy..." : "Gia công ngoài")}
-                                  </span>
-                                </div>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                              <Command className="w-full">
-                                <CommandInput placeholder="Tìm máy..." className="h-11" />
-                                <CommandList className="max-h-[300px] p-1">
-                                  <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
-                                  <CommandGroup>
-                                    {machines?.map((m) => (
-                                      <CommandItem
-                                        key={m.id}
-                                        value={m.name}
-                                        onSelect={() => field.onChange(String(m.id))}
-                                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                                      >
-                                        <div className="flex flex-col gap-0.5">
-                                          <span className="text-xs font-bold">{m.name}</span>
-                                          <span className="text-[10px] text-zinc-400 font-medium font-medium">Máy sản xuất xưởng</span>
-                                        </div>
-                                        <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(m.id) ? "opacity-100" : "opacity-0")} />
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        )}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                                <Command className="w-full">
+                                  <CommandInput placeholder="Tìm máy..." className="h-11" />
+                                  <CommandList className="max-h-[300px] p-1">
+                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
+                                    <CommandGroup>
+                                      {machines?.map((m) => {
+                                        const isChecked = currentIds.includes(String(m.id));
+                                        return (
+                                          <CommandItem
+                                            key={m.id}
+                                            value={m.name}
+                                            onSelect={() => toggleMachine(m.id)}
+                                            className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-colors mb-1 last:mb-0"
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <Checkbox checked={isChecked} className="pointer-events-none" />
+                                              <div className="flex flex-col gap-0.5">
+                                                <span className="text-xs font-bold">{m.name}</span>
+                                                <span className="text-[10px] text-zinc-400 font-medium">Máy sản xuất xưởng</span>
+                                              </div>
+                                            </div>
+                                            {isChecked && <Check className="h-4 w-4 text-indigo-600" />}
+                                          </CommandItem>
+                                        );
+                                      })}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        }}
                       />
                     </div>
                   )}
@@ -930,7 +1035,7 @@ const PlanningFormDialog = React.memo(
               )}
 
               {/* Summary Area for Single Item Mode */}
-              {selectedOrderId && (selectedOp || (!selectedOpId && !isFullOrderMode)) && (
+              {selectedOrderId && !isFullOrderMode && selectedOpId && (
                 <Card className="border-zinc-200 bg-white shadow-md overflow-hidden border-l-4 border-l-emerald-500">
                   <CardContent className="p-6">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 group">
@@ -969,8 +1074,10 @@ const PlanningFormDialog = React.memo(
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
                           <Cpu className="w-3 h-3 text-emerald-500" /> MÁY PHỤ TRÁCH
                         </span>
-                        <div className="text-lg font-black text-zinc-950 mt-0.5">
-                          {machines?.find(m => String(m.id) === String(selectedMachineId))?.name || selectedOp?.machine_names || selectedOp?.machine_name || (selectedOpId === "" ? "N/A" : "---")}
+                        <div className={`text-lg font-black mt-0.5 ${selectedMachineIds.length > 0 ? "text-zinc-950" : "text-zinc-300"}`}>
+                          {selectedMachineIds.length > 0
+                            ? selectedMachineIds.map(id => machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
+                            : "Chưa chọn"}
                         </div>
                       </div>
 
@@ -1017,7 +1124,7 @@ const PlanningFormDialog = React.memo(
                       <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex flex-col items-center justify-center">
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">TỔNG CÔNG CẦN</span>
                         <div className="text-3xl font-black text-indigo-600 tabular-nums">
-                          {Math.round(totalDaysNeeded).toLocaleString('en-US')}
+                          {totalDaysNeeded.toLocaleString('en-US')}
                         </div>
                       </div>
                     </div>
@@ -1097,7 +1204,7 @@ const PlanningFormDialog = React.memo(
               )}
 
               {/* Schedule / Time Section */}
-              {selectedOrderId && (selectedOpId !== "" || !selectedProductId || isFullOrderMode) && (
+              {selectedOrderId && (selectedOpId || isFullOrderMode) && (
                 <div className="space-y-6">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-indigo-600" />
@@ -1139,74 +1246,147 @@ const PlanningFormDialog = React.memo(
                           <Plus className="w-3.5 h-3.5" /> Thêm ngày
                         </Button>
                       </div>
-                      <div className="divide-y divide-zinc-200/50 max-h-64 overflow-y-auto">
+
+                      {/* Header row with machine columns */}
+                      {selectedMachineIds.length > 1 && (
+                        <div
+                          className="grid gap-2 px-4 py-2 bg-amber-50/60 border-b border-amber-100 text-[10px] font-black text-amber-700 uppercase tracking-tighter"
+                          style={{ gridTemplateColumns: `160px repeat(${selectedMachineIds.length}, 1fr) 130px 60px` }}
+                        >
+                          <div>Ngày</div>
+                          {selectedMachineIds.map(id => (
+                            <div key={id} className="text-center">
+                              {machines?.find(m => String(m.id) === id)?.name || id}
+                            </div>
+                          ))}
+                          <div className="text-center">Tăng ca</div>
+                          <div />
+                        </div>
+                      )}
+
+                      <div className="divide-y divide-zinc-200/50 max-h-72 overflow-y-auto">
                         {plannedDays.length === 0 ? (
                           <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
                             <AlertCircle className="w-8 h-8 mb-2 opacity-20" />
                             <p className="text-xs font-bold">Chưa có ngày nào được xác định</p>
                           </div>
                         ) : (
-                          plannedDays.map((day, idx) => (
-                            <div key={idx} className="flex items-center gap-4 px-4 py-3 bg-white group hover:bg-zinc-50/50 transition-colors">
-                              <div className="w-[140px]">
-                                <PremiumDatePicker
-                                  date={day.date}
-                                  onSelect={(val) => {
-                                    const newDays = [...plannedDays];
-                                    newDays[idx] = { ...newDays[idx], date: val };
-                                    replaceDays(newDays);
-                                  }}
-                                />
-                              </div>
-
-                              <div className="flex-1 flex justify-center">
-                                <div className="flex flex-col items-center relative gap-0.5">
-                                  <span className="text-[7px] font-black uppercase text-zinc-300 absolute -top-3">Số công</span>
-                                  <ManagedTextField
-                                    type="number"
-                                    value={day.hours}
-                                    onCommit={(val) => handleDayChange(idx, val)}
-                                    className="w-20 border-zinc-100 shadow-none hover:bg-zinc-100 transition-colors font-black text-indigo-600"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-6 pr-2">
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={`ot-${idx}`}
-                                    checked={day.is_overtime}
-                                    onCheckedChange={(checked) => {
+                          plannedDays.map((day, idx) => {
+                            const hasMultiMachines = selectedMachineIds.length > 1;
+                            return (
+                              <div
+                                key={idx}
+                                className={cn(
+                                  "items-center gap-2 px-4 py-3 bg-white group hover:bg-zinc-50/50 transition-colors",
+                                  hasMultiMachines ? "grid" : "flex gap-4"
+                                )}
+                                style={hasMultiMachines ? { gridTemplateColumns: `160px repeat(${selectedMachineIds.length}, 1fr) 130px 60px` } : undefined}
+                              >
+                                {/* Date picker */}
+                                <div className={hasMultiMachines ? "" : "w-[140px]"}>
+                                  <PremiumDatePicker
+                                    date={day.date}
+                                    onSelect={(val) => {
                                       const newDays = [...plannedDays];
-                                      newDays[idx] = { ...newDays[idx], is_overtime: !!checked };
-                                      let nextVal = parseFloat(newDays[idx].hours);
-                                      if (checked && nextVal >= 1.0) nextVal = 1.43;
-                                      if (!checked && nextVal > 1.0) nextVal = 1.0;
-                                      const recalculated = rebalanceDays(newDays, idx, nextVal.toString(), totalDaysNeeded);
-                                      replaceDays(recalculated);
+                                      newDays[idx] = { ...newDays[idx], date: val };
+                                      replaceDays(newDays);
                                     }}
                                   />
-                                  <Label htmlFor={`ot-${idx}`} className="text-[10px] font-black uppercase cursor-pointer text-zinc-500">Tăng ca</Label>
                                 </div>
 
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const newDays = [...plannedDays];
-                                    newDays.splice(idx, 1);
-                                    replaceDays(newDays);
-                                  }}
-                                  className="h-7 w-7 text-zinc-300 hover:text-red-500 rounded-full"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {/* Machine-specific hours OR single hours */}
+                                {hasMultiMachines ? (
+                                  selectedMachineIds.map(machineId => (
+                                    <div key={machineId} className="flex justify-center">
+                                      <div className="flex flex-col items-center gap-0.5">
+                                        <ManagedTextField
+                                          type="number"
+                                          value={day.machineHours?.[machineId] ?? ""}
+                                          onCommit={(val) => {
+                                            const newDays = [...plannedDays];
+                                            const mh = { ...(newDays[idx].machineHours || {}) };
+                                            mh[machineId] = val;
+                                            // Tổng số công = tổng các máy
+                                            const total = selectedMachineIds.reduce((s, mid) => s + parseFloat(mh[mid] || 0), 0);
+                                            newDays[idx] = { ...newDays[idx], machineHours: mh, hours: total.toString() };
+                                            replaceDays(newDays);
+                                          }}
+                                          className="w-16 border-zinc-100 shadow-none hover:bg-zinc-100 transition-colors font-black text-indigo-600 text-center"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="flex-1 flex justify-center">
+                                    <div className="flex flex-col items-center relative gap-0.5">
+                                      <span className="text-[7px] font-black uppercase text-zinc-300 absolute -top-3">Số công</span>
+                                      <ManagedTextField
+                                        type="number"
+                                        value={day.hours}
+                                        onCommit={(val) => handleDayChange(idx, val)}
+                                        className="w-20 border-zinc-100 shadow-none hover:bg-zinc-100 transition-colors font-black text-indigo-600"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Tăng ca + Delete */}
+                                <div className={cn("flex items-center gap-4", hasMultiMachines ? "justify-center" : "gap-6 pr-2")}>
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`ot-${idx}`}
+                                      checked={day.is_overtime}
+                                      onCheckedChange={(checked) => {
+                                        const newDays = [...plannedDays];
+                                        newDays[idx] = { ...newDays[idx], is_overtime: !!checked };
+                                        let nextVal = parseFloat(newDays[idx].hours);
+                                        if (checked && nextVal >= 1.0) nextVal = 1.43;
+                                        if (!checked && nextVal > 1.0) nextVal = 1.0;
+                                        const recalculated = rebalanceDays(newDays, idx, nextVal.toString(), totalDaysNeeded, selectedMachineIds);
+                                        replaceDays(recalculated);
+                                      }}
+                                    />
+                                    <Label htmlFor={`ot-${idx}`} className="text-[10px] font-black uppercase cursor-pointer text-zinc-500">Tăng ca</Label>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-center">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const newDays = [...plannedDays];
+                                      newDays.splice(idx, 1);
+                                      replaceDays(newDays);
+                                    }}
+                                    className="h-7 w-7 text-zinc-300 hover:text-red-500 rounded-full"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
+
+                      {/* Footer: tổng số công theo máy */}
+                      {selectedMachineIds.length > 1 && plannedDays.length > 0 && (
+                        <div
+                          className="grid gap-2 px-4 py-2.5 bg-indigo-50/60 border-t border-indigo-100 text-[10px] font-black text-indigo-700"
+                          style={{ gridTemplateColumns: `160px repeat(${selectedMachineIds.length}, 1fr) 130px 60px` }}
+                        >
+                          <div className="uppercase tracking-tighter">Tổng</div>
+                          {selectedMachineIds.map(machineId => (
+                            <div key={machineId} className="text-center tabular-nums">
+                              {plannedDays.reduce((s, d) => s + parseFloat(d.machineHours?.[machineId] || 0), 0).toFixed(1)} công
+                            </div>
+                          ))}
+                          <div />
+                          <div />
+                        </div>
+                      )}
                     </Card>
                   )}
                 </div>

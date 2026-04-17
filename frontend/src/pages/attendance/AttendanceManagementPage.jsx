@@ -133,101 +133,109 @@ export default function AttendanceManagementPage() {
         </div>
       </div>
 
-      {/* Filter Card */}
-      <Card className="border-zinc-200 shadow-sm">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-zinc-500 uppercase">Nhân viên</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full h-10 justify-between bg-white border-zinc-200 font-bold"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <User className="h-4 w-4 text-indigo-500 shrink-0" />
-                      <span className="truncate">
-                        {!filters.targetUserId || filters.targetUserId === 'ALL_USERS'
-                          ? "Tất cả nhân viên"
-                          : users?.find(u => String(u.id) === String(filters.targetUserId))?.username}
-                      </span>
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                  <Command className="w-full">
-                    <CommandInput placeholder="Tìm nhân viên..." />
-                    <CommandList className="max-h-[300px] p-1">
-                      <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhân viên</CommandEmpty>
-                      <CommandGroup>
+      {/* Filter Bar */}
+      <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+        <div className="flex flex-col xl:flex-row items-center gap-4">
+          {/* Employee Picker */}
+          <div className="w-full xl:w-[320px] shrink-0">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">NV:</span>
+                    <span className="truncate text-xs">
+                      {!filters.targetUserId || filters.targetUserId === 'ALL_USERS'
+                        ? "Tất cả nhân viên"
+                        : users?.find(u => String(u.id) === String(filters.targetUserId))?.username}
+                    </span>
+                  </div>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                <Command className="w-full">
+                  <CommandInput placeholder="Tìm nhân viên..." />
+                  <CommandList className="max-h-[300px] p-1">
+                    <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhân viên</CommandEmpty>
+                    <CommandGroup>
+                      {/* ... Items ... */}
+                      <CommandItem
+                        value="ALL_USERS"
+                        onSelect={() => handleFilterChange('targetUserId', 'ALL_USERS')}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      >
+                        <span className="text-xs font-bold">Tất cả nhân viên</span>
+                        <Check className={cn("h-4 w-4 text-indigo-600", filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0")} />
+                      </CommandItem>
+                      {users?.map((user) => (
                         <CommandItem
-                          value="ALL_USERS"
-                          onSelect={() => handleFilterChange('targetUserId', 'ALL_USERS')}
+                          key={user.id}
+                          value={user.username}
+                          onSelect={() => handleFilterChange('targetUserId', String(user.id))}
                           className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                         >
-                          <span className="text-xs font-bold">Tất cả nhân viên</span>
-                          <Check
-                            className={cn(
-                              "h-4 w-4 text-indigo-600",
-                              filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0"
-                            )}
-                          />
+                          <span className="text-xs font-bold">{user.username}</span>
+                          <Check className={cn("h-4 w-4 text-indigo-600", String(filters.targetUserId) === String(user.id) ? "opacity-100" : "opacity-0")} />
                         </CommandItem>
-                        {users?.map((user) => (
-                          <CommandItem
-                            key={user.id}
-                            value={user.username}
-                            onSelect={() => handleFilterChange('targetUserId', String(user.id))}
-                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                          >
-                            <span className="text-xs font-bold">{user.username}</span>
-                            <Check
-                              className={cn(
-                                "h-4 w-4 text-indigo-600",
-                                String(filters.targetUserId) === String(user.id) ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-zinc-500 uppercase">Từ ngày</label>
-              <PremiumDatePicker
-                date={filters.startDate}
-                onSelect={(val) => handleFilterChange('startDate', val)}
+          {/* Date Picker Range */}
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Từ:</span>
+              <Input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
               />
             </div>
-
-            <div className="md:col-span-3 space-y-2">
-              <label className="text-xs font-bold text-zinc-500 uppercase">Đến ngày</label>
-              <PremiumDatePicker
-                date={filters.endDate}
-                onSelect={(val) => handleFilterChange('endDate', val)}
+            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Đến:</span>
+              <Input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
               />
-            </div>
-
-            <div className="md:col-span-3 flex gap-2">
-              <Button
-                variant="outline"
-                className="w-full h-10 px-3 font-bold border-zinc-200"
-                onClick={resetFilters}
-              >
-                <FilterX className="w-4 h-4 mr-2 text-zinc-400" />
-                Đặt lại
-              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={resetFilters}
+                    className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-[10px] font-bold">Đặt lại bộ lọc</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <Button
+              className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-md shadow-indigo-100 transition-all active:scale-95"
+              onClick={() => {}}
+            >
+              Lọc kết quả
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* Logs Table with GenericTable */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
