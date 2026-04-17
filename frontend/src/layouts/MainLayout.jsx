@@ -26,7 +26,7 @@ const menuItems = [
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
-  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "warehouse" },
+  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "product_inventory" },
   { text: "Báo cáo KH vs TT", icon: BarChart2, path: "/plan-vs-actual", permission: "daily_tickets_plan" },
 
   { type: "subheader", text: "Dữ liệu gốc" },
