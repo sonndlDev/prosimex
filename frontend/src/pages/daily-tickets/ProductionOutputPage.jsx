@@ -72,18 +72,6 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
 function ManualRow({ index, control, setValue, remove, watchItems, allOrders, allProducts, allOperations }) {
   const row = watchItems[index] || {};
 
-  const productOptions = useMemo(() => {
-    const map = new Map();
-    (allProducts || []).forEach(p => { if (!map.has(p.id)) map.set(p.id, { id: p.id, name: p.name }); });
-    return Array.from(map.values());
-  }, [allProducts]);
-
-  const operationOptions = useMemo(() => {
-    const map = new Map();
-    (allOperations || []).forEach(o => { if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.name }); });
-    return Array.from(map.values());
-  }, [allOperations]);
-
   const orderOptions = useMemo(() => {
     const map = new Map();
     (allOrders || []).forEach(o => {
@@ -92,16 +80,64 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
     return Array.from(map.values());
   }, [allOrders]);
 
+  const productOptions = useMemo(() => {
+    // Nếu đã chọn Đơn hàng, ưu tiên lấy danh sách mã hàng từ chính đơn hàng đó
+    if (row.order_id) {
+      const selectedOrder = (allOrders || []).find(o => String(o.id) === String(row.order_id));
+      if (selectedOrder && selectedOrder.products) {
+        return selectedOrder.products.map(p => ({ id: p.id, name: p.name }));
+      }
+    }
+    
+    // Nếu chưa chọn đơn hàng, không hiện mã hàng nào để tránh nhầm lẫn
+    if (!row.order_id) return [];
+
+    // Fallback nếu không tìm thấy list products trong order (nên hiếm khi xảy ra)
+    const map = new Map();
+    (allProducts || []).forEach(p => { if (!map.has(p.id)) map.set(p.id, { id: p.id, name: p.name }); });
+    return Array.from(map.values());
+  }, [allProducts, allOrders, row.order_id]);
+
+  const operationOptions = useMemo(() => {
+    const map = new Map();
+    (allOperations || []).forEach(o => { if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.name }); });
+    return Array.from(map.values());
+  }, [allOperations]);
+
   return (
     <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_110px_110px_180px_36px] gap-2 items-center">
       {/* Đơn hàng */}
       <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
-        <Combobox value={field.value} onChange={v => { field.onChange(v); }} options={orderOptions} placeholder="Đơn hàng" icon={ShoppingCart} />
+        <Combobox 
+          value={field.value} 
+          onChange={v => { 
+            field.onChange(v); 
+            // Reset mã hàng và công đoạn khi đổi đơn hàng
+            setValue(`items.${index}.product_id`, "");
+            setValue(`items.${index}.product_group_operation_id`, "");
+            setValue(`items.${index}.operation_name`, "");
+          }} 
+          options={orderOptions} 
+          placeholder="Đơn hàng" 
+          icon={ShoppingCart} 
+        />
       )} />
 
       {/* Mã hàng */}
       <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
-        <Combobox value={field.value} onChange={field.onChange} options={productOptions} placeholder="Mã hàng" icon={Package} />
+        <Combobox 
+          value={field.value} 
+          onChange={v => {
+            field.onChange(v);
+            // Reset công đoạn khi đổi mã hàng
+            setValue(`items.${index}.product_group_operation_id`, "");
+            setValue(`items.${index}.operation_name`, "");
+          }} 
+          options={productOptions} 
+          placeholder={row.order_id ? "Mã hàng" : "Chọn đơn hàng trước"} 
+          disabled={!row.order_id} 
+          icon={Package} 
+        />
       )} />
 
       {/* Công đoạn */}
