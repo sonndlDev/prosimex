@@ -45,7 +45,8 @@ export const getTickets = async (req, res) => {
              COALESCE((SELECT SUM(quantity_out) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as quantity_out,
              COALESCE((SELECT SUM(r.quantity_returned) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id), 0) as total_returned,
              (SELECT string_agg(DISTINCT p.name, ', ') FROM outsourcing_ticket_items i JOIN products p ON i.product_id = p.id WHERE i.ticket_id = t.id) as product_name,
-             (SELECT string_agg(DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''), ', ') FROM outsourcing_ticket_items i JOIN orders o ON i.order_id = o.id WHERE i.ticket_id = t.id) as order_code
+             (SELECT string_agg(DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''), ', ') FROM outsourcing_ticket_items i JOIN orders o ON i.order_id = o.id WHERE i.ticket_id = t.id) as order_code,
+             (SELECT string_agg(DISTINCT i.packing_specification, '; ') FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id) as packing_specification
       FROM outsourcing_tickets t
       LEFT JOIN suppliers s ON t.supplier_id = s.id
       LEFT JOIN users cu ON t.created_by = cu.id
@@ -170,8 +171,8 @@ export const createTicket = async (req, res) => {
         for (const item of items) {
             await client.query(
                 `INSERT INTO outsourcing_ticket_items 
-                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
                 [
                   newTicket.id, 
                   item.order_id, 
@@ -182,7 +183,8 @@ export const createTicket = async (req, res) => {
                   item.gross_weight || null, 
                   item.pallet_weight || null, 
                   item.net_weight || null, 
-                  item.notes || null
+                  item.notes || null,
+                  item.packing_specification || null
                 ]
             );
         }

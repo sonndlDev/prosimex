@@ -313,7 +313,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   });
   
   const [items, setItems] = useState([
-    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "" }
+    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -335,7 +335,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   };
 
   const addItem = () => {
-    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "" }]);
+    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }]);
   };
 
   const removeItem = (id) => {
@@ -373,7 +373,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       setCreatedTicket(res);
       toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
       // Reset form
-      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "" }]);
+      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }]);
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -478,8 +478,19 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                            <Input type="number" placeholder="0" className="h-11 font-medium" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
+                            <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
                         </div>
+                        {type === 'PACKAGING' && (
+                          <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
+                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
+                              <Input 
+                                placeholder="VD: 24 cái/thùng" 
+                                className="h-9 font-bold bg-white text-zinc-900 border-zinc-200" 
+                                value={item.packing_specification || ""} 
+                                onChange={e => handleItemChange(item.id, 'packing_specification', e.target.value)} 
+                              />
+                          </div>
+                        )}
                         {type !== 'PACKAGING' && (
                           <div className="space-y-1.5">
                               <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
@@ -830,10 +841,10 @@ function OutsourcingHistory({ type, orders, products }) {
         return;
       }
       const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + 
-        "Mã phiếu,Nhà cung cấp,Gồm Đơn hàng,Gồm Mã hàng,Tổng Xuất,Tổng Về,Trạng thái\n" + 
+        "Mã phiếu,Nhà cung cấp,Gồm Đơn hàng,Gồm Mã hàng,Quy cách,Tổng Xuất,Tổng Về,Trạng thái\n" + 
         exportData.map(e => {
             const statusStr = e.status === 'COMPLETED' ? "Hoàn thành" : (e.status === 'PARTIAL' ? "Một phần" : "Đang chờ");
-            return `"${e.ticket_code}","${e.supplier || ''}","${e.order_code || ''}","${e.product_name || ''}","${e.quantity_out || 0}","${e.total_returned || 0}","${statusStr}"`
+            return `"${e.ticket_code}","${e.supplier || ''}","${e.order_code || ''}","${e.product_name || ''}","${e.packing_specification || ''}","${e.quantity_out || 0}","${e.total_returned || 0}","${statusStr}"`
         }).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -899,6 +910,7 @@ function OutsourcingHistory({ type, orders, products }) {
      columns = [
        { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-zinc-700 max-w-[150px] truncate", format: (val) => val || "—" },
        { id: "product_name", label: "Gồm Mã hàng", className: "font-medium max-w-[150px] truncate", format: (val) => val || "—" },
+       { id: "packing_specification", label: "Quy cách", className: "italic text-[11px] text-zinc-500 max-w-[120px] truncate", format: (val) => val || "—" },
        { id: "quantity_out", label: "Đã đóng gói", className: "font-black text-blue-600 tabular-nums text-right", format: (val) => parseFloat(val).toLocaleString() },
        { id: "status", label: "Trạng thái", format: (val) => {
          if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
