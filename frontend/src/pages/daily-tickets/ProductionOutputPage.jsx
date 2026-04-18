@@ -5,6 +5,7 @@ import { DateTime } from "luxon";
 import { dailyTicketService } from "../../services/daily-ticket.service";
 import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
+import { productGroupService } from "../../services/product-group.service";
 import { operationService } from "../../services/operation.service";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -85,7 +86,11 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
     if (row.order_id) {
       const selectedOrder = (allOrders || []).find(o => String(o.id) === String(row.order_id));
       if (selectedOrder && selectedOrder.products) {
-        return selectedOrder.products.map(p => ({ id: p.id, name: p.name }));
+        return selectedOrder.products.map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          product_group_id: p.product_group_id 
+        }));
       }
     }
     
@@ -94,15 +99,40 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
 
     // Fallback nếu không tìm thấy list products trong order (nên hiếm khi xảy ra)
     const map = new Map();
-    (allProducts || []).forEach(p => { if (!map.has(p.id)) map.set(p.id, { id: p.id, name: p.name }); });
+    (allProducts || []).forEach(p => { 
+      if (!map.has(p.id)) map.set(p.id, { id: p.id, name: p.name, product_group_id: p.product_group_id }); 
+    });
     return Array.from(map.values());
   }, [allProducts, allOrders, row.order_id]);
 
+  // Tìm product_group_id của sản phẩm đang chọn trong dòng này
+  const selectedProduct = useMemo(() => {
+    if (!row.product_id) return null;
+    return productOptions.find(p => String(p.id) === String(row.product_id));
+  }, [productOptions, row.product_id]);
+
+  // Fetch danh sách công đoạn ĐÚNG của nhóm sản phẩm này (để lấy product_group_operation_id hợp lệ)
+  const { data: pgoList, isLoading: isLoadingPgo } = useQuery({
+    queryKey: ["product-group-operations", selectedProduct?.product_group_id],
+    queryFn: () => productGroupService.getOperations(selectedProduct?.product_group_id),
+    enabled: !!selectedProduct?.product_group_id,
+  });
+
   const operationOptions = useMemo(() => {
+    // Ưu tiên dùng list PGO (vì cần ID của bảng product_group_operations để ghi vào DB)
+    if (pgoList && pgoList.length > 0) {
+      return pgoList.map(item => ({
+        id: item.id, // Đây là product_group_operation_id
+        name: item.operation_name
+      }));
+    }
+    
+    // Nếu chưa chọn sản phẩm hoặc không có PGO, dùng fallback allOperations (có thể gây lỗi FK nếu chọn nhầm)
+    // Nhưng do ta đã khóa Combobox nên an toàn hơn
     const map = new Map();
     (allOperations || []).forEach(o => { if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.name }); });
     return Array.from(map.values());
-  }, [allOperations]);
+  }, [pgoList, allOperations]);
 
   return (
     <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_110px_110px_180px_36px] gap-2 items-center">
@@ -149,8 +179,9 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
             const found = operationOptions.find(o => String(o.id) === String(v));
             if (found) setValue(`items.${index}.operation_name`, found.name);
           }}
+          disabled={!row.product_id || isLoadingPgo}
           options={operationOptions}
-          placeholder="Công đoạn"
+          placeholder={!row.product_id ? "Chọn mã hàng trước" : (isLoadingPgo ? "Đang tải..." : "Công đoạn")}
           icon={Settings}
         />
       )} />
