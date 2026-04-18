@@ -578,18 +578,38 @@ export const getPlanVsActualReport = async (req, res) => {
     // Count for pagination
     const countQuery = `
       WITH base_items AS (
-        SELECT order_id, product_id, product_group_operation_id FROM production_plans WHERE deleted_at IS NULL
+        -- Lấy từ Kế hoạch
+        SELECT 
+          order_id, 
+          product_id, 
+          product_group_operation_id,
+          MAX(id) as pp_id
+        FROM production_plans
+        WHERE deleted_at IS NULL
+        GROUP BY order_id, product_id, product_group_operation_id
+
         UNION
-        SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
+
+        -- Lấy từ Thực tế (những thứ không có trong kế hoạch hoặc không link pp_id)
+        SELECT 
+          dti.order_id, 
+          dti.product_id, 
+          dti.product_group_operation_id,
+          NULL as pp_id
         FROM daily_production_ticket_items dti
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
-        WHERE dt.deleted_at IS NULL AND dti.production_plan_id IS NULL
+        WHERE dt.deleted_at IS NULL
+          AND dti.production_plan_id IS NULL
+        GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
       unique_base AS (
-        SELECT order_id, product_id, product_group_operation_id FROM base_items GROUP BY 1, 2, 3
+        SELECT order_id, product_id, product_group_operation_id, MAX(pp_id) as pp_id
+        FROM base_items
+        GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT COUNT(*) as total 
       FROM unique_base base
+      LEFT JOIN production_plans pp ON base.pp_id = pp.id
       LEFT JOIN orders o ON base.order_id = o.id
       LEFT JOIN products p ON base.product_id = p.id
       LEFT JOIN product_group_operations pgo ON base.product_group_operation_id = pgo.id
