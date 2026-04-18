@@ -76,7 +76,8 @@ import {
   LayoutDashboard,
   Search,
   X,
-  RotateCcw
+  RotateCcw,
+  MessageSquare
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
@@ -704,12 +705,12 @@ export default function OrderPage() {
                                 value={String(field.value || "")}
                                 onValueChange={field.onChange}
                               >
-                                <SelectTrigger className="bg-white border-zinc-200 h-10 uppercase font-bold text-xs">
+                                <SelectTrigger className="bg-white border-zinc-200 h-10 uppercase font-bold text-[10px] rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
                                   {["DRAFT", "PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"].map((s) => (
-                                    <SelectItem key={s} value={s} className="uppercase font-bold text-xs">
+                                    <SelectItem key={s} value={s} className="uppercase font-bold text-[10px] rounded-lg py-2.5 px-3 focus:bg-indigo-50 focus:text-indigo-700 transition-colors cursor-pointer mb-0.5 last:mb-0">
                                       {s}
                                     </SelectItem>
                                   ))}
@@ -718,7 +719,7 @@ export default function OrderPage() {
                             )}
                           />
                         ) : (
-                          <div className="bg-zinc-100 border border-zinc-200 rounded-md h-10 flex items-center px-3 font-bold text-zinc-500 text-xs">
+                          <div className="bg-zinc-100/80 border border-zinc-200 rounded-xl h-10 flex items-center px-3 font-bold text-zinc-500 text-[10px] uppercase">
                             DRAFT
                           </div>
                         )}
@@ -801,11 +802,34 @@ export default function OrderPage() {
                         name="customer_confirmation_result"
                         control={control}
                         render={({ field }) => (
-                          <Textarea
-                            {...field}
-                            className="bg-white border-zinc-200 min-h-[60px] resize-none"
-                            placeholder="Nhập kết quả xác nhận của khách hàng..."
-                          />
+                          <Select
+                            value={String(field.value || "")}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger className="w-full h-12 bg-white border-zinc-200 rounded-xl font-bold text-[11px] shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all px-4">
+                              <div className="flex items-center gap-3 truncate">
+                                <MessageSquare className={cn("h-4 w-4 shrink-0", field.value ? "text-indigo-600" : "text-zinc-300")} />
+                                <SelectValue placeholder="Chọn kết quả xác nhận..." />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
+                              {[
+                                "Khách chưa phản hồi",
+                                "Chưa báo khách",
+                                "Khách đã xác nhận",
+                                "Đã báo XNK",
+                                "Theo lịch xuất của xưởng"
+                              ].map((opt) => (
+                                <SelectItem 
+                                  key={opt} 
+                                  value={opt} 
+                                  className="rounded-lg font-bold text-[11px] py-3 px-4 focus:bg-indigo-50 focus:text-indigo-700 transition-all cursor-pointer mb-0.5 last:mb-0"
+                                >
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
                       />
                     </div>
