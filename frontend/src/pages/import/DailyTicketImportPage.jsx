@@ -232,7 +232,7 @@ export default function ImportExcelPage() {
 
               <div className="flex-1 min-h-0 relative flex flex-col">
                 {selectedHistoryLog ? (
-                  <ScrollArea className="flex-1 w-full">
+                  <div className="flex-1 overflow-y-auto w-full">
                     <div className="p-6">
                       <div className="rounded-2xl border border-zinc-200/60 overflow-hidden bg-white">
                         <table className="w-full text-sm text-left">
@@ -264,10 +264,10 @@ export default function ImportExcelPage() {
                         </table>
                       </div>
                     </div>
-                  </ScrollArea>
+                  </div>
                 ) : (
                   <>
-                    <ScrollArea className="flex-1 w-full">
+                    <div className="flex-1 overflow-y-auto w-full">
                       <div className="p-6 space-y-3">
                         {historyLoading ? (
                           <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-zinc-300" /></div>
@@ -328,8 +328,7 @@ export default function ImportExcelPage() {
                           })
                         )}
                       </div>
-                    </ScrollArea>
-                    
+                    </div>
                     {totalPages > 1 && (
                       <div className="p-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
