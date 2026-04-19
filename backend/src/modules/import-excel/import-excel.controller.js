@@ -243,6 +243,14 @@ export const importMasterData = async (req, res) => {
     }
     // ────────────────────────────────────────────────────────────────
 
+    // Include audit log to track the import action
+    if (userId) {
+      await client.query(
+        `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
+         VALUES ($1, 'IMPORT', 'MasterData', 0, $2)`,
+        [userId, JSON.stringify({ summary, rows })]
+      );
+    }
     await client.query("COMMIT");
 
     res.status(201).json({
@@ -255,5 +263,46 @@ export const importMasterData = async (req, res) => {
     res.status(500).json({ message: "Lỗi import: " + error.message });
   } finally {
     client.release();
+  }
+};
+
+export const getImportHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = `
+      FROM audit_logs a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE a.action = 'IMPORT' AND a.entity = 'MasterData'
+    `;
+    const params = [];
+
+    if (search) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      query += ` AND (LOWER(u.username) LIKE $${params.length} OR LOWER(u.full_name) LIKE $${params.length})`;
+    }
+
+    const totalRes = await pool.query(`SELECT COUNT(*) ${query}`, params);
+    const total = parseInt(totalRes.rows[0].count);
+
+    const dataQuery = `
+      SELECT a.*, u.username, u.full_name
+      ${query}
+      ORDER BY a.created_at DESC
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `;
+    const dataRes = await pool.query(dataQuery, [...params, limit, offset]);
+
+    res.json({
+      data: dataRes.rows,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error("Get Import History Error:", error);
+    res.status(500).json({ message: "Lỗi lấy lịch sử." });
   }
 };

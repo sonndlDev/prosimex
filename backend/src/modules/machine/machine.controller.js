@@ -32,7 +32,7 @@ export const getMachines = async (req, res) => {
        LEFT JOIN users cu ON m.created_by = cu.id
        LEFT JOIN users mu ON m.modified_by = mu.id
        ${whereClause}
-       ORDER BY m.created_at DESC
+       ORDER BY m.sort_order ASC, m.name ASC
        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
       [...queryParams, limitInt, offsetInt]
     );
@@ -46,12 +46,12 @@ export const getMachines = async (req, res) => {
 
 export const createMachine = async (req, res) => {
   try {
-    const { code, name, factory_id, capacity_per_day, is_active } = req.body;
+    const { code, name, factory_id, capacity_per_day, is_active, sort_order } = req.body;
     const userId = req.user?.id;
     const result = await pool.query(
-      `INSERT INTO machines (code, name, factory_id, capacity_per_day, is_active, created_by, modified_by) 
-       VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $6) RETURNING *`,
-      [code, name, factory_id, capacity_per_day, is_active, userId]
+      `INSERT INTO machines (code, name, factory_id, capacity_per_day, is_active, sort_order, created_by, modified_by) 
+       VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $7, $7) RETURNING *`,
+      [code, name, factory_id, capacity_per_day, is_active, sort_order || 0, userId]
     );
     const newMachine = result.rows[0];
 
@@ -62,29 +62,53 @@ export const createMachine = async (req, res) => {
 
     res.status(201).json(newMachine);
   } catch (error) {
+    console.error("Create Machine Error:", error);
     if (error.code === '23505') return res.status(400).json({ message: 'Machine code must be unique per factory' });
-    res.status(500).json({ message: 'Error creating machine', error });
+    res.status(500).json({ message: 'Error creating machine', error: error.message });
   }
 };
 
 export const updateMachine = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, capacity_per_day, is_active } = req.body;
+    const { code, name, factory_id, capacity_per_day, is_active, sort_order } = req.body;
     const userId = req.user?.id;
+
+    console.log("UPDATE Machine Request:", { id, userId, body: req.body });
 
     const beforeRes = await pool.query('SELECT * FROM machines WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Machine not found' });
 
+    const updateValues = [
+      code !== undefined ? code : beforeRes.rows[0].code,
+      name !== undefined ? name : beforeRes.rows[0].name,
+      factory_id !== undefined ? factory_id : beforeRes.rows[0].factory_id,
+      capacity_per_day !== undefined ? capacity_per_day : beforeRes.rows[0].capacity_per_day,
+      is_active !== undefined ? is_active : beforeRes.rows[0].is_active,
+      sort_order !== undefined ? sort_order : beforeRes.rows[0].sort_order,
+      id, 
+      userId
+    ];
+
+    console.log("Final Update Values:", updateValues);
+
     const result = await pool.query(
       `UPDATE machines 
-       SET name = COALESCE($1, name), capacity_per_day = COALESCE($2, capacity_per_day), 
-           is_active = COALESCE($3, is_active), updated_at = CURRENT_TIMESTAMP,
-           modified_by = $5, modified_time = CURRENT_TIMESTAMP
-       WHERE id = $4 AND deleted_at IS NULL RETURNING *`,
-      [name, capacity_per_day, is_active, id, userId]
+       SET code = $1,
+           name = $2, 
+           factory_id = $3,
+           capacity_per_day = $4, 
+           is_active = $5,
+           sort_order = $6,
+           updated_at = CURRENT_TIMESTAMP,
+           modified_by = $8, 
+           modified_time = CURRENT_TIMESTAMP
+       WHERE id = $7 AND deleted_at IS NULL RETURNING *`,
+      updateValues
     );
     if (result.rowCount === 0) return res.status(404).json({ message: 'Machine not found' });
+
+    console.log("UPDATE Machine Success:", result.rows[0]);
 
     await pool.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) VALUES ($1, 'UPDATE', 'Machine', $2, $3, $4)`,
@@ -93,7 +117,9 @@ export const updateMachine = async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating machine', error });
+    console.error("Update Machine Error:", error);
+    if (error.code === '23505') return res.status(400).json({ message: 'Machine code must be unique per factory' });
+    res.status(500).json({ message: 'Error updating machine', error: error.message });
   }
 };
 

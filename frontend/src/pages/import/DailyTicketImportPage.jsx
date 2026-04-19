@@ -1,30 +1,36 @@
 import React, { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   FileSpreadsheet, Upload, CheckCircle2,
-  Loader2, FileText, ArrowRight, Info, Database
+  Loader2, FileText, ArrowRight, Info, Database, History, CalendarDays, Download,
+  Search, ChevronLeft, ChevronRight
 } from "lucide-react";
+import { format } from "date-fns";
 import { importExcelService } from "../../services/import-excel.service";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 // ─── Định nghĩa cột Excel ────────────────────────────────────────────────────
 const COLUMNS = [
-  { key: "stt", labels: ["STT", "Số TT", "Số thứ tự", "No", "No."] },
   { key: "customer", labels: ["Khách hàng", "Customer", "KH"] },
-  { key: "product_group", labels: ["Nhóm mã hàng", "Nhóm mã", "Product Group", "Nhom ma hang"] },
+  { key: "stt", labels: ["STT", "Số TT", "Số thứ tự", "No", "No."] },
   { key: "product", labels: ["Tên mã hàng", "Mã hàng", "Product", "Ma hang"] },
+  { key: "product_group", labels: ["Nhóm mã hàng", "Nhóm mã", "Product Group", "Nhom ma hang"] },
   { key: "operation", labels: ["Tên công đoạn", "Công đoạn", "Operation"] },
   { key: "dinh_muc", labels: ["Định mức (SP/ 8h)", "Định mức", "Dinh Muc", "Dinh muc", "Dinh Mức"] },
 ];
 
 const PREVIEW_COLS = [
-  { key: "stt", header: "STT" },
   { key: "customer", header: "Khách hàng" },
-  { key: "product_group", header: "Nhóm mã hàng" },
+  { key: "stt", header: "STT" },
   { key: "product", header: "Tên mã hàng" },
+  { key: "product_group", header: "Nhóm mã hàng" },
   { key: "operation", header: "Công đoạn" },
   { key: "dinh_muc", header: "Định mức" },
 ];
@@ -81,6 +87,49 @@ export default function ImportExcelPage() {
   const [previewData, setPreview] = useState([]);
   const [isParsing, setIsParsing] = useState(false);
   const [summary, setSummary] = useState(null);
+  const [selectedHistoryLog, setSelectedHistoryLog] = useState(null);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const headers = COLUMNS.map(c => c.labels[0]);
+      const data = [
+        headers,
+        ["Khách hàng A", "1", "Mã Hàng 01", "Nhóm RSX", "Công đoạn 01", "100"],
+        ["Khách hàng A", "2", "Mã Hàng 01", "Nhóm RSX", "Công đoạn 02", "150"]
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+      XLSX.writeFile(wb, "Template_Import_MasterData.xlsx");
+    } catch (err) {
+      toast.error("Lỗi khi tạo file mẫu");
+    }
+  };
+
+  const handleDownloadHistory = async (log) => {
+    const rows = log.after_data?.rows;
+    if (!rows || !rows.length) {
+      toast.error("Không có dữ liệu chi tiết để tải");
+      return;
+    }
+    try {
+      const XLSX = await import("xlsx");
+      const headers = PREVIEW_COLS.map(c => c.header);
+      const data = [
+        headers,
+        ...rows.map(r => PREVIEW_COLS.map(c => r[c.key] || ""))
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "History");
+      XLSX.writeFile(wb, `Import_History_${format(new Date(log.created_at), "yyyyMMdd_HHmm")}.xlsx`);
+    } catch (err) {
+      toast.error("Lỗi khi tải file lịch sử");
+    }
+  };
+
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: importExcelService.importMasterData,
@@ -89,6 +138,7 @@ export default function ImportExcelPage() {
       setSummary(data.summary);
       setFile(null);
       setPreview([]);
+      queryClient.invalidateQueries(["import-master-data-history"]);
     },
     onError: (err) => {
       toast.error(err.response?.data?.message || "Lỗi khi import dữ liệu!");
@@ -110,6 +160,18 @@ export default function ImportExcelPage() {
     );
   };
 
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState("");
+
+  const { data: historyRes, isLoading: historyLoading } = useQuery({
+    queryKey: ["import-master-data-history", historyPage, historySearch],
+    queryFn: () => importExcelService.getImportHistory({ page: historyPage, limit: 5, search: historySearch }),
+    keepPreviousData: true
+  });
+
+  const historyData = historyRes?.data || [];
+  const totalPages = historyRes?.totalPages || 1;
+
   return (
     <div className=" mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -119,14 +181,187 @@ export default function ImportExcelPage() {
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
           <FileSpreadsheet className="w-48 h-48" />
         </div>
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 shrink-0">
-            <Database className="w-5 h-5 text-white" />
+        <div className="relative z-10 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100 shrink-0">
+              <Database className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-zinc-950 tracking-tight leading-none">Import Dữ Liệu Gốc</h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-black text-zinc-950 tracking-tight leading-none">Import Dữ Liệu Gốc</h2>
 
-          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="h-11 rounded-2xl border-zinc-200 text-zinc-600 font-bold px-6 gap-2 hover:bg-zinc-50 transition-all">
+                <History className="w-4 h-4 text-zinc-400" />
+                Lịch sử Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[80vw] h-[80vh] p-0 rounded-[32px] border-none overflow-hidden bg-white shadow-2xl flex flex-col">
+              <DialogHeader className="p-6 bg-zinc-50 border-b border-zinc-100 flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  {selectedHistoryLog && (
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedHistoryLog(null)} className="h-8 w-8 shrink-0 hover:bg-zinc-200 rounded-xl">
+                      <ArrowRight className="w-4 h-4 rotate-180" />
+                    </Button>
+                  )}
+                  <DialogTitle className="text-lg font-black text-zinc-900 flex items-center gap-2">
+                    <History className="w-5 h-5 text-emerald-600" />
+                    {selectedHistoryLog ? `Dữ liệu lịch sử: ${format(new Date(selectedHistoryLog.created_at), "dd/MM/yyyy HH:mm")}` : 'Lịch Sử Import Dữ Liệu Gốc'}
+                  </DialogTitle>
+                </div>
+                {!selectedHistoryLog && (
+                  <div className="mt-4 relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
+                    <input 
+                      type="text"
+                      placeholder="Tìm kiếm theo tên người import..."
+                      value={historySearch}
+                      onChange={(e) => {
+                        setHistorySearch(e.target.value);
+                        setHistoryPage(1);
+                      }}
+                      className="w-full h-11 pl-11 pr-4 bg-white border border-zinc-200 rounded-2xl text-sm font-medium
+                                 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
+                                 placeholder:text-zinc-400 transition-all"
+                    />
+                  </div>
+                )}
+              </DialogHeader>
+
+              <div className="flex-1 min-h-0 relative flex flex-col">
+                {selectedHistoryLog ? (
+                  <ScrollArea className="flex-1 w-full">
+                    <div className="p-6">
+                      <div className="rounded-2xl border border-zinc-200/60 overflow-hidden bg-white">
+                        <table className="w-full text-sm text-left">
+                          <thead className="text-[10px] uppercase font-black text-zinc-500 bg-zinc-50/80 border-b border-zinc-200/60">
+                            <tr>
+                              {PREVIEW_COLS.map(c => (
+                                <th key={c.key} className="px-4 py-3">{c.header}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100">
+                            {(selectedHistoryLog.after_data?.rows || []).map((r, i) => (
+                              <tr key={i} className="hover:bg-emerald-50/30 transition-colors">
+                                {PREVIEW_COLS.map(c => (
+                                  <td key={c.key} className="px-4 py-2 font-medium text-zinc-700 whitespace-nowrap">
+                                    {r[c.key] || "-"}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                            {(!selectedHistoryLog.after_data?.rows || selectedHistoryLog.after_data?.rows.length === 0) && (
+                              <tr>
+                                <td colSpan={PREVIEW_COLS.length} className="px-4 py-8 text-center text-zinc-400 font-medium">
+                                  Hệ thống cũ không lưu lại data chi tiết cho lượt import này.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <>
+                    <ScrollArea className="flex-1 w-full">
+                      <div className="p-6 space-y-3">
+                        {historyLoading ? (
+                          <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-zinc-300" /></div>
+                        ) : !historyData || historyData.length === 0 ? (
+                          <div className="py-8 text-center text-zinc-500 font-medium">Chưa có lịch sử import nào.</div>
+                        ) : (
+                          historyData.map((log) => {
+                            const summaryData = log.after_data?.summary || log.after_data || {};
+                            return (
+                              <div key={log.id} 
+                                 onClick={() => setSelectedHistoryLog(log)}
+                                 className="bg-white border text-left border-zinc-200 rounded-2xl p-4 flex flex-col gap-2 hover:border-emerald-400 transition-colors cursor-pointer group shadow-sm hover:shadow-md">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                                      <span className="font-extrabold text-[10px] text-emerald-700">{(log.full_name || log.username || "U").substring(0, 2).toUpperCase()}</span>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-black text-zinc-800">{log.full_name || log.username}</p>
+                                      <p className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1">
+                                        <CalendarDays className="w-3 h-3" />
+                                        {format(new Date(log.created_at), "dd/MM/yyyy HH:mm")}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {log.after_data?.rows && (
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownloadHistory(log);
+                                        }}
+                                        className="h-8 w-8 rounded-xl text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    <span className="bg-emerald-50 text-emerald-600 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest border border-emerald-100">Thành công</span>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-3 border-t border-dashed border-zinc-100/60 group-hover:border-emerald-100 transition-colors">
+                                  {['products', 'product_groups', 'operations', 'customers'].map((k) => (
+                                    <div key={k} className="bg-zinc-50 group-hover:bg-emerald-50/50 rounded-xl p-2 text-center transition-colors">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{k === 'products' ? 'Mã' : k === 'product_groups' ? 'Nhóm' : k === 'operations' ? 'C.Đoạn' : 'KH'}</p>
+                                      <p className="text-sm font-black text-zinc-800 mt-1">
+                                        <span className="text-emerald-600">+{summaryData[k]?.created || 0}</span>
+                                        <span className="text-zinc-300 mx-1">/</span>
+                                        <span className="text-cyan-600">~{summaryData[k]?.existing || 0}</span>
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                    
+                    {totalPages > 1 && (
+                      <div className="p-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                          Trang {historyPage} / {totalPages}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            disabled={historyPage <= 1}
+                            onClick={() => setHistoryPage(p => p - 1)}
+                            className="h-8 w-8 rounded-xl border-zinc-200"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            disabled={historyPage >= totalPages}
+                            onClick={() => setHistoryPage(p => p + 1)}
+                            className="h-8 w-8 rounded-xl border-zinc-200"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -138,10 +373,23 @@ export default function ImportExcelPage() {
           <Card className="border-none py-0 shadow-xl shadow-zinc-200/40 rounded-[28px] overflow-hidden bg-white">
             <CardContent className="p-0">
               <div className="p-7 bg-zinc-950 text-white">
-                <h3 className="text-sm font-black uppercase tracking-widest">Tải file lên</h3>
-                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-                  Định dạng .xlsx · .xls
-                </p>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest">Tải file lên</h3>
+                    <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                      Định dạng .xlsx · .xls
+                    </p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleDownloadTemplate}
+                    className="h-8 text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl gap-2"
+                  >
+                    <Download className="w-3 h-3" />
+                    Tải file mẫu
+                  </Button>
+                </div>
               </div>
 
               <div className="p-7 space-y-5">

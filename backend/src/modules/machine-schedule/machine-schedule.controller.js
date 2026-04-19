@@ -23,7 +23,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
         machineQuery += " AND factory_id = $1";
         machineParams.push(factory_id);
       }
-      machineQuery += " ORDER BY name ASC";
+      machineQuery += " ORDER BY sort_order ASC, name ASC";
       const machinesRes = await pool.query(machineQuery, machineParams);
       machines = machinesRes.rows;
     }
