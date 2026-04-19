@@ -329,16 +329,21 @@ export default function ImportExcelPage() {
                         )}
                       </div>
                     </div>
-                    {totalPages > 1 && (
+                    {historyRes?.total > 0 && (
                       <div className="p-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                          Trang {historyPage} / {totalPages}
-                        </p>
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                             Trang {historyPage} / {totalPages}
+                          </p>
+                          <p className="text-[9px] font-bold text-zinc-300">
+                             Tổng cộng: {historyRes.total} lượt
+                          </p>
+                        </div>
                         <div className="flex items-center gap-2">
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            disabled={historyPage <= 1}
+                            disabled={historyPage <= 1 || historyLoading}
                             onClick={() => setHistoryPage(p => p - 1)}
                             className="h-8 w-8 rounded-xl border-zinc-200"
                           >
@@ -347,7 +352,7 @@ export default function ImportExcelPage() {
                           <Button 
                             variant="outline" 
                             size="icon" 
-                            disabled={historyPage >= totalPages}
+                            disabled={historyPage >= totalPages || historyLoading}
                             onClick={() => setHistoryPage(p => p + 1)}
                             className="h-8 w-8 rounded-xl border-zinc-200"
                           >
