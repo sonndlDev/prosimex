@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet } from "lucide-react";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import GenericTable from "@/components/GenericTable";

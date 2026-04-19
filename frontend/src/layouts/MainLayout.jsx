@@ -12,7 +12,7 @@ import {
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
   Hammer, UserCircle, Warehouse, Calendar, Layers,
-  BarChart2
+  BarChart2, FileSpreadsheet
 } from "lucide-react";
 import { DateTime } from "luxon";
 
@@ -23,6 +23,7 @@ const menuItems = [
   { text: "Lập kế hoạch", icon: CalendarDays, path: "/planning", permission: "planning" },
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
+  { text: "Import Excel", icon: FileSpreadsheet, path: "/import", permission: "import_excel" },
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },

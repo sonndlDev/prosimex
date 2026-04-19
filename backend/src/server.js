@@ -24,6 +24,7 @@ import outsourcingRoutes from './modules/outsourcing/outsourcing.routes.js'
 import dashboardRoutes from './modules/dashboard/dashboard.routes.js'
 import supplierRoutes from './modules/supplier/supplier.routes.js'
 import productInventoryRoutes from './modules/product-inventory/product-inventory.routes.js'
+import importExcelRoutes from './modules/import-excel/import-excel.routes.js'
 import { startScheduler } from './workers/scheduler.js'
 
 const app = express()
@@ -52,6 +53,7 @@ app.use('/api/outsourcing', outsourcingRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/product-inventory', productInventoryRoutes)
+app.use('/api/import-excel', importExcelRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {

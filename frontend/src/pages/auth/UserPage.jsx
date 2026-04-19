@@ -22,6 +22,7 @@ const PERMISSION_GROUPS = [
       { key: "dashboard", label: "Bảng điều khiển" },
       { key: "planning", label: "Lập kế hoạch" },
       { key: "daily_tickets", label: "Phiếu SX hàng ngày" },
+      { key: "import_excel", label: "Import Excel (Dữ liệu gốc)" },
       { key: "production_output", label: "Nhập sản lượng" },
       { key: "schedule", label: "Timeline" },
       { key: "outsourcing", label: "Phiếu gia công" },

@@ -1,0 +1,240 @@
+import pool from "../../config/db.js";
+
+/**
+ * POST /api/import-excel/master-data
+ *
+ * Mapping từ file Excel:
+ *   - customer      → customers (code + name)
+ *   - product_group → product_groups (name + factory_id + created_by + modified_by)
+ *   - product       → products (name + product_group_id + factory_id + created_by + modified_by)
+ *   - operation     → operations (name + created_by + modified_by)
+ *   - dinh_muc      → product_group_operations (liên kết nhóm + công đoạn + thứ tự + định mức)
+ *
+ * Logic: kiểm tra → giữ nguyên nếu đã có / tạo mới nếu chưa có
+ * Công đoạn được GOM vào đúng Product Group tương ứng.
+ */
+export const importMasterData = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = req.body;
+    const userId = req.user?.id || null;
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: "Không có dữ liệu để import" });
+    }
+
+    // Lấy factory_id mặc định
+    const factoryRes = await client.query(
+      "SELECT id FROM factories WHERE deleted_at IS NULL ORDER BY id LIMIT 1"
+    );
+    const defaultFactoryId = factoryRes.rows[0]?.id || null;
+
+    const summary = {
+      customers: { created: 0, existing: 0 },
+      product_groups: { created: 0, existing: 0 },
+      operations: { created: 0, existing: 0 },
+      products: { created: 0, existing: 0 },
+      product_group_operations: { created: 0, existing: 0, updated: 0 },
+    };
+
+    // Cache nội bộ trong lần import này tránh lookup trùng
+    const pgCache  = new Map(); // product_group name.lower  → id
+    const opCache  = new Map(); // operation name.lower      → id
+    const prdCache = new Map(); // product name.lower        → id
+
+    // ────────────────────────────────────────────────────────────────
+    for (const row of rows) {
+
+      // ── 1. KHÁCH HÀNG ──────────────────────────────────────────────
+      if (row.customer) {
+        const trimName = row.customer.trim();
+        const existing = await client.query(
+          `SELECT id FROM customers
+           WHERE LOWER(TRIM(name)) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+          [trimName]
+        );
+        if (existing.rows.length > 0) {
+          summary.customers.existing++;
+        } else {
+          // code = TÊN_VIẾT_HOA dấu gạch dưới (max 90 ký tự)
+          const code = trimName.toUpperCase().replace(/\s+/g, "_").substring(0, 90);
+          await client.query(
+            `INSERT INTO customers (code, name, is_active, created_by, modified_by)
+             VALUES ($1, $2, true, $3, $3)
+             ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name`,
+            [code, trimName, userId]
+          );
+          summary.customers.created++;
+        }
+      }
+
+      // ── 2. NHÓM MÃ HÀNG ────────────────────────────────────────────
+      let productGroupId = null;
+      if (row.product_group) {
+        const trimName = row.product_group.trim();
+        const key = trimName.toLowerCase();
+
+        if (pgCache.has(key)) {
+          productGroupId = pgCache.get(key).id;
+          summary.product_groups.existing++;
+        } else {
+          const existing = await client.query(
+            `SELECT id FROM product_groups
+             WHERE LOWER(TRIM(name)) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+            [trimName]
+          );
+          if (existing.rows.length > 0) {
+            productGroupId = existing.rows[0].id;
+            summary.product_groups.existing++;
+          } else {
+            const r = await client.query(
+              `INSERT INTO product_groups (name, factory_id, created_by, modified_by)
+               VALUES ($1, $2, $3, $3) RETURNING id`,
+              [trimName, defaultFactoryId, userId]
+            );
+            productGroupId = r.rows[0].id;
+            summary.product_groups.created++;
+          }
+          pgCache.set(key, { id: productGroupId });
+        }
+      }
+
+      // ── 3. CÔNG ĐOẠN ───────────────────────────────────────────────
+      let operationId = null;
+      if (row.operation) {
+        const trimName = row.operation.trim();
+        const key = trimName.toLowerCase();
+
+        if (opCache.has(key)) {
+          operationId = opCache.get(key);
+          summary.operations.existing++;
+        } else {
+          const existing = await client.query(
+            `SELECT id FROM operations
+             WHERE LOWER(TRIM(name)) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+            [trimName]
+          );
+          if (existing.rows.length > 0) {
+            operationId = existing.rows[0].id;
+            summary.operations.existing++;
+          } else {
+            const r = await client.query(
+              `INSERT INTO operations (name, created_by, modified_by)
+               VALUES ($1, $2, $2) RETURNING id`,
+              [trimName, userId]
+            );
+            operationId = r.rows[0].id;
+            summary.operations.created++;
+          }
+          opCache.set(key, operationId);
+        }
+      }
+
+      // ── 4. SẢN PHẨM (MÃ HÀNG) ─────────────────────────────────────
+      if (row.product) {
+        const trimName = row.product.trim();
+        const key = trimName.toLowerCase();
+
+        if (prdCache.has(key)) {
+          summary.products.existing++;
+          // Cập nhật nhóm nếu chưa có
+          if (productGroupId) {
+            await client.query(
+              `UPDATE products
+               SET product_group_id = COALESCE(product_group_id, $1), updated_at = NOW()
+               WHERE id = $2`,
+              [productGroupId, prdCache.get(key)]
+            );
+          }
+        } else {
+          const existing = await client.query(
+            `SELECT id, product_group_id FROM products
+             WHERE LOWER(TRIM(name)) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+            [trimName]
+          );
+          if (existing.rows.length > 0) {
+            prdCache.set(key, existing.rows[0].id);
+            if (productGroupId) {
+              await client.query(
+                `UPDATE products
+                 SET product_group_id = COALESCE(product_group_id, $1),
+                     updated_at = NOW(), modified_by = $3
+                 WHERE id = $2`,
+                [productGroupId, existing.rows[0].id, userId]
+              );
+            }
+            summary.products.existing++;
+          } else {
+            const r = await client.query(
+              `INSERT INTO products (name, product_group_id, factory_id, is_active, created_by, modified_by)
+               VALUES ($1, $2, $3, true, $4, $4) RETURNING id`,
+              [trimName, productGroupId, defaultFactoryId, userId]
+            );
+            prdCache.set(key, r.rows[0].id);
+            summary.products.created++;
+          }
+        }
+      }
+
+      // ── 5. QUY TRÌNH NHÓM MÃ (product_group_operations) ───────────
+      // Gom công đoạn vào đúng nhóm mã hàng (đã tồn tại hoặc vừa tạo)
+      if (productGroupId && operationId) {
+        const dinhMuc = row.dinh_muc ? parseFloat(row.dinh_muc) : null;
+
+        // Kiểm tra cặp (product_group_id, operation_id)
+        const existing = await client.query(
+          `SELECT id, dinh_muc FROM product_group_operations
+           WHERE product_group_id = $1 AND operation_id = $2 AND deleted_at IS NULL
+           LIMIT 1`,
+          [productGroupId, operationId]
+        );
+
+        if (existing.rows.length > 0) {
+          // Cập nhật định mức nếu file có giá trị khác
+          if (dinhMuc !== null && parseFloat(existing.rows[0].dinh_muc) !== dinhMuc) {
+            await client.query(
+              `UPDATE product_group_operations
+               SET dinh_muc = $1, updated_at = NOW()
+               WHERE id = $2`,
+              [dinhMuc, existing.rows[0].id]
+            );
+            summary.product_group_operations.updated++;
+          } else {
+            summary.product_group_operations.existing++;
+          }
+        } else {
+          // Lấy sequence_order tiếp theo trong nhóm
+          const seqRes = await client.query(
+            `SELECT COALESCE(MAX(sequence_order), 0) + 1 AS next_seq
+             FROM product_group_operations WHERE product_group_id = $1`,
+            [productGroupId]
+          );
+          const nextSeq = seqRes.rows[0].next_seq;
+
+          await client.query(
+            `INSERT INTO product_group_operations
+             (product_group_id, operation_id, machine_id, machine_ids, sequence_order, dinh_muc)
+             VALUES ($1, $2, NULL, NULL, $3, $4)`,
+            [productGroupId, operationId, nextSeq, dinhMuc]
+          );
+          summary.product_group_operations.created++;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────
+
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      message: `Import thành công ${rows.length} dòng vào dữ liệu gốc.`,
+      summary,
+    });
+  } catch (error) {
+    if (client) await client.query("ROLLBACK");
+    console.error("Import Master Data Error:", error);
+    res.status(500).json({ message: "Lỗi import: " + error.message });
+  } finally {
+    client.release();
+  }
+};

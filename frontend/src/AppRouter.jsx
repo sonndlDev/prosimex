@@ -25,6 +25,7 @@ const WarehousePage = React.lazy(() => import("./pages/warehouse/WarehousePage")
 const SuppliersPage = React.lazy(() => import("./pages/suppliers/SuppliersPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
 const DailyTicketPage = React.lazy(() => import("./pages/daily-tickets/DailyTicketPage"));
+const DailyTicketImportPage = React.lazy(() => import("./pages/import/DailyTicketImportPage"));
 const ProductionOutputPage = React.lazy(() => import("./pages/daily-tickets/ProductionOutputPage"));
 const PlanVsActualPage = React.lazy(() => import("./pages/daily-tickets/PlanVsActualPage"));
 const OutsourcingPage = React.lazy(() => import("./pages/outsourcing/OutsourcingPage"));
@@ -132,6 +133,9 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="production_output" />}>
                 <Route path="/production-output" element={<ProductionOutputPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="import_excel" />}>
+                <Route path="/import" element={<DailyTicketImportPage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="daily_tickets" />}>
                 <Route path="/plan-vs-actual" element={<PlanVsActualPage />} />
