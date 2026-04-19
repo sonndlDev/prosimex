@@ -155,6 +155,7 @@ export default function AppRouter() {
               <Route element={<ProtectedRoute requiredPermission="machines" />}>
                 <Route path="/machines" element={<MachinePage />} />
               </Route>
+              <Route path="/profile" element={<ProfilePage />} />
               <Route
                 path="/attendance"
                 element={<ProtectedRoute requiredPermission="attendance" />}

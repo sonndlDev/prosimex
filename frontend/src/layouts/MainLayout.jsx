@@ -23,7 +23,6 @@ const menuItems = [
   { text: "Lập kế hoạch", icon: CalendarDays, path: "/planning", permission: "planning" },
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
-  { text: "Import Excel", icon: FileSpreadsheet, path: "/import", permission: "import_excel" },
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
@@ -38,6 +37,7 @@ const menuItems = [
   { text: "Nhóm mã hàng", icon: Tag, path: "/product-groups", permission: "product_groups" },
   { text: "Mã hàng", icon: Package, path: "/products", permission: "products" },
   { text: "Công đoạn", icon: Settings, path: "/operations", permission: "operations" },
+  { text: "Import Excel", icon: FileSpreadsheet, path: "/import", permission: "import_excel" },
   { type: "subheader", text: "Hệ thống" },
   { text: "Chấm công", icon: Clock, path: "/attendance", permission: "attendance" },
   { text: "Quản lý chấm công", icon: Clock, path: "/attendance/management", permission: "attendance_management" },
@@ -125,7 +125,7 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
           </Avatar>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800 truncate">{user?.username}</p>
+              <p className="text-sm font-bold text-slate-800 truncate">{user?.full_name || user?.username}</p>
               <Badge variant="secondary" className="bg-white text-primary border-primary/20 text-[10px] h-4.5 px-2 font-semibold mt-0.5 shadow-sm">
                 {user?.role}
               </Badge>
