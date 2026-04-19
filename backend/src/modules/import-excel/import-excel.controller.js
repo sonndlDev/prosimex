@@ -138,32 +138,40 @@ export const importMasterData = async (req, res) => {
 
         if (prdCache.has(key)) {
           summary.products.existing++;
-          // Cập nhật nhóm nếu chưa có
+          const cachedPrd = prdCache.get(key);
+          
           if (productGroupId) {
-            await client.query(
-              `UPDATE products
-               SET product_group_id = COALESCE(product_group_id, $1), updated_at = NOW()
-               WHERE id = $2`,
-              [productGroupId, prdCache.get(key)]
-            );
+             if (cachedPrd.product_group_id && cachedPrd.product_group_id !== productGroupId) {
+               throw new Error(`Mã hàng "${trimName}" đã tồn tại ở nhóm mã khác. Từ chối import vì 1 mã hàng chỉ có 1 nhóm!`);
+             }
+             if (!cachedPrd.product_group_id) {
+               await client.query(`UPDATE products SET product_group_id = $1, updated_at = NOW() WHERE id = $2`, [productGroupId, cachedPrd.id]);
+               cachedPrd.product_group_id = productGroupId;
+             }
           }
         } else {
           const existing = await client.query(
-            `SELECT id, product_group_id FROM products
-             WHERE LOWER(TRIM(name)) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+            `SELECT p.id, p.product_group_id, pg.name as group_name
+             FROM products p
+             LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+             WHERE LOWER(TRIM(p.name)) = LOWER($1) AND p.deleted_at IS NULL LIMIT 1`,
             [trimName]
           );
+          
           if (existing.rows.length > 0) {
-            prdCache.set(key, existing.rows[0].id);
+            const extPrd = existing.rows[0];
+            
             if (productGroupId) {
-              await client.query(
-                `UPDATE products
-                 SET product_group_id = COALESCE(product_group_id, $1),
-                     updated_at = NOW(), modified_by = $3
-                 WHERE id = $2`,
-                [productGroupId, existing.rows[0].id, userId]
-              );
+              if (extPrd.product_group_id && extPrd.product_group_id !== productGroupId) {
+                throw new Error(`Mã hàng "${trimName}" đã tồn tại và thuộc nhóm mã "${extPrd.group_name || 'Khác'}". Không thể cập nhật sang nhóm mã mới, một mã hàng chỉ được gắn với một nhóm mã!`);
+              }
+              if (!extPrd.product_group_id) {
+                await client.query(`UPDATE products SET product_group_id = $1, updated_at = NOW(), modified_by = $3 WHERE id = $2`, [productGroupId, extPrd.id, userId]);
+                extPrd.product_group_id = productGroupId;
+              }
             }
+            
+            prdCache.set(key, { id: extPrd.id, product_group_id: extPrd.product_group_id });
             summary.products.existing++;
           } else {
             const r = await client.query(
@@ -171,7 +179,7 @@ export const importMasterData = async (req, res) => {
                VALUES ($1, $2, $3, true, $4, $4) RETURNING id`,
               [trimName, productGroupId, defaultFactoryId, userId]
             );
-            prdCache.set(key, r.rows[0].id);
+            prdCache.set(key, { id: r.rows[0].id, product_group_id: productGroupId });
             summary.products.created++;
           }
         }
@@ -181,36 +189,47 @@ export const importMasterData = async (req, res) => {
       // Gom công đoạn vào đúng nhóm mã hàng (đã tồn tại hoặc vừa tạo)
       if (productGroupId && operationId) {
         const dinhMuc = row.dinh_muc ? parseFloat(row.dinh_muc) : null;
+        let rowIndex = null;
+        if (row.stt && !isNaN(parseInt(row.stt))) {
+          rowIndex = parseInt(row.stt);
+        }
 
         // Kiểm tra cặp (product_group_id, operation_id)
         const existing = await client.query(
-          `SELECT id, dinh_muc FROM product_group_operations
+          `SELECT id, dinh_muc, sequence_order FROM product_group_operations
            WHERE product_group_id = $1 AND operation_id = $2 AND deleted_at IS NULL
            LIMIT 1`,
           [productGroupId, operationId]
         );
 
         if (existing.rows.length > 0) {
-          // Cập nhật định mức nếu file có giá trị khác
-          if (dinhMuc !== null && parseFloat(existing.rows[0].dinh_muc) !== dinhMuc) {
+          const isDinhMucChanged = dinhMuc !== null && parseFloat(existing.rows[0].dinh_muc) !== dinhMuc;
+          const isSequenceChanged = rowIndex !== null && parseInt(existing.rows[0].sequence_order) !== rowIndex;
+          
+          if (isDinhMucChanged || isSequenceChanged) {
             await client.query(
               `UPDATE product_group_operations
-               SET dinh_muc = $1, updated_at = NOW()
-               WHERE id = $2`,
-              [dinhMuc, existing.rows[0].id]
+               SET dinh_muc = COALESCE($1, dinh_muc),
+                   sequence_order = COALESCE($2, sequence_order),
+                   updated_at = NOW()
+               WHERE id = $3`,
+              [dinhMuc, rowIndex, existing.rows[0].id]
             );
             summary.product_group_operations.updated++;
           } else {
             summary.product_group_operations.existing++;
           }
         } else {
-          // Lấy sequence_order tiếp theo trong nhóm
-          const seqRes = await client.query(
-            `SELECT COALESCE(MAX(sequence_order), 0) + 1 AS next_seq
-             FROM product_group_operations WHERE product_group_id = $1`,
-            [productGroupId]
-          );
-          const nextSeq = seqRes.rows[0].next_seq;
+          let nextSeq = rowIndex;
+          if (nextSeq === null) {
+            // Lấy sequence_order tiếp theo trong nhóm
+            const seqRes = await client.query(
+              `SELECT COALESCE(MAX(sequence_order), 0) + 1 AS next_seq
+               FROM product_group_operations WHERE product_group_id = $1`,
+              [productGroupId]
+            );
+            nextSeq = seqRes.rows[0].next_seq;
+          }
 
           await client.query(
             `INSERT INTO product_group_operations

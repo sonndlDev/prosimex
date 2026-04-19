@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 // ─── Định nghĩa cột Excel ────────────────────────────────────────────────────
 const COLUMNS = [
+  { key: "stt", labels: ["STT", "Số TT", "Số thứ tự", "No", "No."] },
   { key: "customer", labels: ["Khách hàng", "Customer", "KH"] },
   { key: "product_group", labels: ["Nhóm mã hàng", "Nhóm mã", "Product Group", "Nhom ma hang"] },
   { key: "product", labels: ["Tên mã hàng", "Mã hàng", "Product", "Ma hang"] },
@@ -20,6 +21,7 @@ const COLUMNS = [
 ];
 
 const PREVIEW_COLS = [
+  { key: "stt", header: "STT" },
   { key: "customer", header: "Khách hàng" },
   { key: "product_group", header: "Nhóm mã hàng" },
   { key: "product", header: "Tên mã hàng" },

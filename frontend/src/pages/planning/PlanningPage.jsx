@@ -144,17 +144,30 @@ export default function PlanningPage() {
 
   // ─── Date Columns ──────────────────────────────────────
   const dateColumns = useMemo(() => {
-    if (!plans) return [];
+    if (!plans || plans.length === 0) return [];
     const dates = new Set();
     plans.forEach((plan) => {
       plan.days?.forEach((day) => {
         dates.add(DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd"));
       });
     });
+    
+    if (dates.size === 0) return [];
+    
     const sortedDates = Array.from(dates).sort();
+    const minDate = DateTime.fromISO(sortedDates[0]);
+    const maxDate = DateTime.fromISO(sortedDates[sortedDates.length - 1]);
+    
+    const continuousDates = [];
+    let cur = minDate;
+    while (cur <= maxDate) {
+      continuousDates.push(cur.toFormat("yyyy-MM-dd"));
+      cur = cur.plus({ days: 1 });
+    }
+    
     const todayStr = DateTime.now().toFormat("yyyy-MM-dd");
 
-    return sortedDates
+    return continuousDates
       .filter((d) => showPastDays || d >= todayStr)
       .map((d) => ({
         key: d,
