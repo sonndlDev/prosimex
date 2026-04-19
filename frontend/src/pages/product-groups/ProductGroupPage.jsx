@@ -145,7 +145,7 @@ export default function ProductGroupPage() {
     addOpMutation.mutate({
       ...data,
       sequence_order: parseInt(data.sequence_order) || nextSequenceOrder,
-      dinh_muc: data.dinh_muc ? parseFloat(data.dinh_muc) : null,
+      dinh_muc: (data.dinh_muc !== "" && data.dinh_muc !== null && data.dinh_muc !== undefined) ? parseFloat(data.dinh_muc) : null,
       machine_ids: data.machine_ids.map(Number),
     });
   };

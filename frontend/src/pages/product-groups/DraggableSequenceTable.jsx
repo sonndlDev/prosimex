@@ -104,6 +104,7 @@ export default function DraggableSequenceTable({
   const handleSave = (formData) => {
     onUpdate(editingId, {
       ...formData,
+      dinh_muc: (formData.dinh_muc !== "" && formData.dinh_muc !== null && formData.dinh_muc !== undefined) ? parseFloat(formData.dinh_muc) : null,
       machine_ids: formData.machine_ids.map(Number)
     });
     setEditingId(null);
@@ -329,7 +330,7 @@ export default function DraggableSequenceTable({
                               </TableCell>
                               <TableCell className="text-right">
                                 <span className="font-black text-emerald-600 tabular-nums">
-                                  {parseFloat(row.dinh_muc).toLocaleString()}
+                                  {row.dinh_muc !== null && row.dinh_muc !== undefined ? parseFloat(row.dinh_muc).toLocaleString() : "-"}
                                 </span>
                               </TableCell>
                               <TableCell>

@@ -166,7 +166,7 @@ export const createProductGroupOperation = async (req, res) => {
       `INSERT INTO product_group_operations 
              (product_group_id, operation_id, machine_id, machine_ids, sequence_order, dinh_muc) 
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [id, operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null]
+      [id, operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc ?? null]
     )
     const newOp = result.rows[0];
     await pool.query(
@@ -242,7 +242,7 @@ export const updateProductGroupOperation = async (req, res) => {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $6 AND product_group_id = $7 AND deleted_at IS NULL
        RETURNING *`,
-      [operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc || null, operationId, id]
+      [operation_id, primary_m_id, m_ids.length > 0 ? m_ids : null, sequence_order, dinh_muc ?? null, operationId, id]
     )
     if (result.rowCount === 0) return res.status(404).json({ message: 'Mapping not found' })
     const updatedOp = result.rows[0];
