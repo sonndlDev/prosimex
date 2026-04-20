@@ -14,7 +14,8 @@ export async function generateDailyTickets(targetDate) {
           pp.product_group_operation_id,
           pp.machine_id                       AS machine_id,
           op.name                             AS operation_name,
-          ppd.planned_work_quantity
+          ppd.planned_work_quantity,
+          pp.dinh_muc
        FROM production_plan_days ppd
        JOIN production_plans pp
          ON pp.id = ppd.production_plan_id
@@ -123,7 +124,7 @@ export async function generateDailyTickets(targetDate) {
             p.product_id || null,
             p.product_group_operation_id || null,
             p.operation_name || null,
-            parseFloat(p.planned_work_quantity) || 0,
+            Math.round((parseFloat(p.planned_work_quantity) / 8) * (parseFloat(p.dinh_muc) || 0)),
             p.plan_id || null,
           ]),
         ];
@@ -135,7 +136,7 @@ export async function generateDailyTickets(targetDate) {
         );
         console.log(
           `[AutoTicket] Inserted ${plans.length} item(s) into ticket #${ticketId}:`,
-          plans.map((p) => `[order=${p.order_id} op=${p.operation_name} qty=${p.planned_work_quantity}]`)
+          plans.map((p) => `[order=${p.order_id} op=${p.operation_name} qty=${Math.round((parseFloat(p.planned_work_quantity) / 8) * (parseFloat(p.dinh_muc) || 0))}]`)
         );
       }
 
