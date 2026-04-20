@@ -311,9 +311,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
     dispatch_date: DateTime.now().toFormat("yyyy-MM-dd"),
     expected_return_date: DateTime.now().plus({ days: 3 }).toFormat("yyyy-MM-dd")
   });
-  
+
   const [items, setItems] = useState([
-    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }
+    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -335,7 +335,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   };
 
   const addItem = () => {
-    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }]);
+    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
   };
 
   const removeItem = (id) => {
@@ -347,15 +347,15 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (type !== 'PACKAGING' && !formData.supplier_id) {
-        toast.error("Vui lòng chọn Nhà cung cấp");
-        return;
+      toast.error("Vui lòng chọn Nhà cung cấp");
+      return;
     }
     const invalidItem = items.find(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out));
     if (invalidItem) {
       toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và Số lượng xuất" : "") + " cho tất cả các phần!");
       return;
     }
-    
+
     setLoading(true);
     setCreatedTicket(null);
     try {
@@ -373,7 +373,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       setCreatedTicket(res);
       toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
       // Reset form
-      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "" }]);
+      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -390,9 +390,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               <div className="space-y-2">
                 <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Nhà cung cấp <span className="text-red-500">*</span></Label>
                 <SupplierSelect
-                    value={formData.supplier_id}
-                    onChange={v => setFormData(f => ({...f, supplier_id: v}))}
-                    suppliers={suppliers}
+                  value={formData.supplier_id}
+                  onChange={v => setFormData(f => ({ ...f, supplier_id: v }))}
+                  suppliers={suppliers}
                 />
               </div>
 
@@ -418,134 +418,142 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
         </div>
 
         <div className="pt-6 space-y-4">
-            <div className="flex items-center justify-between">
-                <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <Package className="w-5 h-5 text-indigo-600" />
-                    Danh sách hàng hóa
-                </Label>
-                <Button type="button" onClick={addItem} variant="outline" className="gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold">
-                    <Plus className="w-4 h-4" />
-                    Thêm phần
-                </Button>
-            </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <Package className="w-5 h-5 text-indigo-600" />
+              Danh sách hàng hóa
+            </Label>
+            <Button type="button" onClick={addItem} variant="outline" className="gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold">
+              <Plus className="w-4 h-4" />
+              Thêm phần
+            </Button>
+          </div>
 
-            {items.map((item, index) => (
-                <div key={item.id} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl group">
-                    {items.length > 1 && (
-                        <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors">
-                            <Trash2 className="w-5 h-5" />
-                        </button>
-                    )}
-                    <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">Phần {index + 1}</h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div className="space-y-1.5 lg:col-span-1">
-                            <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
-                            <OrderSelect 
-                                value={item.order_id} 
-                                onChange={v => {
-                                    handleItemChange(item.id, 'order_id', v);
-                                    // if product is already selected, update quantity
-                                    const selectedOrder = orders.find(o => String(o.id) === String(v));
-                                    if (selectedOrder && selectedOrder.products && item.product_id) {
-                                      const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
-                                      if (matchedProduct && matchedProduct.quantity) {
-                                        handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
-                                      }
-                                    }
-                                }} 
-                                orders={orders} 
-                            />
-                        </div>
-                        <div className="space-y-1.5 lg:col-span-1">
-                            <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
-                            <ProductSelect 
-                                value={item.product_id} 
-                                onChange={v => {
-                                    handleItemChange(item.id, 'product_id', v);
-                                    if (item.order_id) {
-                                      const selectedOrder = orders.find(o => String(o.id) === String(item.order_id));
-                                      if (selectedOrder && selectedOrder.products) {
-                                        const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(v));
-                                        if (matchedProduct && matchedProduct.quantity) {
-                                          handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
-                                        }
-                                      }
-                                    }
-                                }} 
-                                products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products} 
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                            <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
-                        </div>
-                        {type === 'PACKAGING' && (
-                          <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
-                              <Input 
-                                placeholder="VD: 24 cái/thùng" 
-                                className="h-9 font-bold bg-white text-zinc-900 border-zinc-200" 
-                                value={item.packing_specification || ""} 
-                                onChange={e => handleItemChange(item.id, 'packing_specification', e.target.value)} 
-                              />
-                          </div>
-                        )}
-                        {type !== 'PACKAGING' && (
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
-                              <select 
-                                  className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500" 
-                                  value={item.processing_type} 
-                                  onChange={e => handleItemChange(item.id, 'processing_type', e.target.value)}
-                              >
-                                 <option value="">Chọn loại</option>
-                                 <option value="Xi">Xi</option>
-                                 <option value="Mạ">Mạ</option>
-                                 <option value="Sơn">Sơn</option>
-                                 <option value="Ly tâm">Ly tâm</option>
-                              </select>
-                          </div>
-                        )}
-                        <div className={cn(
-                          "space-y-1.5 p-2 rounded-lg border",
-                          type === 'PACKAGING' ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
-                        )}>
-                            <Label className={cn("text-[10px] font-bold uppercase", type === 'PACKAGING' ? "text-emerald-700" : "text-blue-700")}>
-                                {type === 'PACKAGING' ? 'SL Đóng gói *' : 'SL Xuất *'}
-                            </Label>
-                            <Input 
-                              type="number" 
-                              placeholder="0" 
-                              className={cn("h-9 font-bold", type === 'PACKAGING' ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")} 
-                              value={item.quantity_out} 
-                              onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)} 
-                            />
-                        </div>
-                    </div>
+          {items.map((item, index) => (
+            <div key={item.id} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl group">
+              {items.length > 1 && (
+                <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              )}
+              <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">Phần {index + 1}</h4>
 
-                    {type !== 'PACKAGING' && (
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
-                              <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
-                          </div>
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
-                              <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
-                          </div>
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
-                              <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
-                          </div>
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
-                              <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} />
-                          </div>
-                      </div>
-                    )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-1.5 lg:col-span-1">
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
+                  <OrderSelect
+                    value={item.order_id}
+                    onChange={v => {
+                      handleItemChange(item.id, 'order_id', v);
+                      // if product is already selected, update quantity
+                      const selectedOrder = orders.find(o => String(o.id) === String(v));
+                      if (selectedOrder && selectedOrder.products && item.product_id) {
+                        const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
+                        if (matchedProduct && matchedProduct.quantity) {
+                          handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
+                        }
+                      }
+                    }}
+                    orders={orders}
+                  />
                 </div>
-            ))}
+                <div className="space-y-1.5 lg:col-span-1">
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
+                  <ProductSelect
+                    value={item.product_id}
+                    onChange={v => {
+                      handleItemChange(item.id, 'product_id', v);
+                      if (item.order_id) {
+                        const selectedOrder = orders.find(o => String(o.id) === String(item.order_id));
+                        if (selectedOrder && selectedOrder.products) {
+                          const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(v));
+                          if (matchedProduct && matchedProduct.quantity) {
+                            handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
+                          }
+                        }
+                      }
+                    }}
+                    products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
+                  <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
+                </div>
+                {type === 'PACKAGING' && (
+                  <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
+                    <Input
+                      placeholder="VD: 24 cái/thùng"
+                      className="h-9 font-bold bg-white text-zinc-900 border-zinc-200"
+                      value={item.packing_specification || ""}
+                      onChange={e => handleItemChange(item.id, 'packing_specification', e.target.value)}
+                    />
+                  </div>
+                )}
+                {type !== 'PACKAGING' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
+                    <select
+                      className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      value={item.processing_type}
+                      onChange={e => handleItemChange(item.id, 'processing_type', e.target.value)}
+                    >
+                      <option value="">Chọn loại</option>
+                      <option value="Xi">Xi</option>
+                      <option value="Mạ">Mạ</option>
+                      <option value="Sơn">Sơn</option>
+                      <option value="Ly tâm">Ly tâm</option>
+                    </select>
+                  </div>
+                )}
+                <div className={cn(
+                  "space-y-1.5 p-2 rounded-lg border",
+                  type === 'PACKAGING' ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
+                )}>
+                  <Label className={cn("text-[10px] font-bold uppercase", type === 'PACKAGING' ? "text-emerald-700" : "text-blue-700")}>
+                    {type === 'PACKAGING' ? 'SL Đóng gói *' : 'SL Xuất *'}
+                  </Label>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    className={cn("h-9 font-bold", type === 'PACKAGING' ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
+                    value={item.quantity_out}
+                    onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {type !== 'PACKAGING' && (
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
+                    <Input type="number" placeholder="0" className="h-10 border-indigo-100" value={item.package_count} onChange={e => handleItemChange(item.id, 'package_count', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL Tịnh (kg/cái)</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" className="h-10 border-amber-100" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, 'unit_net_weight', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
+                    <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-1">
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         <div className="mt-8 pt-6 border-t border-zinc-100 flex justify-end">
@@ -668,10 +676,10 @@ function InboundTicketForm({ type }) {
           {/* Main Info & Items */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-3">
+              <h3 className="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-3">
                 Thông tin chung
                 <span className="text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-['Outfit']">{ticketData.ticket_code}</span>
-                </h3>
+              </h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 text-sm bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
@@ -685,12 +693,12 @@ function InboundTicketForm({ type }) {
               <div className="space-y-1.5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Thời gian</p>
                 <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-zinc-400" />
-                    <p className="font-bold text-slate-800">
-                        {ticketData.dispatch_date && DateTime.fromISO(ticketData.dispatch_date).toFormat('dd/MM/yyyy')} 
-                        <span className="text-zinc-400 mx-1">→</span>
-                        {ticketData.expected_return_date && DateTime.fromISO(ticketData.expected_return_date).toFormat('dd/MM/yyyy')}
-                    </p>
+                  <Calendar className="w-4 h-4 text-zinc-400" />
+                  <p className="font-bold text-slate-800">
+                    {ticketData.dispatch_date && DateTime.fromISO(ticketData.dispatch_date).toFormat('dd/MM/yyyy')}
+                    <span className="text-zinc-400 mx-1">→</span>
+                    {ticketData.expected_return_date && DateTime.fromISO(ticketData.expected_return_date).toFormat('dd/MM/yyyy')}
+                  </p>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -709,65 +717,70 @@ function InboundTicketForm({ type }) {
               <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-4 mt-2 border-t border-zinc-100">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Xuất đi</p>
-                     <p className="font-black text-2xl text-slate-800 tabular-nums">{ticketData.quantity_out}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Xuất đi</p>
+                    <p className="font-black text-2xl text-slate-800 tabular-nums">{ticketData.quantity_out}</p>
                   </div>
                   <div className="h-10 w-px bg-zinc-200"></div>
                   <div className="space-y-1 text-right">
-                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Đã Về</p>
-                     <p className="font-black text-2xl text-indigo-600 tabular-nums">{ticketData.total_returned}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Đã Về</p>
+                    <p className="font-black text-2xl text-indigo-600 tabular-nums">{ticketData.total_returned}</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
-                <h4 className="font-bold text-slate-800 uppercase tracking-widest text-sm flex items-center gap-2">
-                    <Settings className="w-4 h-4 text-zinc-400" />
-                    Các phần cần nhập về
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {ticketData.items && ticketData.items.map((item, idx) => {
-                      const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
-                      return (
-                      <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
-                          <div className="flex justify-between items-start">
-                              <div className="space-y-1">
-                                  <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx+1}</span>
-                                  <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
-                                  {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
-                              </div>
-                              <div className="text-right space-y-0.5">
-                                  <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
-                                  <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
-                              </div>
+              <h4 className="font-bold text-slate-800 uppercase tracking-widest text-sm flex items-center gap-2">
+                <Settings className="w-4 h-4 text-zinc-400" />
+                Các phần cần nhập về
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {ticketData.items && ticketData.items.map((item, idx) => {
+                  const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
+                  return (
+                    <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                      <div className="flex justify-between items-start">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx + 1}</span>
+                          <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
+                            {item.package_count && <p className="text-xs font-semibold text-blue-600">Kiện hàng: {item.package_count}</p>}
+                            {item.unit_net_weight && <p className="text-xs font-semibold text-amber-600">KL Tịnh: {item.unit_net_weight} kg/cái</p>}
                           </div>
-                          
-                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                              <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                              <div className="relative flex-1">
-                              <Input
-                                  type="number"
-                                  placeholder="Nhập thêm..."
-                                  value={returnQtys[item.id] || ""}
-                                  onChange={e => setReturnQtys({ ...returnQtys, [item.id]: e.target.value })}
-                                  className="h-10 bg-indigo-50/30 text-sm font-bold tabular-nums border-indigo-200 focus-visible:ring-indigo-600 pl-3"
-                              />
-                              </div>
-                              <Button
-                                  onClick={() => handleAddReturn(item.id)}
-                                  disabled={loadingReturn}
-                                  className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
-                              >
-                                  <Check className="w-4 h-4" /> Xác nhận
-                              </Button>
-                          </div>
+                        </div>
+                        <div className="text-right space-y-0.5 whitespace-nowrap">
+                          <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
+                          <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
+                        </div>
                       </div>
-                  )})}
-                </div>
+
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type="number"
+                            placeholder="Nhập thêm..."
+                            value={returnQtys[item.id] || ""}
+                            onChange={e => setReturnQtys({ ...returnQtys, [item.id]: e.target.value })}
+                            className="h-10 bg-indigo-50/30 text-sm font-bold tabular-nums border-indigo-200 focus-visible:ring-indigo-600 pl-3"
+                          />
+                        </div>
+                        <Button
+                          onClick={() => handleAddReturn(item.id)}
+                          disabled={loadingReturn}
+                          className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
+                        >
+                          <Check className="w-4 h-4" /> Xác nhận
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
@@ -840,11 +853,11 @@ function OutsourcingHistory({ type, orders, products }) {
         toast.info("Không có dữ liệu để xuất");
         return;
       }
-      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + 
-        "Mã phiếu,Nhà cung cấp,Gồm Đơn hàng,Gồm Mã hàng,Quy cách,Tổng Xuất,Tổng Về,Trạng thái\n" + 
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" +
+        "Mã phiếu,Nhà cung cấp,Gồm Đơn hàng,Gồm Mã hàng,Tổng Kiện,Quy cách,Tổng Xuất,Tổng Về,Trạng thái\n" +
         exportData.map(e => {
-            const statusStr = e.status === 'COMPLETED' ? "Hoàn thành" : (e.status === 'PARTIAL' ? "Một phần" : "Đang chờ");
-            return `"${e.ticket_code}","${e.supplier || ''}","${e.order_code || ''}","${e.product_name || ''}","${e.packing_specification || ''}","${e.quantity_out || 0}","${e.total_returned || 0}","${statusStr}"`
+          const statusStr = e.status === 'COMPLETED' ? "Hoàn thành" : (e.status === 'PARTIAL' ? "Một phần" : "Đang chờ");
+          return `"${e.ticket_code}","${e.supplier || ''}","${e.order_code || ''}","${e.product_name || ''}","${e.total_packages || 0}","${e.packing_specification || ''}","${e.quantity_out || 0}","${e.total_returned || 0}","${statusStr}"`
         }).join("\n");
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -853,7 +866,7 @@ function OutsourcingHistory({ type, orders, products }) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch(err) {
+    } catch (err) {
       toast.error("Lỗi khi xuất excel");
     }
   };
@@ -870,17 +883,23 @@ function OutsourcingHistory({ type, orders, products }) {
       label: "Nhà cung cấp",
       format: (val) => val || "—"
     },
-    { 
-       id: "order_code", 
-       label: "Gồm Đơn hàng", 
-       className: "font-bold text-zinc-700 max-w-[150px] truncate",
-       format: (val) => val || "—"
+    {
+      id: "order_code",
+      label: "Gồm Đơn hàng",
+      className: "font-bold text-zinc-700 max-w-[150px] truncate",
+      format: (val) => val || "—"
     },
-    { 
-       id: "product_name", 
-       label: "Gồm Mã hàng", 
-       className: "font-medium max-w-[150px] truncate",
-       format: (val) => val || "—"
+    {
+      id: "product_name",
+      label: "Gồm Mã hàng",
+      className: "font-medium max-w-[150px] truncate",
+      format: (val) => val || "—"
+    },
+    {
+      id: "total_packages",
+      label: "Số kiện",
+      className: "font-bold text-slate-600 tabular-nums text-center",
+      format: (val) => val || 0
     },
     {
       id: "quantity_out",
@@ -907,35 +926,37 @@ function OutsourcingHistory({ type, orders, products }) {
   ];
 
   if (type === 'PACKAGING') {
-     columns = [
-       { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-zinc-700 max-w-[150px] truncate", format: (val) => val || "—" },
-       { id: "product_name", label: "Gồm Mã hàng", className: "font-medium max-w-[150px] truncate", format: (val) => val || "—" },
-       { id: "packing_specification", label: "Quy cách", className: "italic text-[11px] text-zinc-500 max-w-[120px] truncate", format: (val) => val || "—" },
-       { id: "quantity_out", label: "Đã đóng gói", className: "font-black text-blue-600 tabular-nums text-right", format: (val) => parseFloat(val).toLocaleString() },
-       { id: "status", label: "Trạng thái", format: (val) => {
-         if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
-         return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Hoàn thành</Badge>;
-       }},
-       getAuditColumn()
-     ];
+    columns = [
+      { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-zinc-700 max-w-[150px] truncate", format: (val) => val || "—" },
+      { id: "product_name", label: "Gồm Mã hàng", className: "font-medium max-w-[150px] truncate", format: (val) => val || "—" },
+      { id: "packing_specification", label: "Quy cách", className: "italic text-[11px] text-zinc-500 max-w-[120px] truncate", format: (val) => val || "—" },
+      { id: "quantity_out", label: "Đã đóng gói", className: "font-black text-blue-600 tabular-nums text-right", format: (val) => parseFloat(val).toLocaleString() },
+      {
+        id: "status", label: "Trạng thái", format: (val) => {
+          if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
+          return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Hoàn thành</Badge>;
+        }
+      },
+      getAuditColumn()
+    ];
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center gap-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
-          <div className="flex-1 w-full md:w-auto">
-              <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo ĐH</Label>
-              <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
-          </div>
-          <div className="flex-1 w-full md:w-auto">
-              <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo MH</Label>
-              <ProductSelect value={filterProductId} onChange={setFilterProductId} products={filterOrderId ? (orders.find(o => String(o.id) === String(filterOrderId))?.products || []) : products} />
-          </div>
-          <div className="flex items-end h-full">
-            <Button onClick={handleExportExcel} variant="outline" className="h-11 mt-[22px] bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-bold gap-2 md:w-auto w-full">
-                <Download className="w-4 h-4" /> Xuất Excel
-            </Button>
-          </div>
+        <div className="flex-1 w-full md:w-auto">
+          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo ĐH</Label>
+          <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
+        </div>
+        <div className="flex-1 w-full md:w-auto">
+          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo MH</Label>
+          <ProductSelect value={filterProductId} onChange={setFilterProductId} products={filterOrderId ? (orders.find(o => String(o.id) === String(filterOrderId))?.products || []) : products} />
+        </div>
+        <div className="flex items-end h-full">
+          <Button onClick={handleExportExcel} variant="outline" className="h-11 mt-[22px] bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-bold gap-2 md:w-auto w-full">
+            <Download className="w-4 h-4" /> Xuất Excel
+          </Button>
+        </div>
       </div>
       <GenericTable
         data={tickets}

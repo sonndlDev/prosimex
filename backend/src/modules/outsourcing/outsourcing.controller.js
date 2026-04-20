@@ -43,6 +43,7 @@ export const getTickets = async (req, res) => {
     const dataQuery = `
       SELECT t.*, s.name as supplier, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              COALESCE((SELECT SUM(quantity_out) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as quantity_out,
+             COALESCE((SELECT SUM(package_count) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as total_packages,
              COALESCE((SELECT SUM(r.quantity_returned) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id), 0) as total_returned,
              (SELECT string_agg(DISTINCT p.name, ', ') FROM outsourcing_ticket_items i JOIN products p ON i.product_id = p.id WHERE i.ticket_id = t.id) as product_name,
              (SELECT string_agg(DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''), ', ') FROM outsourcing_ticket_items i JOIN orders o ON i.order_id = o.id WHERE i.ticket_id = t.id) as order_code,
@@ -171,8 +172,8 @@ export const createTicket = async (req, res) => {
         for (const item of items) {
             await client.query(
                 `INSERT INTO outsourcing_ticket_items 
-                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
                 [
                   newTicket.id, 
                   item.order_id, 
@@ -184,7 +185,9 @@ export const createTicket = async (req, res) => {
                   item.pallet_weight || null, 
                   item.net_weight || null, 
                   item.notes || null,
-                  item.packing_specification || null
+                  item.packing_specification || null,
+                  item.package_count || null,
+                  item.unit_net_weight || null
                 ]
             );
         }

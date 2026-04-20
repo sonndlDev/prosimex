@@ -93,7 +93,7 @@ export const getOrders = async (req, res) => {
             SELECT SUM(dti.actual_quantity) 
             FROM daily_production_ticket_items dti 
             JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-            WHERE dti.order_id = op.order_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
+            WHERE dti.order_id = op.order_id AND dt.deleted_at IS NULL
           ), 0) as total_sx,
           COALESCE((
             SELECT SUM(oti.quantity_out) 
@@ -164,7 +164,7 @@ export const getOrderCompletionReport = async (req, res) => {
         SELECT dti.product_id, SUM(dti.actual_quantity) as total_sx
         FROM daily_production_ticket_items dti 
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-        WHERE dti.order_id = $1 AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL
+        WHERE dti.order_id = $1 AND dt.deleted_at IS NULL
         GROUP BY dti.product_id
       ),
       plating_totals AS (
@@ -286,9 +286,9 @@ export const getOrderSummaryReport = async (req, res) => {
           p.name as product_name,
           op.quantity as required_quantity,
           ps.final_op_name,
-          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.start_pgo_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as started_quantity,
-          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.final_pgo_id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as finished_quantity,
-          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.status = 'COMPLETED' AND dt.deleted_at IS NULL), 0) as total_sx_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.start_pgo_id AND dt.deleted_at IS NULL), 0) as started_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.final_pgo_id AND dt.deleted_at IS NULL), 0) as finished_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL), 0) as total_sx_quantity,
           COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
           COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
           COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
