@@ -443,7 +443,7 @@ export default function ProductionOutputPage() {
                   <h3 className="font-bold text-lg text-zinc-950">
                     Phiếu Sản Xuất {DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}{ticket.id}
                   </h3>
-                  <p className="text-sm text-zinc-500 font-medium">Người lập: {ticket.created_by_name}</p>
+                  <p className="text-sm text-zinc-500 font-medium">Người lập: {ticket.creator_name}</p>
                 </div>
                 <Badge variant={isCompleted ? "default" : "secondary"} className={isCompleted ? "bg-green-600 hover:bg-green-700 font-bold" : "bg-orange-100 text-orange-800 hover:bg-orange-200 font-bold"}>
                   {isCompleted ? "Đã chốt (Không thể sửa)" : "Đang thực hiện"}

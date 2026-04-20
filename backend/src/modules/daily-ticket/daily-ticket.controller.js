@@ -41,7 +41,7 @@ export const getTickets = async (req, res) => {
     const result = await pool.query(
       `
             SELECT 
-                MIN(dti.id) as id,
+                dt.id as id,
                 dt.id as master_id,
                 dt.status as ticket_status,
                 dt.ticket_date,
@@ -57,7 +57,7 @@ export const getTickets = async (req, res) => {
                 SUM(dti.actual_quantity) as actual_quantity,
                 STRING_AGG(DISTINCT dti.notes, '; ') as notes,
                 MAX(pp.remaining_quantity) as remaining_quantity,
-                COALESCE(cu.full_name, cu.username) as creator_name,
+                COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 COALESCE(mu.full_name, mu.username) as modifier_name
             FROM daily_production_tickets dt
             LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
@@ -107,7 +107,7 @@ export const getTicketById = async (req, res) => {
     const { id } = req.params;
 
     let ticketRes = await pool.query(
-      `SELECT dt.*, m.name as machine_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+      `SELECT dt.*, m.name as machine_name, COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
        FROM daily_production_tickets dt
        LEFT JOIN machines m ON dt.machine_id = m.id
        LEFT JOIN users cu ON dt.created_by = cu.id
@@ -125,7 +125,7 @@ export const getTicketById = async (req, res) => {
       if (itemFallback.rowCount > 0) {
         const fallbackTicketId = itemFallback.rows[0].ticket_id;
         ticketRes = await pool.query(
-          `SELECT dt.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
+          `SELECT dt.*, COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
            FROM daily_production_tickets dt
            LEFT JOIN users cu ON dt.created_by = cu.id
            LEFT JOIN users mu ON dt.modified_by = mu.id
@@ -748,3 +748,72 @@ export const manualOutputEntry = async (req, res) => {
     client.release();
   }
 };
+
+// GET /api/daily-tickets/export/detailed
+export const exportDetailedTickets = async (req, res) => {
+  try {
+    const { startDate, endDate, search, ticket_status, ids } = req.query;
+
+    let whereClause = "WHERE dt.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (ids) {
+      const idList = ids.split(",").map((id) => parseInt(id));
+      queryParams.push(idList);
+      whereClause += ` AND dt.id = ANY($${queryParams.length})`;
+    } else {
+      if (startDate) {
+        queryParams.push(startDate);
+        whereClause += ` AND dt.ticket_date >= $${queryParams.length}`;
+      }
+      if (endDate) {
+        queryParams.push(endDate);
+        whereClause += ` AND dt.ticket_date <= $${queryParams.length}`;
+      }
+      if (ticket_status && ticket_status !== "ALL") {
+        queryParams.push(ticket_status);
+        whereClause += ` AND dt.status = $${queryParams.length}`;
+      }
+      if (search) {
+        queryParams.push(`%${search}%`);
+        whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.po_customer ILIKE $${queryParams.length} OR p.name ILIKE $${queryParams.length})`;
+      }
+    }
+
+    const result = await pool.query(
+      `
+            SELECT 
+                dt.id as master_id,
+                dt.status as ticket_status,
+                dt.ticket_date,
+                dt.is_manual,
+                m.name as machine_name,
+                o.order_code,
+                o.name as order_name,
+                o.po_customer,
+                p.name as product_name,
+                dti.operation_name,
+                dti.planned_quantity,
+                dti.actual_quantity,
+                dti.notes,
+                COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
+                dt.created_at
+            FROM daily_production_tickets dt
+            JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
+            LEFT JOIN orders o ON dti.order_id = o.id
+            LEFT JOIN products p ON dti.product_id = p.id
+            LEFT JOIN machines m ON dt.machine_id = m.id
+            LEFT JOIN users cu ON dt.created_by = cu.id
+            ${whereClause}
+            ORDER BY dt.ticket_date DESC, dt.id DESC, dti.id ASC
+        `,
+      queryParams
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Export Daily Tickets Error:", error);
+    res.status(500).json({ message: "Error exporting daily tickets", error });
+  }
+};
+

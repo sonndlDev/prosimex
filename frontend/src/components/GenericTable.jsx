@@ -82,9 +82,26 @@ export default function GenericTable({
   onSearchChange,
   renderActions,
   maxHeight = "calc(100vh - 320px)",
+  // Added selection props
+  selectedRows,
+  onSelectionChange,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selected, setSelected] = useState([]);
+  const [internalSelected, setInternalSelected] = useState([]);
+
+  const isControlledSelection = selectedRows !== undefined && onSelectionChange !== undefined;
+  const selected = isControlledSelection ? selectedRows : internalSelected;
+  const setSelected = (val) => {
+    if (isControlledSelection) {
+      if (typeof val === 'function') {
+        onSelectionChange(val(selected));
+      } else {
+        onSelectionChange(val);
+      }
+    } else {
+      setInternalSelected(val);
+    }
+  };
 
   // Client-side pagination state (only used if !isServerSide)
   const [clientPage, setClientPage] = useState(1);

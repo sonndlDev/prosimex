@@ -4,6 +4,8 @@ import { DateTime } from "luxon";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { dailyTicketService } from "../../services/daily-ticket.service";
+import * as XLSX from 'xlsx';
+import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,10 +37,11 @@ export default function DailyTicketPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const initialFilters = {
     startDate: "",
     endDate: "",
-    status: "ALL",
+    ticket_status: "ALL",
     search: "",
   };
 
@@ -59,7 +62,8 @@ export default function DailyTicketPage() {
     queryFn: () => dailyTicketService.getAll({
       page,
       limit: pageSize,
-      ...appliedFilters
+      ...appliedFilters,
+      status: appliedFilters.ticket_status // Map for backend
     }),
   });
 
@@ -91,6 +95,58 @@ export default function DailyTicketPage() {
     }).then((result) => {
       if (result.isConfirmed) deleteMutation.mutate(id);
     });
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const params = {
+        ...appliedFilters,
+      };
+      if (selectedIds.length > 0) {
+        params.ids = selectedIds.join(',');
+      }
+      
+      const data = await dailyTicketService.exportDetailed(params);
+      if (!data || data.length === 0) {
+        toast.info("Không có dữ liệu để xuất");
+        return;
+      }
+
+      const formattedData = data.map((item, index) => ({
+        "STT": index + 1,
+        "Mã Phiếu": `${DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}${item.master_id}`,
+        "Ngày": DateTime.fromISO(item.ticket_date).toFormat("dd/MM/yyyy"),
+        "Máy": item.machine_name || "",
+        "Đơn hàng": item.order_name || "",
+        "Mã đơn (PO)": item.order_code || item.po_customer || "",
+        "Mã SP": item.product_name || "",
+        "Công đoạn": item.operation_name || "",
+        "SL Kế hoạch": parseFloat(item.planned_quantity) || 0,
+        "SL Thực tế": parseFloat(item.actual_quantity) || 0,
+        "Chênh lệch": (parseFloat(item.actual_quantity) || 0) - (parseFloat(item.planned_quantity) || 0),
+        "Ghi chú": item.notes || "",
+        "Trạng thái": item.ticket_status === 'COMPLETED' ? 'Xong' : 'Nháp',
+        "Người tạo": item.creator_name || "Hệ thống",
+        "Ngày tạo": DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm")
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "PhieuSanXuat");
+      
+      const wscols = [
+        { wch: 5 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 }, 
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, 
+        { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 20 }
+      ];
+      worksheet['!cols'] = wscols;
+
+      XLSX.writeFile(workbook, `PhieuSanXuat_${DateTime.now().toFormat("yyyyMMdd_HHmm")}.xlsx`);
+      toast.success("Đã xuất file Excel!");
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Lỗi khi xuất file Excel");
+    }
   };
 
   const columns = [
@@ -178,6 +234,14 @@ export default function DailyTicketPage() {
             <BarChart2 className="w-4 h-4 text-indigo-500" />
             Báo cáo KH vs TT
           </Button> */}
+          <Button 
+            onClick={handleExportExcel} 
+            variant="outline" 
+            className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Xuất Excel {selectedIds.length > 0 && `(${selectedIds.length})`}
+          </Button>
           <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 gap-2">
             <Plus className="w-4 h-4" />
             Tạo Phiếu Mới
@@ -206,6 +270,8 @@ export default function DailyTicketPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          selectedRows={selectedIds}
+          onSelectionChange={setSelectedIds}
           renderActions={(item) => (
             <div className="flex items-center gap-1">
               <TooltipProvider>

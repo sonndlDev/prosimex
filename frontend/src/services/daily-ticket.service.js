@@ -81,6 +81,17 @@ export const dailyTicketService = {
             console.error('Error saving manual output:', error);
             throw error;
         }
+    },
+
+    exportDetailed: async (params = {}) => {
+        try {
+            const queryParams = new URLSearchParams(params).toString();
+            const { data } = await api.get(`/daily-tickets/export/detailed?${queryParams}`);
+            return data;
+        } catch (error) {
+            console.error('Error exporting daily tickets:', error);
+            throw error;
+        }
     }
 };
 

@@ -384,8 +384,19 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
             {ticket?.machine_name && (
               <div className="flex-1 space-y-1.5">
                 <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Máy / Chuyền</Label>
-                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-black text-indigo-600">
+                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-black text-indigo-600 shadow-sm">
                   {ticket.machine_name}
+                </div>
+              </div>
+            )}
+
+            {/* Creator Info */}
+            {ticket?.creator_name && (
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Người tạo phiếu</Label>
+                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-zinc-600 gap-2 shadow-sm">
+                  <User className="w-4 h-4 text-zinc-400" />
+                  {ticket.creator_name}
                 </div>
               </div>
             )}

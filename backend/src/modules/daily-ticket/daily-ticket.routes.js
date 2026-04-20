@@ -10,7 +10,8 @@ import {
   deleteTicket,
   getPlanVsActualReport,
   triggerAutoGenerate,
-  manualOutputEntry
+  manualOutputEntry,
+  exportDetailedTickets
 } from "./daily-ticket.controller.js";
 
 
@@ -22,6 +23,7 @@ router.get("/", getTickets);
 router.get("/report/plan-vs-actual", getPlanVsActualReport);
 router.post("/auto-generate", authorize(["ADMIN", "PLANNER"], "daily_tickets"), triggerAutoGenerate);
 router.post("/manual-output", manualOutputEntry);
+router.get("/export/detailed", exportDetailedTickets);
 
 router.get("/:id", getTicketById);
 router.post("/", authorize(["ADMIN", "PLANNER"], "daily_tickets"), createTicket);

@@ -1,5 +1,68 @@
 import pool from "../../config/db.js";
 
+// Lấy chi tiết từng item (Dành cho Export Excel)
+export const exportDetailedItems = async (req, res) => {
+  try {
+    const { type, search = "", order_id, product_id } = req.query;
+
+    let whereClause = "WHERE t.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (type) {
+      queryParams.push(type);
+      whereClause += ` AND t.type = $${queryParams.length}`;
+    }
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      whereClause += ` AND (t.ticket_code ILIKE $${queryParams.length} OR s.name ILIKE $${queryParams.length})`;
+    }
+
+    if (order_id) {
+      queryParams.push(order_id);
+      whereClause += ` AND i.order_id = $${queryParams.length}`;
+    }
+
+    if (product_id) {
+      queryParams.push(product_id);
+      whereClause += ` AND i.product_id = $${queryParams.length}`;
+    }
+
+    const dataQuery = `
+      SELECT 
+        t.dispatch_date,
+        t.ticket_code,
+        COALESCE(NULLIF(BTRIM(CONCAT_WS(' - ', o.order_code, o.name)), ' - '), o.order_code, o.name) as order_display,
+        p.name as product_name,
+        i.order_quantity,
+        i.processing_type,
+        i.package_count,
+        i.quantity_out,
+        i.unit_net_weight,
+        i.gross_weight,
+        i.pallet_weight,
+        i.net_weight,
+        i.notes,
+        t.expected_return_date,
+        (SELECT MAX(returned_at) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as last_returned_at,
+        (SELECT SUM(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as total_returned
+      FROM outsourcing_ticket_items i
+      JOIN outsourcing_tickets t ON i.ticket_id = t.id
+      LEFT JOIN suppliers s ON t.supplier_id = s.id
+      LEFT JOIN orders o ON i.order_id = o.id
+      LEFT JOIN products p ON i.product_id = p.id
+      ${whereClause}
+      ORDER BY t.created_at DESC, i.id ASC
+    `;
+
+    const result = await pool.query(dataQuery, queryParams);
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Export Detailed Items Error:", error);
+    res.status(500).json({ message: "Error retrieving export data" });
+  }
+};
+
 // Lấy danh sách phiếu (Outbound / All)
 export const getTickets = async (req, res) => {
   try {
@@ -143,20 +206,49 @@ export const createTicket = async (req, res) => {
     const created_by = req.user.id;
 
     // Generate auto ticket_code
-    const prefix = type === "PLATING" ? "XMS" : "DG";
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${day}${month}${year}`;
+    let prefix = type === "PLATING" ? "PRO" : "DG";
+    
+    // Fetch supplier code for PLATING
+    if (type === "PLATING" && supplier_id) {
+      const supplierRes = await client.query("SELECT code FROM suppliers WHERE id = $1", [supplier_id]);
+      if (supplierRes.rowCount > 0) {
+        prefix = `PRO-${supplierRes.rows[0].code}`;
+      }
+    }
 
-    // Find count of today's tickets
-    const countRes = await client.query(
-      "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
-      [`${prefix}-${todayStr}-%`]
-    );
-    const count = parseInt(countRes.rows[0].count) + 1;
-    const ticket_code = `${prefix}-${todayStr}-${count.toString().padStart(3, '0')}`;
+    // Determine date for code (NGÀY XUẤT)
+    let datePart = "";
+    if (dispatch_date) {
+      const d = new Date(dispatch_date);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        datePart = `${dd}${mm}${yyyy}`;
+      }
+    }
+    
+    if (!datePart) {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yyyy = now.getFullYear();
+      datePart = `${dd}${mm}${yyyy}`;
+    }
+
+    // Determine ticket code
+    let ticket_code = "";
+    if (type === "PLATING") {
+      ticket_code = `${prefix}-${datePart}`;
+    } else {
+      // For other types (like PACKAGING), keep the sequence to avoid duplicates
+      const countRes = await client.query(
+        "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
+        [`${prefix}-${datePart}-%`]
+      );
+      const count = parseInt(countRes.rows[0].count) + 1;
+      ticket_code = `${prefix}-${datePart}-${count.toString().padStart(3, '0')}`;
+    }
 
     const insertRes = await client.query(
       `INSERT INTO outsourcing_tickets 

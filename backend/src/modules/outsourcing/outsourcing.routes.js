@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getTickets,
+  exportDetailedItems,
   getTicketByCode,
   createTicket,
   addReturnEntry,
@@ -19,6 +20,7 @@ router.use(verifyToken);
 
 // API Endpoints
 router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTickets);
+router.get("/export-detailed", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), exportDetailedItems);
 router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), createTicket);
 router.get("/:ticket_code", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTicketByCode);
 router.post("/:ticket_id/returns", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), addReturnEntry);

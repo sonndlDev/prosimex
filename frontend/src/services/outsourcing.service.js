@@ -16,5 +16,9 @@ export const outsourcingService = {
   addReturn: async (id, payload) => {
     const { data } = await api.post(`/outsourcing/${id}/returns`, payload);
     return data;
+  },
+  exportDetailed: async (params = {}) => {
+    const { data } = await api.get('/outsourcing/export-detailed', { params });
+    return data;
   }
 };

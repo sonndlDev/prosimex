@@ -19,6 +19,7 @@ import { productService } from "@/services/product.service";
 import { supplierService } from "@/services/supplier.service";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import { DateTime } from "luxon";
+import * as XLSX from 'xlsx';
 
 export default function OutsourcingPage() {
   const [activeTab, setActiveTab] = useState("plating");
@@ -654,7 +655,7 @@ function InboundTicketForm({ type }) {
         <Label className="text-sm font-black text-slate-700 uppercase tracking-widest block text-center mb-4">TRA CỨU PHIẾU ĐI</Label>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
-            placeholder="Mã phiếu (VD: OUT-XM-20260401-001)"
+            placeholder="Mã phiếu (VD: PRO-ABC-20042026-001)"
             value={searchCode}
             onChange={e => setSearchCode(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -847,27 +848,62 @@ function OutsourcingHistory({ type, orders, products }) {
 
   const handleExportExcel = async () => {
     try {
-      const res = await outsourcingService.getAll({ type, page: 1, limit: 5000, search, order_id: filterOrderId, product_id: filterProductId });
-      const exportData = res.data || [];
-      if (exportData.length === 0) {
+      // Gọi API lấy dữ liệu chi tiết từng dòng hàng (Flattened)
+      const exportData = await outsourcingService.exportDetailed({ 
+        type, 
+        search, 
+        order_id: filterOrderId, 
+        product_id: filterProductId 
+      });
+      
+      if (!exportData || exportData.length === 0) {
         toast.info("Không có dữ liệu để xuất");
         return;
       }
-      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" +
-        "Mã phiếu,Nhà cung cấp,Gồm Đơn hàng,Gồm Mã hàng,Tổng Kiện,Quy cách,Tổng Xuất,Tổng Về,Trạng thái\n" +
-        exportData.map(e => {
-          const statusStr = e.status === 'COMPLETED' ? "Hoàn thành" : (e.status === 'PARTIAL' ? "Một phần" : "Đang chờ");
-          return `"${e.ticket_code}","${e.supplier || ''}","${e.order_code || ''}","${e.product_name || ''}","${e.total_packages || 0}","${e.packing_specification || ''}","${e.quantity_out || 0}","${e.total_returned || 0}","${statusStr}"`
-        }).join("\n");
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `lich_su_phieu_${type}_${DateTime.now().toFormat('yyyyMMdd')}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+
+      // Map data to the specific columns from the user's request image
+      const formattedData = exportData.map((e, index) => ({
+        "STT": index + 1,
+        "NGÀY XUẤT ĐI": e.dispatch_date ? DateTime.fromISO(e.dispatch_date).toFormat("dd/MM/yyyy") : "",
+        "PO NCC (MÃ PHIẾU)": e.ticket_code,
+        "ĐƠN HÀNG": e.order_display || "",
+        "MÃ HÀNG": e.product_name,
+        "SL ORDER": e.order_quantity || 0,
+        "LOẠI HÌNH": e.processing_type || "",
+        "KIỆN": e.package_count || 0,
+        "SL XUẤT": e.quantity_out || 0,
+        "KL Tịnh": e.unit_net_weight || 0,
+        "GROSS WEIGHT(KG)": e.gross_weight || 0,
+        "PALLET WEIGHT(KG)": e.pallet_weight || 0,
+        "NET WEIGHT(KG)": e.net_weight || 0,
+        "GHI CHÚ": e.notes || "",
+        "NGÀY DỰ KIẾN VỀ": e.expected_return_date ? DateTime.fromISO(e.expected_return_date).toFormat("dd/MM/yyyy") : "",
+        "NGÀY NHẬP HÀNG": e.last_returned_at ? DateTime.fromISO(e.last_returned_at).toFormat("dd/MM/yyyy") : "",
+        "SL NHẬP": e.total_returned || 0
+      }));
+
+      // Tạo Workbook và Worksheet
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "LichSuGiaCong");
+      
+      // Định dạng độ rộng cột sơ bộ
+      const cols = [
+        { wch: 5 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, 
+        { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, 
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 10 }
+      ];
+      worksheet["!cols"] = cols;
+
+      // Xuất file
+      const fileName = `phieu_gia_cong_${type === 'PLATING' ? 'xi_ma' : 'dong_goi'}_${DateTime.now().toFormat('yyyyMMdd_HHmm')}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      
+      toast.success("Đã xuất file Excel thành công!");
     } catch (err) {
-      toast.error("Lỗi khi xuất excel");
+      console.error("Export Excel Error:", err);
+      toast.error("Lỗi khi xuất file Excel");
     }
   };
 
