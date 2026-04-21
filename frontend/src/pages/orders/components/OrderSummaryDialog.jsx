@@ -50,7 +50,7 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
         },
         {
             id: "total_sx_quantity",
-            label: "Đã hoàn thành\n(Tổng SL TT)",
+            label: "Đã hoàn thành\n(Giá trị TB)",
             className: "font-black text-center text-emerald-600",
             format: (v) => Number(v).toLocaleString()
         },

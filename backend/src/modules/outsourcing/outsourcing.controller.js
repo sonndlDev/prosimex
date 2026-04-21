@@ -45,7 +45,12 @@ export const exportDetailedItems = async (req, res) => {
         i.notes,
         t.expected_return_date,
         (SELECT MAX(returned_at) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as last_returned_at,
-        (SELECT SUM(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as total_returned
+        (SELECT SUM(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as total_returned,
+        (SELECT SUM(gross_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_gross_weight,
+        (SELECT SUM(pallet_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_pallet_weight,
+        (SELECT SUM(net_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_net_weight,
+        (SELECT SUM(missing_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_missing_weight,
+        (SELECT string_agg(notes, '; ') FROM outsourcing_returns r WHERE r.ticket_item_id = i.id AND notes IS NOT NULL AND notes != '') as return_notes
       FROM outsourcing_ticket_items i
       JOIN outsourcing_tickets t ON i.ticket_id = t.id
       LEFT JOIN suppliers s ON t.supplier_id = s.id
@@ -307,14 +312,14 @@ export const addReturnEntry = async (req, res) => {
   try {
     await client.query("BEGIN");
     const { ticket_id } = req.params;
-    const { ticket_item_id, quantity_returned } = req.body;
+    const { ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
     const created_by = req.user.id;
 
     // Insert return entry
     const insertRes = await client.query(
-      `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, created_by)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [ticket_item_id, quantity_returned, created_by]
+      `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [ticket_item_id, quantity_returned, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
     );
 
     // Update status of main ticket

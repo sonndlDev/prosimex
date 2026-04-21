@@ -20,6 +20,8 @@ import { supplierService } from "@/services/supplier.service";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import { DateTime } from "luxon";
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+
 
 export default function OutsourcingPage() {
   const [activeTab, setActiveTab] = useState("plating");
@@ -608,7 +610,7 @@ function InboundTicketForm({ type }) {
   const [ticketData, setTicketData] = useState(null);
   const [history, setHistory] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
-  const [returnQtys, setReturnQtys] = useState({});
+  const [returnFormData, setReturnFormData] = useState({});
   const [loadingReturn, setLoadingReturn] = useState(false);
 
   const handleSearch = async () => {
@@ -622,7 +624,7 @@ function InboundTicketForm({ type }) {
       }
       setTicketData(res.ticket);
       setHistory(res.history || []);
-      setReturnQtys({});
+      setReturnFormData({});
     } catch (error) {
       toast.error("Không tìm thấy mã phiếu hoặc có lỗi xảy ra");
     } finally {
@@ -630,17 +632,34 @@ function InboundTicketForm({ type }) {
     }
   };
 
+  const handleReturnFormChange = (itemId, field, value) => {
+    setReturnFormData(prev => {
+      const existing = prev[itemId] || {};
+      const updated = { ...existing, [field]: value };
+      if (field === 'gross_weight' || field === 'pallet_weight') {
+        const g = parseFloat(updated.gross_weight || 0);
+        const p = parseFloat(updated.pallet_weight || 0);
+        if (updated.gross_weight || updated.pallet_weight) {
+          updated.net_weight = (g - p).toFixed(2);
+        } else {
+          updated.net_weight = "";
+        }
+      }
+      return { ...prev, [itemId]: updated };
+    });
+  };
+
   const handleAddReturn = async (itemId) => {
-    const qty = returnQtys[itemId];
-    if (!qty || parseFloat(qty) <= 0) {
+    const data = returnFormData[itemId] || {};
+    if (!data.quantity_returned || parseFloat(data.quantity_returned) <= 0) {
       toast.error("Vui lòng nhập số lượng hợp lệ!");
       return;
     }
     setLoadingReturn(true);
     try {
-      await outsourcingService.addReturn(ticketData.id, { ticket_item_id: itemId, quantity_returned: qty });
+      await outsourcingService.addReturn(ticketData.id, { ticket_item_id: itemId, ...data });
       toast.success("Đã cập nhật lượng nhập về!");
-      setReturnQtys(prev => ({ ...prev, [itemId]: "" }));
+      setReturnFormData(prev => ({ ...prev, [itemId]: undefined }));
       handleSearch(); // Refresh data
     } catch (error) {
       toast.error("Lỗi khi nhập bổ sung");
@@ -760,23 +779,65 @@ function InboundTicketForm({ type }) {
                         <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                        <div className="relative flex-1">
+                      <div className="flex flex-col gap-3 pt-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                           <Input
                             type="number"
-                            placeholder="Nhập thêm..."
-                            value={returnQtys[item.id] || ""}
-                            onChange={e => setReturnQtys({ ...returnQtys, [item.id]: e.target.value })}
-                            className="h-10 bg-indigo-50/30 text-sm font-bold tabular-nums border-indigo-200 focus-visible:ring-indigo-600 pl-3"
+                            placeholder="SL Nhập *"
+                            value={returnFormData[item.id]?.quantity_returned || ""}
+                            onChange={e => handleReturnFormChange(item.id, 'quantity_returned', e.target.value)}
+                            className="bg-indigo-50/30 text-sm font-bold border-indigo-200 focus-visible:ring-indigo-600"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Gross (KG)"
+                            value={returnFormData[item.id]?.gross_weight || ""}
+                            onChange={e => handleReturnFormChange(item.id, 'gross_weight', e.target.value)}
+                            className="text-sm font-medium"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Pallet (KG)"
+                            value={returnFormData[item.id]?.pallet_weight || ""}
+                            onChange={e => handleReturnFormChange(item.id, 'pallet_weight', e.target.value)}
+                            className="text-sm font-medium"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="Net (KG)"
+                            readOnly
+                            value={returnFormData[item.id]?.net_weight || ""}
+                            className="text-sm font-bold bg-zinc-100"
                           />
                         </div>
-                        <Button
-                          onClick={() => handleAddReturn(item.id)}
-                          disabled={loadingReturn}
-                          className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
-                        >
-                          <Check className="w-4 h-4" /> Xác nhận
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="KG Thiếu thừa"
+                            value={returnFormData[item.id]?.missing_weight || ""}
+                            onChange={e => handleReturnFormChange(item.id, 'missing_weight', e.target.value)}
+                            className="text-sm font-medium"
+                          />
+                          <Input
+                            placeholder="Ghi chú"
+                            value={returnFormData[item.id]?.notes || ""}
+                            onChange={e => handleReturnFormChange(item.id, 'notes', e.target.value)}
+                            className="text-sm font-medium"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={() => handleAddReturn(item.id)}
+                            disabled={loadingReturn}
+                            className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
+                          >
+                            <Check className="w-4 h-4" /> Xác nhận
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -848,7 +909,6 @@ function OutsourcingHistory({ type, orders, products }) {
 
   const handleExportExcel = async () => {
     try {
-      // Gọi API lấy dữ liệu chi tiết từng dòng hàng (Flattened)
       const exportData = await outsourcingService.exportDetailed({ 
         type, 
         search, 
@@ -861,45 +921,147 @@ function OutsourcingHistory({ type, orders, products }) {
         return;
       }
 
-      // Map data to the specific columns from the user's request image
-      const formattedData = exportData.map((e, index) => ({
-        "STT": index + 1,
-        "NGÀY XUẤT ĐI": e.dispatch_date ? DateTime.fromISO(e.dispatch_date).toFormat("dd/MM/yyyy") : "",
-        "PO NCC (MÃ PHIẾU)": e.ticket_code,
-        "ĐƠN HÀNG": e.order_display || "",
-        "MÃ HÀNG": e.product_name,
-        "SL ORDER": e.order_quantity || 0,
-        "LOẠI HÌNH": e.processing_type || "",
-        "KIỆN": e.package_count || 0,
-        "SL XUẤT": e.quantity_out || 0,
-        "KL Tịnh": e.unit_net_weight || 0,
-        "GROSS WEIGHT(KG)": e.gross_weight || 0,
-        "PALLET WEIGHT(KG)": e.pallet_weight || 0,
-        "NET WEIGHT(KG)": e.net_weight || 0,
-        "GHI CHÚ": e.notes || "",
-        "NGÀY DỰ KIẾN VỀ": e.expected_return_date ? DateTime.fromISO(e.expected_return_date).toFormat("dd/MM/yyyy") : "",
-        "NGÀY NHẬP HÀNG": e.last_returned_at ? DateTime.fromISO(e.last_returned_at).toFormat("dd/MM/yyyy") : "",
-        "SL NHẬP": e.total_returned || 0
-      }));
+      const workbook = new ExcelJS.Workbook();
+      const ws = workbook.addWorksheet("Phiếu Gia Công");
 
-      // Tạo Workbook và Worksheet
-      const worksheet = XLSX.utils.json_to_sheet(formattedData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "LichSuGiaCong");
-      
-      // Định dạng độ rộng cột sơ bộ
-      const cols = [
-        { wch: 5 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, 
-        { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, 
-        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, 
-        { wch: 15 }, { wch: 10 }
+      // ─── Cột phếu đi (B..O = col 2..15) | Phếu về (P..X = col 16..24)
+      const diHeaders = [
+        "NGÀY XUẤT ĐI", "PO NCC (MÃ PHIẾU)", "ĐƠN HÀNG", "MÃ HÀNG", "SL ORDER",
+        "LOẠI HÌNH", "KIỆN", "SL XUẤT", "KG/CÁI", "GROSS WEIGH (KG)",
+        "PALLET WEIGH (KG)", "NET WEIGH (KG)", "GHI CHÚ", "NGÀY DỰ KIẾN VỀ"
       ];
-      worksheet["!cols"] = cols;
+      const veHeaders = [
+        "NGÀY NHẬP HÀNG", "KIỆN", "SL NHẬP", "KG/CÁI", "GROSS WEIGH (KG)",
+        "PALLET WEIGH (KG)", "NET WEIGH (KG)", "KG THIẾU THỮA", "GHI CHÚ"
+      ];
 
-      // Xuất file
-      const fileName = `phieu_gia_cong_${type === 'PLATING' ? 'xi_ma' : 'dong_goi'}_${DateTime.now().toFormat('yyyyMMdd_HHmm')}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
-      
+      const diColStart = 2; // 1-indexed
+      const veColStart = diColStart + diHeaders.length; // 16
+      const totalCols = veColStart + veHeaders.length - 1; // 24
+
+      // ─── Cột widths
+      ws.getColumn(1).width = 6;
+      diHeaders.forEach((_, i) => {
+        const widths = [13, 20, 18, 22, 9, 10, 7, 9, 9, 14, 14, 12, 18, 15];
+        ws.getColumn(diColStart + i).width = widths[i] || 12;
+      });
+      veHeaders.forEach((_, i) => {
+        const widths = [15, 7, 9, 9, 14, 14, 12, 13, 20];
+        ws.getColumn(veColStart + i).width = widths[i] || 12;
+      });
+
+      // ─── Hàng 1: group headers
+      ws.getRow(1).height = 24;
+      const row1 = ws.getRow(1);
+
+      // STT - gộp 2 hàng
+      const sttCell = row1.getCell(1);
+      sttCell.value = "STT";
+      sttCell.font = { bold: true, size: 11, color: { argb: "FF374151" } };
+      sttCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
+      sttCell.alignment = { horizontal: "center", vertical: "middle" };
+      sttCell.border = { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} };
+
+      // "Ở phiếu đi" - nền xanh dương
+      const diCell = row1.getCell(diColStart);
+      diCell.value = "Ở phiếu đi";
+      diCell.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+      diCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
+      diCell.alignment = { horizontal: "center", vertical: "middle" };
+      diCell.border = { top: {style:"medium"}, bottom: {style:"medium"}, left: {style:"medium"}, right: {style:"medium"} };
+
+      // "Ở phiếu về" - nền xanh lá đậm
+      const veCell = row1.getCell(veColStart);
+      veCell.value = "Ở phiếu về";
+      veCell.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
+      veCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF065F46" } };
+      veCell.alignment = { horizontal: "center", vertical: "middle" };
+      veCell.border = { top: {style:"medium"}, bottom: {style:"medium"}, left: {style:"medium"}, right: {style:"medium"} };
+
+      // Merge hàng 1
+      ws.mergeCells(1, 1, 2, 1);                               // STT
+      ws.mergeCells(1, diColStart, 1, diColStart + diHeaders.length - 1); // Phếu đi
+      ws.mergeCells(1, veColStart, 1, veColStart + veHeaders.length - 1); // Phếu về
+
+      // ─── Hàng 2: tên cột chi tiết
+      ws.getRow(2).height = 36;
+      const row2 = ws.getRow(2);
+
+      const subHStyle = (argbBg, argbFont = "FF000000") => ({
+        font: { bold: true, size: 9, color: { argb: argbFont } },
+        fill: { type: "pattern", pattern: "solid", fgColor: { argb: argbBg } },
+        alignment: { horizontal: "center", vertical: "middle", wrapText: true },
+        border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} }
+      });
+
+      // A2 trống (đã merge với A1)
+      Object.assign(row2.getCell(1), subHStyle("FFE5E7EB", "FF374151"));
+
+      diHeaders.forEach((h, i) => {
+        const c = row2.getCell(diColStart + i);
+        c.value = h;
+        const s = subHStyle("FFBFDBFE"); // xanh dương nhạt
+        c.font = s.font; c.fill = s.fill; c.alignment = s.alignment; c.border = s.border;
+      });
+
+      veHeaders.forEach((h, i) => {
+        const c = row2.getCell(veColStart + i);
+        c.value = h;
+        const s = subHStyle("FFD1FAE5"); // xanh lá nhạt
+        c.font = s.font; c.fill = s.fill; c.alignment = s.alignment; c.border = s.border;
+      });
+
+      // ─── Dữ liệu từ row 3
+      exportData.forEach((e, idx) => {
+        const row = ws.addRow([
+          idx + 1,
+          e.dispatch_date ? DateTime.fromISO(e.dispatch_date).toFormat("dd/MM/yyyy") : "",
+          e.ticket_code || "",
+          e.order_display || "",
+          e.product_name || "",
+          e.order_quantity != null ? parseFloat(e.order_quantity) : 0,
+          e.processing_type || "",
+          e.package_count != null ? parseFloat(e.package_count) : 0,
+          e.quantity_out != null ? parseFloat(e.quantity_out) : 0,
+          e.unit_net_weight != null ? parseFloat(e.unit_net_weight) : 0,
+          e.gross_weight != null ? parseFloat(e.gross_weight) : 0,
+          e.pallet_weight != null ? parseFloat(e.pallet_weight) : 0,
+          e.net_weight != null ? parseFloat(e.net_weight) : 0,
+          e.notes || "",
+          e.expected_return_date ? DateTime.fromISO(e.expected_return_date).toFormat("dd/MM/yyyy") : "",
+          e.last_returned_at ? DateTime.fromISO(e.last_returned_at).toFormat("dd/MM/yyyy") : "",
+          "",  // Kiện về
+          e.total_returned != null ? parseFloat(e.total_returned) : 0,
+          e.unit_net_weight != null ? parseFloat(e.unit_net_weight) : 0,
+          e.return_gross_weight != null ? parseFloat(e.return_gross_weight) : 0,
+          e.return_pallet_weight != null ? parseFloat(e.return_pallet_weight) : 0,
+          e.return_net_weight != null ? parseFloat(e.return_net_weight) : 0,
+          e.return_missing_weight != null ? parseFloat(e.return_missing_weight) : 0,
+          e.return_notes ? (e.notes ? `${e.notes} | ${e.return_notes}` : e.return_notes) : "",
+        ]);
+        row.height = 18;
+        row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+        // Nền màu xen kẽ cho dễ đọc
+        const rowBg = idx % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC";
+        for (let c = 1; c <= totalCols; c++) {
+          const cell = row.getCell(c);
+          if (!cell.fill || cell.fill.fgColor?.argb === "FFFFFFFF") {
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+          }
+          cell.border = { top: {style:"hair"}, bottom: {style:"hair"}, left: {style:"thin"}, right: {style:"thin"} };
+        }
+      });
+
+      // ─── Xuất file
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `phieu_gia_cong_${type === 'PLATING' ? 'xi_ma' : 'dong_goi'}_${DateTime.now().toFormat('yyyyMMdd_HHmm')}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+
       toast.success("Đã xuất file Excel thành công!");
     } catch (err) {
       console.error("Export Excel Error:", err);

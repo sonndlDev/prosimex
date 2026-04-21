@@ -160,10 +160,19 @@ export const getOrderCompletionReport = async (req, res) => {
     const { id } = req.params;
 
     const query = `
-      WITH sx_totals AS (
+      WITH product_stages AS (
+          SELECT 
+              op.product_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id
+          FROM order_products op
+          JOIN products p ON op.product_id = p.id
+          WHERE op.order_id = $1
+      ),
+      sx_totals AS (
         SELECT dti.product_id, SUM(dti.actual_quantity) as total_sx
         FROM daily_production_ticket_items dti 
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+        JOIN product_stages ps ON ps.product_id = dti.product_id AND ps.final_pgo_id = dti.product_group_operation_id
         WHERE dti.order_id = $1 AND dt.deleted_at IS NULL
         GROUP BY dti.product_id
       ),
@@ -215,11 +224,18 @@ export const getOrderCompletionReport = async (req, res) => {
       const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
       const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
 
-      // Formula = SX + ĐI XMS + ĐÓNG GÓI
-      const sum = sx + platingOut + packagingOut;
+      // New average completed logic:
+      const items = [];
+      if (sx > 0) items.push(sx);
+      if (platingOut > 0) items.push(platingOut);
+      if (platingReturned > 0) items.push(platingReturned);
+      if (packagingOut > 0) items.push(packagingOut);
+
+      const completedQty = items.length > 0 ? items.reduce((a, b) => a + b, 0) / items.length : 0;
+
       let percentage = 0;
       if (required > 0) {
-        percentage = (sum / required) * 100;
+        percentage = (completedQty / required) * 100;
       }
 
       return {
@@ -228,7 +244,8 @@ export const getOrderCompletionReport = async (req, res) => {
         plating_out_quantity: platingOut,
         plating_returned_quantity: platingReturned,
         packaging_out_quantity: packagingOut,
-        completion_percentage: percentage
+        completion_percentage: percentage,
+        completed_quantity: completedQty
       };
     });
 
@@ -302,13 +319,33 @@ export const getOrderSummaryReport = async (req, res) => {
     `;
 
     const result = await pool.query(query, [id]);
-    const details = result.rows;
+    
+    const details = result.rows.map(row => {
+      const finishedQty = parseFloat(row.finished_quantity || 0);
+      const platingOutQty = parseFloat(row.plating_out_quantity || 0);
+      const platingRetQty = parseFloat(row.plating_returned_quantity || 0);
+      const packagingOutQty = parseFloat(row.packaging_out_quantity || 0);
+
+      const items = [];
+      if (finishedQty > 0) items.push(finishedQty);
+      if (platingOutQty > 0) items.push(platingOutQty);
+      if (platingRetQty > 0) items.push(platingRetQty);
+      if (packagingOutQty > 0) items.push(packagingOutQty);
+
+      const completedQty = items.length > 0 ? items.reduce((a, b) => a + b, 0) / items.length : 0;
+
+      return {
+        ...row,
+        original_total_sx: row.total_sx_quantity,
+        total_sx_quantity: completedQty 
+      };
+    });
 
     const totals = {
       required: details.reduce((sum, row) => sum + parseFloat(row.required_quantity || 0), 0),
       started: details.reduce((sum, row) => sum + parseFloat(row.started_quantity || 0), 0),
       finished: details.reduce((sum, row) => sum + parseFloat(row.finished_quantity || 0), 0),
-      total_sx: details.reduce((sum, row) => sum + parseFloat(row.total_sx_quantity || 0), 0)
+      total_sx: details.reduce((sum, row) => sum + (row.total_sx_quantity || 0), 0)
     };
 
     res.json({
