@@ -537,24 +537,37 @@ export default function PlanningPage() {
               </tr>
               {dateColumns.length > 0 && (
                 <tr className="bg-zinc-50">
-                  {dateColumns.map((date) => (
-                    <ExcelHeaderCell
-                      key={date.key}
-                      className="bg-sky-50/50 text-[9px] min-w-[54px] p-1 h-auto py-2"
-                    >
-                      <div className="flex flex-col items-center gap-1.5">
-                        <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-black text-blue-600 bg-blue-100/50 px-1.5 py-0.5 rounded-full leading-none">
-                            {Number(dailyTotalCong[date.key] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
-                          </span>
-                          <span className="text-[6px] font-black text-zinc-400 uppercase tracking-tighter mt-0.5">CÔNG</span>
+                  {dateColumns.map((date) => {
+                    const dt = DateTime.fromISO(date.key);
+                    const isSunday = dt.weekday === 7;
+                    const dayName = dt.setLocale('vi').toFormat('cccc');
+
+                    return (
+                      <ExcelHeaderCell
+                        key={date.key}
+                        className={cn(
+                          "text-[9px] min-w-[54px] p-1 h-auto py-2",
+                          isSunday ? "bg-zinc-200 text-red-600" : "bg-sky-50/50 text-zinc-600"
+                        )}
+                      >
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="flex flex-col items-center">
+                            <span className={cn(
+                              "text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none",
+                              isSunday ? "bg-red-100 text-red-700" : "bg-blue-100/50 text-blue-600"
+                            )}>
+                              {Number(dailyTotalCong[date.key] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
+                            </span>
+                            <span className="text-[6px] font-black opacity-40 uppercase tracking-tighter mt-0.5">CÔNG</span>
+                          </div>
+                          <div className="flex flex-col items-center border-t border-sky-100 w-full pt-1 mt-0.5">
+                            <span className="text-[7px] font-black uppercase opacity-60 mb-0.5">{dayName}</span>
+                            <span className="font-bold">{date.label}</span>
+                          </div>
                         </div>
-                        <span className="text-zinc-600 border-t border-sky-100 w-full pt-1 mt-0.5 font-bold">
-                          {date.label}
-                        </span>
-                      </div>
-                    </ExcelHeaderCell>
-                  ))}
+                      </ExcelHeaderCell>
+                    );
+                  })}
                 </tr>
               )}
             </thead>

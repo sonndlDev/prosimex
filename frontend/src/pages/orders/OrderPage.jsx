@@ -298,7 +298,7 @@ export default function OrderPage() {
     },
     {
       id: "expected_container_shipping_date",
-      label: <p className="text-center">Ngày xuất công <br /> (Dự kiến)</p>,
+      label: <p className="text-center">Ngày xuất công <br /> (Thực tế)</p>,
       format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
     },
     {
@@ -782,7 +782,7 @@ export default function OrderPage() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-bold">Ngày xuất công dự kiến</Label>
+                        <Label className="text-xs font-bold">Ngày xuất công thực tế</Label>
                         <Controller
                           name="expected_container_shipping_date"
                           control={control}
@@ -820,9 +820,9 @@ export default function OrderPage() {
                                 "Đã báo XNK",
                                 "Theo lịch xuất của xưởng"
                               ].map((opt) => (
-                                <SelectItem 
-                                  key={opt} 
-                                  value={opt} 
+                                <SelectItem
+                                  key={opt}
+                                  value={opt}
                                   className="rounded-lg font-bold text-[11px] py-3 px-4 focus:bg-indigo-50 focus:text-indigo-700 transition-all cursor-pointer mb-0.5 last:mb-0"
                                 >
                                   {opt}

@@ -18,8 +18,11 @@ export const productGroupService = {
         return data;
     },
     // Map Operations
-    getOperations: async (groupId) => {
-        const { data } = await api.get(`/product-groups/${groupId}/operations`);
+    getOperations: async (groupId, { orderId, productId } = {}) => {
+        const params = {};
+        if (orderId) params.order_id = orderId;
+        if (productId) params.product_id = productId;
+        const { data } = await api.get(`/product-groups/${groupId}/operations`, { params });
         return data;
     },
     addOperation: async (groupId, payload) => {

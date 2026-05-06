@@ -117,15 +117,44 @@ export const deleteProductGroup = async (req, res) => {
 export const getProductGroupOperations = async (req, res) => {
   try {
     const { id } = req.params // product_group_id
-    const result = await pool.query(
-      `SELECT pgo.*, o.name as operation_name, 
-              (SELECT string_agg(name, ', ') FROM machines WHERE id = ANY(pgo.machine_ids)) as machine_names
-             FROM product_group_operations pgo
-             LEFT JOIN operations o ON pgo.operation_id = o.id
-             WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
-             ORDER BY pgo.sequence_order ASC`,
-      [id]
-    )
+    const { order_id, product_id } = req.query
+
+    // Base query: lấy danh sách công đoạn của product group
+    // Nếu có order_id và product_id, kiểm tra xem công đoạn đã được lập kế hoạch chưa
+    let query;
+    let params;
+
+    if (order_id && product_id) {
+      query = `
+        SELECT pgo.*, 
+               o.name as operation_name, 
+               (SELECT string_agg(m.name, ', ') FROM machines m WHERE m.id = ANY(pgo.machine_ids)) as machine_names,
+               EXISTS (
+                 SELECT 1 FROM production_plans pp
+                 WHERE pp.product_group_operation_id = pgo.id
+                   AND pp.order_id = $2
+                   AND pp.product_id = $3
+                   AND pp.deleted_at IS NULL
+               ) as is_planned
+        FROM product_group_operations pgo
+        LEFT JOIN operations o ON pgo.operation_id = o.id
+        WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
+        ORDER BY pgo.sequence_order ASC`;
+      params = [id, order_id, product_id];
+    } else {
+      query = `
+        SELECT pgo.*, 
+               o.name as operation_name, 
+               (SELECT string_agg(m.name, ', ') FROM machines m WHERE m.id = ANY(pgo.machine_ids)) as machine_names,
+               false as is_planned
+        FROM product_group_operations pgo
+        LEFT JOIN operations o ON pgo.operation_id = o.id
+        WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
+        ORDER BY pgo.sequence_order ASC`;
+      params = [id];
+    }
+
+    const result = await pool.query(query, params);
     res.json(result.rows)
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving operations for group', error })

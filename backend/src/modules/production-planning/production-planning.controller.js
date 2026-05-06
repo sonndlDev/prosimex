@@ -56,6 +56,7 @@ export const getProductionPlans = async (req, res) => {
                 op.name as operation_name, 
                 pp.machine_id as machine_id,
                 m.name as machine_name,
+                m.code as machine_code,
                 f.name as factory_name,
                 COALESCE(cu.full_name, cu.username) as creator_name,
                 COALESCE(mu.full_name, mu.username) as modifier_name
@@ -189,7 +190,11 @@ export const createProductionPlan = async (req, res) => {
     const total_required_work = parseFloat(
       days.reduce((acc, d) => acc + parseFloat(d.hours), 0),
     );
-    const planned_end_date = days[days.length - 1].date;
+    // Fallback: nếu days rỗng hoặc chỉ có 0h placeholder → dùng planned_start_date
+    const nonZeroDays = (days || []).filter(d => parseFloat(d.hours) > 0);
+    const planned_end_date = nonZeroDays.length > 0
+      ? nonZeroDays[nonZeroDays.length - 1].date
+      : planned_start_date;
 
     // 3. Insert Production Plan
     const planInsert = await client.query(
@@ -741,5 +746,73 @@ export const stopPlan = async (req, res) => {
     res.status(500).json({ message: "Error stopping plan", error });
   } finally {
     client.release();
+  }
+};
+
+/**
+ * GET /production-plans/planned-status?order_id=X
+ * Trả về trạng thái kế hoạch cho từng product trong đơn hàng:
+ * [{ product_id, product_group_id, total_ops, planned_ops, all_planned }]
+ */
+export const getPlannedStatusByOrder = async (req, res) => {
+  try {
+    const { order_id } = req.query;
+    if (!order_id) return res.status(400).json({ message: 'order_id is required' });
+
+    // Lấy tất cả products trong đơn hàng kèm product_group_id
+    const productsRes = await pool.query(
+      `SELECT op.product_id, p.product_group_id
+       FROM order_products op
+       JOIN products p ON p.id = op.product_id
+       WHERE op.order_id = $1`,
+      [order_id]
+    );
+    const products = productsRes.rows;
+    if (products.length === 0) return res.json([]);
+
+    // Lấy tổng số operations của mỗi product_group
+    const groupIds = [...new Set(products.map(p => p.product_group_id).filter(Boolean))];
+    let totalOpsMap = {};
+    if (groupIds.length > 0) {
+      const totalOpsRes = await pool.query(
+        `SELECT product_group_id, COUNT(*) as total_ops
+         FROM product_group_operations
+         WHERE product_group_id = ANY($1) AND deleted_at IS NULL
+         GROUP BY product_group_id`,
+        [groupIds]
+      );
+      totalOpsRes.rows.forEach(r => { totalOpsMap[r.product_group_id] = parseInt(r.total_ops); });
+    }
+
+    // Lấy số operations đã có kế hoạch cho mỗi product trong đơn hàng này
+    const plannedRes = await pool.query(
+      `SELECT pp.product_id, COUNT(DISTINCT pp.product_group_operation_id) as planned_ops
+       FROM production_plans pp
+       WHERE pp.order_id = $1
+         AND pp.product_group_operation_id IS NOT NULL
+         AND pp.deleted_at IS NULL
+       GROUP BY pp.product_id`,
+      [order_id]
+    );
+    const plannedMap = {};
+    plannedRes.rows.forEach(r => { plannedMap[r.product_id] = parseInt(r.planned_ops); });
+
+    // Kết hợp kết quả
+    const result = products.map(p => {
+      const total = totalOpsMap[p.product_group_id] || 0;
+      const planned = plannedMap[p.product_id] || 0;
+      return {
+        product_id: p.product_id,
+        product_group_id: p.product_group_id,
+        total_ops: total,
+        planned_ops: planned,
+        all_planned: total > 0 && planned >= total,
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Get Planned Status Error:', error);
+    res.status(500).json({ message: 'Error retrieving planned status', error });
   }
 };

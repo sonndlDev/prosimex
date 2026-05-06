@@ -34,4 +34,8 @@ export const planningService = {
         const { data } = await api.put(`/production-plans/${id}/stop`, { stopped_at });
         return data;
     },
+    getPlannedStatus: async (orderId) => {
+        const { data } = await api.get('/production-plans/planned-status', { params: { order_id: orderId } });
+        return data; // [{ product_id, total_ops, planned_ops, all_planned }]
+    },
 };

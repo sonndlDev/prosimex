@@ -51,7 +51,7 @@ const PlanningTableRow = React.memo(
           {plan.product_group_name}
         </ExcelDataCell>
         <ExcelDataCell className="text-left px-3">{plan.operation_name}</ExcelDataCell>
-        <ExcelDataCell className="text-left px-3">{plan.machine_name}</ExcelDataCell>
+        <ExcelDataCell className="text-left px-3 font-bold text-blue-600">{plan.machine_code || plan.machine_name}</ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums font-medium">
           {(
             parseFloat(plan.inventory_input) +
@@ -108,10 +108,16 @@ const PlanningTableRow = React.memo(
           const currentCellDate = DateTime.fromISO(date.key);
           const isActuallyStopped = isStopped && stoppedAt && currentCellDate.startOf('day') > stoppedAt.startOf('day');
 
+          const dt = DateTime.fromISO(date.key);
+          const isSunday = dt.weekday === 7;
+
           if (dayData) {
             if (isActuallyStopped) {
               cellBg = "#94a3b8"; // Slate gray for stopped days
               textColor = "#fff";
+            } else if (isSunday) {
+              cellBg = "#d4d4d8"; // Darker gray (zinc-300) for Sunday with work
+              textColor = "#000";
             } else if (!plan.machine_id) {
               // Nếu không có máy, luôn hiển thị màu xanh theo yêu cầu
               cellBg = "#22c55e"; // Green
@@ -129,6 +135,8 @@ const PlanningTableRow = React.memo(
               cellBg = "#22c55e"; // Green
               textColor = "#fff";
             }
+          } else if (isSunday) {
+            cellBg = "#e4e4e7"; // zinc-200 for empty Sunday
           }
 
           return (

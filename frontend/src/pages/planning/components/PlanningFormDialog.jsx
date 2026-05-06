@@ -5,6 +5,7 @@ import { orderService } from "../../../services/order.service";
 import { productGroupService } from "../../../services/product-group.service";
 import { factoryService } from "../../../services/factory.service";
 import { machineService } from "../../../services/machine.service";
+import { planningService } from "../../../services/planning.service";
 import { DateTime } from "luxon";
 import {
   Plus,
@@ -157,10 +158,27 @@ const PlanningFormDialog = React.memo(
       (p) => String(p.id) === String(selectedProductId),
     );
 
+    // Query trạng thái kế hoạch của từng mã hàng trong đơn hàng được chọn
+    const { data: plannedStatusData } = useQuery({
+      queryKey: ["plannedStatus", selectedOrderId],
+      queryFn: () => planningService.getPlannedStatus(selectedOrderId),
+      enabled: !!selectedOrderId && !editingPlan,
+      staleTime: 0, // Luôn refetch để phản ánh kế hoạch mới nhất
+    });
+    // Map product_id -> all_planned
+    const plannedStatusMap = useMemo(() => {
+      const map = {};
+      (plannedStatusData || []).forEach(s => { map[s.product_id] = s.all_planned; });
+      return map;
+    }, [plannedStatusData]);
+
     const { data: operations, isLoading: loadingOps } = useQuery({
-      queryKey: ["orderOps", selectedProduct?.product_group_id],
+      queryKey: ["orderOps", selectedProduct?.product_group_id, selectedOrderId, selectedProductId],
       queryFn: () =>
-        productGroupService.getOperations(selectedProduct.product_group_id),
+        productGroupService.getOperations(selectedProduct.product_group_id, {
+          orderId: selectedOrderId,
+          productId: selectedProductId,
+        }),
       enabled: !!selectedProduct?.product_group_id,
     });
 
@@ -177,6 +195,8 @@ const PlanningFormDialog = React.memo(
           ? parseFloat(selectedOrder.quantity)
           : 0;
     const remainingQty = Math.max(0, totalOrderQty - inventory);
+    // Khi tồn kho đủ hoặc vượt số lượng đơn → vẫn cho tạo kế hoạch để ghi nhận trong báo cáo
+    const isInventoryCovered = totalOrderQty > 0 && parseFloat(inventory) >= totalOrderQty;
 
     const dinhMuc = useMemo(() => {
       // If manually entered
@@ -431,6 +451,18 @@ const PlanningFormDialog = React.memo(
       }
 
       // Trường hợp sửa hoặc chỉ 1 máy (hoặc dự phòng)
+      // Nếu tồn kho đủ → tạo 1 placeholder day 0h để ghi nhận
+      const daysToSubmit = isInventoryCovered && plannedDays.length === 0 && startDate
+        ? [{ date: startDate, hours: 0, is_overtime: false }]
+        : plannedDays
+            .filter((d) => parseFloat(d.hours) > 0 || (d.machineHours && Object.values(d.machineHours).some(h => parseFloat(h) > 0)))
+            .map((d) => ({
+              date: d.date,
+              hours: (parseFloat(d.hours) * 8).toFixed(2),
+              is_overtime: d.is_overtime || false,
+              machine_hours: d.machineHours || {},
+            }));
+
       onSubmit({
         ...baseData,
         machine_ids: selectedMachineIds.length > 0 ? selectedMachineIds : null,
@@ -440,15 +472,9 @@ const PlanningFormDialog = React.memo(
         inventory_input: inventory,
         dinh_muc: dinhMuc,
         planned_start_date: startDate,
-        endDate: endDate,
-        days: plannedDays
-          .filter((d) => parseFloat(d.hours) > 0 || (d.machineHours && Object.values(d.machineHours).some(h => parseFloat(h) > 0)))
-          .map((d) => ({
-            date: d.date,
-            hours: (parseFloat(d.hours) * 8).toFixed(2),
-            is_overtime: d.is_overtime || false,
-            machine_hours: d.machineHours || {},
-          })),
+        endDate: isInventoryCovered && plannedDays.length === 0 ? startDate : endDate,
+        inventory_covered: isInventoryCovered,
+        days: daysToSubmit,
       });
     };
 
@@ -634,29 +660,44 @@ const PlanningFormDialog = React.memo(
                                 <CommandList className="max-h-[300px] p-1">
                                   <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
                                   <CommandGroup>
-                                    {selectedOrder?.products?.map((p) => (
-                                      <CommandItem
-                                        key={p.id}
-                                        value={p.name}
-                                        onSelect={() => {
-                                          if (String(p.id) === String(field.value)) return;
-                                          field.onChange(String(p.id));
-                                          setValue("selectedOpId", "");
-                                          setValue("selectedMachineIds", []);
-                                          setValue("startDate", "");
-                                          setValue("endDate", "");
-                                          setValue("manualDinhMuc", "");
-                                          replaceDays([]);
-                                        }}
-                                        className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                                      >
-                                        <div className="flex flex-col gap-0.5">
-                                          <span className="text-xs font-bold">{p.name}</span>
-                                          <span className="text-[10px] text-zinc-400 font-medium">{parseFloat(p.quantity).toLocaleString()} SP • ĐVT: {p.unit || "N/A"}</span>
-                                        </div>
-                                        <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
-                                      </CommandItem>
-                                    ))}
+                                    {selectedOrder?.products?.map((p) => {
+                                      const isAllPlanned = plannedStatusMap[p.id] === true;
+                                      return (
+                                        <CommandItem
+                                          key={p.id}
+                                          value={p.name}
+                                          disabled={isAllPlanned}
+                                          onSelect={() => {
+                                            if (isAllPlanned) return;
+                                            if (String(p.id) === String(field.value)) return;
+                                            field.onChange(String(p.id));
+                                            setValue("selectedOpId", "");
+                                            setValue("selectedMachineIds", []);
+                                            setValue("startDate", "");
+                                            setValue("endDate", "");
+                                            setValue("manualDinhMuc", "");
+                                            replaceDays([]);
+                                          }}
+                                          className={cn(
+                                            "flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors mb-1 last:mb-0",
+                                            isAllPlanned
+                                              ? "opacity-50 cursor-not-allowed pointer-events-none bg-zinc-50"
+                                              : "cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700"
+                                          )}
+                                        >
+                                          <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-bold">{p.name}</span>
+                                              {isAllPlanned && (
+                                                <span className="text-[9px] font-black uppercase tracking-tight bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Đã lên KH</span>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] text-zinc-400 font-medium">{parseFloat(p.quantity).toLocaleString()} SP • ĐVT: {p.unit || "N/A"}</span>
+                                          </div>
+                                          <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                                        </CommandItem>
+                                      );
+                                    })}
                                   </CommandGroup>
                                 </CommandList>
                               </Command>
@@ -712,7 +753,9 @@ const PlanningFormDialog = React.memo(
                                         <CommandItem
                                           key={op.id}
                                           value={op.operation_name}
+                                          disabled={op.is_planned}
                                           onSelect={() => {
+                                            if (op.is_planned) return;
                                             if (String(op.id) === String(field.value)) return;
                                             field.onChange(String(op.id));
                                             setValue("selectedMachineIds", []);
@@ -720,10 +763,13 @@ const PlanningFormDialog = React.memo(
                                             setValue("endDate", "");
                                             replaceDays([]);
                                           }}
-                                          className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                          className={cn("flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors mb-1 last:mb-0", op.is_planned ? "opacity-50 cursor-not-allowed pointer-events-none bg-zinc-50" : "cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700")}
                                         >
                                           <div className="flex flex-col gap-0.5">
-                                            <span className="text-xs font-bold">CĐ {op.sequence_order}: {op.operation_name}</span>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-bold">CĐ {op.sequence_order}: {op.operation_name}</span>
+                                              {op.is_planned && <span className="text-[9px] font-black uppercase tracking-tight bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">Đã lên KH</span>}
+                                            </div>
                                             <span className="text-[10px] text-zinc-400 font-medium">Đồ gá: {op.fixture || "N/A"} • Định mức: {op.dinh_muc || 0} SP/H</span>
                                           </div>
                                           <Check className={cn("h-4 w-4 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
@@ -787,7 +833,7 @@ const PlanningFormDialog = React.memo(
                                       <span className="truncate leading-tight">
                                         {currentIds.length === 0
                                           ? (!selectedOp ? "Hãy chọn công đoạn" : (!isOutsourced ? "Chọn máy..." : "Gia công ngoài"))
-                                          : currentIds.map(id => machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
+                                          : currentIds.map(id => machines?.find(m => String(m.id) === id)?.code || machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
                                         }
                                       </span>
                                     </div>
@@ -812,7 +858,7 @@ const PlanningFormDialog = React.memo(
                                               <div className="flex items-center gap-3">
                                                 <Checkbox checked={isChecked} className="pointer-events-none" />
                                                 <div className="flex flex-col gap-0.5">
-                                                  <span className="text-xs font-bold">{m.name}</span>
+                                                  <span className="text-xs font-bold">{m.code || m.name}</span>
                                                   <span className="text-[10px] text-zinc-400 font-medium">Công nghệ: {m.type || "Tiện/Phay"}</span>
                                                 </div>
                                               </div>
@@ -875,7 +921,7 @@ const PlanningFormDialog = React.memo(
                                     <span className="truncate leading-tight">
                                       {currentIds.length === 0
                                         ? (!isOutsourced ? "Chọn máy..." : "Gia công ngoài")
-                                        : currentIds.map(id => machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
+                                        : currentIds.map(id => machines?.find(m => String(m.id) === id)?.code || machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
                                       }
                                     </span>
                                   </div>
@@ -900,7 +946,7 @@ const PlanningFormDialog = React.memo(
                                             <div className="flex items-center gap-3">
                                               <Checkbox checked={isChecked} className="pointer-events-none" />
                                               <div className="flex flex-col gap-0.5">
-                                                <span className="text-xs font-bold">{m.name}</span>
+                                                <span className="text-xs font-bold">{m.code || m.name}</span>
                                                 <span className="text-[10px] text-zinc-400 font-medium">Máy sản xuất xưởng</span>
                                               </div>
                                             </div>
@@ -1038,6 +1084,20 @@ const PlanningFormDialog = React.memo(
               {selectedOrderId && !isFullOrderMode && selectedOpId && (
                 <Card className="border-zinc-200 bg-white shadow-md overflow-hidden border-l-4 border-l-emerald-500">
                   <CardContent className="p-6">
+                    {isInventoryCovered && (
+                      <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start gap-3">
+                        <div className="p-2 bg-emerald-500 rounded-lg text-white shrink-0">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-black text-emerald-950 uppercase tracking-tight">Sản phẩm đã có sẵn trong kho</p>
+                          <p className="text-xs font-medium text-emerald-700 leading-relaxed">
+                            Số lượng tồn kho ({parseFloat(inventory).toLocaleString()}) đã đủ hoặc vượt số lượng đơn hàng ({totalOrderQty.toLocaleString()}).
+                            Hệ thống sẽ tạo kế hoạch "giả" để ghi nhận và hiển thị trong các báo cáo sản xuất.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 group">
                       <div className="space-y-1">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
@@ -1256,7 +1316,7 @@ const PlanningFormDialog = React.memo(
                           <div>Ngày</div>
                           {selectedMachineIds.map(id => (
                             <div key={id} className="text-center">
-                              {machines?.find(m => String(m.id) === id)?.name || id}
+                              {machines?.find(m => String(m.id) === id)?.code || machines?.find(m => String(m.id) === id)?.name || id}
                             </div>
                           ))}
                           <div className="text-center">Tăng ca</div>
@@ -1273,17 +1333,25 @@ const PlanningFormDialog = React.memo(
                         ) : (
                           plannedDays.map((day, idx) => {
                             const hasMultiMachines = selectedMachineIds.length > 1;
+                            const dt = DateTime.fromISO(day.date);
+                            const isSunday = dt.weekday === 7;
+                            const dayName = dt.setLocale('vi').toFormat('cccc');
+
                             return (
                               <div
                                 key={idx}
                                 className={cn(
-                                  "items-center gap-2 px-4 py-3 bg-white group hover:bg-zinc-50/50 transition-colors",
+                                  "items-center gap-2 px-4 py-3 group transition-colors",
+                                  isSunday ? "bg-zinc-100/80 hover:bg-zinc-200/50" : "bg-white hover:bg-zinc-50/50",
                                   hasMultiMachines ? "grid" : "flex gap-4"
                                 )}
                                 style={hasMultiMachines ? { gridTemplateColumns: `160px repeat(${selectedMachineIds.length}, 1fr) 130px 60px` } : undefined}
                               >
                                 {/* Date picker */}
-                                <div className={hasMultiMachines ? "" : "w-[140px]"}>
+                                <div className={cn("flex flex-col gap-1", hasMultiMachines ? "" : "w-[140px]")}>
+                                  <div className={cn("text-[9px] font-black uppercase tracking-widest px-1", isSunday ? "text-red-600" : "text-zinc-400")}>
+                                    {dayName}
+                                  </div>
                                   <PremiumDatePicker
                                     date={day.date}
                                     onSelect={(val) => {
@@ -1401,7 +1469,15 @@ const PlanningFormDialog = React.memo(
             <Button
               disabled={
                 !startDate ||
-                (isFullOrderMode ? (!endDate || (isOutsourced ? !selectedFactoryId : false)) : (plannedDays.length === 0 || !selectedOpId || (isOutsourced ? !selectedFactoryId : false))) ||
+                (isFullOrderMode
+                  ? (!endDate || (isOutsourced ? !selectedFactoryId : false))
+                  : (
+                      // Nếu tồn kho đủ thì chỉ cần có startDate + selectedOpId
+                      isInventoryCovered
+                        ? (!selectedOpId || (isOutsourced ? !selectedFactoryId : false))
+                        : (plannedDays.length === 0 || !selectedOpId || (isOutsourced ? !selectedFactoryId : false))
+                    )
+                ) ||
                 isCreatePending ||
                 isUpdatePending
               }
