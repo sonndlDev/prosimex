@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, Loader2, Calendar as CalendarIcon, Check, ChevronsUpDown, Package, Settings, ShoppingCart, FileSpreadsheet } from "lucide-react";
+import { Trash2, Plus, Loader2, Calendar as CalendarIcon, Check, ChevronsUpDown, Package, Settings, ShoppingCart, FileSpreadsheet, User } from "lucide-react";
 import { PremiumDatePicker } from "../../../components/PremiumDatePicker";
 import { orderService } from "../../../services/order.service";
 import { productService } from "../../../services/product.service";

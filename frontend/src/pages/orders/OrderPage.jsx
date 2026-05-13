@@ -267,7 +267,29 @@ export default function OrderPage() {
         </TooltipProvider>
       )
     },
-    { id: "po_auto_code", label: "PO", className: "font-bold text-blue-600" },
+    { 
+      id: "po_auto_code", 
+      label: "PO", 
+      className: "font-bold text-blue-600",
+      format: (value, row) => (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpen(row);
+              }}
+              className="inline-flex items-center gap-1 font-black text-blue-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+            >
+              {value || "-"}
+            </TooltipTrigger>
+            <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+              <p>Xem chi tiết đơn hàng</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    },
     { id: "name", label: "Tên đơn hàng", className: "font-semibold text-zinc-900" },
     { id: "customer_name", label: "Tên khách", className: "font-medium" },
     { id: "person_in_charge", label: "Người theo dõi đơn hàng" },

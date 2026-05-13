@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -543,193 +542,190 @@ export default function PlanVsActualPage() {
         {/* Data table */}
         {!isLoading && !error && rows.length > 0 && (
           <>
-            <ScrollArea className="w-full">
-              <div className="min-w-max">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-zinc-50/80 hover:bg-zinc-50 border-b-2 border-zinc-200">
-                      {/* Fixed info columns */}
+            <div className="w-full overflow-auto max-h-[calc(100vh-380px)]">
+              <table className="w-full caption-bottom text-sm border-separate border-spacing-0">
+                <TableHeader className="sticky top-0 z-50">
+                  <TableRow className="bg-zinc-50 hover:bg-zinc-50 border-b-2 border-zinc-200">
+                    {/* Fixed info columns */}
+                    <TableHead
+                      rowSpan={2}
+                      className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                    >STT</TableHead>
+                    <SortableHead
+                      rowSpan={2}
+                      field="sequence_order"
+                      label="TT"
+                      className="sticky left-[50px] z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                    />
+                    <SortableHead
+                      rowSpan={2}
+                      field="product_name"
+                      label="Mã hàng"
+                      className="sticky left-[100px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] font-black text-[9px] uppercase text-zinc-500"
+                    />
+
+                    {/* Sticky info columns */}
+                    <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="sticky left-[280px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[460px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Nhóm SP</TableHead>
+                    <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="sticky left-[600px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[740px] z-40 bg-zinc-50 border-r border-zinc-200 w-[110px] min-w-[110px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap italic">Máy</TableHead>
+                    <SortableHead rowSpan={2} field="plan_quantity" label="SL Đơn" className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap">Tồn kho</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap">Cần SX</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Định mức</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-emerald-600 whitespace-nowrap min-w-[80px]">Thực tế</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-600 whitespace-nowrap">Còn lại</TableHead>
+                    <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap min-w-[130px]">Tiến độ %</TableHead>
+                    <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Trạng thái</TableHead>
+                    <SortableHead rowSpan={2} field="planned_start_date" label="Bắt đầu KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <SortableHead rowSpan={2} field="planned_end_date" label="Kết thúc KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+
+                    {/* Date columns */}
+                    {dateColumns.map(date => (
                       <TableHead
-                        rowSpan={2}
-                        className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-200 w-10 text-center font-black text-[9px] uppercase text-zinc-500"
-                      >STT</TableHead>
-                      <SortableHead
-                        rowSpan={2}
-                        field="sequence_order"
-                        label="TT"
-                        className="sticky left-10 z-40 bg-zinc-50 border-r border-zinc-200 w-12 text-center font-black text-[9px] uppercase text-zinc-500"
-                      />
-                      <SortableHead
-                        rowSpan={2}
-                        field="product_name"
-                        label="Mã hàng"
-                        className="sticky left-[88px] z-40 bg-zinc-50 border-r border-zinc-200 min-w-[170px] font-black text-[9px] uppercase text-zinc-500"
-                      />
-
-                      {/* Info columns (non-sticky) */}
-                      <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                      <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Nhóm SP</TableHead>
-                      <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                      <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap italic">Máy</TableHead>
-                      <SortableHead rowSpan={2} field="plan_quantity" label="SL Đơn" className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                      <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap">Tồn kho</TableHead>
-                      <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap">Cần SX</TableHead>
-                      <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Định mức</TableHead>
-                      <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-emerald-600 whitespace-nowrap min-w-[80px]">Thực tế</TableHead>
-                      <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-600 whitespace-nowrap">Còn lại</TableHead>
-                      <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap min-w-[130px]">Tiến độ %</TableHead>
-                      <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Trạng thái</TableHead>
-                      <SortableHead rowSpan={2} field="planned_start_date" label="Bắt đầu KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                      <SortableHead rowSpan={2} field="planned_end_date" label="Kết thúc KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-
-                      {/* Date columns */}
-                      {dateColumns.map(date => (
-                        <TableHead
-                          key={date.key}
-                          colSpan={2}
-                          className="bg-indigo-50/40 text-indigo-700 text-center font-black text-[9px] border-l border-zinc-200 py-2 whitespace-nowrap"
-                        >
-                          {date.label}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                    <TableRow className="hover:bg-transparent bg-zinc-50/80">
-                      {dateColumns.map(date => (
-                        <React.Fragment key={`sub-${date.key}`}>
-                          <TableHead className="text-[8px] font-black uppercase text-amber-600 border-l border-zinc-200 bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap">KH</TableHead>
-                          <TableHead className="text-[8px] font-black uppercase text-zinc-400 border-l border-zinc-100 text-center h-7 px-1 whitespace-nowrap">TT</TableHead>
-                        </React.Fragment>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-
-                  <TableBody>
-                    {rows.map((row, idx) => (
-                      <TableRow
-                        key={row.pp_id || `${row.order_id}-${row.product_id}-${row.product_group_operation_id}`}
-                        className="group hover:bg-indigo-50/20 transition-colors border-b border-zinc-100"
+                        key={date.key}
+                        colSpan={2}
+                        className="bg-indigo-50/40 text-indigo-700 text-center font-black text-[9px] border-l border-zinc-200 py-2 whitespace-nowrap"
                       >
-                        {/* STT */}
-                        <TableCell className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50/20 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums">
-                          {(page - 1) * limit + idx + 1}
-                        </TableCell>
-                        {/* Thứ tự */}
-                        <TableCell className="sticky left-10 z-30 bg-white group-hover:bg-indigo-50/20 text-center font-black text-xs text-zinc-700 border-r border-zinc-100">
-                          {row.sequence_order || "—"}
-                        </TableCell>
-                        {/* Mã hàng */}
-                        <TableCell className="sticky left-[88px] z-30 bg-white group-hover:bg-indigo-50/20 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tight">
-                          <div className="flex flex-col gap-1">
-                            <div className="max-w-[170px] truncate" title={row.product_name}>{row.product_name || "—"}</div>
-                            {(!row.pp_id) ? (
-                              <Badge className="w-fit bg-amber-100 text-amber-700 border-amber-200 text-[8px] font-black h-4 px-1 leading-none uppercase tracking-tighter shadow-none">
-                                Nhập trực tiếp
-                              </Badge>
-                            ) : (
-                              <Badge className="w-fit bg-indigo-50 text-indigo-600 border-indigo-100 text-[8px] font-black h-4 px-1 leading-none uppercase tracking-tighter shadow-none">
-                                Theo KH
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Đơn hàng */}
-                        <TableCell className="whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-black text-indigo-700">{row.order_code || row.order_name || "—"}</span>
-                            {row.po_customer && (
-                              <span className="text-[10px] text-zinc-400 font-medium">{row.po_customer}</span>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* Nhóm SP */}
-                        <TableCell className="text-[11px] text-zinc-500 font-bold max-w-[100px] truncate">
-                          {row.product_group_name || "—"}
-                        </TableCell>
-
-                        {/* Công đoạn */}
-                        <TableCell className="text-[11px] font-black text-zinc-800 whitespace-nowrap">
-                          {row.operation_name || "—"}
-                        </TableCell>
-
-                        {/* Máy */}
-                        <TableCell className="text-[11px] text-zinc-400 font-bold italic whitespace-nowrap">
-                          {row.machine_name || "—"}
-                        </TableCell>
-
-                        {/* SL Đơn */}
-                        <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-700">
-                          {row.planQty.toLocaleString()}
-                        </TableCell>
-                        {/* Tồn kho */}
-                        <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-400">
-                          {row.inventory.toLocaleString()}
-                        </TableCell>
-                        {/* Cần SX */}
-                        <TableCell className="text-right text-xs font-black tabular-nums text-rose-500">
-                          {row.qtyToProduce.toLocaleString()}
-                        </TableCell>
-                        {/* Định mức */}
-                        <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-500">
-                          {row.dinh_muc || "—"}
-                        </TableCell>
-                        {/* Thực tế */}
-                        <TableCell className="text-right text-xs font-black tabular-nums text-emerald-600 bg-emerald-50/30">
-                          {row.totalActual.toLocaleString()}
-                        </TableCell>
-                        {/* Còn lại */}
-                        <TableCell className={cn(
-                          "text-right text-xs font-black tabular-nums",
-                          row.remaining > 0 ? "text-rose-600" : "text-emerald-600"
-                        )}>
-                          {row.remaining.toLocaleString()}
-                        </TableCell>
-                        {/* Tiến độ progress bar */}
-                        <TableCell className="min-w-[130px]">
-                          <ProgressBar pct={row.percentage} />
-                        </TableCell>
-                        {/* Trạng thái badge */}
-                        <TableCell>
-                          <StatusBadge pct={row.percentage} />
-                        </TableCell>
-                        {/* Bắt đầu KH */}
-                        <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
-                          {row.planned_start_date ? DateTime.fromISO(row.planned_start_date).toFormat("dd/MM") : "—"}
-                        </TableCell>
-                        {/* Kết thúc KH */}
-                        <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
-                          {row.planned_end_date ? DateTime.fromISO(row.planned_end_date).toFormat("dd/MM") : "—"}
-                        </TableCell>
-
-                        {/* Date columns data */}
-                        {dateColumns.map(date => {
-                          const pQty = row.planByDate[date.key] || 0;
-                          const aQty = row.actualByDate[date.key] || 0;
-                          return (
-                            <React.Fragment key={`data-${row.id}-${date.key}`}>
-                              <TableCell className={cn(
-                                "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
-                                pQty > 0 ? "text-amber-600 bg-amber-50/20" : "text-zinc-200"
-                              )}>
-                                {pQty > 0 ? pQty.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—"}
-                              </TableCell>
-                              <TableCell className={cn(
-                                "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
-                                aQty > 0 ? "text-zinc-900" : "text-zinc-200"
-                              )}>
-                                {aQty > 0 ? aQty.toLocaleString() : "—"}
-                              </TableCell>
-                            </React.Fragment>
-                          );
-                        })}
-                      </TableRow>
+                        {date.label}
+                      </TableHead>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+                  </TableRow>
+                  <TableRow className="hover:bg-zinc-50 bg-zinc-50">
+                    {dateColumns.map(date => (
+                      <React.Fragment key={`sub-${date.key}`}>
+                        <TableHead className="text-[8px] font-black uppercase text-amber-600 border-l border-zinc-200 bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap">KH</TableHead>
+                        <TableHead className="text-[8px] font-black uppercase text-zinc-400 border-l border-zinc-100 text-center h-7 px-1 whitespace-nowrap">TT</TableHead>
+                      </React.Fragment>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {rows.map((row, idx) => (
+                    <TableRow
+                      key={row.pp_id || `${row.order_id}-${row.product_id}-${row.product_group_operation_id}`}
+                      className="group hover:bg-indigo-50/20 transition-colors border-b border-zinc-100"
+                    >
+                      {/* STT */}
+                      <TableCell className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums w-[50px] min-w-[50px]">
+                        {(page - 1) * limit + idx + 1}
+                      </TableCell>
+                      {/* Thứ tự */}
+                      <TableCell className="sticky left-[50px] z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-100 w-[50px] min-w-[50px]">
+                        {row.sequence_order || "—"}
+                      </TableCell>
+                      {/* Mã hàng */}
+                      <TableCell className="sticky left-[100px] z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tight w-[180px] min-w-[180px]">
+                        <div className="flex flex-col gap-1">
+                          <div className="max-w-[170px] truncate" title={row.product_name}>{row.product_name || "—"}</div>
+                          {(!row.pp_id) ? (
+                            <Badge className="w-fit bg-amber-100 text-amber-700 border-amber-200 text-[8px] font-black h-4 px-1 leading-none uppercase tracking-tighter shadow-none">
+                              Nhập trực tiếp
+                            </Badge>
+                          ) : (
+                            <Badge className="w-fit bg-indigo-50 text-indigo-600 border-indigo-100 text-[8px] font-black h-4 px-1 leading-none uppercase tracking-tighter shadow-none">
+                              Theo KH
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Đơn hàng */}
+                      <TableCell className="sticky left-[280px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 whitespace-nowrap w-[180px] min-w-[180px]">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-black text-indigo-700">{row.order_code || row.order_name || "—"}</span>
+                          {row.po_customer && (
+                            <span className="text-[10px] text-zinc-400 font-medium">{row.po_customer}</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Nhóm SP */}
+                      <TableCell className="sticky left-[460px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-500 font-bold w-[140px] min-w-[140px] truncate">
+                        {row.product_group_name || "—"}
+                      </TableCell>
+
+                      {/* Công đoạn */}
+                      <TableCell className="sticky left-[600px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] font-black text-zinc-800 whitespace-nowrap w-[140px] min-w-[140px]">
+                        {row.operation_name || "—"}
+                      </TableCell>
+
+                      {/* Máy */}
+                      <TableCell className="sticky left-[740px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-400 font-bold italic whitespace-nowrap w-[110px] min-w-[110px]">
+                        {row.machine_name || "—"}
+                      </TableCell>
+
+                      {/* SL Đơn */}
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-700">
+                        {row.planQty.toLocaleString()}
+                      </TableCell>
+                      {/* Tồn kho */}
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-400">
+                        {row.inventory.toLocaleString()}
+                      </TableCell>
+                      {/* Cần SX */}
+                      <TableCell className="text-right text-xs font-black tabular-nums text-rose-500">
+                        {row.qtyToProduce.toLocaleString()}
+                      </TableCell>
+                      {/* Định mức */}
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-500">
+                        {row.dinh_muc || "—"}
+                      </TableCell>
+                      {/* Thực tế */}
+                      <TableCell className="text-right text-xs font-black tabular-nums text-emerald-600 bg-emerald-50/30">
+                        {row.totalActual.toLocaleString()}
+                      </TableCell>
+                      {/* Còn lại */}
+                      <TableCell className={cn(
+                        "text-right text-xs font-black tabular-nums",
+                        row.remaining > 0 ? "text-rose-600" : "text-emerald-600"
+                      )}>
+                        {row.remaining.toLocaleString()}
+                      </TableCell>
+                      {/* Tiến độ progress bar */}
+                      <TableCell className="min-w-[130px]">
+                        <ProgressBar pct={row.percentage} />
+                      </TableCell>
+                      {/* Trạng thái badge */}
+                      <TableCell>
+                        <StatusBadge pct={row.percentage} />
+                      </TableCell>
+                      {/* Bắt đầu KH */}
+                      <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
+                        {row.planned_start_date ? DateTime.fromISO(row.planned_start_date).toFormat("dd/MM") : "—"}
+                      </TableCell>
+                      {/* Kết thúc KH */}
+                      <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
+                        {row.planned_end_date ? DateTime.fromISO(row.planned_end_date).toFormat("dd/MM") : "—"}
+                      </TableCell>
+
+                      {/* Date columns data */}
+                      {dateColumns.map(date => {
+                        const pQty = row.planByDate[date.key] || 0;
+                        const aQty = row.actualByDate[date.key] || 0;
+                        return (
+                          <React.Fragment key={`data-${row.id}-${date.key}`}>
+                            <TableCell className={cn(
+                              "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
+                              pQty > 0 ? "text-amber-600 bg-amber-50/20" : "text-zinc-200"
+                            )}>
+                              {pQty > 0 ? pQty.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—"}
+                            </TableCell>
+                            <TableCell className={cn(
+                              "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
+                              aQty > 0 ? "text-zinc-900" : "text-zinc-200"
+                            )}>
+                              {aQty > 0 ? aQty.toLocaleString() : "—"}
+                            </TableCell>
+                          </React.Fragment>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </table>
+            </div>
 
             {/* Pagination */}
             <div className="px-6 pb-5 pt-3">
