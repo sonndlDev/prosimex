@@ -114,6 +114,7 @@ export const getOrders = async (req, res) => {
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
+             oe.pallet_info, oe.accessory_status,
              CASE 
                WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
                ELSE 0 
@@ -378,6 +379,12 @@ export const createOrder = async (req, res) => {
       person_in_charge,
       note,
       factory_id,
+      production_start_date,
+      expected_shipping_date,
+      expected_container_shipping_date,
+      customer_confirmation_result,
+      pallet_info,
+      accessory_status,
     } = req.body;
 
     const created_by = req.user.id; // From JWT Auth Middleware
@@ -436,6 +443,23 @@ export const createOrder = async (req, res) => {
 
     const newOrder = updateRes.rows[0];
 
+    // 4. Insert into order_ext if provided
+    if (production_start_date || expected_shipping_date || expected_container_shipping_date || customer_confirmation_result || pallet_info || accessory_status) {
+      await client.query(
+        `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          orderId,
+          production_start_date || null,
+          expected_shipping_date || null,
+          expected_container_shipping_date || null,
+          customer_confirmation_result || null,
+          pallet_info || null,
+          accessory_status || null,
+        ]
+      );
+    }
+
     // Audit Log
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
@@ -479,6 +503,8 @@ export const updateOrder = async (req, res) => {
       expected_shipping_date,
       expected_container_shipping_date,
       customer_confirmation_result,
+      pallet_info,
+      accessory_status,
     } = req.body;
 
     // Get Before Data for Audit Log
@@ -580,19 +606,23 @@ export const updateOrder = async (req, res) => {
 
     // Update order_ext
     await client.query(
-      `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (order_id) DO UPDATE SET
          production_start_date = EXCLUDED.production_start_date,
          expected_shipping_date = EXCLUDED.expected_shipping_date,
          expected_container_shipping_date = EXCLUDED.expected_container_shipping_date,
-         customer_confirmation_result = EXCLUDED.customer_confirmation_result`,
+         customer_confirmation_result = EXCLUDED.customer_confirmation_result,
+         pallet_info = EXCLUDED.pallet_info,
+         accessory_status = EXCLUDED.accessory_status`,
       [
         id,
         production_start_date || null,
         expected_shipping_date || null,
         expected_container_shipping_date || null,
         customer_confirmation_result || null,
+        pallet_info || null,
+        accessory_status || null,
       ]
     );
 
@@ -600,6 +630,8 @@ export const updateOrder = async (req, res) => {
     afterData.expected_shipping_date = expected_shipping_date || null;
     afterData.expected_container_shipping_date = expected_container_shipping_date || null;
     afterData.customer_confirmation_result = customer_confirmation_result || null;
+    afterData.pallet_info = pallet_info || null;
+    afterData.accessory_status = accessory_status || null;
 
     // Audit Log
     await client.query(

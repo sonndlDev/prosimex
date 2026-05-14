@@ -437,6 +437,7 @@ export default function PlanningPage() {
                 const worksheetData = plans.map((plan, i) => {
                    const row = {
                      "STT": i + 1,
+                     "STT CĐ": plan.sequence_order,
                      "Tên mã hàng": plan.product_name,
                      "Nhóm mã": plan.product_group_name,
                      "Công đoạn": plan.operation_name,
@@ -510,6 +511,7 @@ export default function PlanningPage() {
                 <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tên mã hàng</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Nhóm mã</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>STT CĐ</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Công đoạn</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Máy</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>SL đơn</ExcelHeaderCell>
@@ -596,7 +598,7 @@ export default function PlanningPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={16 + dateColumns.length} className="py-20 text-center text-zinc-400 bg-white">
+                  <td colSpan={17 + dateColumns.length} className="py-20 text-center text-zinc-400 bg-white">
                     {isLoading ? (
                       <div className="flex items-center justify-center gap-2 italic">
                         <Loader2 className="h-4 w-4 animate-spin text-blue-600" /> Đang cập nhật danh sách...

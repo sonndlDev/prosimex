@@ -77,11 +77,15 @@ import {
   Search,
   X,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  Upload,
+  Download
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import * as XLSX from "xlsx";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const defaultValues = {
   order_code: "",
@@ -99,6 +103,8 @@ const defaultValues = {
   expected_shipping_date: "",
   expected_container_shipping_date: "",
   customer_confirmation_result: "",
+  pallet_info: "",
+  accessory_status: "",
 };
 
 export default function OrderPage() {
@@ -143,6 +149,9 @@ export default function OrderPage() {
 
   const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
   const [summaryOrderId, setSummaryOrderId] = useState(null);
+  const [importErrors, setImportErrors] = useState([]);
+  const [showImportErrors, setShowImportErrors] = useState(false);
+  const fileInputRef = React.useRef(null);
 
   const {
     control,
@@ -366,6 +375,8 @@ export default function OrderPage() {
     { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
     { id: "package_count_text", label: "Số kiện", format: (value, row) => row.package_count_text || "-" },
     { id: "container_volume_text", label: "Khối lượng cont/ lẻ", format: (value, row) => row.container_volume_text || "-" },
+    { id: "pallet_info", label: "Loại pallet, kích thước, tải trọng", format: (value, row) => row.pallet_info || "-" },
+    { id: "accessory_status", label: "Tình trạng phụ kiện", format: (value, row) => row.accessory_status || "-" },
     getAuditColumn(),
   ];
 
@@ -395,6 +406,8 @@ export default function OrderPage() {
         expected_shipping_date: order.expected_shipping_date ? DateTime.fromISO(order.expected_shipping_date).toFormat("yyyy-MM-dd") : "",
         expected_container_shipping_date: order.expected_container_shipping_date ? DateTime.fromISO(order.expected_container_shipping_date).toFormat("yyyy-MM-dd") : "",
         customer_confirmation_result: order.customer_confirmation_result || "",
+        pallet_info: order.pallet_info || "",
+        accessory_status: order.accessory_status || "",
       });
     } else {
       setSelectedOrder(null);
@@ -435,6 +448,105 @@ export default function OrderPage() {
   const handleDelete = (order) => {
     if (window.confirm(`Xóa đơn hàng ${order.order_code}?`))
       deleteMutation.mutate(order.id);
+  };
+
+  const handleImportExcel = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        const errors = [];
+        const validItems = [];
+
+        data.forEach((row, idx) => {
+          const rowNum = idx + 2; // +1 header, +1 zero-indexed
+          const groupName = (row["Nhóm mã hàng"] || row["Nhóm"] || row["Product Group"])?.toString().trim();
+          const productName = (row["Mã hàng"] || row["Sản phẩm"] || row["Product"])?.toString().trim();
+          const qty = parseFloat(row["Số lượng"] || row["Quantity"] || 0);
+
+          if (!groupName || !productName) {
+            errors.push({ row: rowNum, reason: "Thiếu tên nhóm mã hàng hoặc mã hàng" });
+            return;
+          }
+
+          const foundGroup = productGroups.find(
+            (g) => g.name.trim().toLowerCase() === groupName.toLowerCase()
+          );
+
+          if (!foundGroup) {
+            errors.push({ row: rowNum, reason: `Không tìm thấy nhóm: "${groupName}"` });
+            return;
+          }
+
+          const foundProduct = products.find(
+            (p) =>
+              p.name.trim().toLowerCase() === productName.toLowerCase() &&
+              String(p.product_group_id) === String(foundGroup.id)
+          );
+
+          if (!foundProduct) {
+            errors.push({
+              row: rowNum,
+              reason: `Không tìm thấy mã hàng: "${productName}" trong nhóm "${foundGroup.name}"`,
+            });
+            return;
+          }
+
+          if (qty <= 0) {
+            errors.push({ row: rowNum, reason: `Số lượng không hợp lệ cho mã: "${productName}"` });
+            return;
+          }
+
+          validItems.push({
+            product_group_id: String(foundGroup.id),
+            product_id: String(foundProduct.id),
+            quantity: String(qty),
+          });
+        });
+
+        if (validItems.length > 0) {
+          validItems.forEach((item) => {
+            // Avoid duplicates
+            const currentItems = watch("product_items") || [];
+            if (!currentItems.some((it) => String(it.product_id) === String(item.product_id))) {
+              append(item);
+            }
+          });
+          toast.success(`Đã thêm ${validItems.length} mã hàng từ file Excel.`);
+        }
+
+        if (errors.length > 0) {
+          setImportErrors(errors);
+          setShowImportErrors(true);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng.");
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleDownloadTemplate = () => {
+    try {
+      const headers = [["Nhóm mã hàng", "Mã hàng", "Số lượng"]];
+      const ws = XLSX.utils.aoa_to_sheet(headers);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Template");
+      XLSX.writeFile(wb, "Template_Import_San_Pham.xlsx");
+    } catch (err) {
+      toast.error("Lỗi khi tạo file mẫu");
+    }
   };
 
   const handleBulkDelete = (selectedIds) => {
@@ -855,6 +967,36 @@ export default function OrderPage() {
                         )}
                       />
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-zinc-100 pt-5">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-zinc-500">Loại pallet, kích thước, tải trọng</Label>
+                        <Controller
+                          name="pallet_info"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              className="bg-white border-zinc-200 h-10"
+                              placeholder="VD: Pallet gỗ, 1100x1100, 1000kg..."
+                            />
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-zinc-500">Tình trạng phụ kiện</Label>
+                        <Controller
+                          name="accessory_status"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              className="bg-white border-zinc-200 h-10"
+                              placeholder="VD: Đầy đủ, thiếu ốc vít..."
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1044,14 +1186,39 @@ export default function OrderPage() {
                       </div>
                     )}
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
-                      className="w-full py-6 border-dashed border-zinc-200 hover:border-blue-300 hover:bg-blue-50/30 text-zinc-400 hover:text-blue-600 font-bold transition-all gap-2"
-                    >
-                      <Plus className="w-4 h-4" /> Thêm mã hàng mới
-                    </Button>
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportExcel}
+                        className="hidden"
+                        accept=".xlsx,.xls"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
+                        className="flex-1 py-6 border-dashed border-zinc-200 hover:border-blue-300 hover:bg-blue-50/30 text-zinc-400 hover:text-blue-600 font-bold transition-all gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> Thêm mã hàng mới
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="py-6 px-6 border-dashed border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50/30 text-zinc-400 hover:text-emerald-600 font-bold transition-all gap-2"
+                      >
+                        <Upload className="w-4 h-4" /> Import Excel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleDownloadTemplate}
+                        className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-blue-600 transition-all gap-2"
+                      >
+                        <Download className="w-3 h-3" /> Tải file mẫu
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -1077,6 +1244,38 @@ export default function OrderPage() {
           setSummaryOrderId(null);
         }}
       />
+
+      <Dialog open={showImportErrors} onOpenChange={setShowImportErrors}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-6 bg-red-50 border-b border-red-100">
+            <DialogTitle className="text-red-700 font-black flex items-center gap-2 uppercase text-sm tracking-tight">
+              <AlertCircle className="w-5 h-5" /> Kết quả Import (Có lỗi)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-0">
+            <ScrollArea className="max-h-[300px] p-6">
+              <div className="space-y-3">
+                {importErrors.map((err, i) => (
+                  <div key={i} className="flex gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100 group hover:bg-white hover:border-red-200 transition-all">
+                    <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-black text-xs shrink-0">
+                      {err.row}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-zinc-700">Dòng {err.row}</p>
+                      <p className="text-[11px] font-medium text-zinc-500 mt-0.5">{err.reason}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          <DialogFooter className="p-4 bg-zinc-50 border-t border-zinc-100">
+            <Button onClick={() => setShowImportErrors(false)} className="w-full font-bold bg-zinc-900 text-white rounded-xl h-11">
+              Đã hiểu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

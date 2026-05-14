@@ -72,7 +72,7 @@ export const getProductionPlans = async (req, res) => {
             LEFT JOIN users cu ON pp.created_by = cu.id
             LEFT JOIN users mu ON pp.modified_by = mu.id
             ${whereClause}
-            ORDER BY pp.created_at DESC
+            ORDER BY p.name ASC, pgo.sequence_order ASC, pp.created_at DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
         `,
       [...queryParams, limitInt, offsetInt],

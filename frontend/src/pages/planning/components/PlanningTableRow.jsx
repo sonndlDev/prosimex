@@ -50,6 +50,7 @@ const PlanningTableRow = React.memo(
         >
           {plan.product_group_name}
         </ExcelDataCell>
+        <ExcelDataCell className="font-bold text-indigo-600">{plan.sequence_order || "—"}</ExcelDataCell>
         <ExcelDataCell className="text-left px-3">{plan.operation_name}</ExcelDataCell>
         <ExcelDataCell className="text-left px-3 font-bold text-blue-600">{plan.machine_code || plan.machine_name}</ExcelDataCell>
         <ExcelDataCell className="text-right px-3 tabular-nums font-medium">
