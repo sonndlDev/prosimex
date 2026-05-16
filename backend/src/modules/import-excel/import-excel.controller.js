@@ -14,8 +14,9 @@ import pool from "../../config/db.js";
  * Công đoạn được GOM vào đúng Product Group tương ứng.
  */
 export const importMasterData = async (req, res) => {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query("BEGIN");
     const { rows } = req.body;
     const userId = req.user?.id || null;
@@ -188,7 +189,11 @@ export const importMasterData = async (req, res) => {
       // ── 5. QUY TRÌNH NHÓM MÃ (product_group_operations) ───────────
       // Gom công đoạn vào đúng nhóm mã hàng (đã tồn tại hoặc vừa tạo)
       if (productGroupId && operationId) {
-        const dinhMuc = row.dinh_muc ? parseFloat(row.dinh_muc) : null;
+        let dinhMuc = null;
+        if (row.dinh_muc) {
+          const parsed = parseFloat(String(row.dinh_muc).replace(",", "."));
+          dinhMuc = isNaN(parsed) ? null : parsed;
+        }
         let rowIndex = null;
         if (row.stt && !isNaN(parseInt(row.stt))) {
           rowIndex = parseInt(row.stt);
@@ -262,7 +267,7 @@ export const importMasterData = async (req, res) => {
     console.error("Import Master Data Error:", error);
     res.status(500).json({ message: "Lỗi import: " + error.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
 

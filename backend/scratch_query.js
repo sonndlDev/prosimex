@@ -1,19 +1,20 @@
-import pg from "pg";
-const pool = new pg.Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "prosimex",
-  password: "admin",
-  port: 5432,
-});
+import pool from './src/config/db.js';
 
 async function run() {
-  const res = await pool.query(`
-    SELECT product_group_id, operation_id, sequence_order, dinh_muc
-    FROM product_group_operations
-    ORDER BY id ASC LIMIT 50
-  `);
-  console.log(res.rows);
-  process.exit(0);
+  try {
+    const res = await pool.query(`
+      SELECT a.*, u.username 
+      FROM audit_logs a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE a.action = 'IMPORT' 
+      ORDER BY a.created_at DESC 
+      LIMIT 10
+    `);
+    console.log(JSON.stringify(res.rows, null, 2));
+  } catch (err) {
+    console.error(err);
+  } finally {
+    process.exit(0);
+  }
 }
 run();
