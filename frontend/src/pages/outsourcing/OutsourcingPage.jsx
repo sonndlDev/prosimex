@@ -909,13 +909,13 @@ function OutsourcingHistory({ type, orders, products }) {
 
   const handleExportExcel = async () => {
     try {
-      const exportData = await outsourcingService.exportDetailed({ 
-        type, 
-        search, 
-        order_id: filterOrderId, 
-        product_id: filterProductId 
+      const exportData = await outsourcingService.exportDetailed({
+        type,
+        search,
+        order_id: filterOrderId,
+        product_id: filterProductId
       });
-      
+
       if (!exportData || exportData.length === 0) {
         toast.info("Không có dữ liệu để xuất");
         return;
@@ -960,23 +960,23 @@ function OutsourcingHistory({ type, orders, products }) {
       sttCell.font = { bold: true, size: 11, color: { argb: "FF374151" } };
       sttCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE5E7EB" } };
       sttCell.alignment = { horizontal: "center", vertical: "middle" };
-      sttCell.border = { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} };
+      sttCell.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
 
       // "Ở phiếu đi" - nền xanh dương
       const diCell = row1.getCell(diColStart);
-      diCell.value = "Ở phiếu đi";
+      diCell.value = "PHIẾU ĐI";
       diCell.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
       diCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
       diCell.alignment = { horizontal: "center", vertical: "middle" };
-      diCell.border = { top: {style:"medium"}, bottom: {style:"medium"}, left: {style:"medium"}, right: {style:"medium"} };
+      diCell.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
 
       // "Ở phiếu về" - nền xanh lá đậm
       const veCell = row1.getCell(veColStart);
-      veCell.value = "Ở phiếu về";
+      veCell.value = "PHIẾU VỀ";
       veCell.font = { bold: true, size: 13, color: { argb: "FFFFFFFF" } };
       veCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF065F46" } };
       veCell.alignment = { horizontal: "center", vertical: "middle" };
-      veCell.border = { top: {style:"medium"}, bottom: {style:"medium"}, left: {style:"medium"}, right: {style:"medium"} };
+      veCell.border = { top: { style: "medium" }, bottom: { style: "medium" }, left: { style: "medium" }, right: { style: "medium" } };
 
       // Merge hàng 1
       ws.mergeCells(1, 1, 2, 1);                               // STT
@@ -991,7 +991,7 @@ function OutsourcingHistory({ type, orders, products }) {
         font: { bold: true, size: 9, color: { argb: argbFont } },
         fill: { type: "pattern", pattern: "solid", fgColor: { argb: argbBg } },
         alignment: { horizontal: "center", vertical: "middle", wrapText: true },
-        border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} }
+        border: { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }
       });
 
       // A2 trống (đã merge với A1)
@@ -1048,7 +1048,7 @@ function OutsourcingHistory({ type, orders, products }) {
           if (!cell.fill || cell.fill.fgColor?.argb === "FFFFFFFF") {
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
           }
-          cell.border = { top: {style:"hair"}, bottom: {style:"hair"}, left: {style:"thin"}, right: {style:"thin"} };
+          cell.border = { top: { style: "hair" }, bottom: { style: "hair" }, left: { style: "thin" }, right: { style: "thin" } };
         }
       });
 
