@@ -132,7 +132,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
   }, [plans, watchItems, index, isManualMode, manualOrders]);
 
   return (
-    <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_36px] gap-2 items-center">
+    <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_1fr_36px] gap-2 items-center">
       {/* Order */}
       <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
         <Popover>
@@ -280,6 +280,11 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
         <Input {...field} type="number" placeholder="SL KH" className="h-9 text-sm" disabled={isCompleted} />
       )} />
 
+      {/* Notes */}
+      <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
+        <Input {...field} placeholder="Ghi chú" className="h-9 text-sm" disabled={isCompleted} value={field.value || ''} />
+      )} />
+
       {/* Delete */}
       <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
         className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20">
@@ -332,6 +337,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           product_group_operation_id: item.product_group_operation_id || "",
           operation_name: item.operation_name || item.pgo_operation_name || "",
           planned_quantity: item.planned_quantity ? parseFloat(item.planned_quantity) : "",
+          notes: item.notes || "",
         })) || [],
       });
     } else if (!ticketId) { reset({ ticket_date: DateTime.local().toISODate(), is_manual: false, items: [] }); }
@@ -407,11 +413,12 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           {/* Items header */}
           <div>
             <p className="text-sm font-bold text-zinc-950 mb-3">Danh sách công việc dự kiến:</p>
-            <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_36px] gap-2 px-0 mb-2">
+            <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_1fr_36px] gap-2 px-0 mb-2">
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Sản phẩm</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-center">SL Kế hoạch</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>
               <div />
             </div>
             <div className="space-y-2">
@@ -429,7 +436,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
 
           {!isCompleted && (
             <Button type="button" variant="outline" size="sm" className="gap-2 mt-2"
-              onClick={() => append({ order_id: "", product_id: "", product_group_operation_id: "", operation_name: "", planned_quantity: "" })}>
+              onClick={() => append({ order_id: "", product_id: "", product_group_operation_id: "", operation_name: "", planned_quantity: "", notes: "" })}>
               <Plus className="w-3.5 h-3.5" /> Thêm công việc
             </Button>
           )}

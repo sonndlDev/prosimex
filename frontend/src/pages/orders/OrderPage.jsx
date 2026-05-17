@@ -9,6 +9,7 @@ import GenericTable from "../../components/GenericTable";
 import { toast } from "sonner";
 import CompletionReportDialog from "./components/CompletionReportDialog";
 import OrderSummaryDialog from "./components/OrderSummaryDialog";
+import RemainingQuantityDialog from "./components/RemainingQuantityDialog";
 import CompletionPercentageCell from "./components/CompletionPercentageCell";
 import WarehouseDetailsDialog from "./components/WarehouseDetailsDialog";
 import { getAuditColumn } from "../../utils/audit";
@@ -149,6 +150,10 @@ export default function OrderPage() {
 
   const [openSummaryDialog, setOpenSummaryDialog] = useState(false);
   const [summaryOrderId, setSummaryOrderId] = useState(null);
+
+  const [openRemainingQuantity, setOpenRemainingQuantity] = useState(false);
+  const [remainingQuantityOrderId, setRemainingQuantityOrderId] = useState(null);
+
   const [importErrors, setImportErrors] = useState([]);
   const [showImportErrors, setShowImportErrors] = useState(false);
   const fileInputRef = React.useRef(null);
@@ -255,25 +260,45 @@ export default function OrderPage() {
     {
       id: "report_action",
       label: "Báo cáo",
-      className: "w-[60px] text-center",
+      className: "w-[80px] text-center",
       format: (_, row) => (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger
-              onClick={(e) => {
-                e.stopPropagation();
-                setSummaryOrderId(row.id);
-                setOpenSummaryDialog(true);
-              }}
-              className="p-2 mx-auto rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-            </TooltipTrigger>
-            <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
-              <p>Báo cáo tổng hợp</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center justify-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSummaryOrderId(row.id);
+                  setOpenSummaryDialog(true);
+                }}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+              </TooltipTrigger>
+              <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+                <p>Báo cáo tổng hợp</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRemainingQuantityOrderId(row.id);
+                  setOpenRemainingQuantity(true);
+                }}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+              >
+                <Layers className="w-4 h-4" />
+              </TooltipTrigger>
+              <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+                <p>Sản lượng còn lại</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       )
     },
     { 
@@ -1242,6 +1267,15 @@ export default function OrderPage() {
         onClose={() => {
           setOpenSummaryDialog(false);
           setSummaryOrderId(null);
+        }}
+      />
+
+      <RemainingQuantityDialog
+        orderId={remainingQuantityOrderId}
+        open={openRemainingQuantity}
+        onClose={() => {
+          setOpenRemainingQuantity(false);
+          setRemainingQuantityOrderId(null);
         }}
       />
 
