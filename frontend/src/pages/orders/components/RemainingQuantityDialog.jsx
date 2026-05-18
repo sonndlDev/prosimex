@@ -108,7 +108,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
         },
         {
             id: "remaining_quantity",
-            label: "SL Còn lại",
+            label: "SL Còn thiếu",
             className: "font-black text-center text-rose-600 align-middle",
             format: (_, row) => {
                 const required = Number(row.required_quantity) || 0;
@@ -125,14 +125,14 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl bg-zinc-50">
+            <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl bg-zinc-50">
                 <DialogHeader className="p-6 bg-white border-b border-zinc-100 flex flex-row items-center justify-between space-y-0">
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                         <div className="w-10 h-10 bg-rose-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-rose-100">
                             <PackageMinus className="w-5 h-5" />
                         </div>
                         <div>
-                            <span>Báo cáo sản lượng còn lại</span>
+                            <span>Báo cáo số lượng còn thiếu</span>
                             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Mã PO: {poCode}</p>
                         </div>
                     </DialogTitle>
