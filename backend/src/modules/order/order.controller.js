@@ -309,7 +309,23 @@ export const getOrderSummaryReport = async (req, res) => {
           COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL), 0) as total_sx_quantity,
           COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
           COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
-          COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
+          COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+          (
+            SELECT json_agg(json_build_object(
+              'operation_name', op_name.name,
+              'actual_quantity', COALESCE(op_totals.qty, 0)
+            ) ORDER BY pgo.sequence_order ASC)
+            FROM product_group_operations pgo
+            JOIN operations op_name ON pgo.operation_id = op_name.id
+            LEFT JOIN (
+              SELECT dti.product_group_operation_id, SUM(dti.actual_quantity) as qty
+              FROM daily_production_ticket_items dti
+              JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
+              WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL
+              GROUP BY dti.product_group_operation_id
+            ) op_totals ON op_totals.product_group_operation_id = pgo.id
+            WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL
+          ) as operations_detail
       FROM order_products op
       JOIN products p ON op.product_id = p.id
       JOIN product_stages ps ON p.id = ps.product_id

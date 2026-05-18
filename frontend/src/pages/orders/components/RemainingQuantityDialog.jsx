@@ -35,12 +35,12 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
         const required = Number(row.required_quantity) || 0;
         const actual = Number(row.total_sx_quantity) || 0;
         const originalSx = Number(row.original_total_sx) || 0;
-        
+
         // Nếu chưa có số lượng thực tế (cả average và original đều 0) thì giữ nguyên số lượng order
         // Nếu có thì lấy hiệu số
         const hasActual = actual > 0 || originalSx > 0;
         const remaining = hasActual ? required - actual : required;
-        
+
         return sum + remaining;
     }, 0);
 
@@ -48,41 +48,84 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
         {
             id: "product_name",
             label: "Mã hàng",
-            className: "font-black text-indigo-600",
-            format: (v) => <div className="flex items-center gap-2"><Package className="w-3 h-3" /> {v}</div>
+            className: "font-black text-indigo-600 align-top align-middle",
+            format: (v) => <div className="flex items-center gap-2 mt-2"><Package className="w-3 h-3" /> {v}</div>
         },
         {
             id: "required_quantity",
             label: "SL Order",
-            className: "font-bold text-center",
-            format: (v) => Number(v).toLocaleString()
+            className: "font-bold text-center align-top align-middle",
+            format: (v) => <div className="mt-2">{Number(v).toLocaleString()}</div>
+        },
+        {
+            id: "operations_detail",
+            label: "Chi tiết công đoạn",
+            className: "text-left align-top min-w-[200px] align-middle",
+            format: (_, row) => {
+                const ops = row.operations_detail || [];
+                const plating = Number(row.plating_out_quantity) || 0;
+                const packaging = Number(row.packaging_out_quantity) || 0;
+
+                if (ops.length === 0 && plating === 0 && packaging === 0) {
+                    return <div className="mt-2"><span className="text-zinc-400 italic text-[11px]">Chưa có dữ liệu</span></div>;
+                }
+
+                return (
+                    <div className="flex flex-col text-[11px] text-zinc-600 mt-1 w-full min-w-[220px]">
+                        <div className="flex justify-between items-center pb-1.5 mb-1 border-b border-zinc-200 font-black text-[9px] uppercase tracking-widest text-zinc-400 px-1">
+                            <span>Công đoạn</span>
+                            <span>Thực tế</span>
+                        </div>
+                        {ops.map((op, i) => (
+                            <div key={i} className="flex justify-between items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
+                                <span className="font-semibold text-zinc-700 truncate pr-4">{op.operation_name}</span>
+                                <span className={`font-black tabular-nums ${Number(op.actual_quantity) > 0 ? 'text-indigo-600' : 'text-zinc-300'}`}>
+                                    {Number(op.actual_quantity).toLocaleString()}
+                                </span>
+                            </div>
+                        ))}
+                        {plating > 0 && (
+                            <div className="flex justify-between items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
+                                <span className="font-semibold text-zinc-700 truncate pr-4">Mạ (Gia công)</span>
+                                <span className="font-black text-indigo-600 tabular-nums">{plating.toLocaleString()}</span>
+                            </div>
+                        )}
+                        {packaging > 0 && (
+                            <div className="flex justify-between items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
+                                <span className="font-semibold text-zinc-700 truncate pr-4">Đóng gói (Gia công)</span>
+                                <span className="font-black text-indigo-600 tabular-nums">{packaging.toLocaleString()}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
         },
         {
             id: "total_sx_quantity",
-            label: "SL Thực tế",
-            className: "font-black text-center text-emerald-600",
-            format: (v) => Number(v).toLocaleString()
+            label: "SL Thực tế (TB)",
+            className: "font-black text-center text-emerald-600 align-middle",
+            format: (v) => <div className="mt-2">{Number(v).toLocaleString()}</div>
         },
         {
             id: "remaining_quantity",
             label: "SL Còn lại",
-            className: "font-black text-center text-rose-600",
+            className: "font-black text-center text-rose-600 align-middle",
             format: (_, row) => {
                 const required = Number(row.required_quantity) || 0;
                 const actual = Number(row.total_sx_quantity) || 0;
                 const originalSx = Number(row.original_total_sx) || 0;
-                
+
                 const hasActual = actual > 0 || originalSx > 0;
                 const remaining = hasActual ? required - actual : required;
-                
-                return remaining.toLocaleString();
+
+                return <div className="mt-2">{remaining.toLocaleString()}</div>;
             }
         }
     ];
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-hidden border-none shadow-2xl rounded-2xl bg-zinc-50">
+            <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl bg-zinc-50">
                 <DialogHeader className="p-6 bg-white border-b border-zinc-100 flex flex-row items-center justify-between space-y-0">
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                         <div className="w-10 h-10 bg-rose-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-rose-100">
@@ -153,6 +196,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                                         data={details}
                                         columns={columns}
                                         className="border-none"
+                                        maxHeight="calc(95vh - 490px)"
                                     />
                                 </div>
                             </div>

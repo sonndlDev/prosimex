@@ -7,7 +7,7 @@ export const getTickets = async (req, res) => {
     const { page = 1, limit = 10, startDate, endDate, search, status } = req.query;
     const offset = (page - 1) * limit;
 
-    let whereClause = "WHERE dt.deleted_at IS NULL";
+    let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
     const queryParams = [];
 
     if (startDate) {
@@ -433,7 +433,7 @@ export const getPlanVsActualReport = async (req, res) => {
     const orderBy = sortMap[sortBy] || "o.order_code";
     const orderDir = sortDirection === "ASC" ? "ASC" : "DESC";
 
-    let whereFilters = ["1=1"];
+    let whereFilters = ["1=1", "(o.id IS NULL OR o.deleted_at IS NULL)", "(p.id IS NULL OR p.deleted_at IS NULL)"];
     let queryParams = [];
 
     if (order_id) {
@@ -754,7 +754,7 @@ export const exportDetailedTickets = async (req, res) => {
   try {
     const { startDate, endDate, search, ticket_status, ids } = req.query;
 
-    let whereClause = "WHERE dt.deleted_at IS NULL";
+    let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
     const queryParams = [];
 
     if (ids) {
