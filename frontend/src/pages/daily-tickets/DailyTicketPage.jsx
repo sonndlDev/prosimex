@@ -223,9 +223,9 @@ export default function DailyTicketPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col">
           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
@@ -250,16 +250,16 @@ export default function DailyTicketPage() {
         </div>
       </div>
 
-      <DailyTicketFilterBar
-        onSearch={handleSearch}
-        onReset={handleReset}
-        initialFilters={initialFilters}
-      />
-
-
+      <div className="flex-shrink-0">
+        <DailyTicketFilterBar
+          onSearch={handleSearch}
+          onReset={handleReset}
+          initialFilters={initialFilters}
+        />
+      </div>
 
       {/* Table with GenericTable */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
         <GenericTable
           data={tickets}
           columns={columns}
@@ -273,6 +273,7 @@ export default function DailyTicketPage() {
           onPageSizeChange={setPageSize}
           selectedRows={selectedIds}
           onSelectionChange={setSelectedIds}
+          maxHeight="100%"
           renderActions={(item) => (
             <div className="flex items-center gap-1">
               <TooltipProvider>

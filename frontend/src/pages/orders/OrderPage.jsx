@@ -612,9 +612,9 @@ export default function OrderPage() {
     }
   };
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+   return (
+    <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col">
           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Đơn hàng</h2>
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
@@ -626,18 +626,17 @@ export default function OrderPage() {
         </div>
       </div>
 
-      <OrderFilterBar
-        customers={customers}
-        products={products}
-        onSearch={handleSearch}
-        onReset={handleReset}
-        initialFilters={initialFilters}
-      />
+      <div className="flex-shrink-0">
+        <OrderFilterBar
+          customers={customers}
+          products={products}
+          onSearch={handleSearch}
+          onReset={handleReset}
+          initialFilters={initialFilters}
+        />
+      </div>
 
-
-
-
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
         <GenericTable
           data={orders}
           columns={columns}
@@ -652,11 +651,9 @@ export default function OrderPage() {
           onPageSizeChange={setPageSize}
           onEdit={handleOpen}
           onDelete={handleDelete}
-          maxHeight="calc(100vh - 425px)"
+          maxHeight="100%"
           freezeFirstCols={true}
         />
-
-
       </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>

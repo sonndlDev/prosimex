@@ -77,8 +77,8 @@ export default function ProductPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+    <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-6">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col">
            <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin mã hàng</p>
@@ -146,7 +146,7 @@ export default function ProductPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
       <GenericTable data={products} columns={columns} isLoading={isLoading} error={error}
         onEdit={handleOpen}
         onDelete={(p) => { if (window.confirm(`Xóa mã hàng "${p.name}"?`)) deleteMutation.mutate(p.id); }}
@@ -158,6 +158,7 @@ export default function ProductPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
+        maxHeight="100%"
       />
       </div>
 
