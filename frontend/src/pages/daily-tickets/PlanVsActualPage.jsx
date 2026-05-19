@@ -549,26 +549,26 @@ export default function PlanVsActualPage() {
                     {/* Fixed info columns */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
                     >STT</TableHead>
                     <SortableHead
                       rowSpan={2}
                       field="sequence_order"
                       label="TT"
-                      className="sticky left-[50px] z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-[50px] z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
                     />
                     <SortableHead
                       rowSpan={2}
                       field="product_name"
                       label="Mã hàng"
-                      className="sticky left-[100px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-[100px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-zinc-500"
                     />
 
                     {/* Sticky info columns */}
-                    <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="sticky left-[280px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <TableHead rowSpan={2} className="sticky left-[460px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Nhóm SP</TableHead>
-                    <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="sticky left-[600px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <TableHead rowSpan={2} className="sticky left-[740px] z-40 bg-zinc-50 border-r border-zinc-200 w-[110px] min-w-[110px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap italic">Máy</TableHead>
+                    <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="sticky left-[280px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[460px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Nhóm SP</TableHead>
+                    <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="sticky left-[600px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[740px] z-40 bg-zinc-50 border-r border-zinc-200 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] w-[110px] min-w-[110px] max-w-[110px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap italic">Máy</TableHead>
                     <SortableHead rowSpan={2} field="plan_quantity" label="SL Đơn" className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
                     <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap">Tồn kho</TableHead>
                     <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap">Cần SX</TableHead>
@@ -608,15 +608,15 @@ export default function PlanVsActualPage() {
                       className="group hover:bg-indigo-50/20 transition-colors border-b border-zinc-100"
                     >
                       {/* STT */}
-                      <TableCell className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums w-[50px] min-w-[50px]">
+                      <TableCell className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums w-[50px] min-w-[50px] max-w-[50px]">
                         {(page - 1) * limit + idx + 1}
                       </TableCell>
                       {/* Thứ tự */}
-                      <TableCell className="sticky left-[50px] z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-100 w-[50px] min-w-[50px]">
+                      <TableCell className="sticky left-[50px] z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-100 w-[50px] min-w-[50px] max-w-[50px]">
                         {row.sequence_order || "—"}
                       </TableCell>
                       {/* Mã hàng */}
-                      <TableCell className="sticky left-[100px] z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tight w-[180px] min-w-[180px]">
+                      <TableCell className="sticky left-[100px] z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tight w-[180px] min-w-[180px] max-w-[180px] truncate">
                         <div className="flex flex-col gap-1">
                           <div className="max-w-[170px] truncate" title={row.product_name}>{row.product_name || "—"}</div>
                           {(!row.pp_id) ? (
@@ -632,27 +632,27 @@ export default function PlanVsActualPage() {
                       </TableCell>
 
                       {/* Đơn hàng */}
-                      <TableCell className="sticky left-[280px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 whitespace-nowrap w-[180px] min-w-[180px]">
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-black text-indigo-700">{row.order_code || row.order_name || "—"}</span>
+                      <TableCell className="sticky left-[280px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] overflow-hidden">
+                        <div className="flex flex-col w-full">
+                          <span className="text-[11px] font-black text-indigo-700 truncate block w-full">{row.order_code || row.order_name || "—"}</span>
                           {row.po_customer && (
-                            <span className="text-[10px] text-zinc-400 font-medium">{row.po_customer}</span>
+                            <span className="text-[10px] text-zinc-400 font-medium truncate block w-full" title={row.po_customer}>{row.po_customer}</span>
                           )}
                         </div>
                       </TableCell>
 
                       {/* Nhóm SP */}
-                      <TableCell className="sticky left-[460px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-500 font-bold w-[140px] min-w-[140px] truncate">
+                      <TableCell className="sticky left-[460px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-500 font-bold w-[140px] min-w-[140px] max-w-[140px] truncate">
                         {row.product_group_name || "—"}
                       </TableCell>
 
                       {/* Công đoạn */}
-                      <TableCell className="sticky left-[600px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] font-black text-zinc-800 whitespace-nowrap w-[140px] min-w-[140px]">
+                      <TableCell className="sticky left-[600px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] font-black text-zinc-800 whitespace-nowrap w-[140px] min-w-[140px] max-w-[140px] truncate">
                         {row.operation_name || "—"}
                       </TableCell>
 
                       {/* Máy */}
-                      <TableCell className="sticky left-[740px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-400 font-bold italic whitespace-nowrap w-[110px] min-w-[110px]">
+                      <TableCell className="sticky left-[740px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)] text-[11px] text-zinc-400 font-bold italic whitespace-nowrap w-[110px] min-w-[110px] max-w-[110px] truncate">
                         {row.machine_name || "—"}
                       </TableCell>
 

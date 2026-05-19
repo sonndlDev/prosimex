@@ -93,9 +93,9 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
                 )}
               />
             </div>
-            
+
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Ngày NL về xưởng (Thực tế)</Label>
+              <Label className="text-xs font-bold text-zinc-700">Ngày báo XNK</Label>
               <Controller
                 name="actual_material_date"
                 control={control}
@@ -153,8 +153,8 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
             >
               Hủy
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 shadow-md"
               disabled={updateMutation.isPending}
             >

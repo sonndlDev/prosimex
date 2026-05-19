@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState } from "react";import { toast } from "sonner";
+
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userService } from "../../services/user.service";
@@ -86,10 +87,10 @@ export default function UserPage() {
 
   const { data: roles, isLoading: rolesLoading } = useQuery({ queryKey: ["roles"], queryFn: userService.getRoles });
 
-  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); handleClose(); } };
+  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); handleClose(); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra") };
   const createMutation = useMutation({ mutationFn: userService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => userService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: userService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }) });
+  const deleteMutation = useMutation({ mutationFn: userService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
   const createRoleMutation = useMutation({ mutationFn: userService.createRole, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["roles"] }); setNewRoleName(""); } });
   const deleteRoleMutation = useMutation({ mutationFn: userService.deleteRole, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] }) });
 

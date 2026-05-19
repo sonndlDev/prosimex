@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 export default function WarehousePage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
+
   const [tempSearch, setTempSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
@@ -29,7 +29,7 @@ export default function WarehousePage() {
     setAppliedSearch("");
   }, []);
 
-  
+
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
   const [warehouseOrder, setWarehouseOrder] = useState(null);
 
@@ -52,7 +52,7 @@ export default function WarehousePage() {
     },
     {
       id: "actual_material_date",
-      label: <p className="text-center">Ngày NL về xưởng <br /> (Thực tế)</p>,
+      label: <p className="text-center">Ngày báo XNK</p>,
       format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
     },
     { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
@@ -70,7 +70,7 @@ export default function WarehousePage() {
         </div>
       </div>
 
-      <WarehouseFilterBar 
+      <WarehouseFilterBar
         value={tempSearch}
         onChange={setTempSearch}
         onSearch={() => handleSearch(tempSearch)}
@@ -95,14 +95,14 @@ export default function WarehousePage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setWarehouseOrder(row);
-                        setOpenWarehouseDialog(true);
-                      }}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
-                    >
-                      <Pencil className="w-4 h-4" />
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setWarehouseOrder(row);
+                      setOpenWarehouseDialog(true);
+                    }}
+                    className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
+                  >
+                    <Pencil className="w-4 h-4" />
                   </TooltipTrigger>
                   <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Cập nhật thông tin kho</TooltipContent>
                 </Tooltip>
@@ -112,10 +112,10 @@ export default function WarehousePage() {
         />
       </div>
 
-      <WarehouseDetailsDialog 
-        open={openWarehouseDialog} 
-        onClose={() => setOpenWarehouseDialog(false)} 
-        order={warehouseOrder} 
+      <WarehouseDetailsDialog
+        open={openWarehouseDialog}
+        onClose={() => setOpenWarehouseDialog(false)}
+        order={warehouseOrder}
       />
     </div>
   );
@@ -134,8 +134,8 @@ const WarehouseFilterBar = memo(({ value, onChange, onSearch, onReset }) => {
           <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <Input 
-              placeholder="Mã đơn hàng, tên khách hàng..." 
+            <Input
+              placeholder="Mã đơn hàng, tên khách hàng..."
               value={value}
               onChange={e => onChange(e.target.value)}
               className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
@@ -144,16 +144,16 @@ const WarehouseFilterBar = memo(({ value, onChange, onSearch, onReset }) => {
         </div>
 
         <div className="flex gap-2">
-          <Button 
+          <Button
             type="submit"
             className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest rounded-xl shadow-lg shadow-indigo-100 gap-2"
           >
             <Search className="w-3.5 h-3.5" /> Tìm kiếm
           </Button>
-          
-          <Button 
+
+          <Button
             type="button"
-            variant="ghost" 
+            variant="ghost"
             size="sm"
             onClick={onReset}
             className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"

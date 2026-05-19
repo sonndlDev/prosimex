@@ -115,7 +115,7 @@ export default function SchedulePage() {
             const end = currentDate.endOf('week');
             return `${start.toFormat('dd/MM')} - ${end.toFormat('dd/MM/yyyy')}`;
         }
-        return currentDate.toFormat('MMMM yyyy');
+        return `THÁNG ${currentDate.month} NĂM ${currentDate.year}`;
     }, [currentDate, viewType]);
 
     return (

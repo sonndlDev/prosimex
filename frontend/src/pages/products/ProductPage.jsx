@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState } from "react";import { toast } from "sonner";
+
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productService } from "../../services/product.service";
@@ -47,10 +48,10 @@ export default function ProductPage() {
   const products = productsData?.data || [];
   const totalItems = productsData?.total || 0;
 
-  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); handleClose(); } };
+  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); handleClose(); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra") };
   const createMutation = useMutation({ mutationFn: productService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => productService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: productService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }) });
+  const deleteMutation = useMutation({ mutationFn: productService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
 
   const columns = [
     { id: "name", label: "Tên mã hàng" },

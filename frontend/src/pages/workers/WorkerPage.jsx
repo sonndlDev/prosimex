@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState } from "react";import { toast } from "sonner";
+
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { workerService } from "../../services/worker.service";
@@ -33,9 +34,9 @@ export default function WorkerPage() {
   const workers = workersData?.data || [];
   const totalItems = workersData?.total || 0;
 
-  const createMutation = useMutation({ mutationFn: workerService.create, onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); } });
-  const updateMutation = useMutation({ mutationFn: (data) => workerService.update(data.id, data.payload), onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); } });
-  const deleteMutation = useMutation({ mutationFn: workerService.delete, onSuccess: () => queryClient.invalidateQueries(["workers"]) });
+  const createMutation = useMutation({ mutationFn: workerService.create, onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo") });
+  const updateMutation = useMutation({ mutationFn: (data) => workerService.update(data.id, data.payload), onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật") });
+  const deleteMutation = useMutation({ mutationFn: workerService.delete, onSuccess: () => { queryClient.invalidateQueries(["workers"]); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
 
   const columns = [
     { id: "code", label: "Mã nhân công" },

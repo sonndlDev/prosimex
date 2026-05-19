@@ -8,6 +8,20 @@ const RESOURCE_WIDTH = 250;
 const HEADER_HEIGHT = 100;
 import { SquareStop, Loader2 as LoaderIcon } from 'lucide-react';
 
+const getVnDayName = (day) => {
+    const weekday = day.weekday;
+    const map = {
+        1: "T2",
+        2: "T3",
+        3: "T4",
+        4: "T5",
+        5: "T6",
+        6: "T7",
+        7: "CN"
+    };
+    return map[weekday] || "";
+};
+
 export default function CustomSchedule({ resources = [], events = [], dateRange, onStop, isStopping }) {
     const [hoveredEvent, setHoveredEvent] = useState(null);
     const [leaveTimeout, setLeaveTimeout] = useState(null);
@@ -130,14 +144,14 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
     }, [resources, events, start]);
 
     return (
-        <div className="h-full w-full border border-zinc-200 rounded-xl overflow-auto bg-zinc-50/20 shadow-sm relative scrollbar-thin scrollbar-thumb-zinc-200">
+        <div className="h-full w-full border border-zinc-300 rounded-xl overflow-auto bg-zinc-50/20 shadow-sm relative scrollbar-thin scrollbar-thumb-zinc-200">
             {/* The absolute container that actually defines the scrollable size */}
             <div style={{ width: RESOURCE_WIDTH + totalGridWidth, height: HEADER_HEIGHT + totalHeight }} className="relative bg-white">
 
                 {/* 1. Header (Sticky Top) */}
-                <div className="sticky top-0 z-40 bg-zinc-50 flex border-b border-zinc-200" style={{ height: HEADER_HEIGHT, width: RESOURCE_WIDTH + totalGridWidth }}>
+                <div className="sticky top-0 z-40 bg-zinc-50 flex border-b border-zinc-300" style={{ height: HEADER_HEIGHT, width: RESOURCE_WIDTH + totalGridWidth }}>
                     {/* Top-Left Corner (Sticky Top and Left) */}
-                    <div className="sticky left-0 z-50 bg-zinc-50 border-r border-zinc-200 h-full flex items-center justify-center p-4" style={{ width: RESOURCE_WIDTH }}>
+                    <div className="sticky left-0 z-50 bg-zinc-50 border-r border-zinc-300 h-full flex items-center justify-center p-4" style={{ width: RESOURCE_WIDTH }}>
                         <span className="font-black text-[10px] text-zinc-400 uppercase tracking-widest text-center">
                             MÁY MÓC / THIẾT BỊ
                         </span>
@@ -149,7 +163,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                             <div
                                 key={i}
                                 style={{ width: COLUMN_WIDTH }}
-                                className={`h-full border-r border-zinc-200 flex flex-col items-center justify-end pb-2 transition-colors ${day.isWeekend ? 'bg-zinc-200/50' : (day.hasSame(DateTime.now(), 'day') ? 'bg-blue-50' : 'transparent')
+                                className={`h-full border-r border-zinc-300 flex flex-col items-center justify-end pb-2 transition-colors ${day.isWeekend ? 'bg-zinc-200/50' : (day.hasSame(DateTime.now(), 'day') ? 'bg-blue-50' : 'transparent')
                                     }`}
                             >
                                 <div className="mb-auto pt-2 flex flex-col items-center">
@@ -159,7 +173,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                                     <span className="text-[6px] font-black text-zinc-400 uppercase tracking-tighter mt-0.5">CÔNG</span>
                                 </div>
                                 <span className={`text-[8px] font-black uppercase ${day.isWeekend ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                                    {day.toFormat('ccc')}
+                                    {getVnDayName(day)}
                                 </span>
                                 <span className={`text-base font-black ${day.hasSame(DateTime.now(), 'day') ? 'text-blue-600' : 'text-zinc-900'}`}>
                                     {day.day}
@@ -182,7 +196,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                                 <div
                                     key={layout.resourceId}
                                     style={{ height: layout.height }}
-                                    className={`px-4 flex items-center border-b border-zinc-100 border-r transition-all duration-300 ${i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'}`}
+                                    className={`px-4 flex items-center border-b border-zinc-300 border-r border-zinc-300 transition-all duration-300 ${i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/30'}`}
                                 >
                                     <span className="text-xs font-black text-zinc-800 truncate leading-tight uppercase tracking-tight">
                                         {layout.resource.title}
@@ -199,7 +213,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                             <div
                                 key={i}
                                 style={{ left: i * COLUMN_WIDTH, width: COLUMN_WIDTH }}
-                                className={`absolute top-0 bottom-0 border-r border-zinc-100 ${day.isWeekend ? 'bg-zinc-50/50' : 'transparent'
+                                className={`absolute top-0 bottom-0 border-r border-zinc-300 ${day.isWeekend ? 'bg-zinc-50/50' : 'transparent'
                                     }`}
                             />
                         ))}
@@ -334,7 +348,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                             <div
                                 key={i}
                                 style={{ top: layout.top + layout.height }}
-                                className="absolute left-0 right-0 h-[1px] bg-zinc-100"
+                                className="absolute left-0 right-0 h-[1px] bg-zinc-300"
                             />
                         ))}
                     </div>

@@ -17,13 +17,13 @@ export const getMachineScheduleCalendar = async (req, res) => {
       machines = [{ id: "unassigned", title: "CHƯA GÁN MÁY" }];
     } else {
       let machineQuery =
-        "SELECT id, name as title FROM machines WHERE deleted_at IS NULL";
+        "SELECT id, COALESCE(code, name) as title FROM machines WHERE deleted_at IS NULL";
       const machineParams = [];
       if (factory_id && factory_id !== "all") {
         machineQuery += " AND factory_id = $1";
         machineParams.push(factory_id);
       }
-      machineQuery += " ORDER BY sort_order ASC, name ASC";
+      machineQuery += " ORDER BY sort_order ASC, COALESCE(code, name) ASC";
       const machinesRes = await pool.query(machineQuery, machineParams);
       machines = machinesRes.rows;
     }

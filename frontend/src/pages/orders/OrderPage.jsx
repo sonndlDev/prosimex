@@ -260,7 +260,10 @@ export default function OrderPage() {
     {
       id: "report_action",
       label: "Báo cáo",
-      className: "w-[80px] text-center",
+      className: "min-w-[80px] w-[80px] max-w-[80px] text-center",
+      isSticky: true,
+      stickyLeft: "100px",
+      width: "80px",
       format: (_, row) => (
         <div className="flex items-center justify-center gap-1">
           <TooltipProvider>
@@ -301,10 +304,13 @@ export default function OrderPage() {
         </div>
       )
     },
-    { 
-      id: "po_auto_code", 
-      label: "PO", 
-      className: "font-bold text-blue-600",
+    {
+      id: "po_customer",
+      label: "PO KH",
+      className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600",
+      isSticky: true,
+      stickyLeft: "180px",
+      width: "120px",
       format: (value, row) => (
         <TooltipProvider>
           <Tooltip>
@@ -324,23 +330,44 @@ export default function OrderPage() {
         </TooltipProvider>
       )
     },
-    { id: "name", label: "Tên đơn hàng", className: "font-semibold text-zinc-900" },
-    { id: "customer_name", label: "Tên khách", className: "font-medium" },
-    { id: "person_in_charge", label: "Người theo dõi đơn hàng" },
+    { 
+      id: "name", 
+      label: "Tên đơn hàng", 
+      className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900",
+      isSticky: true,
+      stickyLeft: "300px",
+      width: "250px"
+    },
+    { 
+      id: "customer_name", 
+      label: "Tên khách", 
+      className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate",
+      isSticky: true,
+      stickyLeft: "550px",
+      width: "150px"
+    },
+    { 
+      id: "person_in_charge", 
+      label: "Người theo dõi đơn hàng", 
+      className: "min-w-[150px] w-[150px] max-w-[150px] truncate",
+      isSticky: true,
+      stickyLeft: "700px",
+      width: "150px"
+    },
     {
       id: "received_date",
       label: "Ngày nhận đơn",
+      className: "min-w-[110px] w-[110px] max-w-[110px] text-center",
+      isSticky: true,
+      stickyLeft: "850px",
+      isLastSticky: true,
+      width: "110px",
       format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
     },
     {
       id: "expected_material_date",
       label: <p className="text-center">Ngày NL về xưởng <br /> (Dự kiến)</p>,
       format: (value, row) => row.expected_material_date ? DateTime.fromISO(row.expected_material_date).toFormat("dd/MM/yyyy") : "-"
-    },
-    {
-      id: "actual_material_date",
-      label: <p className="text-center">Ngày NL về xưởng <br /> (Thực tế)</p>,
-      format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
     },
     {
       id: "production_start_date",
@@ -351,6 +378,11 @@ export default function OrderPage() {
       id: "expected_shipping_date",
       label: <p className="text-center">Ngày xuất hàng <br /> (Dự kiến)</p>,
       format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+    },
+    {
+      id: "actual_material_date",
+      label: <p className="text-center">Ngày báo XNK</p>,
+      format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
     },
     {
       id: "expected_container_shipping_date",
@@ -621,6 +653,7 @@ export default function OrderPage() {
           onEdit={handleOpen}
           onDelete={handleDelete}
           maxHeight="calc(100vh - 425px)"
+          freezeFirstCols={true}
         />
 
 

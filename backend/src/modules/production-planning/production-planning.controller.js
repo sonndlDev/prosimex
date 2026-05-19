@@ -2,7 +2,7 @@ import pool from "../../config/db.js";
 
 export const getProductionPlans = async (req, res) => {
   try {
-    const { page = 1, limit = 10, order_ids } = req.query;
+    const { page = 1, limit = 10, order_ids, product_ids, machine_ids } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -22,7 +22,35 @@ export const getProductionPlans = async (req, res) => {
       whereClause += ` AND pp.order_id = ANY($${queryParams.length})`;
     }
 
-    const { working_date } = req.query;
+    // Normalize product_ids to array
+    const productIdsArray = product_ids
+      ? Array.isArray(product_ids)
+        ? product_ids
+        : product_ids.split(",")
+      : [];
+
+    if (productIdsArray.length > 0) {
+      queryParams.push(productIdsArray);
+      whereClause += ` AND pp.product_id = ANY($${queryParams.length})`;
+    } else if (req.query.product_id) {
+      queryParams.push(req.query.product_id);
+      whereClause += ` AND pp.product_id = $${queryParams.length}`;
+    }
+
+    // Normalize machine_ids to array
+    const machineIdsArray = machine_ids
+      ? Array.isArray(machine_ids)
+        ? machine_ids
+        : machine_ids.split(",")
+      : [];
+
+    if (machineIdsArray.length > 0) {
+      queryParams.push(machineIdsArray);
+      whereClause += ` AND pp.machine_id = ANY($${queryParams.length})`;
+    } else if (req.query.machine_id) {
+      queryParams.push(req.query.machine_id);
+      whereClause += ` AND pp.machine_id = $${queryParams.length}`;
+    }
     // Removed date-based filtering as per user request to be less restrictive
     // Previously used to limit by order range or plan date range
 

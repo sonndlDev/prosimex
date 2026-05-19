@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
+import { productService } from "../../services/product.service";
+import { machineService } from "../../services/machine.service";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
 import {
@@ -61,7 +63,11 @@ export default function PlanningPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [selectedMachineIds, setSelectedMachineIds] = useState([]);
   const [openFilter, setOpenFilter] = useState(false);
+  const [openProductFilter, setOpenProductFilter] = useState(false);
+  const [openMachineFilter, setOpenMachineFilter] = useState(false);
   const [showPastDays, setShowPastDays] = useState(false);
 
   // Delete confirmation
@@ -76,12 +82,14 @@ export default function PlanningPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["plans", page, rowsPerPage, selectedOrderIds],
+    queryKey: ["plans", page, rowsPerPage, selectedOrderIds, selectedProductIds, selectedMachineIds],
     queryFn: () =>
       planningService.getAll({
         page: page + 1,
         limit: rowsPerPage,
         order_ids: selectedOrderIds.join(","),
+        product_ids: selectedProductIds.join(","),
+        machine_ids: selectedMachineIds.join(","),
       }),
   });
 
@@ -94,6 +102,18 @@ export default function PlanningPage() {
     queryFn: () => orderService.getAll({ limit: 1000 }), // Lấy nhiều để filter
   });
   const orders = allOrdersData?.data || [];
+
+  const { data: productsData } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => productService.getAll({ limit: 1000 }),
+  });
+  const filterProducts = productsData?.data || [];
+
+  const { data: machinesData } = useQuery({
+    queryKey: ["machines"],
+    queryFn: () => machineService.getAll({ limit: 1000 }),
+  });
+  const filterMachines = machinesData?.data || [];
 
   // Calculates aggregate hours per machine per day
   const dailyMachineMetrics = useMemo(() => {
@@ -325,7 +345,23 @@ export default function PlanningPage() {
     setPage(0);
   };
 
+  const toggleProductSelection = (id) => {
+    setSelectedProductIds(prev =>
+      prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
+    );
+    setPage(0);
+  };
+
+  const toggleMachineSelection = (id) => {
+    setSelectedMachineIds(prev =>
+      prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+    );
+    setPage(0);
+  };
+
   const selectedOrdersDisplay = orders?.filter(o => selectedOrderIds.includes(o.id));
+  const selectedProductsDisplay = filterProducts?.filter(p => selectedProductIds.includes(p.id));
+  const selectedMachinesDisplay = filterMachines?.filter(m => selectedMachineIds.includes(m.id));
 
   // ─── Render ────────────────────────────────────────────
   if (isLoading && !plansData) {
@@ -349,92 +385,65 @@ export default function PlanningPage() {
 
   return (
     <div className="px-2 py-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-zinc-950">
+      {/* Title & Actions Row */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="flex-1 shrink-0 min-w-0">
+          <h1 className="text-2xl font-black text-zinc-950 tracking-tight uppercase">
             Kế hoạch sản xuất
           </h1>
-          <p className="text-zinc-500 mt-1">Quản lý và điều phối các công đoạn sản xuất tại xưởng</p>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và điều phối các công đoạn sản xuất tại xưởng</p>
         </div>
 
-        <div className="flex gap-3 w-full md:w-auto">
-          {/* Multi-select filter replacement */}
-          <Popover open={openFilter} onOpenChange={setOpenFilter}>
-            <PopoverTrigger render={
-              <Button variant="outline" className="h-10 gap-2 font-bold px-4 bg-white shadow-sm border-zinc-200">
-                <Filter className="w-4 h-4 text-blue-600" />
-                {selectedOrderIds.length > 0 ? `Đã chọn ${selectedOrderIds.length} đơn` : "Lọc theo đơn hàng"}
-                <ChevronsUpDown className="w-4 h-4 opacity-50 ml-1" />
-              </Button>
-            } />
-            <PopoverContent className="w-[320px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="end">
-              <Command className="w-full">
-                <CommandInput placeholder="Tìm kiếm đơn hàng..." />
-                <CommandList className="max-h-[300px] p-1">
-                  <CommandEmpty className="py-6 text-center">
-                    <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không thấy đơn hàng</p>
-                  </CommandEmpty>
-                  <CommandGroup>
-                    {orders.map((order) => (
-                      <CommandItem
-                        key={order.id}
-                        onSelect={() => toggleOrderSelection(order.id)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
-                      >
-                        <div className={cn(
-                          "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
-                          selectedOrderIds.includes(order.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
-                        )}>
-                          {selectedOrderIds.includes(order.id) && <Check className="w-3 h-3 text-white" />}
-                        </div>
-                        <span className="font-bold text-xs break-all leading-tight">{order.name}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-                {selectedOrderIds.length > 0 && (
-                  <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
-                    <Button variant="ghost" size="xs" onClick={() => setSelectedOrderIds([])} className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50">
-                      Xóa tất cả
-                    </Button>
-                    <Button size="xs" onClick={() => setOpenFilter(false)} className="text-[10px] h-7 px-3 bg-zinc-950 text-white font-bold">
-                      Xong
-                    </Button>
-                  </div>
-                )}
-              </Command>
-            </PopoverContent>
-          </Popover>
-
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <Button
-            variant="outline"
-            onClick={() => setShowPastDays(!showPastDays)}
-            className={cn(
-              "h-10 gap-2 font-bold px-4 bg-white border-zinc-200 transition-all",
-              showPastDays ? "text-indigo-600 border-indigo-200 bg-indigo-50/30" : "text-zinc-600"
-            )}
-          >
-            {showPastDays ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
-          </Button>
-
-          <Button
-            onClick={() => { setEditingPlan(null); setOpenModal(true); }}
-            className="h-10 gap-2 font-black px-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-100 transition-all border-none"
-          >
-            <Plus className="w-4 h-4" /> Lập kế hoạch
-          </Button>
-
-          <Button
-            onClick={() => {
-              if (!plans || plans.length === 0) {
+            onClick={async () => {
+              if (totalCount === 0) {
                 toast.warning("Không có dữ liệu để xuất");
                 return;
               }
-              import("xlsx").then((XLSX) => {
-                const worksheetData = plans.map((plan, i) => {
+              const toastId = toast.loading("Đang tải toàn bộ dữ liệu...");
+              try {
+                // Fetch all data matching current filters
+                const res = await planningService.getAll({
+                  page: 1,
+                  limit: 100000,
+                  order_ids: selectedOrderIds.join(","),
+                  product_ids: selectedProductIds.join(","),
+                  machine_ids: selectedMachineIds.join(","),
+                });
+                const allPlans = res.data || [];
+                
+                // Recalculate date columns for all plans
+                const dates = new Set();
+                allPlans.forEach((plan) => {
+                  plan.days?.forEach((day) => {
+                    dates.add(DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd"));
+                  });
+                });
+                
+                let exportDateColumns = [];
+                if (dates.size > 0) {
+                  const sortedDates = Array.from(dates).sort();
+                  const minDate = DateTime.fromISO(sortedDates[0]);
+                  const maxDate = DateTime.fromISO(sortedDates[sortedDates.length - 1]);
+                  const continuousDates = [];
+                  let cur = minDate;
+                  while (cur <= maxDate) {
+                    continuousDates.push(cur.toFormat("yyyy-MM-dd"));
+                    cur = cur.plus({ days: 1 });
+                  }
+                  
+                  const todayStr = DateTime.now().toFormat("yyyy-MM-dd");
+                  exportDateColumns = continuousDates
+                    .filter((d) => showPastDays || d >= todayStr)
+                    .map((d) => ({
+                      key: d,
+                      label: DateTime.fromISO(d).toFormat("dd-MM"),
+                    }));
+                }
+
+                const XLSX = await import("xlsx");
+                const worksheetData = allPlans.map((plan, i) => {
                    const row = {
                      "STT": i + 1,
                      "STT CĐ": plan.sequence_order,
@@ -448,11 +457,11 @@ export default function PlanningPage() {
                      "Định mức": plan.dinh_muc,
                      "Đã SX": 0,
                      "Mẫu": "x",
-                     "Bắt đầu": DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM"),
-                     "Kết thúc": DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")
+                     "Bắt đầu": plan.planned_start_date ? DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM") : "",
+                     "Kết thúc": plan.planned_end_date ? DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM") : ""
                    };
                    
-                   dateColumns.forEach(date => {
+                   exportDateColumns.forEach(date => {
                        const dayData = plan.days?.find(
                          (d) => DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd") === date.key
                        );
@@ -472,23 +481,212 @@ export default function PlanningPage() {
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "KeHoach");
                 XLSX.writeFile(workbook, `KeHoach_SanXuat_${DateTime.now().toFormat('yyyyMMdd')}.xlsx`);
-              });
+                toast.success("Xuất Excel thành công", { id: toastId });
+              } catch (err) {
+                console.error(err);
+                toast.error("Lỗi xuất Excel", { id: toastId });
+              }
             }}
             variant="outline"
-            className="h-10 gap-2 font-black px-6 border-zinc-200 text-zinc-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all"
+            className="h-11 px-5 border-zinc-200 text-zinc-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm rounded-xl font-bold transition-all text-xs tracking-wider uppercase"
           >
-             Xuất Excel
+            Xuất Excel
+          </Button>
+
+          <Button
+            onClick={() => { setEditingPlan(null); setOpenModal(true); }}
+            className="h-11 gap-2 font-black uppercase text-xs tracking-widest px-6 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-100 rounded-xl border-none transition-all"
+          >
+            <Plus className="w-4 h-4" /> Lập kế hoạch
           </Button>
         </div>
       </div>
 
+      {/* Filters Bar Row */}
+      <div className="bg-white/80 backdrop-blur-md border border-zinc-200 shadow-sm p-4 rounded-2xl flex flex-wrap items-center gap-3">
+        {/* Product Filter */}
+        <Popover open={openProductFilter} onOpenChange={setOpenProductFilter}>
+          <PopoverTrigger render={
+            <Button variant="outline" className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all">
+              <Filter className="w-3.5 h-3.5 text-indigo-600" />
+              {selectedProductIds.length > 0 ? `Đã chọn ${selectedProductIds.length} mã` : "Lọc mã hàng"}
+              <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 ml-1" />
+            </Button>
+          } />
+          <PopoverContent className="w-[320px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm kiếm mã hàng..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center">
+                  <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không thấy mã hàng</p>
+                </CommandEmpty>
+                <CommandGroup>
+                  {filterProducts.map((p) => (
+                    <CommandItem
+                      key={p.id}
+                      onSelect={() => toggleProductSelection(p.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                    >
+                      <div className={cn(
+                        "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
+                        selectedProductIds.includes(p.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
+                      )}>
+                        {selectedProductIds.includes(p.id) && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="font-bold text-xs break-all leading-tight">{p.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+              {selectedProductIds.length > 0 && (
+                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                  <Button variant="ghost" size="xs" onClick={() => setSelectedProductIds([])} className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50">
+                    Xóa tất cả
+                  </Button>
+                  <Button size="xs" onClick={() => setOpenProductFilter(false)} className="text-[10px] h-7 px-3 bg-zinc-950 text-white font-bold">
+                    Xong
+                  </Button>
+                </div>
+              )}
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {/* Machine Filter */}
+        <Popover open={openMachineFilter} onOpenChange={setOpenMachineFilter}>
+          <PopoverTrigger render={
+            <Button variant="outline" className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all">
+              <Filter className="w-3.5 h-3.5 text-indigo-600" />
+              {selectedMachineIds.length > 0 ? `Đã chọn ${selectedMachineIds.length} máy` : "Lọc máy"}
+              <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 ml-1" />
+            </Button>
+          } />
+          <PopoverContent className="w-[280px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm kiếm máy..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center">
+                  <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không thấy máy</p>
+                </CommandEmpty>
+                <CommandGroup>
+                  {filterMachines.map((m) => (
+                    <CommandItem
+                      key={m.id}
+                      onSelect={() => toggleMachineSelection(m.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                    >
+                      <div className={cn(
+                        "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
+                        selectedMachineIds.includes(m.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
+                      )}>
+                        {selectedMachineIds.includes(m.id) && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="font-bold text-xs break-all leading-tight">{m.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+              {selectedMachineIds.length > 0 && (
+                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                  <Button variant="ghost" size="xs" onClick={() => setSelectedMachineIds([])} className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50">
+                    Xóa tất cả
+                  </Button>
+                  <Button size="xs" onClick={() => setOpenMachineFilter(false)} className="text-[10px] h-7 px-3 bg-zinc-950 text-white font-bold">
+                    Xong
+                  </Button>
+                </div>
+              )}
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {/* Multi-select filter replacement (Orders) */}
+        <Popover open={openFilter} onOpenChange={setOpenFilter}>
+          <PopoverTrigger render={
+            <Button variant="outline" className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all">
+              <Filter className="w-3.5 h-3.5 text-indigo-600" />
+              {selectedOrderIds.length > 0 ? `Đã chọn ${selectedOrderIds.length} đơn` : "Lọc theo đơn hàng"}
+              <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 ml-1" />
+            </Button>
+          } />
+          <PopoverContent className="w-[320px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm kiếm đơn hàng..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center">
+                  <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không thấy đơn hàng</p>
+                </CommandEmpty>
+                <CommandGroup>
+                  {orders.map((order) => (
+                    <CommandItem
+                      key={order.id}
+                      onSelect={() => toggleOrderSelection(order.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                    >
+                      <div className={cn(
+                        "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
+                        selectedOrderIds.includes(order.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
+                      )}>
+                        {selectedOrderIds.includes(order.id) && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      <span className="font-bold text-xs break-all leading-tight">{order.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+              {selectedOrderIds.length > 0 && (
+                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                  <Button variant="ghost" size="xs" onClick={() => setSelectedOrderIds([])} className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50">
+                    Xóa tất cả
+                  </Button>
+                  <Button size="xs" onClick={() => setOpenFilter(false)} className="text-[10px] h-7 px-3 bg-zinc-950 text-white font-bold">
+                    Xong
+                  </Button>
+                </div>
+              )}
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Button
+          variant="outline"
+          onClick={() => setShowPastDays(!showPastDays)}
+          className={cn(
+            "h-10 gap-2 font-bold px-4 bg-zinc-50 border-zinc-200 transition-all rounded-xl text-xs",
+            showPastDays ? "text-indigo-600 border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/50" : "text-zinc-600 hover:bg-white"
+          )}
+        >
+          {showPastDays ? <Eye className="w-4 h-4 text-indigo-600" /> : <EyeOff className="w-4 h-4 text-zinc-400" />}
+          {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
+        </Button>
+
+        {/* Clear Filters Button */}
+        {(selectedProductIds.length > 0 || selectedMachineIds.length > 0 || selectedOrderIds.length > 0) && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedProductIds([]);
+              setSelectedMachineIds([]);
+              setSelectedOrderIds([]);
+              setPage(0);
+            }}
+            className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"
+          >
+            Đặt lại bộ lọc
+          </Button>
+        )}
+      </div>
+
       {/* Selected Filters View */}
-      {selectedOrderIds.length > 0 && (
+      {(selectedOrderIds.length > 0 || selectedProductIds.length > 0 || selectedMachineIds.length > 0) && (
         <div className="flex flex-wrap gap-2 items-center px-1">
           <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">ĐANG LỌC:</span>
           {selectedOrdersDisplay.slice(0, 5).map(o => (
             <Badge key={o.id} variant="secondary" className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200">
-              {o.name.substring(0, 20)}{o.name.length > 20 ? '...' : ''}
+              Đơn: {o.name.substring(0, 20)}{o.name.length > 20 ? '...' : ''}
               <button onClick={() => toggleOrderSelection(o.id)} className="hover:text-red-500 rounded-full p-0.5 ml-1">
                 <X className="w-3 h-3" />
               </button>
@@ -497,6 +695,34 @@ export default function PlanningPage() {
           {selectedOrderIds.length > 5 && (
             <Badge variant="outline" className="h-6 text-[10px] font-bold bg-white border-dashed">
               +{selectedOrderIds.length - 5} đơn hàng khác
+            </Badge>
+          )}
+
+          {selectedProductsDisplay.slice(0, 5).map(p => (
+            <Badge key={p.id} variant="secondary" className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200">
+              Mã: {p.name.substring(0, 20)}{p.name.length > 20 ? '...' : ''}
+              <button onClick={() => toggleProductSelection(p.id)} className="hover:text-red-500 rounded-full p-0.5 ml-1">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedProductIds.length > 5 && (
+            <Badge variant="outline" className="h-6 text-[10px] font-bold bg-white border-dashed">
+              +{selectedProductIds.length - 5} mã hàng khác
+            </Badge>
+          )}
+
+          {selectedMachinesDisplay.slice(0, 5).map(m => (
+            <Badge key={m.id} variant="secondary" className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200">
+              Máy: {m.name.substring(0, 20)}{m.name.length > 20 ? '...' : ''}
+              <button onClick={() => toggleMachineSelection(m.id)} className="hover:text-red-500 rounded-full p-0.5 ml-1">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedMachineIds.length > 5 && (
+            <Badge variant="outline" className="h-6 text-[10px] font-bold bg-white border-dashed">
+              +{selectedMachineIds.length - 5} máy khác
             </Badge>
           )}
         </div>

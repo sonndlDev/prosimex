@@ -85,6 +85,8 @@ export default function GenericTable({
   // Added selection props
   selectedRows,
   onSelectionChange,
+  // Added sticky props
+  freezeFirstCols = false,
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [internalSelected, setInternalSelected] = useState([]);
@@ -215,11 +217,14 @@ export default function GenericTable({
           className="overflow-x-auto overflow-y-auto"
           style={{ maxHeight }}
         >
-          <Table>
-            <TableHeader className="bg-zinc-50/50 sticky top-0 z-10">
+          <Table className={cn(freezeFirstCols && "table-fixed min-w-max")}>
+            <TableHeader className="bg-zinc-100 sticky top-0 z-10">
               <TableRow className="hover:bg-transparent border-b border-zinc-100">
                 {onBulkDelete && (
-                  <TableHead className="w-10 px-4 text-center">
+                  <TableHead 
+                    className={cn("px-4 text-center", freezeFirstCols && "sticky left-0 z-30 bg-zinc-100 border-r border-zinc-200")}
+                    style={freezeFirstCols ? { width: '40px', minWidth: '40px', maxWidth: '40px', left: 0 } : undefined}
+                  >
                     <input
                       type="checkbox"
                       className="rounded border-zinc-300 accent-zinc-950 h-3.5 w-3.5"
@@ -229,18 +234,37 @@ export default function GenericTable({
                     />
                   </TableHead>
                 )}
-                <TableHead className="w-[60px] font-black text-[10px] uppercase tracking-widest text-zinc-400 text-center py-4">STT</TableHead>
+                <TableHead 
+                  className={cn("font-black text-[10px] uppercase tracking-widest text-zinc-400 text-center py-4", freezeFirstCols && "sticky left-[40px] z-30 bg-zinc-100 border-r border-zinc-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
+                  style={freezeFirstCols ? { width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' } : undefined}
+                >
+                  STT
+                </TableHead>
                 {columns.map(col => (
                   <TableHead
                     key={col.id}
-                    className={cn("font-black text-[10px] uppercase tracking-widest text-zinc-400", col.className)}
-                    style={{ textAlign: col.align || 'left', minWidth: col.minWidth ? `${col.minWidth}px` : 'auto' }}
+                    className={cn(
+                      "font-black text-[10px] uppercase tracking-widest text-zinc-400", 
+                      col.className,
+                      col.isSticky && "sticky z-30 bg-zinc-100 border-r border-zinc-200",
+                      col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]"
+                    )}
+                    style={{ 
+                      textAlign: col.align || 'left', 
+                      width: col.width || (col.isSticky ? col.width : undefined),
+                      minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
+                      maxWidth: col.width || (col.isSticky ? col.width : undefined),
+                      left: col.isSticky ? col.stickyLeft : undefined
+                    }}
                   >
                     {col.label}
                   </TableHead>
                 ))}
                 {(onEdit || onDelete || renderActions) && (
-                  <TableHead className="w-24 text-center font-black text-[10px] uppercase tracking-widest text-zinc-400">
+                  <TableHead 
+                    className="w-24 text-center font-black text-[10px] uppercase tracking-widest text-zinc-400"
+                    style={freezeFirstCols ? { width: '96px', minWidth: '96px', maxWidth: '96px' } : undefined}
+                  >
                     Thao tác
                   </TableHead>
                 )}
@@ -271,9 +295,12 @@ export default function GenericTable({
                   const isSelected = selected.includes(row.id);
                   const displayIndex = startIndex + index + 1;
                   return (
-                    <TableRow key={row.id || index} className={cn("group transition-all duration-200", isSelected ? "bg-indigo-50/30" : "hover:bg-zinc-50/50")}>
+                    <TableRow key={row.id || index} className={cn("group transition-all duration-200", isSelected ? "bg-indigo-50" : "hover:bg-zinc-100 bg-white")}>
                       {onBulkDelete && (
-                        <TableCell className="px-4 text-center">
+                        <TableCell 
+                          className={cn("px-4 text-center", freezeFirstCols && "sticky left-0 z-20 bg-white group-hover:bg-zinc-100 group-[.bg-indigo-50]:bg-indigo-50 border-r border-zinc-100")}
+                          style={freezeFirstCols ? { width: '40px', minWidth: '40px', maxWidth: '40px', left: 0 } : undefined}
+                        >
                           <input
                             type="checkbox"
                             className="rounded border-zinc-300 accent-indigo-600 h-3.5 w-3.5 cursor-pointer"
@@ -282,7 +309,10 @@ export default function GenericTable({
                           />
                         </TableCell>
                       )}
-                      <TableCell className="text-center font-medium">
+                      <TableCell 
+                        className={cn("text-center font-medium", freezeFirstCols && "sticky left-[40px] z-20 bg-white group-hover:bg-zinc-100 group-[.bg-indigo-50]:bg-indigo-50 border-r border-zinc-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
+                        style={freezeFirstCols ? { width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' } : undefined}
+                      >
                         <span className="text-[11px] font-black text-zinc-400 tabular-nums">
                           {String(displayIndex).padStart(2, '0')}
                         </span>
@@ -290,13 +320,28 @@ export default function GenericTable({
                       {columns.map(col => {
                         const value = row[col.id];
                         return (
-                          <TableCell key={col.id} className={cn("text-[13px] font-semibold text-zinc-700 py-4", col.className)} style={{ textAlign: col.align || 'left' }}>
+                          <TableCell 
+                            key={col.id} 
+                            className={cn(
+                              "text-[13px] font-semibold text-zinc-700 py-4", 
+                              col.className,
+                              col.isSticky && "sticky z-20 bg-white group-hover:bg-zinc-100 group-[.bg-indigo-50]:bg-indigo-50 border-r border-zinc-100",
+                              col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]"
+                            )} 
+                            style={{ 
+                              textAlign: col.align || 'left',
+                              width: col.width || (col.isSticky ? col.width : undefined),
+                              minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
+                              maxWidth: col.width || (col.isSticky ? col.width : undefined),
+                              left: col.isSticky ? col.stickyLeft : undefined
+                            }}
+                          >
                             {col.format ? col.format(value, row) : (value || '---')}
                           </TableCell>
                         );
                       })}
                       {(onEdit || onDelete || renderActions) && (
-                        <TableCell>
+                        <TableCell style={freezeFirstCols ? { width: '96px', minWidth: '96px', maxWidth: '96px', textAlign: 'center' } : undefined}>
                           <div className="flex items-center justify-center gap-1 transition-all duration-200">
                             {renderActions ? renderActions(row) : (
                               <>

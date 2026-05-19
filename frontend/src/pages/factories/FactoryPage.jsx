@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState } from "react";import { toast } from "sonner";
+
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { factoryService } from "../../services/factory.service";
@@ -40,7 +41,7 @@ export default function FactoryPage() {
   };
   const createMutation = useMutation({ mutationFn: factoryService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => factoryService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: factoryService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factories"] }) });
+  const deleteMutation = useMutation({ mutationFn: factoryService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
 
   const columns = [
     { id: "name", label: "Tên nhà máy" },
