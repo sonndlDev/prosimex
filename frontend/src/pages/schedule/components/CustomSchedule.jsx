@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 
 const COLUMN_WIDTH = 50; // px
 const ROW_HEIGHT = 25;
-const RESOURCE_WIDTH = 250;
+const RESOURCE_WIDTH = 150;
 const HEADER_HEIGHT = 100;
 import { SquareStop, Loader2 as LoaderIcon } from 'lucide-react';
 
@@ -153,7 +153,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                     {/* Top-Left Corner (Sticky Top and Left) */}
                     <div className="sticky left-0 z-50 bg-zinc-50 border-r border-zinc-300 h-full flex items-center justify-center p-4" style={{ width: RESOURCE_WIDTH }}>
                         <span className="font-black text-[10px] text-zinc-400 uppercase tracking-widest text-center">
-                            MÁY MÓC / THIẾT BỊ
+                            MÁY MÓC
                         </span>
                     </div>
 
@@ -279,7 +279,7 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                                     onMouseEnter={handleTooltipMouseEnter}
                                     onMouseLeave={handleMouseLeave}
                                 >
-                                    <div className="bg-zinc-950 p-3 shadow-2xl rounded-xl min-w-[220px] border border-zinc-800 space-y-3 relative">
+                                    <div className="bg-white p-3 shadow-2xl rounded-xl min-w-[220px] border border-black-800 space-y-3 relative text-black">
                                         {!showBelow && (
                                             <div className="absolute bottom-[-6px] left-1/2 translate-x-[-50%] w-3 h-3 bg-zinc-950 border-r border-b border-zinc-800 rotate-45" />
                                         )}
@@ -288,24 +288,24 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                                         )}
 
                                         <div>
-                                            <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Công đoạn</p>
+                                            <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">Công đoạn</p>
                                             <p className="font-black text-blue-400 uppercase tracking-tight leading-tight text-[11px]">{hoveredEvent.operation_name || 'N/A'}</p>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
                                             <div>
-                                                <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Mã hàng</p>
-                                                <p className="text-[10px] font-black text-zinc-100 uppercase truncate">{hoveredEvent.product_name || hoveredEvent.title || 'N/A'}</p>
+                                                <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">Mã hàng</p>
+                                                <p className="text-[10px] font-black text-black uppercase truncate">{hoveredEvent.product_name || hoveredEvent.title || 'N/A'}</p>
                                             </div>
                                             <div>
-                                                <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">PO</p>
-                                                <p className="text-[10px] font-black text-zinc-100 uppercase truncate">{hoveredEvent.po_customer || 'N/A'}</p>
+                                                <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">PO</p>
+                                                <p className="text-[10px] font-black text-black uppercase truncate">{hoveredEvent.po_customer || 'N/A'}</p>
                                             </div>
                                         </div>
 
                                         <div className="border-t border-zinc-800/50 pt-3">
-                                            <p className="text-[8px] font-black text-white uppercase tracking-widest mb-1">Thời gian</p>
-                                            <p className="text-[10px] font-black text-zinc-100">
+                                            <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">Thời gian</p>
+                                            <p className="text-[10px] font-black text-black">
                                                 {DateTime.fromISO(hoveredEvent.start).toFormat('dd/MM/yyyy')}
                                             </p>
                                         </div>

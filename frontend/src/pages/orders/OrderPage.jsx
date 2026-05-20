@@ -260,7 +260,7 @@ export default function OrderPage() {
     {
       id: "report_action",
       label: "Báo cáo",
-      className: "min-w-[80px] w-[80px] max-w-[80px] text-center",
+      className: "min-w-[80px] w-[80px] max-w-[80px] text-center bg-white font-bold  text-red",
       isSticky: true,
       stickyLeft: "100px",
       width: "80px",
@@ -274,7 +274,7 @@ export default function OrderPage() {
                   setSummaryOrderId(row.id);
                   setOpenSummaryDialog(true);
                 }}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent "
               >
                 <LayoutDashboard className="w-4 h-4" />
               </TooltipTrigger>
@@ -297,7 +297,7 @@ export default function OrderPage() {
                 <Layers className="w-4 h-4" />
               </TooltipTrigger>
               <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
-                <p>Sản lượng còn lại</p>
+                <p>Số lượng còn thiếu</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -307,7 +307,7 @@ export default function OrderPage() {
     {
       id: "po_customer",
       label: "PO KH",
-      className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600",
+      className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600 bg-white",
       isSticky: true,
       stickyLeft: "180px",
       width: "120px",
@@ -333,7 +333,7 @@ export default function OrderPage() {
     { 
       id: "name", 
       label: "Tên đơn hàng", 
-      className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900",
+      className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900 bg-white",
       isSticky: true,
       stickyLeft: "300px",
       width: "250px"
@@ -341,15 +341,15 @@ export default function OrderPage() {
     { 
       id: "customer_name", 
       label: "Tên khách", 
-      className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate",
+      className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate bg-white",
       isSticky: true,
       stickyLeft: "550px",
       width: "150px"
     },
     { 
       id: "person_in_charge", 
-      label: "Người theo dõi đơn hàng", 
-      className: "min-w-[150px] w-[150px] max-w-[150px] truncate",
+      label: "Người phụ trách", 
+      className: "min-w-[150px] w-[150px] max-w-[150px] truncate bg-white",
       isSticky: true,
       stickyLeft: "700px",
       width: "150px"
@@ -357,7 +357,7 @@ export default function OrderPage() {
     {
       id: "received_date",
       label: "Ngày nhận đơn",
-      className: "min-w-[110px] w-[110px] max-w-[110px] text-center",
+      className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white",
       isSticky: true,
       stickyLeft: "850px",
       isLastSticky: true,

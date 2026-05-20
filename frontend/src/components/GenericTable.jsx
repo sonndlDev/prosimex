@@ -25,7 +25,7 @@ const TableSearchFilter = React.memo(({ onSearch, initialValue = "" }) => {
           placeholder="Tìm kiếm..."
           value={val}
           onChange={e => setVal(e.target.value)}
-          className="pl-9 bg-zinc-50/50 hover:bg-white focus:bg-white border-zinc-200/80 h-9 text-xs font-bold rounded-xl transition-all focus-visible:ring-indigo-500/30"
+          className="pl-9 bg-zinc-50/50 hover:bg-white focus:bg-white border-black-400/80 h-9 text-xs font-bold rounded-xl transition-all focus-visible:ring-indigo-500/30"
         />
       </div>
 
@@ -47,7 +47,7 @@ const TableSearchFilter = React.memo(({ onSearch, initialValue = "" }) => {
                   variant="outline"
                   size="icon"
                   onClick={() => { setVal(""); onSearch(""); }}
-                  className="h-9 w-9 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-xl border-zinc-200/80 transition-all"
+                  className="h-9 w-9 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-xl border-black-400/80 transition-all"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </Button>
@@ -212,7 +212,7 @@ export default function GenericTable({
       </div>
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-black-400 bg-white shadow-sm">
         <div
           className="flex-1 min-h-0 overflow-x-auto overflow-y-auto"
           style={{ maxHeight }}
@@ -222,12 +222,12 @@ export default function GenericTable({
             style={{ borderCollapse: freezeFirstCols ? 'separate' : 'collapse', borderSpacing: 0 }}
           >
             <thead>
-              <tr className="border-b border-zinc-100">
+              <tr className="border-b border-black-400">
                 {onBulkDelete && (
                   <th
                     className={cn(
                       "px-4 text-center",
-                      freezeFirstCols ? "sticky left-0 z-30 border-r border-zinc-200 border-b border-zinc-200" : "border-b border-zinc-200"
+                      freezeFirstCols ? "sticky left-0 z-30 border-r border-black-400 border-b border-black-400" : "border-b border-black-400"
                     )}
                     style={freezeFirstCols
                       ? { position: 'sticky', top: 0, zIndex: 30, width: '40px', minWidth: '40px', maxWidth: '40px', left: 0, backgroundColor: '#f4f4f5' }
@@ -245,8 +245,8 @@ export default function GenericTable({
                 )}
                 <th
                   className={cn(
-                    "font-black text-[10px] uppercase tracking-widest text-zinc-400 text-center py-4",
-                    freezeFirstCols ? "sticky left-[40px] z-30 border-r border-zinc-200 border-b border-zinc-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]" : "border-b border-zinc-200"
+                    "font-black text-[10px] uppercase tracking-widest text-zinc-400 text-center py-4 bg-white",
+                    freezeFirstCols ? "sticky left-[40px] z-30 border-r border-black-400 border-b border-black-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]" : "border-b border-black-400"
                   )}
                   style={freezeFirstCols
                     ? { position: 'sticky', top: 0, zIndex: 30, width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px', backgroundColor: '#f4f4f5' }
@@ -259,10 +259,10 @@ export default function GenericTable({
                   <th
                     key={col.id}
                     className={cn(
-                      "font-black text-[10px] uppercase tracking-widest text-zinc-400 px-4 py-3",
-                      col.isSticky ? "sticky z-30 border-r border-zinc-200" : "",
+                      "font-black text-[10px] uppercase tracking-widest text-black-700 px-4 py-3  bg-white",
+                      col.isSticky ? "sticky z-30 border-r border-black-400" : "",
                       col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
-                      freezeFirstCols && "border-b border-zinc-200"
+                      freezeFirstCols && "border-b border-black-400"
                     )}
                     style={{
                       position: 'sticky',
@@ -281,7 +281,7 @@ export default function GenericTable({
                 ))}
                 {(onEdit || onDelete || renderActions) && (
                   <th
-                    className={cn("w-24 text-center font-black text-[10px] uppercase tracking-widest text-zinc-400 px-4 py-3", freezeFirstCols && "border-b border-zinc-200")}
+                    className={cn("w-24 text-center font-black text-[10px] uppercase tracking-widest text-zinc-400 px-4 py-3", freezeFirstCols && "border-b border-black-400")}
                     style={freezeFirstCols
                       ? { position: 'sticky', top: 0, zIndex: 10, width: '96px', minWidth: '96px', maxWidth: '96px', backgroundColor: '#f4f4f5' }
                       : { position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f4f4f5' }
@@ -305,7 +305,7 @@ export default function GenericTable({
                 <tr>
                   <td colSpan={columns.length + (onBulkDelete ? 3 : 2)} className="h-64 text-center text-zinc-400 font-bold uppercase text-[10px] tracking-widest bg-zinc-50/30 px-4 py-8">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="p-4 bg-white rounded-2xl shadow-sm border border-zinc-100">
+                      <div className="p-4 bg-white rounded-2xl shadow-sm border border-black-700">
                         <Search className="w-8 h-8 text-zinc-200" />
                       </div>
                       <span>Không tìm thấy dữ liệu phù hợp</span>
@@ -324,7 +324,7 @@ export default function GenericTable({
                     >
                       {onBulkDelete && (
                         <td
-                          className={cn("px-4 text-center", freezeFirstCols && "sticky left-0 z-20 border-r border-zinc-100 border-b border-zinc-100")}
+                          className={cn("px-4 text-center", freezeFirstCols && "sticky left-0 z-20 border-r border-black-700 border-b border-black-700")}
                           style={{
                             ...(freezeFirstCols ? { width: '40px', minWidth: '40px', maxWidth: '40px', left: 0 } : {}),
                             backgroundColor: isSelected ? '#eef2ff' : undefined,
@@ -339,7 +339,7 @@ export default function GenericTable({
                         </td>
                       )}
                       <td
-                        className={cn("text-center font-medium px-4 py-4", freezeFirstCols && "sticky left-[40px] z-20 border-r border-zinc-100 border-b border-zinc-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
+                        className={cn("text-center font-medium px-4 py-4", freezeFirstCols && "sticky left-[40px] z-20 border-r border-black-700 border-b border-black-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
                         style={{
                           ...(freezeFirstCols ? { width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' } : {}),
                           backgroundColor: isSelected ? '#eef2ff' : undefined,
@@ -357,9 +357,9 @@ export default function GenericTable({
                             className={cn(
                               "text-[13px] font-semibold text-zinc-700 px-4 py-4",
                               col.className,
-                              col.isSticky && "sticky z-20 border-r border-zinc-100",
+                              col.isSticky && "sticky z-20 border-r border-black-700",
                               col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]",
-                              freezeFirstCols && "border-b border-zinc-100"
+                              freezeFirstCols && "border-b border-black-700"
                             )}
                             style={{
                               textAlign: col.align || 'left',
@@ -376,7 +376,7 @@ export default function GenericTable({
                       })}
                       {(onEdit || onDelete || renderActions) && (
                         <td
-                          className={cn("px-4 py-4", freezeFirstCols && "border-b border-zinc-100")}
+                          className={cn("px-4 py-4", freezeFirstCols && "border-b border-black-700")}
                           style={freezeFirstCols ? { width: '96px', minWidth: '96px', maxWidth: '96px', textAlign: 'center' } : { textAlign: 'center' }}
                         >
                           <div className="flex items-center justify-center gap-1 transition-all duration-200">
@@ -422,7 +422,7 @@ export default function GenericTable({
         </div>
 
         {/* Improved Pagination Controls - Matches PlanningPage Style */}
-        <div className="px-6 py-3 bg-white border-t border-zinc-100 flex items-center justify-between flex-shrink-0">
+        <div className="px-6 py-3 bg-white border-t border-black-700 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-6">
             <p className="text-xs font-bold text-zinc-500">
               Tổng cộng: <span className="text-zinc-950 font-black">{effectiveTotal}</span> bản ghi
@@ -432,7 +432,7 @@ export default function GenericTable({
               <select
                 value={effectivePageSize}
                 onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
-                className="text-xs font-bold bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none focus:border-indigo-300 transition-all"
+                className="text-xs font-bold bg-zinc-50 border border-black-400 rounded-lg px-2 py-1 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none focus:border-indigo-300 transition-all"
               >
                 {[5, 10, 25, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -447,7 +447,7 @@ export default function GenericTable({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 rounded-lg border-zinc-200 hover:bg-zinc-50 transition-all font-bold"
+                className="h-8 w-8 rounded-lg border-black-400 hover:bg-zinc-50 transition-all font-bold"
                 disabled={effectivePage === 1}
                 onClick={() => handlePageChange(effectivePage - 1)}
               >
@@ -456,7 +456,7 @@ export default function GenericTable({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 rounded-lg border-zinc-200 hover:bg-zinc-50 transition-all font-bold"
+                className="h-8 w-8 rounded-lg border-black-400 hover:bg-zinc-50 transition-all font-bold"
                 disabled={effectivePage >= totalPages}
                 onClick={() => handlePageChange(effectivePage + 1)}
               >

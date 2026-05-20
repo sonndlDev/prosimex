@@ -200,7 +200,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                             {/* Details Table */}
                             <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
                                 <div className="px-5 py-4 border-b border-zinc-50 bg-zinc-50/30">
-                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Chi tiết sản lượng còn lại từng mã hàng</h4>
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Chi tiết số lượng còn thiếu từng mã hàng</h4>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <GenericTable
