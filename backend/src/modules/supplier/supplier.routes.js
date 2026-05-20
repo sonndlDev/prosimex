@@ -7,9 +7,9 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"]), getSuppliers);
-router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"]), createSupplier);
-router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"]), updateSupplier);
-router.delete("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"]), deleteSupplier);
+router.get("/", authorize([], "suppliers"), getSuppliers);
+router.post("/", authorize([], "suppliers"), createSupplier);
+router.put("/:id", authorize([], "suppliers"), updateSupplier);
+router.delete("/:id", authorize([], "suppliers"), deleteSupplier);
 
 export default router;
