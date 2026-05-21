@@ -9,7 +9,12 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       refetchOnMount: true,
-      retry: 1,
+      // Không retry khi bị 401/403 vì retry không giải quyết được lỗi auth/permission
+      retry: (failureCount, error) => {
+        const status = error?.response?.status;
+        if (status === 403 || status === 401) return false;
+        return failureCount < 1;
+      },
       staleTime: 0,          // Data luôn stale → refetch mỗi lần mount
       gcTime: 5 * 60 * 1000, // Cache 5 phút trong memory để render nhanh trong khi fetch
     },

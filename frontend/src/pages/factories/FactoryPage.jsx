@@ -1,5 +1,7 @@
-import React, { useState } from "react";import { toast } from "sonner";
+import React, { useState } from "react";
+import { toast } from "sonner";
 
+import { useAuth } from "../../context/AuthContext";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { factoryService } from "../../services/factory.service";
@@ -15,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 
 export default function FactoryPage() {
+  const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [selectedFactory, setSelectedFactory] = useState(null);
@@ -37,11 +40,18 @@ export default function FactoryPage() {
   const totalItems = factoriesData?.total || 0;
 
   const mutationOpts = {
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); handleClose(); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["factories"] });
+      handleClose();
+    },
   };
   const createMutation = useMutation({ mutationFn: factoryService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => factoryService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: factoryService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
+  const deleteMutation = useMutation({
+    mutationFn: factoryService.delete,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); toast.success("Thành công"); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+  });
 
   const columns = [
     { id: "name", label: "Tên nhà máy" },
@@ -75,33 +85,35 @@ export default function FactoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhà máy</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách phân xưởng sản xuất</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhà máy</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách phân xưởng sản xuất</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm nhà máy
-          </Button>
+          {hasPermission("factories:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+              <Plus className="w-4 h-4" /> Thêm nhà máy
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <GenericTable
-        data={factories}
-        columns={columns}
-        isLoading={isLoading}
-        error={error}
-        onEdit={handleOpen}
-        onDelete={handleDelete}
-        onBulkDelete={handleBulkDelete}
-        isServerSide={true}
-        totalItems={totalItems}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        onSearchChange={setSearch}
-      />
+        <GenericTable
+          data={factories}
+          columns={columns}
+          isLoading={isLoading}
+          error={error}
+          onEdit={hasPermission("factories:update") ? handleOpen : undefined}
+          onDelete={hasPermission("factories:delete") ? handleDelete : undefined}
+          onBulkDelete={hasPermission("factories:delete") ? handleBulkDelete : undefined}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          onSearchChange={setSearch}
+        />
       </div>
 
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>

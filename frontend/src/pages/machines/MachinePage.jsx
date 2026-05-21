@@ -17,9 +17,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, Factory, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAuth } from "../../context/AuthContext";
 
 export default function MachinePage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [filterFactoryId, setFilterFactoryId] = useState("");
@@ -149,7 +151,9 @@ export default function MachinePage() {
               </Command>
             </PopoverContent>
           </Popover>
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">+ Thêm máy</Button>
+          {hasPermission("machines:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">+ Thêm máy</Button>
+          )}
         </div>
       </div>
 
@@ -159,8 +163,8 @@ export default function MachinePage() {
           columns={columns}
           isLoading={isLoading}
           error={error}
-          onEdit={handleOpen}
-          onDelete={handleDelete}
+          onEdit={hasPermission("machines:update") ? handleOpen : undefined}
+          onDelete={hasPermission("machines:delete") ? handleDelete : undefined}
           onBulkDelete={handleBulkDelete}
           isServerSide={true}
           totalItems={totalItems}

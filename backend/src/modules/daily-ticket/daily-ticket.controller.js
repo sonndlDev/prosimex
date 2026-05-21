@@ -1,5 +1,6 @@
 import pool from "../../config/db.js";
 import { generateDailyTickets } from "../../workers/dailyTicketWorker.js";
+import { getIo } from "../../sockets/index.js";
 
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
@@ -21,6 +22,8 @@ export const getTickets = async (req, res) => {
     if (status && status !== "ALL") {
       queryParams.push(status);
       whereClause += ` AND dt.status = $${queryParams.length}`;
+    } else if (req.query.exclude_pending === 'true') {
+      whereClause += ` AND dt.status NOT IN ('PENDING_APPROVAL', 'REJECTED')`;
     }
     if (search) {
       queryParams.push(`%${search}%`);
@@ -401,6 +404,90 @@ export const deleteTicket = async (req, res) => {
   }
 };
 
+// PUT /api/daily-tickets/:id/approve
+export const approveTicket = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const user_id = req.user.id;
+
+    const ticketRes = await client.query(
+      "SELECT * FROM daily_production_tickets WHERE id = $1 AND deleted_at IS NULL",
+      [id]
+    );
+    if (ticketRes.rowCount === 0) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    if (ticketRes.rows[0].status === "COMPLETED") {
+      return res.status(400).json({ message: "Cannot approve a completed ticket!" });
+    }
+
+    await client.query(
+      "UPDATE daily_production_tickets SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, user_id]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id)
+       VALUES ($1, 'APPROVE', 'DailyProductionTicket', $2)`,
+      [user_id, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Ticket approved successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Approve Ticket Error:", error);
+    res.status(500).json({ message: "Error approving ticket", error });
+  } finally {
+    client.release();
+  }
+};
+
+// PUT /api/daily-tickets/:id/reject
+export const rejectTicket = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const user_id = req.user.id;
+
+    const ticketRes = await client.query(
+      "SELECT * FROM daily_production_tickets WHERE id = $1 AND deleted_at IS NULL",
+      [id]
+    );
+    if (ticketRes.rowCount === 0) {
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    if (ticketRes.rows[0].status === "COMPLETED") {
+      return res.status(400).json({ message: "Cannot reject a completed ticket!" });
+    }
+
+    await client.query(
+      "UPDATE daily_production_tickets SET status = 'REJECTED', updated_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, user_id]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id)
+       VALUES ($1, 'REJECT', 'DailyProductionTicket', $2)`,
+      [user_id, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Ticket rejected successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Reject Ticket Error:", error);
+    res.status(500).json({ message: "Error rejecting ticket", error });
+  } finally {
+    client.release();
+  }
+};
+
 // GET /api/v1/daily-tickets/report/plan-vs-actual
 export const getPlanVsActualReport = async (req, res) => {
   try {
@@ -694,14 +781,25 @@ export const manualOutputEntry = async (req, res) => {
     );
 
     let ticketId;
+    let isNewTicket = false;
+    
+    // Check permission instead of hardcoding 'PLANNER'
+    const hasAutoApprove = req.user.role_name === 'ADMIN' || (req.user.permissions || []).includes('daily_tickets:auto_approve');
+    let ticketStatus = hasAutoApprove ? 'APPROVED' : 'PENDING_APPROVAL';
+
     if (ticketRes.rowCount > 0) {
       ticketId = ticketRes.rows[0].id;
+      // Chuyển lại trạng thái thành PENDING_APPROVAL nếu chưa được auto-approve
+      if (!hasAutoApprove) {
+        await client.query("UPDATE daily_production_tickets SET status = 'PENDING_APPROVAL' WHERE id = $1", [ticketId]);
+      }
     } else {
       // Tạo phiếu manual mới
+      isNewTicket = true;
       const newTicket = await client.query(
-        `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by)
-         VALUES ($1, true, $2, $2) RETURNING id`,
-        [ticket_date, user_id]
+        `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by, status)
+         VALUES ($1, true, $2, $2, $3) RETURNING id`,
+        [ticket_date, user_id, ticketStatus]
       );
       ticketId = newTicket.rows[0].id;
     }
@@ -739,6 +837,30 @@ export const manualOutputEntry = async (req, res) => {
     );
 
     await client.query("COMMIT");
+
+    // Emit socket notification if needed
+    if (ticketStatus === 'PENDING_APPROVAL') {
+      try {
+        const actionText = isNewTicket ? 'tạo' : 'cập nhật';
+        const message = `Tài khoản ${req.user.full_name || req.user.username} vừa ${actionText} phiếu thủ công #${ticketId} cần phê duyệt!`;
+        
+        // Save notification to DB for PLANNERs
+        await pool.query(
+          `INSERT INTO notifications (target_role, message, link) VALUES ($1, $2, $3)`,
+          ['PLANNER', message, '/daily-tickets/approval']
+        );
+
+        const io = getIo();
+        io.to('planners_room').emit('new_pending_ticket', {
+          ticket_id: ticketId,
+          creator_name: req.user.full_name || req.user.username,
+          message
+        });
+      } catch (err) {
+        console.error("Socket emit error:", err);
+      }
+    }
+
     res.status(201).json({ message: "Đã ghi nhận sản lượng thủ công!", ticket_id: ticketId });
   } catch (error) {
     await client.query("ROLLBACK");

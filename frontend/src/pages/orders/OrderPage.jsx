@@ -87,6 +87,7 @@ import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as XLSX from "xlsx";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "../../context/AuthContext";
 
 const defaultValues = {
   order_code: "",
@@ -101,8 +102,8 @@ const defaultValues = {
   note: "",
   status: "DRAFT",
   production_start_date: "",
-  expected_shipping_date: "",
-  expected_container_shipping_date: "",
+  expected_shipping_date: [],
+  expected_container_shipping_date: [],
   customer_confirmation_result: "",
   pallet_info: "",
   accessory_status: "",
@@ -110,6 +111,7 @@ const defaultValues = {
 
 export default function OrderPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
@@ -377,7 +379,12 @@ export default function OrderPage() {
     {
       id: "expected_shipping_date",
       label: <p className="text-center">Ngày xuất hàng <br /> (Dự kiến)</p>,
-      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+      format: (value) => {
+        if (Array.isArray(value) && value.length > 0) {
+           return value.map((d, i) => <div key={i}>{DateTime.fromISO(d).toFormat("dd/MM/yyyy")}</div>);
+        }
+        return value && typeof value === 'string' ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : "";
+      }
     },
     {
       id: "actual_material_date",
@@ -387,7 +394,12 @@ export default function OrderPage() {
     {
       id: "expected_container_shipping_date",
       label: <p className="text-center">Ngày xuất công <br /> (Thực tế)</p>,
-      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+      format: (value) => {
+        if (Array.isArray(value) && value.length > 0) {
+           return value.map((d, i) => <div key={i}>{DateTime.fromISO(d).toFormat("dd/MM/yyyy")}</div>);
+        }
+        return value && typeof value === 'string' ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : "";
+      }
     },
     {
       id: "status",
@@ -460,8 +472,12 @@ export default function OrderPage() {
         note: order.note || "",
         status: order.status,
         production_start_date: order.production_start_date ? DateTime.fromISO(order.production_start_date).toFormat("yyyy-MM-dd") : "",
-        expected_shipping_date: order.expected_shipping_date ? DateTime.fromISO(order.expected_shipping_date).toFormat("yyyy-MM-dd") : "",
-        expected_container_shipping_date: order.expected_container_shipping_date ? DateTime.fromISO(order.expected_container_shipping_date).toFormat("yyyy-MM-dd") : "",
+        expected_shipping_date: Array.isArray(order.expected_shipping_date) 
+          ? order.expected_shipping_date.map(d => DateTime.fromISO(d).toFormat("yyyy-MM-dd"))
+          : order.expected_shipping_date ? [DateTime.fromISO(order.expected_shipping_date).toFormat("yyyy-MM-dd")] : [],
+        expected_container_shipping_date: Array.isArray(order.expected_container_shipping_date)
+          ? order.expected_container_shipping_date.map(d => DateTime.fromISO(d).toFormat("yyyy-MM-dd"))
+          : order.expected_container_shipping_date ? [DateTime.fromISO(order.expected_container_shipping_date).toFormat("yyyy-MM-dd")] : [],
         customer_confirmation_result: order.customer_confirmation_result || "",
         pallet_info: order.pallet_info || "",
         accessory_status: order.accessory_status || "",
@@ -620,9 +636,11 @@ export default function OrderPage() {
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm đơn hàng
-          </Button>
+          {hasPermission("orders:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+              <Plus className="w-4 h-4" /> Thêm đơn hàng
+            </Button>
+          )}
         </div>
       </div>
 
@@ -649,8 +667,8 @@ export default function OrderPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
-          onEdit={handleOpen}
-          onDelete={handleDelete}
+          onEdit={hasPermission("orders:update") ? handleOpen : undefined}
+          onDelete={hasPermission("orders:delete") ? handleDelete : undefined}
           maxHeight="100%"
           freezeFirstCols={true}
         />
@@ -962,11 +980,44 @@ export default function OrderPage() {
                           name="expected_shipping_date"
                           control={control}
                           render={({ field }) => (
-                            <PremiumDatePicker
-                              date={field.value}
-                              onSelect={field.onChange}
-                              placeholder="Chọn ngày"
-                            />
+                            <div className="space-y-2">
+                              {(field.value || []).map((date, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <div className="flex-1">
+                                    <PremiumDatePicker
+                                      date={date}
+                                      onSelect={(val) => {
+                                        const newVal = [...(field.value || [])];
+                                        newVal[idx] = val;
+                                        field.onChange(newVal);
+                                      }}
+                                      placeholder="Chọn ngày"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const newVal = [...(field.value || [])];
+                                      newVal.splice(idx, 1);
+                                      field.onChange(newVal);
+                                    }}
+                                    className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => field.onChange([...(field.value || []), ""])}
+                                className="w-full h-10 border-dashed border-zinc-200 text-zinc-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-2" /> Thêm ngày xuất
+                              </Button>
+                            </div>
                           )}
                         />
                       </div>
@@ -976,11 +1027,44 @@ export default function OrderPage() {
                           name="expected_container_shipping_date"
                           control={control}
                           render={({ field }) => (
-                            <PremiumDatePicker
-                              date={field.value}
-                              onSelect={field.onChange}
-                              placeholder="Chọn ngày"
-                            />
+                            <div className="space-y-2">
+                              {(field.value || []).map((date, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <div className="flex-1">
+                                    <PremiumDatePicker
+                                      date={date}
+                                      onSelect={(val) => {
+                                        const newVal = [...(field.value || [])];
+                                        newVal[idx] = val;
+                                        field.onChange(newVal);
+                                      }}
+                                      placeholder="Chọn ngày"
+                                    />
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      const newVal = [...(field.value || [])];
+                                      newVal.splice(idx, 1);
+                                      field.onChange(newVal);
+                                    }}
+                                    className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => field.onChange([...(field.value || []), ""])}
+                                className="w-full h-10 border-dashed border-zinc-200 text-zinc-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-2" /> Thêm ngày xuất
+                              </Button>
+                            </div>
                           )}
                         />
                       </div>

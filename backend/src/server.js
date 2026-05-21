@@ -1,4 +1,5 @@
 import express from 'express'
+import http from 'http'
 import morgan from 'morgan'
 import cors from 'cors'
 import 'express-async-errors'
@@ -26,9 +27,15 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes.js'
 import supplierRoutes from './modules/supplier/supplier.routes.js'
 import productInventoryRoutes from './modules/product-inventory/product-inventory.routes.js'
 import importExcelRoutes from './modules/import-excel/import-excel.routes.js'
+import notificationRoutes from './modules/notification/notification.routes.js'
 import { startScheduler } from './workers/scheduler.js'
+import { initSocket } from './sockets/index.js'
 
 const app = express()
+const server = http.createServer(app)
+
+// Initialize Socket.io
+initSocket(server)
 
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
@@ -55,6 +62,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/suppliers', supplierRoutes)
 app.use('/api/product-inventory', productInventoryRoutes)
 app.use('/api/import-excel', importExcelRoutes)
+app.use('/api/notifications', notificationRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -76,7 +84,7 @@ app.get('/', (req, res) => {
 //   console.log(`Hello PiTunDev, MES API is running at http://${hostname}:${port}/`)
 // })
 
-app.listen(port, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', () => {
   console.log(`Hello PiTunDev, MES API is running at http://${hostname}:${port}/`)
   startScheduler()
 })

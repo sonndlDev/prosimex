@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get("/master-data/history", authorize(["ADMIN", "PLANNER"], "import_excel"), getImportHistory);
-router.post("/master-data", authorize(["ADMIN", "PLANNER"], "import_excel"), importMasterData);
+router.get("/master-data/history", authorize(["ADMIN", "PLANNER"], 'import_excel:read'), getImportHistory);
+router.post("/master-data", authorize(["ADMIN", "PLANNER"], 'import_excel:create'), importMasterData);
 
 export default router;

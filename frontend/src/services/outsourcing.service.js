@@ -20,5 +20,13 @@ export const outsourcingService = {
   exportDetailed: async (params = {}) => {
     const { data } = await api.get('/outsourcing/export-detailed', { params });
     return data;
+  },
+  update: async (id, payload) => {
+    const { data } = await api.put(`/outsourcing/${id}`, payload);
+    return data;
+  },
+  delete: async (id) => {
+    const { data } = await api.delete(`/outsourcing/${id}`);
+    return data;
   }
 };

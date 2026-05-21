@@ -249,8 +249,8 @@ export default function GenericTable({
                     freezeFirstCols ? "sticky left-[40px] z-30 border-r border-black-400 border-b border-black-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]" : "border-b border-black-400"
                   )}
                   style={freezeFirstCols
-                    ? { position: 'sticky', top: 0, zIndex: 30, width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px', backgroundColor: '#f4f4f5' }
-                    : { position: 'sticky', top: 0, zIndex: 10, backgroundColor: '#f4f4f5' }
+                    ? { position: 'sticky', top: 0, zIndex: 999, width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' }
+                    : { position: 'sticky', top: 0, zIndex: 999, }
                   }
                 >
                   STT
@@ -327,7 +327,7 @@ export default function GenericTable({
                           className={cn("px-4 text-center", freezeFirstCols && "sticky left-0 z-20 border-r border-black-700 border-b border-black-700")}
                           style={{
                             ...(freezeFirstCols ? { width: '40px', minWidth: '40px', maxWidth: '40px', left: 0 } : {}),
-                            backgroundColor: isSelected ? '#eef2ff' : undefined,
+                            backgroundColor: isSelected ? '#eef2ff' : '#FFF',
                           }}
                         >
                           <input
@@ -342,7 +342,7 @@ export default function GenericTable({
                         className={cn("text-center font-medium px-4 py-4", freezeFirstCols && "sticky left-[40px] z-20 border-r border-black-700 border-b border-black-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
                         style={{
                           ...(freezeFirstCols ? { width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' } : {}),
-                          backgroundColor: isSelected ? '#eef2ff' : undefined,
+                          backgroundColor: isSelected ? '#eef2ff' : '#FFF',
                         }}
                       >
                         <span className="text-[11px] font-black text-zinc-400 tabular-nums">
@@ -355,9 +355,9 @@ export default function GenericTable({
                           <td
                             key={col.id}
                             className={cn(
-                              "text-[13px] font-semibold text-zinc-700 px-4 py-4",
+                              "text-[13px] font-semibold text-zinc-700 px-4 py-4 border-r border-black-700",
                               col.className,
-                              col.isSticky && "sticky z-20 border-r border-black-700",
+                              col.isSticky && "sticky z-20",
                               col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]",
                               freezeFirstCols && "border-b border-black-700"
                             )}
@@ -367,7 +367,7 @@ export default function GenericTable({
                               minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
                               maxWidth: col.width || (col.isSticky ? col.width : undefined),
                               left: col.isSticky ? col.stickyLeft : undefined,
-                              backgroundColor: col.isSticky && isSelected ? '#eef2ff' : undefined,
+                              backgroundColor: col.isSticky && isSelected ? '#eef2ff' : '#FFF',
                             }}
                           >
                             {col.format ? col.format(value, row) : (value || '---')}

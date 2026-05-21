@@ -7,12 +7,12 @@ const router = express.Router()
 
 router.use(verifyToken)
 
-router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders'), getOrders)
-router.get('/:id/completion-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders'), getOrderCompletionReport)
-router.get('/:id/summary-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders'), getOrderSummaryReport)
-router.post('/', authorize(['ADMIN', 'PLANNER'], 'orders'), createOrder)
-router.put('/:id', authorize(['ADMIN', 'PLANNER'], 'orders'), updateOrder)
-router.put('/:id/warehouse-details', authorize(['ADMIN', 'PLANNER'], 'orders'), updateWarehouseDetails)
-router.delete('/:id', authorize(['ADMIN'], 'orders'), deleteOrder)
+router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrders)
+router.get('/:id/completion-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderCompletionReport)
+router.get('/:id/summary-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderSummaryReport)
+router.post('/', authorize(['ADMIN', 'PLANNER'], 'orders:create'), createOrder)
+router.put('/:id', authorize(['ADMIN', 'PLANNER'], 'orders:update'), updateOrder)
+router.put('/:id/warehouse-details', authorize(['ADMIN', 'PLANNER'], 'orders:update'), updateWarehouseDetails)
+router.delete('/:id', authorize(['ADMIN'], 'orders:delete'), deleteOrder)
 
 export default router

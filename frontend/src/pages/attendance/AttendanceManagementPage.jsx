@@ -45,10 +45,12 @@ import {
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import GenericTable from '@/components/GenericTable';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from "../../context/AuthContext";
 
 export default function AttendanceManagementPage() {
   // Pagination State
   const [page, setPage] = useState(1);
+  const { hasPermission } = useAuth();
   const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     targetUserId: '',

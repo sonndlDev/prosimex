@@ -10,8 +10,8 @@ async function run() {
       CREATE TABLE IF NOT EXISTS order_ext (
         order_id INTEGER PRIMARY KEY REFERENCES orders(id) ON DELETE CASCADE,
         production_start_date DATE,
-        expected_shipping_date DATE,
-        expected_container_shipping_date DATE,
+        expected_shipping_date JSONB DEFAULT '[]'::jsonb,
+        expected_container_shipping_date JSONB DEFAULT '[]'::jsonb,
         customer_confirmation_result TEXT
       );
     `);

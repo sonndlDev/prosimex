@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function OperationPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState(null);
 
@@ -81,18 +83,20 @@ export default function OperationPage() {
            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách công đoạn tiêu chuẩn</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm công đoạn
-          </Button>
+          {hasPermission("operations:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+              <Plus className="w-4 h-4" /> Thêm công đoạn
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
         data={operations} columns={columns} isLoading={isLoading} error={error}
-        onEdit={handleOpen}
-        onDelete={(op) => { if (window.confirm(`Xóa công đoạn "${op.name}"?`)) deleteMutation.mutate(op.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công đoạn?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        onEdit={hasPermission("operations:update") ? handleOpen : undefined}
+        onDelete={hasPermission("operations:delete") ? (op) => { if (window.confirm(`Xóa công đoạn "${op.name}"?`)) deleteMutation.mutate(op.id); } : undefined}
+        onBulkDelete={hasPermission("operations:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} công đoạn?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
         isServerSide={true}
         totalItems={totalItems}
         page={page}

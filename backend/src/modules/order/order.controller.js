@@ -59,17 +59,20 @@ export const getOrders = async (req, res) => {
     }
 
     if (startDate && endDate) {
-      let dateCol = "o.received_date";
-      if (dateType === "shipping") dateCol = "oe.expected_shipping_date";
-      else if (dateType === "container")
-        dateCol = "oe.expected_container_shipping_date";
-      else if (dateType === "production_start")
-        dateCol = "oe.production_start_date";
-
-      queryParams.push(startDate);
-      whereClause += ` AND ${dateCol} >= $${queryParams.length}`;
-      queryParams.push(endDate);
-      whereClause += ` AND ${dateCol} <= $${queryParams.length}`;
+      if (dateType === "shipping" || dateType === "container") {
+        let jsonbCol = dateType === "shipping" ? "oe.expected_shipping_date" : "oe.expected_container_shipping_date";
+        whereClause += ` AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(${jsonbCol}) d WHERE d::date >= $${queryParams.length + 1} AND d::date <= $${queryParams.length + 2})`;
+        queryParams.push(startDate);
+        queryParams.push(endDate);
+      } else {
+        let dateCol = "o.received_date";
+        if (dateType === "production_start") dateCol = "oe.production_start_date";
+        
+        queryParams.push(startDate);
+        whereClause += ` AND ${dateCol} >= $${queryParams.length}`;
+        queryParams.push(endDate);
+        whereClause += ` AND ${dateCol} <= $${queryParams.length}`;
+      }
     }
 
     // Get total count
@@ -461,14 +464,17 @@ export const createOrder = async (req, res) => {
 
     // 4. Insert into order_ext if provided
     if (production_start_date || expected_shipping_date || expected_container_shipping_date || customer_confirmation_result || pallet_info || accessory_status) {
+      const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
+      const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
+      
       await client.query(
         `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           orderId,
           production_start_date || null,
-          expected_shipping_date || null,
-          expected_container_shipping_date || null,
+          shippingDateVal,
+          containerDateVal,
           customer_confirmation_result || null,
           pallet_info || null,
           accessory_status || null,
@@ -621,6 +627,9 @@ export const updateOrder = async (req, res) => {
     const afterData = result.rows[0];
 
     // Update order_ext
+    const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
+    const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
+    
     await client.query(
       `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -634,8 +643,8 @@ export const updateOrder = async (req, res) => {
       [
         id,
         production_start_date || null,
-        expected_shipping_date || null,
-        expected_container_shipping_date || null,
+        shippingDateVal,
+        containerDateVal,
         customer_confirmation_result || null,
         pallet_info || null,
         accessory_status || null,

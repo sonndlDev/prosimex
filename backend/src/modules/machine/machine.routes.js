@@ -7,9 +7,9 @@ const router = express.Router()
 
 router.use(verifyToken)
 // Assuming ADMIN, PLANNER, OPERATOR can view machines, but only ADMIN/PLANNER can manage
-router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'machines'), getMachines)
-router.post('/', authorize(['ADMIN', 'PLANNER'], 'machines'), createMachine)
-router.put('/:id', authorize(['ADMIN', 'PLANNER'], 'machines'), updateMachine)
-router.delete('/:id', authorize(['ADMIN'], 'machines'), deleteMachine)
+router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'machines:read'), getMachines)
+router.post('/', authorize(['ADMIN', 'PLANNER'], 'machines:create'), createMachine)
+router.put('/:id', authorize(['ADMIN', 'PLANNER'], 'machines:update'), updateMachine)
+router.delete('/:id', authorize(['ADMIN'], 'machines:delete'), deleteMachine)
 
 export default router

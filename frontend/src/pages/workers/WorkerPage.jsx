@@ -1,4 +1,4 @@
-import React, { useState } from "react";import { toast } from "sonner";
+import React, { useState } from "react"; import { toast } from "sonner";
 
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,9 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function WorkerPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState(null);
 
@@ -65,8 +67,8 @@ export default function WorkerPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Công nhân</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Công nhân</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
         </div>
         <div className="flex items-center gap-3">
           <Button onClick={() => handleOpenModal()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
@@ -76,21 +78,25 @@ export default function WorkerPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-      <GenericTable
-        columns={columns}
-        data={workers}
-        onEdit={handleOpenModal}
-        onDelete={(row) => { if (window.confirm("Bạn có chắc muốn xóa công nhân này?")) deleteMutation.mutate(row.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công nhân?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
-        isLoading={isLoading}
-        isServerSide={true}
-        totalItems={totalItems}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        onSearchChange={setSearch}
-      />
+        <GenericTable
+          columns={columns}
+          data={workers}
+          onEdit={hasPermission("workers:update") ? handleOpenModal : undefined}
+          onDelete={
+            hasPermission("workers:delete")
+              ? (row) => { if (window.confirm("Bạn có chắc muốn xóa công nhân này?")) deleteMutation.mutate(row.id); }
+              : undefined
+          }
+          onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công nhân?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+          isLoading={isLoading}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          onSearchChange={setSearch}
+        />
       </div>
 
       <Dialog open={openModal} onOpenChange={(v) => { if (!v) setOpenModal(false); }}>

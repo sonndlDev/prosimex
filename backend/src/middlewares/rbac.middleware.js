@@ -15,12 +15,31 @@ const authorize = (allowedRoles = [], requiredPermission = null) => {
       return next();
     }
 
-    // 3. Check if user has the specific required permission
-    if (requiredPermission && userPermissions.includes(requiredPermission)) {
-      return next();
+    // 3. Check if user has the specific required permission(s)
+    if (requiredPermission) {
+      // If requiredPermission is an array (e.g., ['orders:read', 'orders:create'])
+      // then user must have AT LEAST ONE of them to pass (or ALL? Usually ANY is sufficient for a combined route, but let's see. 
+      // Actually, if we want them to have ALL, use every. If we want ANY, use some.
+      // A route usually requires just one permission, e.g., 'orders:read'
+      
+      const permsToCheck = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
+      
+      // We'll check if the user has ANY of the required permissions.
+      // If a route needs them to have ALL, it would be a different use case, but usually a single string is passed.
+      const hasPermission = permsToCheck.some(p => userPermissions.includes(p));
+      
+      if (hasPermission) {
+        return next();
+      }
     }
 
-    return res.status(403).json({ message: 'Access denied: You do not have permission' })
+    const requiredLabel = Array.isArray(requiredPermission)
+      ? requiredPermission.join(', ')
+      : (requiredPermission || '');
+    return res.status(403).json({
+      message: 'Access denied: You do not have permission',
+      required_permission: requiredLabel || null,
+    })
   }
 }
 

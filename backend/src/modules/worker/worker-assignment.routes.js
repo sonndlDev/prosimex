@@ -5,7 +5,7 @@ import { getAssignments, updateAssignments } from './worker-assignment.controlle
 
 const router = express.Router();
 
-router.get('/', verifyToken, authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'planning'), getAssignments);
-router.post('/', verifyToken, authorize(['ADMIN', 'PLANNER'], 'planning'), updateAssignments);
+router.get('/', verifyToken, authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'planning:read'), getAssignments);
+router.post('/', verifyToken, authorize(['ADMIN', 'PLANNER'], 'planning:create'), updateAssignments);
 
 export default router;

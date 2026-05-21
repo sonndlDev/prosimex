@@ -1,5 +1,5 @@
-import React, { useState } from "react";import { toast } from "sonner";
-
+import React, { useState } from "react";
+import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerService } from "../../services/customer.service";
@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CustomerPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-  // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
@@ -64,18 +65,20 @@ export default function CustomerPage() {
            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách đối tác và khách hàng</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm khách hàng
-          </Button>
+          {hasPermission("customers:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+              <Plus className="w-4 h-4" /> Thêm khách hàng
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
         data={customers} columns={columns} isLoading={isLoading} error={error}
-        onEdit={handleOpen}
-        onDelete={(c) => { if (window.confirm(`Xóa khách hàng "${c.name}"?`)) deleteMutation.mutate(c.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} khách hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        onEdit={hasPermission("customers:update") ? handleOpen : undefined}
+        onDelete={hasPermission("customers:delete") ? (c) => { if (window.confirm(`Xóa khách hàng "${c.name}"?`)) deleteMutation.mutate(c.id); } : undefined}
+        onBulkDelete={hasPermission("customers:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} khách hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
         isServerSide={true}
         totalItems={totalItems}
         page={page}

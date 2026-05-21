@@ -21,10 +21,12 @@ import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import { DateTime } from "luxon";
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
+import { useAuth } from "../../context/AuthContext";
 
 
 export default function OutsourcingPage() {
   const [activeTab, setActiveTab] = useState("plating");
+  const { hasPermission } = useAuth();
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">

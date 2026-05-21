@@ -364,3 +364,172 @@ export const addReturnEntry = async (req, res) => {
     client.release();
   }
 };
+
+// Xóa phiếu gia công
+export const deleteTicket = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const user_id = req.user.id;
+
+    // Check if the ticket has returns
+    const checkRes = await client.query(
+      `SELECT t.status, 
+        (SELECT COUNT(*) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id) as returns_count
+       FROM outsourcing_tickets t
+       WHERE t.id = $1 AND t.deleted_at IS NULL`,
+      [id]
+    );
+
+    if (checkRes.rowCount === 0) {
+      return res.status(404).json({ message: "Không tìm thấy phiếu hoặc đã bị xoá" });
+    }
+
+    if (parseInt(checkRes.rows[0].returns_count) > 0) {
+      return res.status(400).json({ message: "Không thể xoá phiếu đã có hàng nhập về" });
+    }
+
+    // Soft delete
+    await client.query(
+      "UPDATE outsourcing_tickets SET deleted_at = CURRENT_TIMESTAMP, modified_by = $1 WHERE id = $2",
+      [user_id, id]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES ($1, 'DELETE', 'OutsourcingTicket', $2)`,
+      [user_id, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Xoá phiếu gia công thành công" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Outsourcing Ticket Error:", error);
+    res.status(500).json({ message: "Lỗi khi xoá phiếu", error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// Cập nhật phiếu gia công
+export const updateTicket = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { id } = req.params;
+    const user_id = req.user.id;
+    const { supplier_id, dispatch_date, expected_return_date, items } = req.body;
+
+    const ticketRes = await client.query("SELECT * FROM outsourcing_tickets WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (ticketRes.rowCount === 0) {
+      return res.status(404).json({ message: "Không tìm thấy phiếu" });
+    }
+
+    const type = ticketRes.rows[0].type;
+
+    await client.query(
+      `UPDATE outsourcing_tickets 
+       SET supplier_id = $1, dispatch_date = $2, expected_return_date = $3, modified_by = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5`,
+      [supplier_id || null, dispatch_date || null, expected_return_date || null, user_id, id]
+    );
+
+    // Get existing items with their returns count
+    const existingItemsRes = await client.query(
+      `SELECT i.id, 
+        (SELECT COALESCE(SUM(quantity_returned), 0) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as returned_qty
+       FROM outsourcing_ticket_items i
+       WHERE i.ticket_id = $1`,
+      [id]
+    );
+    const existingItemMap = new Map();
+    existingItemsRes.rows.forEach(r => existingItemMap.set(r.id, parseFloat(r.returned_qty)));
+
+    const newProvidedItemIds = new Set(items.map(i => i.id).filter(Boolean));
+
+    // Delete items that are missing in the new payload, ONLY if returned_qty == 0
+    for (const [existingId, returnedQty] of existingItemMap.entries()) {
+      if (!newProvidedItemIds.has(existingId)) {
+        if (returnedQty > 0) {
+          throw new Error(\`Không thể xoá dòng chi tiết (ID: \${existingId}) vì đã có \${returnedQty} hàng nhập về\`);
+        }
+        await client.query("DELETE FROM outsourcing_ticket_items WHERE id = $1", [existingId]);
+      }
+    }
+
+    // Insert or update items
+    for (const item of items) {
+      if (item.id && existingItemMap.has(item.id)) {
+        const returnedQty = existingItemMap.get(item.id);
+        const quantity_out = parseFloat(item.quantity_out || 0);
+        if (quantity_out < returnedQty) {
+          throw new Error(\`Số lượng xuất không thể nhỏ hơn số lượng đã nhập về (\${returnedQty})\`);
+        }
+
+        await client.query(
+          `UPDATE outsourcing_ticket_items
+           SET order_id = $1, product_id = $2, order_quantity = $3, processing_type = $4, quantity_out = $5,
+               gross_weight = $6, pallet_weight = $7, net_weight = $8, notes = $9, 
+               packing_specification = $10, package_count = $11, unit_net_weight = $12
+           WHERE id = $13`,
+          [
+            item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, quantity_out,
+            item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
+            item.packing_specification || null, item.package_count || null, item.unit_net_weight || null,
+            item.id
+          ]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO outsourcing_ticket_items 
+           (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, 
+            gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            id, item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, item.quantity_out || 0,
+            item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
+            item.packing_specification || null, item.package_count || null, item.unit_net_weight || null
+          ]
+        );
+      }
+    }
+
+    // Re-evaluate total status
+    const checkStatusRes = await client.query(
+      `SELECT 
+        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as total_out,
+        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+         FROM outsourcing_returns r 
+         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+         WHERE i.ticket_id = $1) as total_returned`,
+      [id]
+    );
+
+    if (checkStatusRes.rowCount > 0) {
+      const { total_out, total_returned } = checkStatusRes.rows[0];
+      let newStatus = 'PENDING';
+      if (parseFloat(total_returned) >= parseFloat(total_out) && parseFloat(total_out) > 0) {
+        newStatus = 'COMPLETED';
+      } else if (parseFloat(total_returned) > 0) {
+        newStatus = 'PARTIAL';
+      }
+      
+      await client.query("UPDATE outsourcing_tickets SET status = $1 WHERE id = $2", [newStatus, id]);
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES ($1, 'UPDATE', 'OutsourcingTicket', $2)`,
+      [user_id, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Cập nhật phiếu thành công" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Outsourcing Ticket Error:", error);
+    res.status(400).json({ message: error.message || "Lỗi khi cập nhật phiếu" });
+  } finally {
+    client.release();
+  }
+};

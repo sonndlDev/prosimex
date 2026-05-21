@@ -25,6 +25,7 @@ const WarehousePage = React.lazy(() => import("./pages/warehouse/WarehousePage")
 const SuppliersPage = React.lazy(() => import("./pages/suppliers/SuppliersPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
 const DailyTicketPage = React.lazy(() => import("./pages/daily-tickets/DailyTicketPage"));
+const ApprovalTicketPage = React.lazy(() => import("./pages/daily-tickets/ApprovalTicketPage"));
 const DailyTicketImportPage = React.lazy(() => import("./pages/import/DailyTicketImportPage"));
 const ProductionOutputPage = React.lazy(() => import("./pages/daily-tickets/ProductionOutputPage"));
 const PlanVsActualPage = React.lazy(() => import("./pages/daily-tickets/PlanVsActualPage"));
@@ -99,72 +100,73 @@ export default function AppRouter() {
               {/* Modules protected by Role */}
               {/* Modules protected by Permissions */}
               <Route
-                element={<ProtectedRoute requiredPermission="factories" />}
+                element={<ProtectedRoute requiredPermission="factories:read" />}
               >
                 <Route path="/factories" element={<FactoryPage />} />
               </Route>
               <Route
-                element={<ProtectedRoute requiredPermission="product_groups" />}
+                element={<ProtectedRoute requiredPermission="product_groups:read" />}
               >
                 <Route path="/product-groups" element={<ProductGroupPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="products" />}>
+              <Route element={<ProtectedRoute requiredPermission="products:read" />}>
                 <Route path="/products" element={<ProductPage />} />
               </Route>
               <Route
-                element={<ProtectedRoute requiredPermission="customers" />}
+                element={<ProtectedRoute requiredPermission="customers:read" />}
               >
                 <Route path="/customers" element={<CustomerPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="suppliers" />}>
+              <Route element={<ProtectedRoute requiredPermission="suppliers:read" />}>
                 <Route path="/suppliers" element={<SuppliersPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="orders" />}>
+              <Route element={<ProtectedRoute requiredPermission="orders:read" />}>
                 <Route path="/orders" element={<OrderPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="warehouse" />}>
+              <Route element={<ProtectedRoute requiredPermission="warehouse:read" />}>
                 <Route path="/warehouse" element={<WarehousePage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="planning" />}>
+              <Route element={<ProtectedRoute requiredPermission="planning:read" />}>
                 <Route path="/planning" element={<PlanningPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="daily_tickets" />}>
+              <Route element={<ProtectedRoute requiredPermission="daily_tickets:read" />}>
                 <Route path="/daily-tickets" element={<DailyTicketPage />} />
+                <Route path="/daily-tickets/approval" element={<ApprovalTicketPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="production_output" />}>
+              <Route element={<ProtectedRoute requiredPermission="production_output:read" />}>
                 <Route path="/production-output" element={<ProductionOutputPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="import_excel" />}>
+              <Route element={<ProtectedRoute requiredPermission="import_excel:read" />}>
                 <Route path="/import" element={<DailyTicketImportPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="daily_tickets" />}>
+              <Route element={<ProtectedRoute requiredPermission="plan_vs_actual:read" />}>
                 <Route path="/plan-vs-actual" element={<PlanVsActualPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="outsourcing" />}>
+              <Route element={<ProtectedRoute requiredPermission="outsourcing:read" />}>
                 <Route path="/outsourcing" element={<OutsourcingPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="schedule" />}>
+              <Route element={<ProtectedRoute requiredPermission="schedule:read" />}>
                 <Route path="/schedule" element={<SchedulePage />} />
               </Route>
               <Route
                 path="/product-inventory"
-                element={<ProtectedRoute requiredPermission="product_inventory" />}
+                element={<ProtectedRoute requiredPermission="product_inventory:read" />}
               >
                 <Route index element={<ProductInventoryPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="machines" />}>
+              <Route element={<ProtectedRoute requiredPermission="machines:read" />}>
                 <Route path="/machines" element={<MachinePage />} />
               </Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route
                 path="/attendance"
-                element={<ProtectedRoute requiredPermission="attendance" />}
+                element={<ProtectedRoute requiredPermission="attendance:read" />}
               >
                 <Route index element={<AttendancePage />} />
               </Route>
               <Route
                 element={
-                  <ProtectedRoute requiredPermission="attendance_management" />
+                  <ProtectedRoute requiredPermission="attendance_management:read" />
                 }
               >
                 <Route
@@ -173,18 +175,18 @@ export default function AppRouter() {
                 />
               </Route>
               <Route
-                element={<ProtectedRoute requiredPermission="operations" />}
+                element={<ProtectedRoute requiredPermission="operations:read" />}
               >
                 <Route path="/operations" element={<OperationPage />} />
               </Route>
 
-              <Route element={<ProtectedRoute requiredPermission="users" />}>
+              <Route element={<ProtectedRoute requiredPermission="users:read" />}>
                 <Route path="/users" element={<UserPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="workers" />}>
+              <Route element={<ProtectedRoute requiredPermission="workers:read" />}>
                 <Route path="/workers" element={<WorkerPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="settings" />}>
+              <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
                 <Route
                   path="/settings"
                   element={<Placeholder title="System Settings" />}

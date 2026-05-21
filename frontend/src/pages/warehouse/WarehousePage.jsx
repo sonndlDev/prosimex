@@ -9,10 +9,12 @@ import { DateTime } from "luxon";
 import { Pencil, Search, X } from "lucide-react";
 import { getAuditColumn } from "../../utils/audit";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "../../context/AuthContext";
 
 
 export default function WarehousePage() {
   const [page, setPage] = useState(1);
+  const { hasPermission } = useAuth();
   const [pageSize, setPageSize] = useState(10);
 
   const [tempSearch, setTempSearch] = useState("");

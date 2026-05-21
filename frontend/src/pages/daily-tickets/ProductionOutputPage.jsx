@@ -332,8 +332,6 @@ export default function ProductionOutputPage() {
 
   const onManualSubmit = (data) => {
     if (data.items.length === 0) { toast.warning("Vui lòng thêm ít nhất một dòng!"); return; }
-    const hasActual = data.items.some(i => parseFloat(i.actual_quantity) > 0);
-    if (!hasActual) { toast.warning("Vui lòng nhập sản lượng thực tế!"); return; }
     manualOutputMutation.mutate({
       ticket_date: manualDate,
       items: data.items.map(i => ({
@@ -545,7 +543,7 @@ export default function ProductionOutputPage() {
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Mã hàng</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">SL Kế Hoạch</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">SL Thực Tế ✱</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">SL Thực Tế</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>
               <div />
             </div>

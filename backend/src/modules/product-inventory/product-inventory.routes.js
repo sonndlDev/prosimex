@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'product_inventory'), getInventory);
-router.post('/', authorize(['ADMIN', 'PLANNER'], 'product_inventory'), saveInventory);
+router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'product_inventory:read'), getInventory);
+router.post('/', authorize(['ADMIN', 'PLANNER'], 'product_inventory:create'), saveInventory);
 
 export default router;

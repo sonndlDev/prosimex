@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 
 
-export default function DailyTicketPage() {
+export default function ApprovalTicketPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
@@ -44,7 +44,7 @@ export default function DailyTicketPage() {
   const initialFilters = {
     startDate: "",
     endDate: "",
-    ticket_status: "ALL",
+    ticket_status: "PENDING_APPROVAL",
     search: "",
   };
 
@@ -62,43 +62,72 @@ export default function DailyTicketPage() {
 
   const { data: ticketData, isLoading, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
-    queryFn: () => dailyTicketService.getAll({
+    queryFn: async () => dailyTicketService.getAll({
       page,
       limit: pageSize,
       ...appliedFilters,
-      status: appliedFilters.ticket_status,
-      exclude_pending: true
+      status: "PENDING_APPROVAL"
     }),
   });
 
   const tickets = ticketData?.data || [];
   const totalItems = ticketData?.total || 0;
 
-  const deleteMutation = useMutation({
-    mutationFn: dailyTicketService.delete,
+
+
+  const approveMutation = useMutation({
+    mutationFn: dailyTicketService.approve,
     onSuccess: () => {
-      toast.success("Đã xoá phiếu sản xuất!");
+      toast.success("Đã duyệt phiếu sản xuất!");
       queryClient.invalidateQueries(["daily-tickets"]);
     },
     onError: (err) => {
-      toast.error(err.response?.data?.message || "Lỗi khi xoá phiếu!");
+      toast.error(err.response?.data?.message || "Lỗi khi duyệt phiếu!");
     },
   });
 
-  const handleDelete = (id) => {
+  const handleApprove = (id) => {
     Swal.fire({
-      title: "Xác nhận xoá?",
-      text: "Bạn có chắc chắn muốn xoá phiếu sản xuất này?",
-      icon: "warning",
+      title: "Xác nhận duyệt?",
+      text: "Bạn có chắc chắn muốn duyệt phiếu sản xuất này?",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonColor: "#09090b",
+      confirmButtonColor: "#4f46e5",
       cancelButtonColor: "#e4e4e7",
-      confirmButtonText: "Xoá",
+      confirmButtonText: "Duyệt",
       cancelButtonText: "Huỷ",
     }).then((result) => {
-      if (result.isConfirmed) deleteMutation.mutate(id);
+      if (result.isConfirmed) approveMutation.mutate(id);
     });
   };
+
+  const rejectMutation = useMutation({
+    mutationFn: dailyTicketService.reject,
+    onSuccess: () => {
+      toast.success("Đã từ chối phiếu sản xuất!");
+      queryClient.invalidateQueries(["daily-tickets"]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Lỗi khi từ chối phiếu!");
+    },
+  });
+
+  const handleReject = (id) => {
+    Swal.fire({
+      title: "Xác nhận từ chối?",
+      text: "Bạn có chắc chắn muốn từ chối phiếu sản xuất này?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#e4e4e7",
+      confirmButtonText: "Từ chối",
+      cancelButtonText: "Huỷ",
+    }).then((result) => {
+      if (result.isConfirmed) rejectMutation.mutate(id);
+    });
+  };
+
+
 
   const handleExportExcel = async () => {
     try {
@@ -128,7 +157,7 @@ export default function DailyTicketPage() {
         "SL Thực tế": parseFloat(item.actual_quantity) || 0,
         "Chênh lệch": (parseFloat(item.actual_quantity) || 0) - (parseFloat(item.planned_quantity) || 0),
         "Ghi chú": item.notes || "",
-        "Trạng thái duyệt": item.ticket_status === 'COMPLETED' ? 'Xong' : item.ticket_status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : item.ticket_status === 'APPROVED' ? 'Đã duyệt' : 'Nháp',
+        "Trạng thái duyệt": item.ticket_status === 'COMPLETED' ? 'Xong' : item.ticket_status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : item.ticket_status === 'REJECTED' ? 'Từ chối' : item.ticket_status === 'APPROVED' ? 'Đã duyệt' : 'Nháp',
         "Người tạo": item.creator_name || "Hệ thống",
         "Ngày tạo": DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm")
       }));
@@ -222,6 +251,11 @@ export default function DailyTicketPage() {
             Đã duyệt
           </Badge>
         );
+        if (val === "REJECTED") return (
+          <Badge className="bg-red-50 text-red-700 border border-red-200 font-semibold text-[10px] px-1.5 h-5">
+            Từ chối
+          </Badge>
+        );
         if (val === "COMPLETED") return (
           <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 font-semibold text-[10px] px-1.5 h-5">
             Xong
@@ -242,8 +276,8 @@ export default function DailyTicketPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Phiếu Sản Xuất Hàng Ngày</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và theo dõi lịch sử sản xuất</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Duyệt Phiếu Sản Xuất</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và phê duyệt các phiếu tạo thủ công</p>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -253,10 +287,6 @@ export default function DailyTicketPage() {
           >
             <Download className="w-4 h-4" />
             Xuất Excel {selectedIds.length > 0 && `(${selectedIds.length})`}
-          </Button>
-          <Button onClick={() => { setSelectedTicketId(null); setIsFormOpen(true); }} className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100 gap-2">
-            <Plus className="w-4 h-4" />
-            Tạo Phiếu Mới
           </Button>
         </div>
       </div>
@@ -287,6 +317,34 @@ export default function DailyTicketPage() {
           maxHeight="100%"
           renderActions={(item) => (
             <div className="flex items-center gap-1">
+              {item.ticket_status === 'PENDING_APPROVAL' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      onClick={() => handleApprove(item.master_id)}
+                      className="p-2 rounded-xl text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-emerald-200"
+                    >
+                      <Check className="w-4 h-4" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Duyệt phiếu</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {item.ticket_status === 'PENDING_APPROVAL' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      onClick={() => handleReject(item.master_id)}
+                      className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-rose-100"
+                    >
+                      <X className="w-4 h-4" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Từ chối phiếu</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
@@ -299,6 +357,20 @@ export default function DailyTicketPage() {
                 </Tooltip>
               </TooltipProvider>
 
+              {item.ticket_status === 'PENDING_APPROVAL' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger
+                      onClick={() => handleApprove(item.master_id)}
+                      className="p-2 rounded-xl text-zinc-400 hover:text-orange-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-orange-100"
+                    >
+                      <Check className="w-4 h-4" />
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Duyệt phiếu</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
@@ -307,46 +379,12 @@ export default function DailyTicketPage() {
                   >
                     <PencilLine className="w-4 h-4" />
                   </TooltipTrigger>
-                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Chỉnh sửa phiếu</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger
-                    onClick={() => handleDelete(item.master_id)}
-                    disabled={item.ticket_status === "COMPLETED"}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xoá phiếu</TooltipContent>
+                  <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">Xem chi tiết</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
           )}
-          onBulkDelete={hasPermission("daily-tickets:delete") ? (ids) => {
-            const deletableIds = ids.filter(id => {
-              const row = tickets.find(t => String(t.id) === String(id));
-              return row && row.ticket_status !== "COMPLETED";
-            });
-            const skipped = ids.length - deletableIds.length;
-            if (deletableIds.length === 0) {
-              toast.error("Không có phiếu nào có thể xóa (phiếu đã hoàn thành không được xóa).");
-              return;
-            }
-            const msg = skipped > 0
-              ? `Xóa ${deletableIds.length} phiếu? (${skipped} phiếu đã hoàn thành sẽ bị bỏ qua)`
-              : `Xóa ${deletableIds.length} phiếu sản xuất?`;
-            if (window.confirm(msg)) {
-              const ticketIdsToDelete = new Set();
-              deletableIds.forEach(id => {
-                const row = tickets.find(t => String(t.id) === String(id));
-                if (row) ticketIdsToDelete.add(row.master_id);
-              });
-              ticketIdsToDelete.forEach(tId => deleteMutation.mutate(tId));
-            }
-          } : undefined}
+          onBulkDelete={undefined}
         />
       </div>
 
@@ -403,23 +441,7 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
         {/* Filters Grid */}
         <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Trạng thái */}
-          <Select
-            value={tempFilters.ticket_status}
-            onValueChange={val => setTempFilters(prev => ({ ...prev, ticket_status: val }))}
-          >
-            <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Trạng thái:</span>
-                <SelectValue placeholder="Tất cả" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả phiêú</SelectItem>
-              <SelectItem value="DRAFT">Nháp</SelectItem>
-              <SelectItem value="APPROVED">Đã duyệt</SelectItem>
-              <SelectItem value="COMPLETED">Xong</SelectItem>
-            </SelectContent>
-          </Select>
+
 
           {/* Khoảng ngày */}
           <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">

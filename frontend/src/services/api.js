@@ -137,6 +137,14 @@ api.interceptors.response.use(
         window.location.href = "/login";
       }
     }
+    // 403 Forbidden — permission denied
+    if (error.response?.status === 403) {
+      const data = error.response?.data || {};
+      const message = data.message || "Bạn không có quyền thực hiện thao tác này";
+      const required_permission = data.required_permission || null;
+      window.dispatchEvent(new CustomEvent("api:forbidden", { detail: { message, required_permission } }));
+    }
+
     return Promise.reject(error);
   },
 );

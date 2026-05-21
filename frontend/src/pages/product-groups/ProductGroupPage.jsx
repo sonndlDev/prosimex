@@ -20,9 +20,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ProductGroupPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [manageOpsModal, setManageOpsModal] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -154,30 +156,6 @@ export default function ProductGroupPage() {
   const watchMachineIds = watchOp("machine_ids");
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Nhóm mã hàng</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Thiết lập quy trình cho nhóm</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm nhóm
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <GenericTable
-          data={productGroups} columns={columns} isLoading={isLoading} error={error}
-          onEdit={handleOpen}
-          onDelete={(g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); }}
-          onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} nhóm?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
-          actionColWidth={150}
-          isServerSide={true}
-          totalItems={totalItems}
-          page={page}
-          pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onSearchChange={setSearch}
@@ -217,7 +195,7 @@ export default function ProductGroupPage() {
           <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30">
             <DraggableSequenceTable
               data={groupOperations} machinesList={machinesList} isLoading={opsLoading}
-              onDelete={(id) => removeOpMutation.mutate(id)}
+              onDelete={hasPermission("product-groups:delete") ? (id) => removeOpMutation.mutate(id) : undefined}
               onUpdate={(id, payload) => updateOpMutation.mutate({ mappingId: id, payload })}
               onReorder={(newOrders) => reorderOpMutation.mutate(newOrders)}
             />

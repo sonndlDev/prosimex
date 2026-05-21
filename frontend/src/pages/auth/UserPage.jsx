@@ -1,9 +1,10 @@
-import React, { useState } from "react";import { toast } from "sonner";
+import React, { useState } from "react"; import { toast } from "sonner";
 
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userService } from "../../services/user.service";
 import { factoryService } from "../../services/factory.service";
+import { useAuth } from "../../context/AuthContext";
 import GenericTable from "../../components/GenericTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,51 +14,54 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, Search, UserPlus } from "lucide-react";
+import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const ACTION_LABELS = { read: "Xem", create: "Thêm", update: "Sửa", delete: "Xóa", auto_approve: "Tự động duyệt phiếu" };
 
 const PERMISSION_GROUPS = [
   {
     groupLabel: "Sản xuất",
     items: [
-      { key: "dashboard", label: "Bảng điều khiển" },
-      { key: "planning", label: "Lập kế hoạch" },
-      { key: "daily_tickets", label: "Phiếu SX hàng ngày" },
-      { key: "import_excel", label: "Import Excel (Dữ liệu gốc)" },
-      { key: "production_output", label: "Nhập sản lượng" },
-      { key: "schedule", label: "Timeline" },
-      { key: "outsourcing", label: "Phiếu gia công" },
-      { key: "orders", label: "Đơn hàng" },
-      { key: "warehouse", label: "Thông tin kho" },
-      { key: "product_inventory", label: "Tồn kho BTP & TP" },
-      { key: "plan_vs_actual", label: "Báo cáo KH vs TT" },
+      { key: "dashboard", label: "Bảng điều khiển", actions: ["read"] },
+      { key: "planning", label: "Lập kế hoạch", actions: ["read", "create", "update", "delete"] },
+      { key: "daily_tickets", label: "Phiếu SX hàng ngày", actions: ["read", "create", "update", "delete", "auto_approve"] },
+      { key: "import_excel", label: "Import Excel", actions: ["read", "create"] },
+      { key: "production_output", label: "Nhập sản lượng", actions: ["read", "create", "update", "delete"] },
+      { key: "schedule", label: "Timeline", actions: ["read"] },
+      { key: "outsourcing", label: "Phiếu gia công", actions: ["read", "create", "update", "delete"] },
+      { key: "orders", label: "Đơn hàng", actions: ["read", "create", "update", "delete"] },
+      { key: "warehouse", label: "Thông tin kho", actions: ["read", "create", "update", "delete"] },
+      { key: "product_inventory", label: "Tồn kho BTP & TP", actions: ["read"] },
+      { key: "plan_vs_actual", label: "Báo cáo KH vs TT", actions: ["read"] },
     ]
   },
   {
     groupLabel: "Dữ liệu gốc",
     items: [
-      { key: "customers", label: "Khách hàng" },
-      { key: "factories", label: "Nhà máy" },
-      { key: "machines", label: "Máy móc" },
-      { key: "operations", label: "Công đoạn" },
-      { key: "suppliers", label: "Nhà cung cấp" },
-      { key: "product_groups", label: "Nhóm mã hàng" },
-      { key: "products", label: "Mã hàng" },
+      { key: "customers", label: "Khách hàng", actions: ["read", "create", "update", "delete"] },
+      { key: "factories", label: "Nhà máy", actions: ["read", "create", "update", "delete"] },
+      { key: "machines", label: "Máy móc", actions: ["read", "create", "update", "delete"] },
+      { key: "operations", label: "Công đoạn", actions: ["read", "create", "update", "delete"] },
+      { key: "suppliers", label: "Nhà cung cấp", actions: ["read", "create", "update", "delete"] },
+      { key: "product_groups", label: "Nhóm mã hàng", actions: ["read", "create", "update", "delete"] },
+      { key: "products", label: "Mã hàng", actions: ["read", "create", "update", "delete"] },
     ]
   },
   {
     groupLabel: "Hệ thống",
     items: [
-      { key: "attendance", label: "Chấm công (C.Nhân)" },
-      { key: "attendance_management", label: "QL Chấm công" },
-      { key: "workers", label: "Quản lý công nhân" },
-      { key: "users", label: "Người dùng & Quyền" },
-      { key: "settings", label: "Cài đặt hệ thống" },
+      { key: "attendance", label: "Chấm công (C.Nhân)", actions: ["read", "create", "update", "delete"] },
+      { key: "attendance_management", label: "QL Chấm công", actions: ["read", "create", "update", "delete"] },
+      { key: "workers", label: "Quản lý công nhân", actions: ["read", "create", "update", "delete"] },
+      { key: "users", label: "Người dùng & Quyền", actions: ["read", "create", "update", "delete"] },
+      { key: "settings", label: "Cài đặt hệ thống", actions: ["read", "update"] },
     ]
   }
 ];
 
 export default function UserPage() {
+  const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [openRoleModal, setOpenRoleModal] = useState(false);
@@ -87,12 +91,29 @@ export default function UserPage() {
 
   const { data: roles, isLoading: rolesLoading } = useQuery({ queryKey: ["roles"], queryFn: userService.getRoles });
 
-  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); handleClose(); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra") };
+  const mutationOpts = {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      handleClose();
+      toast.success("Thành công");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra")
+  };
   const createMutation = useMutation({ mutationFn: userService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => userService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: userService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
-  const createRoleMutation = useMutation({ mutationFn: userService.createRole, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["roles"] }); setNewRoleName(""); } });
-  const deleteRoleMutation = useMutation({ mutationFn: userService.deleteRole, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] }) });
+  const deleteMutation = useMutation({
+    mutationFn: userService.delete,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["users"] }); toast.success("Thành công"); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa")
+  });
+  const createRoleMutation = useMutation({
+    mutationFn: userService.createRole,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["roles"] }); setNewRoleName(""); }
+  });
+  const deleteRoleMutation = useMutation({
+    mutationFn: userService.deleteRole,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] })
+  });
 
   const columns = [
     { id: "username", label: "Tài khoản", className: "font-bold text-indigo-700" },
@@ -127,33 +148,29 @@ export default function UserPage() {
         email: user.email || ""
       };
       reset(editValues);
-      // Extra safety for modal render cycle
       setTimeout(() => reset(editValues), 0);
     } else {
       reset(initialForm);
     }
     setOpenModal(true);
   };
+
   const handleClose = () => { setOpenModal(false); setSelectedUser(null); };
+
   const togglePermission = (key) => {
     const current = watchPermissions || [];
     setValue("permissions", current.includes(key) ? current.filter(p => p !== key) : [...current, key]);
   };
+
   const onSubmit = (data) => {
     const payload = { ...data };
-
     if (selectedUser) {
-      // Only send password if explicitly changing OR if it's a new user
       if (!isChangingPassword) {
         delete payload.password;
       } else if (!payload.password) {
         delete payload.password;
       }
-
-      // If personal info fields are empty and not changed, let backend COALESCE handle it
-      // Alternatively, we can omit them if they matched original to be super safe
     }
-
     if (selectedUser) updateMutation.mutate({ id: selectedUser.id, payload });
     else createMutation.mutate(payload);
   };
@@ -169,9 +186,11 @@ export default function UserPage() {
           <Button variant="outline" onClick={() => setOpenRoleModal(true)} className="h-11 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
             <Shield className="w-4 h-4 text-indigo-500" /> Vai trò (Roles)
           </Button>
-          <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
-            <UserPlus className="w-4 h-4" /> Thêm người dùng
-          </Button>
+          {hasPermission("users:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
+              <UserPlus className="w-4 h-4" /> Thêm người dùng
+            </Button>
+          )}
         </div>
       </div>
 
@@ -181,9 +200,9 @@ export default function UserPage() {
           columns={columns}
           isLoading={usersLoading || rolesLoading}
           error={usersError}
-          onEdit={handleOpen}
-          onDelete={(u) => { if (window.confirm(`Xóa người dùng "${u.username}"?`)) deleteMutation.mutate(u.id); }}
-          onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} người dùng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+          onEdit={hasPermission("users:update") ? handleOpen : undefined}
+          onDelete={hasPermission("users:delete") ? (u) => { if (window.confirm(`Xóa người dùng "${u.username}"?`)) deleteMutation.mutate(u.id); } : undefined}
+          onBulkDelete={hasPermission("users:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} người dùng?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
           isServerSide={true}
           totalItems={totalItems}
           page={page}
@@ -196,16 +215,16 @@ export default function UserPage() {
 
       {/* Create/Edit User Dialog */}
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="max-w-3xl p-0 overflow-hidden border-zinc-200 rounded-2xl">
-          <form onSubmit={rhfHandleSubmit(onSubmit)} autoComplete="off">
-            <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
-              <DialogTitle className="text-xl font-black text-zinc-950 uppercase tracking-tight">
-                {selectedUser ? "Cập nhật tài khoản" : "Tạo người dùng mới"}
-              </DialogTitle>
-            </DialogHeader>
+        <DialogContent className="max-w-[1000px] p-0 overflow-hidden border-zinc-200 rounded-2xl gap-0">
+          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
+            <DialogTitle className="text-lg font-black text-zinc-950 uppercase tracking-tight">
+              {selectedUser ? "Chỉnh sửa tài khoản" : "Tạo tài khoản mới"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={rhfHandleSubmit(onSubmit)}>
             <div className="p-0 flex flex-col md:flex-row h-[600px]">
               {/* Left Column: Information */}
-              <div className="flex-1 p-6 space-y-6 overflow-y-auto border-r border-zinc-100 bg-white">
+              <div className="w-full md:w-[400px] flex-shrink-0 p-6 space-y-6 overflow-y-auto border-r border-zinc-100 bg-white">
                 <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Thông tin cá nhân</p>
                   <div className="space-y-2 group">
@@ -365,7 +384,7 @@ export default function UserPage() {
               </div>
 
               {/* Right Column: Permissions */}
-              <div className="w-full md:w-[320px] bg-zinc-50 p-6 overflow-y-auto space-y-6">
+              <div className="w-full md:w-[600px] bg-zinc-50 p-6 overflow-y-auto space-y-6">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Danh mục truy cập</p>
                   <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Lựa chọn riêng biệt</Badge>
@@ -375,30 +394,47 @@ export default function UserPage() {
                     <div key={group.groupLabel} className="space-y-2">
                       <p className="text-[11px] font-bold text-indigo-700 tracking-wide">{group.groupLabel}</p>
                       <div className="grid gap-2">
-                        {group.items.map(p => (
-                          <label
-                            key={p.key}
-                            className={cn(
-                              "flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group",
-                              (watchPermissions || []).includes(p.key)
-                                ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50"
-                                : "bg-transparent border-transparent hover:border-zinc-200"
-                            )}
-                          >
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 rounded-md accent-indigo-600 cursor-pointer"
-                              checked={(watchPermissions || []).includes(p.key)}
-                              onChange={() => togglePermission(p.key)}
-                            />
-                            <span className={cn(
-                              "text-xs font-bold transition-colors",
-                              (watchPermissions || []).includes(p.key) ? "text-indigo-900" : "text-zinc-500 group-hover:text-zinc-900"
+                        {group.items.map(p => {
+                          const itemPermissions = p.actions.map(action => `${p.key}:${action}`);
+                          const hasAny = itemPermissions.some(perm => (watchPermissions || []).includes(perm));
+                          return (
+                            <div key={p.key} className={cn(
+                              "flex flex-col gap-2 p-3 rounded-xl border transition-all",
+                              hasAny ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" : "bg-transparent border-zinc-100 hover:border-zinc-200"
                             )}>
-                              {p.label}
-                            </span>
-                          </label>
-                        ))}
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={cn(
+                                  "text-xs font-bold transition-colors",
+                                  hasAny ? "text-indigo-900" : "text-zinc-600"
+                                )}>
+                                  {p.label} ({p.key})
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-4">
+                                {p.actions.map(action => {
+                                  const permKey = `${p.key}:${action}`;
+                                  const isChecked = (watchPermissions || []).includes(permKey) || (watchPermissions || []).includes(p.key);
+                                  return (
+                                    <label key={permKey} className="flex items-center gap-1.5 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                                        checked={isChecked}
+                                        onChange={() => togglePermission(permKey)}
+                                      />
+                                      <span className={cn(
+                                        "text-[11px] font-bold transition-colors",
+                                        isChecked ? "text-indigo-700" : "text-zinc-500 group-hover:text-zinc-900"
+                                      )}>
+                                        {ACTION_LABELS[action]}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}

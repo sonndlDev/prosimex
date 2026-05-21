@@ -5,6 +5,8 @@ import {
   getTicketByCode,
   createTicket,
   addReturnEntry,
+  updateTicket,
+  deleteTicket
 } from "./outsourcing.controller.js";
 import verifyToken from "../../middlewares/auth.middleware.js";
 import { authorize } from "../../middlewares/rbac.middleware.js";
@@ -19,10 +21,12 @@ router.use(verifyToken);
 // router.use(permissionsMiddleware("planning"));
 
 // API Endpoints
-router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTickets);
-router.get("/export-detailed", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), exportDetailedItems);
-router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), createTicket);
-router.get("/:ticket_code", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), getTicketByCode);
-router.post("/:ticket_id/returns", authorize(["ADMIN", "PLANNER", "MANAGER"], "outsourcing"), addReturnEntry);
+router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), getTickets);
+router.get("/export-detailed", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), exportDetailedItems);
+router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:create'), createTicket);
+router.get("/:ticket_code", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), getTicketByCode);
+router.post("/:ticket_id/returns", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:create'), addReturnEntry);
+router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:update'), updateTicket);
+router.delete("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:delete'), deleteTicket);
 
 export default router;

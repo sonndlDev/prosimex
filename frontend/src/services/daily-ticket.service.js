@@ -63,6 +63,26 @@ export const dailyTicketService = {
         }
     },
 
+    approve: async (id) => {
+        try {
+            const { data } = await api.put(`/daily-tickets/${id}/approve`);
+            return data;
+        } catch (error) {
+            console.error('Error approving ticket:', error);
+            throw error;
+        }
+    },
+
+    reject: async (id) => {
+        try {
+            const { data } = await api.put(`/daily-tickets/${id}/reject`);
+            return data;
+        } catch (error) {
+            console.error('Error rejecting ticket:', error);
+            throw error;
+        }
+    },
+
     delete: async (id) => {
         try {
             const { data } = await api.delete(`/daily-tickets/${id}`);

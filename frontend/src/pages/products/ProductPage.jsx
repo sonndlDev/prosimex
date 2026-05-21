@@ -1,5 +1,5 @@
-import React, { useState } from "react";import { toast } from "sonner";
-
+import React, { useState } from "react";
+import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productService } from "../../services/product.service";
@@ -12,14 +12,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown, Package, Search, Layers, Factory, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Package, Layers, Factory, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ProductPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [filterFactoryId, setFilterFactoryId] = useState("");
@@ -37,9 +38,10 @@ export default function ProductPage() {
 
   const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: () => factoryService.getAll({ limit: 1000 }) });
   const factories = factoriesData?.data || [];
+
   const { data: productGroupsData } = useQuery({ queryKey: ["productGroups"], queryFn: () => productGroupService.getAll({ limit: 1000 }) });
   const productGroups = productGroupsData?.data || [];
-  
+
   const { data: productsData, isLoading, error } = useQuery({
     queryKey: ["products", filterFactoryId, page, pageSize, search],
     queryFn: () => productService.getAll({ factory_id: filterFactoryId, page, limit: pageSize, search }),
@@ -48,10 +50,21 @@ export default function ProductPage() {
   const products = productsData?.data || [];
   const totalItems = productsData?.total || 0;
 
-  const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); handleClose(); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra") };
+  const mutationOpts = {
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      handleClose();
+      toast.success("Thành công");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra"),
+  };
   const createMutation = useMutation({ mutationFn: productService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => productService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: productService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
+  const deleteMutation = useMutation({
+    mutationFn: productService.delete,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Thành công"); },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+  });
 
   const columns = [
     { id: "name", label: "Tên mã hàng" },
@@ -67,7 +80,10 @@ export default function ProductPage() {
 
   const handleOpen = (product = null) => {
     setSelectedProduct(product);
-    reset(product ? { name: product.name, product_group_id: String(product.product_group_id || ""), is_active: product.is_active } : { name: "", product_group_id: "", is_active: true });
+    reset(product
+      ? { name: product.name, product_group_id: String(product.product_group_id || ""), is_active: product.is_active }
+      : { name: "", product_group_id: "", is_active: true }
+    );
     setOpenModal(true);
   };
   const handleClose = () => { setOpenModal(false); setSelectedProduct(null); };
@@ -75,21 +91,29 @@ export default function ProductPage() {
     if (selectedProduct) updateMutation.mutate({ id: selectedProduct.id, payload: data });
     else createMutation.mutate(data);
   };
+  const handleDelete = (product) => {
+    if (window.confirm(`Xóa mã hàng "${product.name}"?`)) deleteMutation.mutate(product.id);
+  };
+  const handleBulkDelete = (ids) => {
+    if (window.confirm(`Xóa ${ids.length} mã hàng đã chọn?`)) ids.forEach(id => deleteMutation.mutate(id));
+  };
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin mã hàng</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh mục sản phẩm theo nhóm mã hàng</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Factory Filter */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-48 h-11 justify-between bg-zinc-50 border-zinc-200 font-bold hover:bg-white transition-all rounded-xl shadow-sm"
+                className="h-11 px-4 gap-2 font-bold text-xs border-zinc-200 bg-white hover:bg-zinc-50 rounded-xl min-w-[160px] justify-between"
               >
                 <div className="flex items-center gap-2 truncate">
                   <Factory className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -112,12 +136,7 @@ export default function ProductPage() {
                       className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
                     >
                       Tất cả nhà máy
-                      <Check
-                        className={cn(
-                          "h-4 w-4 text-indigo-600",
-                          filterFactoryId === "" ? "opacity-100" : "opacity-0"
-                        )}
-                      />
+                      <Check className={cn("h-4 w-4 text-indigo-600", filterFactoryId === "" ? "opacity-100" : "opacity-0")} />
                     </CommandItem>
                     {factories?.map((f) => (
                       <CommandItem
@@ -127,12 +146,7 @@ export default function ProductPage() {
                         className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
                       >
                         {f.name}
-                        <Check
-                          className={cn(
-                            "h-4 w-4 text-indigo-600",
-                            String(filterFactoryId) === String(f.id) ? "opacity-100" : "opacity-0"
-                          )}
-                        />
+                        <Check className={cn("h-4 w-4 text-indigo-600", String(filterFactoryId) === String(f.id) ? "opacity-100" : "opacity-0")} />
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -140,35 +154,49 @@ export default function ProductPage() {
               </Command>
             </PopoverContent>
           </Popover>
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm mã hàng
-          </Button>
+
+          {hasPermission("products:create") && (
+            <Button
+              onClick={() => handleOpen()}
+              className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl"
+            >
+              <Plus className="w-4 h-4" /> Thêm mã hàng
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
-      <GenericTable data={products} columns={columns} isLoading={isLoading} error={error}
-        onEdit={handleOpen}
-        onDelete={(p) => { if (window.confirm(`Xóa mã hàng "${p.name}"?`)) deleteMutation.mutate(p.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} mã hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
-        isServerSide={true}
-        totalItems={totalItems}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={setPageSize}
-        onSearchChange={setSearch}
-        maxHeight="100%"
-      />
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <GenericTable
+          data={products}
+          columns={columns}
+          isLoading={isLoading}
+          error={error}
+          onEdit={hasPermission("products:update") ? handleOpen : undefined}
+          onDelete={hasPermission("products:delete") ? handleDelete : undefined}
+          onBulkDelete={hasPermission("products:delete") ? handleBulkDelete : undefined}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          onSearchChange={setSearch}
+        />
       </div>
 
-      <Dialog open={openModal} onOpenChange={(v) => { if (!v) handleClose(); }}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col p-0 overflow-hidden">
-          <form onSubmit={rhfHandleSubmit(onSubmit)} className="flex flex-col h-full">
-            <DialogHeader className="p-6 border-b border-zinc-100">
-              <DialogTitle>{selectedProduct ? "Chỉnh sửa mã hàng" : "Thêm mã hàng mới"}</DialogTitle>
+      {/* Create / Edit Modal */}
+      <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
+        <DialogContent className="sm:max-w-[500px] p-0 border-zinc-200">
+          <form onSubmit={rhfHandleSubmit(onSubmit)} className="flex flex-col">
+            <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-200">
+              <DialogTitle className="text-xl font-black text-zinc-950 uppercase tracking-tight">
+                {selectedProduct ? "Chỉnh sửa mã hàng" : "Thêm mã hàng mới"}
+              </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Product Group */}
               <div className="space-y-2">
                 <Label>Nhóm mã hàng <span className="text-red-500">*</span></Label>
                 <Controller name="product_group_id" control={control} render={({ field }) => (
@@ -205,10 +233,10 @@ export default function ProductPage() {
                                 className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                               >
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 group-aria-selected:bg-indigo-100 group-aria-selected:text-indigo-600">
-                                        {g.name.substring(0, 1)}
-                                    </div>
-                                    <span className="text-xs font-bold">{g.name}</span>
+                                  <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                                    {g.name.substring(0, 1)}
+                                  </div>
+                                  <span className="text-xs font-bold">{g.name}</span>
                                 </div>
                                 <Check
                                   className={cn(
@@ -246,10 +274,14 @@ export default function ProductPage() {
                   </div>
                 )}
               </div>
+
+              {/* Product Name */}
               <div className="space-y-2">
                 <Label>Tên mã hàng <span className="text-red-500">*</span></Label>
                 <Controller name="name" control={control} render={({ field }) => <Input {...field} required />} />
               </div>
+
+              {/* Active Status */}
               <div className="flex items-center gap-3">
                 <Label>Đang hoạt động</Label>
                 <Controller name="is_active" control={control} render={({ field }) => (

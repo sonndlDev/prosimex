@@ -1,6 +1,11 @@
 import React, { useState } from "react";
+import AccessDeniedBanner from "../components/AccessDeniedBanner";
+import NotificationDropdown from "../components/NotificationDropdown";
 import { useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { io } from "socket.io-client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,7 +17,7 @@ import {
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
   Hammer, UserCircle, Warehouse, Calendar, Layers,
-  BarChart2, FileSpreadsheet
+  BarChart2, FileSpreadsheet, CheckSquare
 } from "lucide-react";
 import { DateTime } from "luxon";
 
@@ -23,6 +28,7 @@ const menuItems = [
   { text: "Lập kế hoạch", icon: CalendarDays, path: "/planning", permission: "planning" },
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
+  { text: "Duyệt phiếu SX", icon: CheckSquare, path: "/daily-tickets/approval", permission: "daily_tickets" },
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
@@ -187,6 +193,33 @@ export default function MainLayout() {
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  React.useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('token');
+    // We assume VITE_API_URL points to the backend (e.g. http://localhost:3000)
+    const socket = io(import.meta.env.VITE_API_URL, {
+      auth: { token }
+    });
+
+    socket.on('new_pending_ticket', (data) => {
+      toast.info(data.message, {
+        duration: 8000,
+        action: {
+          label: "Xem ngay",
+          onClick: () => navigate("/daily-tickets/approval")
+        }
+      });
+      // Làm mới danh sách phiếu và danh sách thông báo
+      queryClient.invalidateQueries(["daily-tickets"]);
+      queryClient.invalidateQueries(["notifications"]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [user, navigate, queryClient]);
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
@@ -197,12 +230,12 @@ export default function MainLayout() {
       const itemsInSection = firstSubheader === -1 ? nextItems : nextItems.slice(0, firstSubheader);
       return itemsInSection.some((i) => {
         if (user?.role === "ADMIN") return true;
-        if (user?.permissions) return user.permissions.includes(i.permission);
+        if (user?.permissions) return user.permissions.includes(`${i.permission}:read`);
         return false;
       });
     }
     if (user?.role === "ADMIN") return true;
-    if (user?.permissions) return user.permissions.includes(item.permission);
+    if (user?.permissions) return user.permissions.includes(`${item.permission}:read`);
     return false;
   });
 
@@ -266,10 +299,13 @@ export default function MainLayout() {
           </div>
 
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden md:block">
               <LiveClock />
             </div>
+            {/* Notification Bell */}
+            <NotificationDropdown />
+            <div className="w-px h-6 bg-slate-200" />
             <Tooltip>
               <TooltipTrigger>
                 <div
@@ -294,6 +330,9 @@ export default function MainLayout() {
           </div>
         </main>
       </div>
+
+      {/* Global 403 permission denied banner */}
+      <AccessDeniedBanner />
     </div>
   );
 }

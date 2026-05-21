@@ -7,13 +7,13 @@ const router = express.Router()
 
 router.use(verifyToken)
 
-router.get('/', authorize(['ADMIN'], 'users'), getUsers)
-router.get('/roles', authorize(['ADMIN'], 'users'), getRoles)
-router.post('/roles', authorize(['ADMIN'], 'users'), createRole)
-router.delete('/roles/:id', authorize(['ADMIN'], 'users'), deleteRole)
-router.post('/', authorize(['ADMIN'], 'users'), createUser)
-router.put('/:id', authorize(['ADMIN'], 'users'), updateUser)
-router.delete('/:id', authorize(['ADMIN'], 'users'), deleteUser)
+router.get('/', authorize(['ADMIN'], 'users:read'), getUsers)
+router.get('/roles', authorize(['ADMIN'], 'users:read'), getRoles)
+router.post('/roles', authorize(['ADMIN'], 'users:create'), createRole)
+router.delete('/roles/:id', authorize(['ADMIN'], 'users:delete'), deleteRole)
+router.post('/', authorize(['ADMIN'], 'users:create'), createUser)
+router.put('/:id', authorize(['ADMIN'], 'users:update'), updateUser)
+router.delete('/:id', authorize(['ADMIN'], 'users:delete'), deleteUser)
 router.put('/profile/update', updateProfile) // authenticated users can update own profile
 
 export default router

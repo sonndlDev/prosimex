@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 export default function SuppliersPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
 
@@ -81,18 +83,20 @@ export default function SuppliersPage() {
            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách đối tác gia công và cung cấp vật tư</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm NCC
-          </Button>
+          {hasPermission("suppliers:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+              <Plus className="w-4 h-4" /> Thêm NCC
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
         data={suppliers || []} columns={columns} isLoading={isLoading} error={error}
-        onEdit={handleOpen}
-        onDelete={(c) => { if (window.confirm(`Xóa nhà cung cấp "${c.name}"?`)) deleteMutation.mutate(c.id); }}
-        onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} NCC?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+        onEdit={hasPermission("suppliers:update") ? handleOpen : undefined}
+        onDelete={hasPermission("suppliers:delete") ? (c) => { if (window.confirm(`Xóa nhà cung cấp "${c.name}"?`)) deleteMutation.mutate(c.id); } : undefined}
+        onBulkDelete={hasPermission("suppliers:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} NCC?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
         isServerSide={false}
         onSearchChange={setSearch}
       />
