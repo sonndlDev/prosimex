@@ -452,7 +452,7 @@ export const updateTicket = async (req, res) => {
     for (const [existingId, returnedQty] of existingItemMap.entries()) {
       if (!newProvidedItemIds.has(existingId)) {
         if (returnedQty > 0) {
-          throw new Error(\`Không thể xoá dòng chi tiết (ID: \${existingId}) vì đã có \${returnedQty} hàng nhập về\`);
+          throw new Error(`Không thể xoá dòng chi tiết (ID: ${existingId}) vì đã có ${returnedQty} hàng nhập về`);
         }
         await client.query("DELETE FROM outsourcing_ticket_items WHERE id = $1", [existingId]);
       }
@@ -464,7 +464,7 @@ export const updateTicket = async (req, res) => {
         const returnedQty = existingItemMap.get(item.id);
         const quantity_out = parseFloat(item.quantity_out || 0);
         if (quantity_out < returnedQty) {
-          throw new Error(\`Số lượng xuất không thể nhỏ hơn số lượng đã nhập về (\${returnedQty})\`);
+          throw new Error(`Số lượng xuất không thể nhỏ hơn số lượng đã nhập về (${returnedQty})`);
         }
 
         await client.query(
