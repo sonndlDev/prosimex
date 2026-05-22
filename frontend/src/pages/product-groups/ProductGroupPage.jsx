@@ -156,6 +156,28 @@ export default function ProductGroupPage() {
   const watchMachineIds = watchOp("machine_ids");
 
   return (
+    <div className="space-y-4 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-black text-zinc-950 uppercase tracking-tight">Nhóm sản phẩm</h1>
+        {hasPermission("product-groups:create") && (
+          <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
+            <Plus className="w-4 h-4" /> Thêm nhóm
+          </Button>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+        <GenericTable
+          data={productGroups}
+          columns={columns}
+          isLoading={isLoading}
+          error={error}
+          onEdit={hasPermission("product-groups:update") ? handleOpen : undefined}
+          onDelete={hasPermission("product-groups:delete") ? (g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); } : undefined}
+          isServerSide={true}
+          totalItems={totalItems}
+          page={page}
+          pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
           onSearchChange={setSearch}
