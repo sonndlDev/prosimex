@@ -1,3 +1,8 @@
+import { normalizePermissions } from '../utils/permissions.util.js';
+
+/** System roles listed in allowedRoles keep legacy bypass (reduces breakage after deploy). */
+const LEGACY_BYPASS_ROLES = ['PLANNER', 'OPERATOR'];
+
 const authorize = (allowedRoles = [], requiredPermission = null) => {
   return (req, res, next) => {
     if (!req.user || !req.user.role_name) {
@@ -5,17 +10,22 @@ const authorize = (allowedRoles = [], requiredPermission = null) => {
     }
 
     const { role_name, permissions } = req.user;
-    const userPermissions = Array.isArray(permissions) ? permissions : [];
+    const userPermissions = normalizePermissions(permissions);
 
     // 1. ADMIN always has access
     if (role_name === 'ADMIN') return next();
 
-    // 2. Check if user has an allowed role
-    if (allowedRoles.length > 0 && allowedRoles.includes(role_name)) {
+    // 2. Legacy: PLANNER/OPERATOR on routes that explicitly allow them
+    if (
+      requiredPermission &&
+      allowedRoles.length > 0 &&
+      LEGACY_BYPASS_ROLES.includes(role_name) &&
+      allowedRoles.includes(role_name)
+    ) {
       return next();
     }
 
-    // 3. Check if user has the specific required permission(s)
+    // 3. When a permission is required, check merged JWT permissions
     if (requiredPermission) {
       // If requiredPermission is an array (e.g., ['orders:read', 'orders:create'])
       // then user must have AT LEAST ONE of them to pass (or ALL? Usually ANY is sufficient for a combined route, but let's see. 
@@ -31,6 +41,19 @@ const authorize = (allowedRoles = [], requiredPermission = null) => {
       if (hasPermission) {
         return next();
       }
+
+      const requiredLabel = Array.isArray(requiredPermission)
+        ? requiredPermission.join(', ')
+        : requiredPermission;
+      return res.status(403).json({
+        message: 'Access denied: You do not have permission',
+        required_permission: requiredLabel || null,
+      });
+    }
+
+    // 4. Routes without requiredPermission may fall back to allowedRoles
+    if (allowedRoles.length > 0 && allowedRoles.includes(role_name)) {
+      return next();
     }
 
     const requiredLabel = Array.isArray(requiredPermission)

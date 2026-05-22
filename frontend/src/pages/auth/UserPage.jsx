@@ -66,6 +66,8 @@ export default function UserPage() {
   const [openModal, setOpenModal] = useState(false);
   const [openRoleModal, setOpenRoleModal] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [rolePermissions, setRolePermissions] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
@@ -114,6 +116,26 @@ export default function UserPage() {
     mutationFn: userService.deleteRole,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["roles"] })
   });
+  const updateRolePermissionsMutation = useMutation({
+    mutationFn: ({ id, permissions }) => userService.updateRolePermissions(id, permissions),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      if (selectedRole?.id === updated.id) setSelectedRole(updated);
+      toast.success("Đã lưu quyền vai trò. User thuộc role này cần đăng nhập lại.");
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi lưu quyền vai trò")
+  });
+
+  const toggleRolePermission = (key) => {
+    setRolePermissions((current) =>
+      current.includes(key) ? current.filter((p) => p !== key) : [...current, key]
+    );
+  };
+
+  const selectRoleForEdit = (role) => {
+    setSelectedRole(role);
+    setRolePermissions(Array.isArray(role.permissions) ? [...role.permissions] : []);
+  };
 
   const columns = [
     { id: "username", label: "Tài khoản", className: "font-bold text-indigo-700" },
@@ -158,12 +180,20 @@ export default function UserPage() {
   const handleClose = () => { setOpenModal(false); setSelectedUser(null); };
 
   const togglePermission = (key) => {
-    const current = watchPermissions || [];
-    setValue("permissions", current.includes(key) ? current.filter(p => p !== key) : [...current, key]);
+    const current = (watchPermissions || []).filter((p) => p.includes(":"));
+    const moduleKey = key.split(":")[0];
+    const withoutModule = current.filter((p) => !p.startsWith(`${moduleKey}:`) && p !== moduleKey);
+    setValue(
+      "permissions",
+      current.includes(key) ? withoutModule : [...withoutModule, key]
+    );
   };
 
   const onSubmit = (data) => {
     const payload = { ...data };
+    if (Array.isArray(payload.permissions)) {
+      payload.permissions = payload.permissions.filter((p) => typeof p === "string" && p.includes(":"));
+    }
     if (selectedUser) {
       if (!isChangingPassword) {
         delete payload.password;
@@ -183,7 +213,7 @@ export default function UserPage() {
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Phân quyền & Kiểm soát truy cập người dùng</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setOpenRoleModal(true)} className="h-11 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
+          <Button variant="outline" onClick={() => { setOpenRoleModal(true); if (roles?.length && !selectedRole) selectRoleForEdit(roles[0]); }} className="h-11 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
             <Shield className="w-4 h-4 text-indigo-500" /> Vai trò (Roles)
           </Button>
           {hasPermission("users:create") && (
@@ -386,8 +416,8 @@ export default function UserPage() {
               {/* Right Column: Permissions */}
               <div className="w-full md:w-[600px] bg-zinc-50 p-6 overflow-y-auto space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Danh mục truy cập</p>
-                  <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Lựa chọn riêng biệt</Badge>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quyền bổ sung (user)</p>
+                  <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Cộng thêm quyền vai trò</Badge>
                 </div>
                 <div className="space-y-6">
                   {PERMISSION_GROUPS.map(group => (
@@ -442,7 +472,7 @@ export default function UserPage() {
                 <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-3 items-start mt-4">
                   <AlertTriangle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
                   <p className="text-[10px] font-bold text-indigo-700 leading-relaxed italic">
-                    * Lưu ý: Tài khoản Admin sẽ mặc định có toàn bộ quyền truy cập danh mục hệ thống.
+                    * Quyền hiệu lực = quyền vai trò ({watchRoleName || "—"}) + quyền tick thêm ở đây. Sau khi đổi quyền, user cần đăng xuất/đăng nhập lại.
                   </p>
                 </div>
               </div>
@@ -458,59 +488,125 @@ export default function UserPage() {
       </Dialog>
 
       {/* Role Management Dialog */}
-      <Dialog open={openRoleModal} onOpenChange={setOpenRoleModal}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-zinc-200 rounded-2xl">
-          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
+      <Dialog open={openRoleModal} onOpenChange={(v) => { setOpenRoleModal(v); if (!v) setSelectedRole(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden border-zinc-200 rounded-2xl flex flex-col">
+          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100 shrink-0">
             <DialogTitle className="flex items-center gap-2 text-lg font-black text-zinc-950 uppercase tracking-tight">
-              <Shield className="w-5 h-5 text-indigo-600" /> Vai trò Hệ thống
+              <Shield className="w-5 h-5 text-indigo-600" /> Vai trò & Quyền mặc định
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6 space-y-6">
-            <div className="flex gap-2">
-              <Input
-                placeholder="VD: QUẢN LÝ XƯỞNG..."
-                value={newRoleName}
-                onChange={e => setNewRoleName(e.target.value.toUpperCase())}
-                className="h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500"
-              />
-              <Button
-                onClick={() => newRoleName.trim() && createRoleMutation.mutate({ name: newRoleName.trim() })}
-                disabled={!newRoleName.trim() || createRoleMutation.isPending}
-                className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold"
-              >
-                Thêm
-              </Button>
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
+            <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-zinc-100 p-4 space-y-4 shrink-0 overflow-y-auto">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="VD: QUẢN LÝ XƯỞNG..."
+                  value={newRoleName}
+                  onChange={e => setNewRoleName(e.target.value.toUpperCase())}
+                  className="h-10 rounded-xl border-zinc-200 font-bold text-xs"
+                />
+                <Button
+                  onClick={() => newRoleName.trim() && createRoleMutation.mutate({ name: newRoleName.trim() })}
+                  disabled={!newRoleName.trim() || createRoleMutation.isPending}
+                  className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold text-xs"
+                >
+                  Thêm
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {roles?.map(role => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => selectRoleForEdit(role)}
+                    className={cn(
+                      "w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all",
+                      selectedRole?.id === role.id
+                        ? "border-indigo-200 bg-indigo-50"
+                        : "border-transparent hover:border-zinc-100 hover:bg-zinc-50"
+                    )}
+                  >
+                    <div>
+                      <span className="font-black text-sm text-zinc-950 block">{role.name}</span>
+                      <span className="text-[10px] text-zinc-400 font-bold">
+                        {(role.permissions || []).length} quyền
+                      </span>
+                    </div>
+                    {!role.is_system && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Xóa vai trò "${role.name}"?`)) deleteRoleMutation.mutate(role.id);
+                        }}
+                        className="p-2 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-            <Separator className="bg-zinc-100" />
-            <div className="space-y-2 max-h-72 overflow-y-auto">
-              {roles?.map(role => (
-                <div key={role.id} className="flex items-center justify-between p-3 rounded-xl border border-transparent hover:border-zinc-100 hover:bg-zinc-50 transition-all">
-                  <div className="flex items-center gap-3">
-                    <span className="font-black text-sm text-zinc-950">{role.name}</span>
-                    <Badge variant={role.is_system ? "secondary" : "outline"} className={cn("text-[9px] uppercase font-black px-2 py-0.5", role.is_system ? "bg-zinc-200" : "bg-white border-indigo-100 text-indigo-600")}>
-                      {role.is_system ? "Mặc định" : "Tùy chỉnh"}
-                    </Badge>
-                  </div>
-                  {!role.is_system && (
-                    <button
-                      onClick={() => { if (window.confirm(`Xóa vai trò "${role.name}"?`)) deleteRoleMutation.mutate(role.id); }}
-                      className="p-2 rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+            <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/50">
+              {!selectedRole ? (
+                <p className="text-sm font-bold text-zinc-400 text-center py-12">Chọn một vai trò bên trái để gán quyền mặc định</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-black text-zinc-900">{selectedRole.name}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold mt-1">
+                        Quyền vai trò được cộng với quyền riêng của từng user. User cần đăng nhập lại sau khi lưu.
+                      </p>
+                    </div>
+                    <Button
+                      disabled={updateRolePermissionsMutation.isPending}
+                      onClick={() => updateRolePermissionsMutation.mutate({ id: selectedRole.id, permissions: rolePermissions })}
+                      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 font-black text-xs uppercase"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                      Lưu quyền vai trò
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    {PERMISSION_GROUPS.map(group => (
+                      <div key={group.groupLabel} className="space-y-2">
+                        <p className="text-[11px] font-bold text-indigo-700">{group.groupLabel}</p>
+                        <div className="grid gap-2">
+                          {group.items.map(p => (
+                            <div key={p.key} className="p-3 rounded-xl border border-zinc-100 bg-white">
+                              <p className="text-xs font-bold text-zinc-700 mb-2">{p.label}</p>
+                              <div className="flex flex-wrap gap-3">
+                                {p.actions.map(action => {
+                                  const permKey = `${p.key}:${action}`;
+                                  const isChecked = rolePermissions.includes(permKey);
+                                  return (
+                                    <label key={permKey} className="flex items-center gap-1.5 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded accent-indigo-600"
+                                        checked={isChecked}
+                                        onChange={() => toggleRolePermission(permKey)}
+                                      />
+                                      <span className="text-[11px] font-bold text-zinc-600">{ACTION_LABELS[action]}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div className="flex items-start gap-3 rounded-xl bg-orange-50 border border-orange-100 p-4">
-              <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-orange-700 font-bold leading-relaxed">
-                Khi xóa một vai trò đang được sử dụng, hệ thống sẽ tự động gán tài khoản đó về vai trò <strong>DEFAULT_USER</strong> để đảm bảo an toàn.
-              </p>
+              )}
             </div>
           </div>
-          <DialogFooter className="px-6 py-4 bg-zinc-50 border-t border-zinc-100 uppercase tracking-widest text-[10px]">
-            <p className="text-zinc-400 font-bold text-center w-full">Vui lòng quản lý vai trò cẩn trọng.</p>
+          <DialogFooter className="px-6 py-3 bg-zinc-50 border-t border-zinc-100 shrink-0">
+            <p className="text-[10px] text-zinc-400 font-bold w-full text-center">
+              ADMIN luôn có toàn quyền. Các vai trò khác cần đúng permission string (vd. orders:read).
+            </p>
           </DialogFooter>
         </DialogContent>
       </Dialog>

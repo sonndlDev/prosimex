@@ -325,7 +325,7 @@ export default function DailyTicketPage() {
               </TooltipProvider>
             </div>
           )}
-          onBulkDelete={hasPermission("daily-tickets:delete") ? (ids) => {
+          onBulkDelete={hasPermission("daily_tickets:delete") ? (ids) => {
             const deletableIds = ids.filter(id => {
               const row = tickets.find(t => String(t.id) === String(id));
               return row && row.ticket_status !== "COMPLETED";

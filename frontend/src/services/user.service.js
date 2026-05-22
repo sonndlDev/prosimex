@@ -29,6 +29,10 @@ export const userService = {
         const { data } = await api.delete(`/users/roles/${id}`);
         return data;
     },
+    updateRolePermissions: async (id, permissions) => {
+        const { data } = await api.put(`/users/roles/${id}/permissions`, { permissions });
+        return data;
+    },
     updateProfile: async (payload) => {
         const { data } = await api.put('/users/profile/update', payload);
         return data;

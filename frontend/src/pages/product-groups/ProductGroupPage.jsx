@@ -159,7 +159,7 @@ export default function ProductGroupPage() {
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-black text-zinc-950 uppercase tracking-tight">Nhóm sản phẩm</h1>
-        {hasPermission("product-groups:create") && (
+        {hasPermission("product_groups:create") && (
           <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
             <Plus className="w-4 h-4" /> Thêm nhóm
           </Button>
@@ -172,8 +172,8 @@ export default function ProductGroupPage() {
           columns={columns}
           isLoading={isLoading}
           error={error}
-          onEdit={hasPermission("product-groups:update") ? handleOpen : undefined}
-          onDelete={hasPermission("product-groups:delete") ? (g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); } : undefined}
+          onEdit={hasPermission("product_groups:update") ? handleOpen : undefined}
+          onDelete={hasPermission("product_groups:delete") ? (g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); } : undefined}
           isServerSide={true}
           totalItems={totalItems}
           page={page}
@@ -217,7 +217,7 @@ export default function ProductGroupPage() {
           <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30">
             <DraggableSequenceTable
               data={groupOperations} machinesList={machinesList} isLoading={opsLoading}
-              onDelete={hasPermission("product-groups:delete") ? (id) => removeOpMutation.mutate(id) : undefined}
+              onDelete={hasPermission("product_groups:delete") ? (id) => removeOpMutation.mutate(id) : undefined}
               onUpdate={(id, payload) => updateOpMutation.mutate({ mappingId: id, payload })}
               onReorder={(newOrders) => reorderOpMutation.mutate(newOrders)}
             />

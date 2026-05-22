@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt'
 import pool from '../../config/db.js'
+import { normalizePermissions, mergeEffectivePermissions } from '../../utils/permissions.util.js'
 
 export const getUsers = async (req, res) => {
   try {
@@ -28,7 +29,7 @@ export const getUsers = async (req, res) => {
 
     // Get data
     const dataQuery = `
-      SELECT u.id, u.username, u.full_name, u.phone, u.email, u.role_id, r.name as role_name, u.factory_id, u.is_active, u.created_at, u.permissions
+      SELECT u.id, u.username, u.full_name, u.phone, u.email, u.role_id, r.name as role_name, u.factory_id, u.is_active, u.created_at, u.permissions, r.permissions as role_permissions
       FROM users u
       JOIN roles r ON u.role_id = r.id
       ${whereClause}
@@ -36,9 +37,18 @@ export const getUsers = async (req, res) => {
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
     const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
-    
+
+    const data = result.rows.map((row) => {
+      const rolePerms = row.role_permissions;
+      delete row.role_permissions;
+      return {
+        ...row,
+        effective_permissions: mergeEffectivePermissions(row.permissions, rolePerms),
+      };
+    });
+
     res.json({
-      data: result.rows,
+      data,
       total,
       page: pageInt,
       limit: limitInt
@@ -113,10 +123,35 @@ export const deleteRole = async (req, res) => {
 
 export const getRoles = async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM roles ORDER BY name ASC')
+    const result = await pool.query(
+      'SELECT id, name, is_system, permissions, created_at FROM roles ORDER BY name ASC'
+    )
     res.json(result.rows)
   } catch (error) {
     console.error('getRoles error:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+}
+
+export const updateRolePermissions = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { permissions } = req.body
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ message: 'permissions must be an array' })
+    }
+
+    const normalized = normalizePermissions(permissions)
+    const result = await pool.query(
+      `UPDATE roles SET permissions = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, name, is_system, permissions`,
+      [JSON.stringify(normalized), id]
+    )
+
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Role not found' })
+
+    res.json(result.rows[0])
+  } catch (error) {
+    console.error('updateRolePermissions error:', error)
     res.status(500).json({ message: 'Internal server error' })
   }
 }
@@ -139,7 +174,7 @@ export const createUser = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (username, password_hash, role_id, factory_id, permissions, full_name, phone, email)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, username, full_name, phone, email, role_id, factory_id, is_active, permissions`,
-      [username, password_hash, finalRoleId, factory_id || null, JSON.stringify(req.body.permissions || []), full_name || null, phone || null, email || null]
+      [username, password_hash, finalRoleId, factory_id || null, JSON.stringify(normalizePermissions(req.body.permissions || [])), full_name || null, phone || null, email || null]
     )
 
     res.status(201).json(result.rows[0])
@@ -189,7 +224,7 @@ export const updateUser = async (req, res) => {
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = $9 AND deleted_at IS NULL
              RETURNING id, username, full_name, phone, email, role_id, factory_id, is_active, permissions`,
-      [finalRoleId, finalFactoryId, finalIsActive, password_hash, req.body.permissions ? JSON.stringify(req.body.permissions) : null, finalFullName, finalPhone, finalEmail, id]
+      [finalRoleId, finalFactoryId, finalIsActive, password_hash, req.body.permissions ? JSON.stringify(normalizePermissions(req.body.permissions)) : null, finalFullName, finalPhone, finalEmail, id]
     )
 
     if (result.rowCount === 0) return res.status(404).json({ message: 'User not found' })

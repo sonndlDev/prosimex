@@ -46,11 +46,22 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    useEffect(() => {
+        const onUserUpdated = (e) => {
+            if (e.detail) {
+                setUser(e.detail);
+            }
+        };
+        window.addEventListener("auth:user-updated", onUserUpdated);
+        return () => window.removeEventListener("auth:user-updated", onUserUpdated);
+    }, []);
+
     const hasPermission = (permission) => {
         if (!user) return false;
         if (user.role === 'ADMIN') return true;
-        if (!user.permissions) return false;
-        return user.permissions.includes(permission);
+        const perms = Array.isArray(user.permissions) ? user.permissions : [];
+        const key = permission.replace(/-/g, '_');
+        return perms.includes(key) || perms.includes(permission);
     };
 
     return (

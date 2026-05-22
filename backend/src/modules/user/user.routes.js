@@ -1,5 +1,5 @@
 import express from 'express'
-import { getUsers, createUser, updateUser, deleteUser, getRoles, createRole, deleteRole, updateProfile } from './user.controller.js'
+import { getUsers, createUser, updateUser, deleteUser, getRoles, createRole, deleteRole, updateRolePermissions, updateProfile } from './user.controller.js'
 import verifyToken from '../../middlewares/auth.middleware.js'
 import { authorize } from '../../middlewares/rbac.middleware.js'
 
@@ -10,6 +10,7 @@ router.use(verifyToken)
 router.get('/', authorize(['ADMIN'], 'users:read'), getUsers)
 router.get('/roles', authorize(['ADMIN'], 'users:read'), getRoles)
 router.post('/roles', authorize(['ADMIN'], 'users:create'), createRole)
+router.put('/roles/:id/permissions', authorize(['ADMIN'], 'users:update'), updateRolePermissions)
 router.delete('/roles/:id', authorize(['ADMIN'], 'users:delete'), deleteRole)
 router.post('/', authorize(['ADMIN'], 'users:create'), createUser)
 router.put('/:id', authorize(['ADMIN'], 'users:update'), updateUser)

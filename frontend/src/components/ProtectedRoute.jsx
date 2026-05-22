@@ -13,15 +13,16 @@ export default function ProtectedRoute({ allowedRoles, requiredPermission }) {
     // Admins bypass all role/permission checks
     if (user.role === 'ADMIN') return <Outlet />;
 
-    // Check specific permissions if provided
-    if (requiredPermission && user.permissions) {
-        if (!user.permissions.includes(requiredPermission)) {
+    const perms = Array.isArray(user.permissions) ? user.permissions : [];
+
+    if (requiredPermission) {
+        if (!perms.includes(requiredPermission)) {
             return <Navigate to="/unauthorized" replace />;
         }
+        return <Outlet />;
     }
 
-    // Role check (legacy/fallback)
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
         return <Navigate to="/unauthorized" replace />;
     }
 

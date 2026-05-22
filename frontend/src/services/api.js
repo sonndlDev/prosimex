@@ -39,6 +39,10 @@ const proactiveRefresh = async () => {
     })
     .then(({ data }) => {
       localStorage.setItem("token", data.token);
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: data.user }));
+      }
       return data.token;
     })
     .catch(() => {
@@ -113,9 +117,13 @@ api.interceptors.response.use(
             `${import.meta.env.VITE_API_URL}/api/auth/refresh-token`,
             { refreshToken },
           );
-          const { token } = data;
+          const { token, user: refreshedUser } = data;
 
           localStorage.setItem("token", token);
+          if (refreshedUser) {
+            localStorage.setItem("user", JSON.stringify(refreshedUser));
+            window.dispatchEvent(new CustomEvent("auth:user-updated", { detail: refreshedUser }));
+          }
           api.defaults.headers.common["Authorization"] = "Bearer " + token;
           originalRequest.headers["Authorization"] = "Bearer " + token;
 
