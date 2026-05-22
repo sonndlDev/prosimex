@@ -11,12 +11,7 @@ export const getOperations = async (req, res) => {
     const queryParams = [];
     if (search) {
       queryParams.push(`%${search}%`);
-      whereClause += ` AND (o.name ILIKE $${queryParams.length})`;
-    }
-
-    if (product_group_id) {
-      queryParams.push(product_group_id);
-      whereClause += ` AND EXISTS (SELECT 1 FROM product_group_operations pgo2 WHERE pgo2.operation_id = o.id AND pgo2.product_group_id = $${queryParams.length} AND pgo2.deleted_at IS NULL)`;
+      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR EXISTS (SELECT 1 FROM product_group_operations pgo_s JOIN product_groups pg_s ON pgo_s.product_group_id = pg_s.id WHERE pgo_s.operation_id = o.id AND pg_s.name ILIKE $${queryParams.length} AND pg_s.deleted_at IS NULL AND pgo_s.deleted_at IS NULL))`;
     }
 
     const countResult = await pool.query(
