@@ -1174,7 +1174,7 @@ export default function OrderPage() {
 
                     {/* XNK Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-zinc-100 pb-5">
-                      <div className="space-y-1.5">
+                      {/* <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
                           Ngày NL về xưởng (Dự kiến)
@@ -1190,7 +1190,7 @@ export default function OrderPage() {
                             />
                           )}
                         />
-                      </div>
+                      </div> */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
