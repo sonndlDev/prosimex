@@ -1,8 +1,8 @@
-import pool from '../../config/db.js'
+import pool from "../../config/db.js";
 
 export const getOperations = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "", product_group_id } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -14,7 +14,15 @@ export const getOperations = async (req, res) => {
       whereClause += ` AND (o.name ILIKE $${queryParams.length})`;
     }
 
-    const countResult = await pool.query(`SELECT COUNT(*) FROM operations o ${whereClause}`, queryParams);
+    if (product_group_id) {
+      queryParams.push(product_group_id);
+      whereClause += ` AND EXISTS (SELECT 1 FROM product_group_operations pgo2 WHERE pgo2.operation_id = o.id AND pgo2.product_group_id = $${queryParams.length} AND pgo2.deleted_at IS NULL)`;
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM operations o ${whereClause}`,
+      queryParams,
+    );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
@@ -32,9 +40,9 @@ export const getOperations = async (req, res) => {
        GROUP BY o.id, cu.full_name, cu.username, mu.full_name, mu.username
        ORDER BY o.created_at DESC
        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
-      [...queryParams, limitInt, offsetInt]
+      [...queryParams, limitInt, offsetInt],
     );
-    
+
     res.json({ data: result.rows, total, page: pageInt, limit: limitInt });
   } catch (error) {
     console.error("Get Operations Error:", error);
@@ -45,30 +53,34 @@ export const getOperations = async (req, res) => {
 export const createOperation = async (req, res) => {
   try {
     const { name, description } = req.body;
-    if (!name) return res.status(400).json({ message: 'Tên công đoạn là bắt buộc' });
+    if (!name)
+      return res.status(400).json({ message: "Tên công đoạn là bắt buộc" });
 
     const trimmedName = name.trim();
     const duplicateCheck = await pool.query(
-      'SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL',
-      [trimmedName]
+      "SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL",
+      [trimmedName],
     );
-    if (duplicateCheck.rowCount > 0) return res.status(400).json({ message: 'Công đoạn này đã tồn tại trong danh mục.' });
+    if (duplicateCheck.rowCount > 0)
+      return res
+        .status(400)
+        .json({ message: "Công đoạn này đã tồn tại trong danh mục." });
 
     const userId = req.user?.id;
     const result = await pool.query(
-      'INSERT INTO operations (name, description, created_by, modified_by) VALUES ($1, $2, $3, $3) RETURNING *',
-      [trimmedName, description, userId]
+      "INSERT INTO operations (name, description, created_by, modified_by) VALUES ($1, $2, $3, $3) RETURNING *",
+      [trimmedName, description, userId],
     );
     const newOp = result.rows[0];
 
     await pool.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'CREATE', 'Operation', $2, $3)`,
-      [userId, newOp.id, newOp]
+      [userId, newOp.id, newOp],
     );
 
     res.status(201).json(newOp);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating operation', error });
+    res.status(500).json({ message: "Error creating operation", error });
   }
 };
 
@@ -80,30 +92,38 @@ export const updateOperation = async (req, res) => {
     if (name) {
       const trimmedName = name.trim();
       const duplicateCheck = await pool.query(
-        'SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND id != $2 AND deleted_at IS NULL',
-        [trimmedName, id]
+        "SELECT id FROM operations WHERE LOWER(name) = LOWER($1) AND id != $2 AND deleted_at IS NULL",
+        [trimmedName, id],
       );
-      if (duplicateCheck.rowCount > 0) return res.status(400).json({ message: 'Tên công đoạn này đã tồn tại trong danh mục.' });
+      if (duplicateCheck.rowCount > 0)
+        return res
+          .status(400)
+          .json({ message: "Tên công đoạn này đã tồn tại trong danh mục." });
     }
 
     const userId = req.user?.id;
-    const beforeRes = await pool.query('SELECT * FROM operations WHERE id = $1 AND deleted_at IS NULL', [id]);
-    if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Operation not found' });
+    const beforeRes = await pool.query(
+      "SELECT * FROM operations WHERE id = $1 AND deleted_at IS NULL",
+      [id],
+    );
+    if (beforeRes.rowCount === 0)
+      return res.status(404).json({ message: "Operation not found" });
 
     const result = await pool.query(
-      'UPDATE operations SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = CURRENT_TIMESTAMP, modified_by = $4, modified_time = CURRENT_TIMESTAMP WHERE id = $3 AND deleted_at IS NULL RETURNING *',
-      [name?.trim(), description, id, userId]
+      "UPDATE operations SET name = COALESCE($1, name), description = COALESCE($2, description), updated_at = CURRENT_TIMESTAMP, modified_by = $4, modified_time = CURRENT_TIMESTAMP WHERE id = $3 AND deleted_at IS NULL RETURNING *",
+      [name?.trim(), description, id, userId],
     );
-    if (result.rowCount === 0) return res.status(404).json({ message: 'Operation not found' });
+    if (result.rowCount === 0)
+      return res.status(404).json({ message: "Operation not found" });
 
     await pool.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) VALUES ($1, 'UPDATE', 'Operation', $2, $3, $4)`,
-      [userId, id, beforeRes.rows[0], result.rows[0]]
+      [userId, id, beforeRes.rows[0], result.rows[0]],
     );
 
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating operation', error });
+    res.status(500).json({ message: "Error updating operation", error });
   }
 };
 
@@ -112,21 +132,25 @@ export const deleteOperation = async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const beforeRes = await pool.query('SELECT * FROM operations WHERE id = $1 AND deleted_at IS NULL', [id]);
-    if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Operation not found' });
+    const beforeRes = await pool.query(
+      "SELECT * FROM operations WHERE id = $1 AND deleted_at IS NULL",
+      [id],
+    );
+    if (beforeRes.rowCount === 0)
+      return res.status(404).json({ message: "Operation not found" });
 
     await pool.query(
-      'UPDATE operations SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1',
-      [id, userId]
+      "UPDATE operations SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, userId],
     );
 
     await pool.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data) VALUES ($1, 'DELETE', 'Operation', $2, $3)`,
-      [userId, id, beforeRes.rows[0]]
+      [userId, id, beforeRes.rows[0]],
     );
 
-    res.json({ message: 'Operation deleted successfully' });
+    res.json({ message: "Operation deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting operation', error });
+    res.status(500).json({ message: "Error deleting operation", error });
   }
 };
