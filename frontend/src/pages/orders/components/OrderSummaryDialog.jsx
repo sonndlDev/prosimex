@@ -154,6 +154,7 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
                                         data={details}
                                         columns={columns}
                                         className="border-none min-w-[1000px]"
+                                        maxHeight="calc(100vh - 555px)"
                                     />
                                 </div>
                             </div>
