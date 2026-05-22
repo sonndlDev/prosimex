@@ -16,49 +16,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Separator } from "@/components/ui/separator";
 import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const ACTION_LABELS = { read: "Xem", create: "Thêm", update: "Sửa", delete: "Xóa", auto_approve: "Tự động duyệt phiếu" };
-
-const PERMISSION_GROUPS = [
-  {
-    groupLabel: "Sản xuất",
-    items: [
-      { key: "dashboard", label: "Bảng điều khiển", actions: ["read"] },
-      { key: "planning", label: "Lập kế hoạch", actions: ["read", "create", "update", "delete"] },
-      { key: "daily_tickets", label: "Phiếu SX hàng ngày", actions: ["read", "create", "update", "delete", "auto_approve"] },
-      { key: "import_excel", label: "Import Excel", actions: ["read", "create"] },
-      { key: "production_output", label: "Nhập sản lượng", actions: ["read", "create", "update", "delete"] },
-      { key: "schedule", label: "Timeline", actions: ["read"] },
-      { key: "outsourcing", label: "Phiếu gia công", actions: ["read", "create", "update", "delete"] },
-      { key: "orders", label: "Đơn hàng", actions: ["read", "create", "update", "delete"] },
-      { key: "warehouse", label: "Thông tin kho", actions: ["read", "create", "update", "delete"] },
-      { key: "product_inventory", label: "Tồn kho BTP & TP", actions: ["read"] },
-      { key: "plan_vs_actual", label: "Báo cáo KH vs TT", actions: ["read"] },
-    ]
-  },
-  {
-    groupLabel: "Dữ liệu gốc",
-    items: [
-      { key: "customers", label: "Khách hàng", actions: ["read", "create", "update", "delete"] },
-      { key: "factories", label: "Nhà máy", actions: ["read", "create", "update", "delete"] },
-      { key: "machines", label: "Máy móc", actions: ["read", "create", "update", "delete"] },
-      { key: "operations", label: "Công đoạn", actions: ["read", "create", "update", "delete"] },
-      { key: "suppliers", label: "Nhà cung cấp", actions: ["read", "create", "update", "delete"] },
-      { key: "product_groups", label: "Nhóm mã hàng", actions: ["read", "create", "update", "delete"] },
-      { key: "products", label: "Mã hàng", actions: ["read", "create", "update", "delete"] },
-    ]
-  },
-  {
-    groupLabel: "Hệ thống",
-    items: [
-      { key: "attendance", label: "Chấm công (C.Nhân)", actions: ["read", "create", "update", "delete"] },
-      { key: "attendance_management", label: "QL Chấm công", actions: ["read", "create", "update", "delete"] },
-      { key: "workers", label: "Quản lý công nhân", actions: ["read", "create", "update", "delete"] },
-      { key: "users", label: "Người dùng & Quyền", actions: ["read", "create", "update", "delete"] },
-      { key: "settings", label: "Cài đặt hệ thống", actions: ["read", "update"] },
-    ]
-  }
-];
+import { ACTION_LABELS, PERMISSION_GROUPS } from "../../constants/permissions";
 
 export default function UserPage() {
   const { hasPermission } = useAuth();
@@ -443,18 +401,27 @@ export default function UserPage() {
                               <div className="flex flex-wrap gap-4">
                                 {p.actions.map(action => {
                                   const permKey = `${p.key}:${action}`;
-                                  const isChecked = (watchPermissions || []).includes(permKey) || (watchPermissions || []).includes(p.key);
+                                  const isChecked = (watchPermissions || []).includes(permKey);
+                                  const isMenuAction = action === "menu";
                                   return (
-                                    <label key={permKey} className="flex items-center gap-1.5 cursor-pointer group">
+                                    <label key={permKey} className={cn(
+                                      "flex items-center gap-1.5 cursor-pointer group px-2 py-1 rounded-lg",
+                                      isMenuAction && "bg-amber-50 border border-amber-100"
+                                    )}>
                                       <input
                                         type="checkbox"
-                                        className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                                        className={cn(
+                                          "w-4 h-4 rounded cursor-pointer",
+                                          isMenuAction ? "accent-amber-600" : "accent-indigo-600"
+                                        )}
                                         checked={isChecked}
                                         onChange={() => togglePermission(permKey)}
                                       />
                                       <span className={cn(
                                         "text-[11px] font-bold transition-colors",
-                                        isChecked ? "text-indigo-700" : "text-zinc-500 group-hover:text-zinc-900"
+                                        isChecked
+                                          ? (isMenuAction ? "text-amber-800" : "text-indigo-700")
+                                          : "text-zinc-500 group-hover:text-zinc-900"
                                       )}>
                                         {ACTION_LABELS[action]}
                                       </span>
@@ -472,7 +439,7 @@ export default function UserPage() {
                 <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 flex gap-3 items-start mt-4">
                   <AlertTriangle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
                   <p className="text-[10px] font-bold text-indigo-700 leading-relaxed italic">
-                    * Quyền hiệu lực = quyền vai trò ({watchRoleName || "—"}) + quyền tick thêm ở đây. Sau khi đổi quyền, user cần đăng xuất/đăng nhập lại.
+                    * <strong>Hiện menu</strong>: chỉ hiện mục trên sidebar. <strong>Xem</strong>: vào trang & gọi API. Quyền = vai trò ({watchRoleName || "—"}) + tick thêm. Đăng xuất/đăng nhập lại sau khi đổi.
                   </p>
                 </div>
               </div>
@@ -580,15 +547,25 @@ export default function UserPage() {
                                 {p.actions.map(action => {
                                   const permKey = `${p.key}:${action}`;
                                   const isChecked = rolePermissions.includes(permKey);
+                                  const isMenuAction = action === "menu";
                                   return (
-                                    <label key={permKey} className="flex items-center gap-1.5 cursor-pointer">
+                                    <label key={permKey} className={cn(
+                                      "flex items-center gap-1.5 cursor-pointer px-2 py-1 rounded-lg",
+                                      isMenuAction && "bg-amber-50 border border-amber-100"
+                                    )}>
                                       <input
                                         type="checkbox"
-                                        className="w-4 h-4 rounded accent-indigo-600"
+                                        className={cn(
+                                          "w-4 h-4 rounded cursor-pointer",
+                                          isMenuAction ? "accent-amber-600" : "accent-indigo-600"
+                                        )}
                                         checked={isChecked}
                                         onChange={() => toggleRolePermission(permKey)}
                                       />
-                                      <span className="text-[11px] font-bold text-zinc-600">{ACTION_LABELS[action]}</span>
+                                      <span className={cn(
+                                        "text-[11px] font-bold",
+                                        isChecked && isMenuAction ? "text-amber-800" : "text-zinc-600"
+                                      )}>{ACTION_LABELS[action]}</span>
                                     </label>
                                   );
                                 })}
@@ -605,7 +582,7 @@ export default function UserPage() {
           </div>
           <DialogFooter className="px-6 py-3 bg-zinc-50 border-t border-zinc-100 shrink-0">
             <p className="text-[10px] text-zinc-400 font-bold w-full text-center">
-              ADMIN luôn có toàn quyền. Các vai trò khác cần đúng permission string (vd. orders:read).
+              Tick <strong>Hiện menu</strong> để hiện sidebar; tick <strong>Xem</strong> để truy cập trang/API.
             </p>
           </DialogFooter>
         </DialogContent>

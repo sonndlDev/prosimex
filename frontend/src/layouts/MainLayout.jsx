@@ -20,6 +20,7 @@ import {
   BarChart2, FileSpreadsheet, CheckSquare
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { canShowMenu } from "../constants/permissions";
 
 const menuItems = [
   { type: "subheader", text: "Sản xuất" },
@@ -228,15 +229,9 @@ export default function MainLayout() {
       const nextItems = menuItems.slice(index + 1);
       const firstSubheader = nextItems.findIndex((i) => i.type === "subheader");
       const itemsInSection = firstSubheader === -1 ? nextItems : nextItems.slice(0, firstSubheader);
-      return itemsInSection.some((i) => {
-        if (user?.role === "ADMIN") return true;
-        if (user?.permissions) return user.permissions.includes(`${i.permission}:read`);
-        return false;
-      });
+      return itemsInSection.some((i) => canShowMenu(user, i.menuPermission || i.permission));
     }
-    if (user?.role === "ADMIN") return true;
-    if (user?.permissions) return user.permissions.includes(`${item.permission}:read`);
-    return false;
+    return canShowMenu(user, item.menuPermission || item.permission);
   });
 
   const sidebarWidth = isCollapsed ? 72 : 260;

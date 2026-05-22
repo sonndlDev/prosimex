@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
+import { canShowMenu, canAccessPage } from '../constants/permissions';
 
 const AuthContext = createContext();
 
@@ -8,6 +9,7 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
+    const [authReady, setAuthReady] = useState(false);
 
     const login = async (username, password) => {
         const response = await api.post('/auth/login', { username, password });
@@ -17,6 +19,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
+        setAuthReady(true);
         return userData;
     };
 
@@ -25,6 +28,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
         setUser(null);
+        setAuthReady(false);
     };
 
     const refreshUser = async () => {
@@ -37,12 +41,17 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error('Failed to refresh user:', error);
             if (error.response?.status === 401) logout();
+        } finally {
+            setAuthReady(true);
         }
     };
 
     useEffect(() => {
-        if (!!user) {
+        const token = localStorage.getItem('token');
+        if (token) {
             refreshUser();
+        } else {
+            setAuthReady(true);
         }
     }, []);
 
@@ -64,8 +73,10 @@ export const AuthProvider = ({ children }) => {
         return perms.includes(key) || perms.includes(permission);
     };
 
+    const hasMenu = (moduleKey) => canShowMenu(user, moduleKey);
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, refreshUser, isAuthenticated: !!user, hasPermission }}>
+        <AuthContext.Provider value={{ user, login, logout, refreshUser, isAuthenticated: !!user, authReady, hasPermission, hasMenu }}>
             {children}
         </AuthContext.Provider>
     );

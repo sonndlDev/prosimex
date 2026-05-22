@@ -3,9 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2, Hammer } from "lucide-react";
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import HomeRedirect from "./components/HomeRedirect";
 
 // Lazy-loaded pages — each page becomes a separate JS chunk
 const LoginPage = React.lazy(() => import("./pages/auth/LoginPage"));
+const UnauthorizedPage = React.lazy(() => import("./pages/auth/UnauthorizedPage"));
 const DashboardPage = React.lazy(
   () => import("./pages/dashboard/DashboardPage"),
 );
@@ -83,19 +85,14 @@ export default function AppRouter() {
         <Routes>
           {/* Public */}
           <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/unauthorized"
-            element={
-              <h2 style={{ padding: "20px", color: "red" }}>
-                Unauthorized Access
-              </h2>
-            }
-          />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<DashboardPage />} />
+              <Route element={<ProtectedRoute requiredPermission="dashboard:read" />}>
+                <Route path="/" element={<DashboardPage />} />
+              </Route>
 
               {/* Modules protected by Role */}
               {/* Modules protected by Permissions */}
@@ -195,7 +192,7 @@ export default function AppRouter() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
