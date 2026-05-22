@@ -8,5 +8,13 @@ export const inventoryService = {
     save: async (payload) => {
         const { data } = await api.post('/product-inventory', payload);
         return data;
+    },
+    update: async (id, payload) => {
+        const { data } = await api.put(`/product-inventory/${id}`, payload);
+        return data;
+    },
+    delete: async (id) => {
+        const { data } = await api.delete(`/product-inventory/${id}`);
+        return data;
     }
 };

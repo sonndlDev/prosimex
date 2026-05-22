@@ -4,13 +4,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download } from "lucide-react";
+import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+// Alert dialog component not present; use Dialog for confirmations
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { outsourcingService } from "@/services/outsourcing.service";
@@ -19,7 +28,7 @@ import { productService } from "@/services/product.service";
 import { supplierService } from "@/services/supplier.service";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import { DateTime } from "luxon";
-import * as XLSX from 'xlsx';
+
 import ExcelJS from 'exceljs';
 import { useAuth } from "../../context/AuthContext";
 
@@ -899,8 +908,14 @@ function OutsourcingHistory({ type, orders, products }) {
   const [search, setSearch] = useState("");
   const [filterOrderId, setFilterOrderId] = useState("");
   const [filterProductId, setFilterProductId] = useState("");
+  const [editingTicket, setEditingTicket] = useState(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [deleteTicketId, setDeleteTicketId] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ["outsourcing-tickets", type, page, pageSize, search, filterOrderId, filterProductId],
     queryFn: () => outsourcingService.getAll({ type, page, limit: pageSize, search, order_id: filterOrderId, product_id: filterProductId }),
     placeholderData: keepPreviousData
@@ -908,6 +923,56 @@ function OutsourcingHistory({ type, orders, products }) {
 
   const tickets = data?.data || [];
   const total = data?.total || 0;
+
+  const handleEdit = (ticket) => {
+    setEditingTicket(ticket);
+    setShowEditDialog(true);
+  };
+
+  const handleDelete = (ticket) => {
+    setDeleteTicketId(ticket.id);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTicketId) return;
+    setIsDeleting(true);
+    try {
+      await outsourcingService.delete(deleteTicketId);
+      toast.success("Xóa phiếu gia công thành công!");
+      setShowDeleteDialog(false);
+      setDeleteTicketId(null);
+      refetch();
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Lỗi khi xóa phiếu gia công");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleUpdateTicket = async () => {
+    if (!editingTicket) return;
+    setIsUpdating(true);
+    try {
+      const updateData = {
+        type: editingTicket.type,
+        supplier_id: editingTicket.supplier_id,
+        dispatch_date: editingTicket.dispatch_date,
+        expected_return_date: editingTicket.expected_return_date
+      };
+      await outsourcingService.update(editingTicket.id, updateData);
+      toast.success("Cập nhật phiếu gia công thành công!");
+      setShowEditDialog(false);
+      setEditingTicket(null);
+      refetch();
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error("Lỗi khi cập nhật phiếu gia công");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const handleExportExcel = async () => {
     try {
@@ -1169,8 +1234,115 @@ function OutsourcingHistory({ type, orders, products }) {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
         onSearchChange={setSearch}
-        showActions={false}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md bg-white border border-zinc-200 rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa phiếu gia công</DialogTitle>
+            <DialogDescription className="text-xs font-medium text-zinc-500">
+              Cập nhật thông tin phiếu: {editingTicket?.ticket_code}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingTicket && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-zinc-500 uppercase">Loại</Label>
+                <Input
+                  disabled
+                  value={editingTicket.type === 'PLATING' ? 'Xi mạ - Sơn' : 'Đóng gói'}
+                  className="bg-zinc-50 text-zinc-600 font-bold"
+                />
+              </div>
+              
+              {editingTicket.type === 'PLATING' && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-zinc-500 uppercase">Nhà cung cấp</Label>
+                    <Input
+                      disabled
+                      value={editingTicket.supplier || "—"}
+                      className="bg-zinc-50 text-zinc-600 font-bold"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày xuất đi</Label>
+                    <PremiumDatePicker
+                      date={editingTicket.dispatch_date ? DateTime.fromISO(editingTicket.dispatch_date).toFormat('yyyy-MM-dd') : ''}
+                      onSelect={d => setEditingTicket({ ...editingTicket, dispatch_date: d })}
+                      placeholder="Chọn ngày"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày dự kiến về</Label>
+                    <PremiumDatePicker
+                      date={editingTicket.expected_return_date ? DateTime.fromISO(editingTicket.expected_return_date).toFormat('yyyy-MM-dd') : ''}
+                      onSelect={d => setEditingTicket({ ...editingTicket, expected_return_date: d })}
+                      placeholder="Chọn ngày"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-zinc-500 uppercase">Trạng thái</Label>
+                <Input
+                  disabled
+                  value={editingTicket.status === 'COMPLETED' ? 'Hoàn thành' : editingTicket.status === 'PARTIAL' ? 'Một phần' : 'Đang chờ'}
+                  className="bg-zinc-50 text-zinc-600 font-bold"
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleUpdateTicket}
+              disabled={isUpdating}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+            >
+              {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa phiếu gia công</DialogTitle>
+            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+              Bạn có chắc chắn muốn xóa phiếu này? Hành động này không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-6">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold rounded-lg">
+              Hủy
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg"
+            >
+              {isDeleting ? "Đang xóa..." : "Xóa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

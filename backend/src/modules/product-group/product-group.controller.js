@@ -120,7 +120,8 @@ export const getProductGroupOperations = async (req, res) => {
     const { order_id, product_id } = req.query
 
     // Base query: lấy danh sách công đoạn của product group
-    // Nếu có order_id và product_id, kiểm tra xem công đoạn đã được lập kế hoạch chưa
+    // Nếu có order_id và product_id, kiểm tra xem công đoạn đã được lập kế hoạch chưa,
+    // đồng thời tính tổng sản lượng thực tế đã sản xuất và số lượng đặt hàng của sản phẩm đó.
     let query;
     let params;
 
@@ -135,7 +136,25 @@ export const getProductGroupOperations = async (req, res) => {
                    AND pp.order_id = $2
                    AND pp.product_id = $3
                    AND pp.deleted_at IS NULL
-               ) as is_planned
+               ) as is_planned,
+               COALESCE(
+                 (SELECT SUM(dti.actual_quantity) 
+                  FROM daily_production_ticket_items dti
+                  JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+                  WHERE dt.deleted_at IS NULL
+                    AND dti.order_id = $2
+                    AND dti.product_id = $3
+                    AND dti.product_group_operation_id = pgo.id),
+                 0
+               )::numeric as total_actual,
+               COALESCE(
+                 (SELECT op_qty.quantity 
+                  FROM order_products op_qty 
+                  WHERE op_qty.order_id = $2 
+                    AND op_qty.product_id = $3
+                  LIMIT 1),
+                 0
+               )::numeric as order_quantity
         FROM product_group_operations pgo
         LEFT JOIN operations o ON pgo.operation_id = o.id
         WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
@@ -146,7 +165,9 @@ export const getProductGroupOperations = async (req, res) => {
         SELECT pgo.*, 
                o.name as operation_name, 
                (SELECT string_agg(m.name, ', ') FROM machines m WHERE m.id = ANY(pgo.machine_ids)) as machine_names,
-               false as is_planned
+               false as is_planned,
+               0::numeric as total_actual,
+               0::numeric as order_quantity
         FROM product_group_operations pgo
         LEFT JOIN operations o ON pgo.operation_id = o.id
         WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL

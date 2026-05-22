@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../../context/AuthContext";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
 import { inventoryService } from "../../services/product-inventory.service";
@@ -23,7 +24,10 @@ import {
     X,
     ClipboardList,
     Boxes,
-    RotateCcw
+    RotateCcw,
+    Edit2,
+    Trash2,
+    AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -54,6 +58,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 export default function ProductInventoryPage() {
     const queryClient = useQueryClient();
+    const { hasPermission } = useAuth();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
@@ -82,6 +87,9 @@ export default function ProductInventoryPage() {
     const [formItems, setFormItems] = useState({}); // { opId: { quantity: '', note: '' } }
     const [isProductOpen, setIsProductOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingRecord, setEditingRecord] = useState(null);
+    const [editFormData, setEditFormData] = useState({});
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
     // Fetch data
     const { data: productsData } = useQuery({
@@ -111,6 +119,27 @@ export default function ProductInventoryPage() {
             resetForm();
         },
         onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi lưu tồn kho")
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, payload }) => inventoryService.update(id, payload),
+        onSuccess: () => {
+            toast.success("Đã cập nhật tồn kho thành công");
+            queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
+            setEditingRecord(null);
+            setEditFormData({});
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật tồn kho")
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id) => inventoryService.delete(id),
+        onSuccess: () => {
+            toast.success("Đã xóa tồn kho thành công");
+            queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
+            setDeleteConfirmId(null);
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa tồn kho")
     });
 
     // Handlers
@@ -175,6 +204,40 @@ export default function ProductInventoryPage() {
         });
     };
 
+    const handleEditClick = (record) => {
+        setEditingRecord(record);
+        setEditFormData({
+            quantity: record.quantity,
+            note: record.note,
+            inventory_type: record.inventory_type
+        });
+    };
+
+    const handleEditSave = () => {
+        if (!editingRecord) return;
+        if (editFormData.quantity === '' || isNaN(parseFloat(editFormData.quantity))) {
+            return toast.error("Số lượng không hợp lệ");
+        }
+
+        updateMutation.mutate({
+            id: editingRecord.id,
+            payload: {
+                quantity: parseFloat(editFormData.quantity),
+                note: editFormData.note,
+                inventory_type: editFormData.inventory_type
+            }
+        });
+    };
+
+    const handleDeleteClick = (record) => {
+        setDeleteConfirmId(record.id);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!deleteConfirmId) return;
+        deleteMutation.mutate(deleteConfirmId);
+    };
+
     const tableColumns = [
         {
             id: "product_name",
@@ -210,6 +273,37 @@ export default function ProductInventoryPage() {
             id: "recorded_at",
             label: "Ngày nhập",
             format: (v) => DateTime.fromISO(v).toFormat("dd/MM/yyyy HH:mm")
+        },
+        {
+            id: "actions",
+            label: "Thao tác",
+            className: "text-center",
+            format: (v, row) => (
+                <div className="flex items-center justify-center gap-2">
+                    {hasPermission('product_inventory:update') && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                            onClick={() => handleEditClick(row)}
+                            title="Chỉnh sửa"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                        </Button>
+                    )}
+                    {hasPermission('product_inventory:delete') && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => handleDeleteClick(row)}
+                            title="Xóa"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    )}
+                </div>
+            )
         }
     ];
 
@@ -447,6 +541,120 @@ export default function ProductInventoryPage() {
                         >
                             {saveMutation.isPending ? "Đang lưu..." : (
                                 <><Save className="w-4 h-4 mr-2" /> Lưu tồn kho</>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Modal */}
+            <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
+                <DialogContent className="max-w-lg p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="bg-zinc-50 border-b border-zinc-100 p-6">
+                        <DialogTitle className="text-lg font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                                <Edit2 className="w-5 h-5" />
+                            </div>
+                            Chỉnh sửa tồn kho
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-6 space-y-4">
+                        <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                            <p className="text-xs font-bold text-zinc-500 uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{editingRecord?.product_name}</span></p>
+                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{editingRecord?.operation_name}</span></p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Số lượng</Label>
+                            <Input
+                                type="number"
+                                placeholder="0"
+                                className="h-10 font-black text-blue-600 focus:ring-indigo-500"
+                                value={editFormData.quantity}
+                                onChange={(e) => setEditFormData({ ...editFormData, quantity: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Loại tồn kho</Label>
+                            <Select value={editFormData.inventory_type} onValueChange={(val) => setEditFormData({ ...editFormData, inventory_type: val })}>
+                                <SelectTrigger className="h-10 text-sm font-medium border-zinc-200 rounded-lg bg-zinc-50 hover:bg-white transition-all">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="BTP">Bán thành phẩm (BTP)</SelectItem>
+                                    <SelectItem value="TP">Thành phẩm (TP)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Ghi chú</Label>
+                            <Textarea
+                                placeholder="Nhập ghi chú..."
+                                className="font-medium text-sm border-zinc-200 rounded-lg bg-zinc-50 hover:bg-white transition-all focus:ring-indigo-500"
+                                rows={3}
+                                value={editFormData.note}
+                                onChange={(e) => setEditFormData({ ...editFormData, note: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setEditingRecord(null)}
+                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 px-8"
+                            disabled={updateMutation.isPending}
+                            onClick={handleEditSave}
+                        >
+                            {updateMutation.isPending ? "Đang lưu..." : (
+                                <><Save className="w-4 h-4 mr-2" /> Cập nhật</>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Modal */}
+            <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+                <DialogContent className="max-w-sm p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="bg-red-50 border-b border-red-100 p-6">
+                        <DialogTitle className="text-lg font-black uppercase tracking-tight text-red-800 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-red-500 rounded-xl text-white flex items-center justify-center shadow-lg shadow-red-100">
+                                <AlertCircle className="w-5 h-5" />
+                            </div>
+                            Xác nhận xóa
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-6">
+                        <p className="text-sm text-zinc-600 font-medium">
+                            Bạn chắc chắn muốn xóa bản ghi tồn kho này? Hành động này không thể hoàn tác.
+                        </p>
+                    </div>
+
+                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setDeleteConfirmId(null)}
+                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            className="bg-red-500 hover:bg-red-600 text-white font-black uppercase tracking-widest shadow-lg shadow-red-100 transition-all active:scale-[0.98] disabled:opacity-50 px-8"
+                            disabled={deleteMutation.isPending}
+                            onClick={handleConfirmDelete}
+                        >
+                            {deleteMutation.isPending ? "Đang xóa..." : (
+                                <><Trash2 className="w-4 h-4 mr-2" /> Xóa</>
                             )}
                         </Button>
                     </DialogFooter>

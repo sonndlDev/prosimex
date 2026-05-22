@@ -100,3 +100,111 @@ export const saveInventory = async (req, res) => {
     client.release();
   }
 };
+
+export const updateInventory = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { quantity, note, inventory_type } = req.body;
+    const userId = req.user.id;
+
+    if (!id) {
+      return res.status(400).json({ message: "Inventory ID is required" });
+    }
+
+    // Get current data for audit log
+    const currentResult = await client.query(
+      `SELECT * FROM product_inventory WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: "Inventory record not found" });
+    }
+
+    const currentData = currentResult.rows[0];
+
+    await client.query("BEGIN");
+
+    // Update the record
+    const updateQuery = `
+      UPDATE product_inventory 
+      SET quantity = COALESCE($1, quantity),
+          note = COALESCE($2, note),
+          inventory_type = COALESCE($3, inventory_type),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING *
+    `;
+
+    const result = await client.query(updateQuery, [quantity, note, inventory_type, id]);
+    const updatedData = result.rows[0];
+
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) 
+       VALUES ($1, 'UPDATE', 'ProductInventory', $2, $3, $4)`,
+      [userId, id, JSON.stringify(currentData), JSON.stringify(updatedData)]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Inventory updated successfully", data: updatedData });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Inventory Error:", error);
+    res.status(500).json({ message: "Error updating inventory", error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+export const deleteInventory = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    if (!id) {
+      return res.status(400).json({ message: "Inventory ID is required" });
+    }
+
+    // Get current data for audit log
+    const currentResult = await client.query(
+      `SELECT * FROM product_inventory WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: "Inventory record not found" });
+    }
+
+    const currentData = currentResult.rows[0];
+
+    await client.query("BEGIN");
+
+    // Soft delete - set deleted_at timestamp
+    const result = await client.query(
+      `UPDATE product_inventory 
+       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) 
+       VALUES ($1, 'DELETE', 'ProductInventory', $2, $3, $4)`,
+      [userId, id, JSON.stringify(currentData), JSON.stringify({ deleted_at: new Date().toISOString() })]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Inventory deleted successfully", data: result.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Inventory Error:", error);
+    res.status(500).json({ message: "Error deleting inventory", error: error.message });
+  } finally {
+    client.release();
+  }
+};

@@ -404,6 +404,8 @@ export const createOrder = async (req, res) => {
       customer_confirmation_result,
       pallet_info,
       accessory_status,
+      expected_material_date,
+      actual_material_date,
     } = req.body;
 
     const created_by = req.user.id; // From JWT Auth Middleware
@@ -463,13 +465,13 @@ export const createOrder = async (req, res) => {
     const newOrder = updateRes.rows[0];
 
     // 4. Insert into order_ext if provided
-    if (production_start_date || expected_shipping_date || expected_container_shipping_date || customer_confirmation_result || pallet_info || accessory_status) {
+    if (production_start_date || expected_shipping_date || expected_container_shipping_date || customer_confirmation_result || pallet_info || accessory_status || expected_material_date || actual_material_date) {
       const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
       const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
       
       await client.query(
-        `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status, expected_material_date, actual_material_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orderId,
           production_start_date || null,
@@ -478,6 +480,8 @@ export const createOrder = async (req, res) => {
           customer_confirmation_result || null,
           pallet_info || null,
           accessory_status || null,
+          expected_material_date || null,
+          actual_material_date || null,
         ]
       );
     }
@@ -527,6 +531,8 @@ export const updateOrder = async (req, res) => {
       customer_confirmation_result,
       pallet_info,
       accessory_status,
+      expected_material_date,
+      actual_material_date,
     } = req.body;
 
     // Get Before Data for Audit Log
@@ -631,15 +637,17 @@ export const updateOrder = async (req, res) => {
     const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
     
     await client.query(
-      `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status, expected_material_date, actual_material_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (order_id) DO UPDATE SET
          production_start_date = EXCLUDED.production_start_date,
          expected_shipping_date = EXCLUDED.expected_shipping_date,
          expected_container_shipping_date = EXCLUDED.expected_container_shipping_date,
          customer_confirmation_result = EXCLUDED.customer_confirmation_result,
          pallet_info = EXCLUDED.pallet_info,
-         accessory_status = EXCLUDED.accessory_status`,
+         accessory_status = EXCLUDED.accessory_status,
+         expected_material_date = EXCLUDED.expected_material_date,
+         actual_material_date = EXCLUDED.actual_material_date`,
       [
         id,
         production_start_date || null,
@@ -648,6 +656,8 @@ export const updateOrder = async (req, res) => {
         customer_confirmation_result || null,
         pallet_info || null,
         accessory_status || null,
+        expected_material_date || null,
+        actual_material_date || null,
       ]
     );
 
@@ -657,6 +667,8 @@ export const updateOrder = async (req, res) => {
     afterData.customer_confirmation_result = customer_confirmation_result || null;
     afterData.pallet_info = pallet_info || null;
     afterData.accessory_status = accessory_status || null;
+    afterData.expected_material_date = expected_material_date || null;
+    afterData.actual_material_date = actual_material_date || null;
 
     // Audit Log
     await client.query(

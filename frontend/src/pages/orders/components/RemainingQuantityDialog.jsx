@@ -111,27 +111,6 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                 );
             }
         },
-        {
-            id: "total_sx_quantity",
-            label: "SL Thực tế (TB)",
-            className: "font-black text-center text-emerald-600 align-middle",
-            format: (v) => <div className="mt-2">{Number(v).toLocaleString()}</div>
-        },
-        {
-            id: "remaining_quantity",
-            label: "SL Còn thiếu",
-            className: "font-black text-center text-rose-600 align-middle",
-            format: (_, row) => {
-                const required = Number(row.required_quantity) || 0;
-                const actual = Number(row.total_sx_quantity) || 0;
-                const originalSx = Number(row.original_total_sx) || 0;
-
-                const hasActual = actual > 0 || originalSx > 0;
-                const remaining = hasActual ? required - actual : required;
-
-                return <div className="mt-2">{remaining.toLocaleString()}</div>;
-            }
-        }
     ];
 
     return (

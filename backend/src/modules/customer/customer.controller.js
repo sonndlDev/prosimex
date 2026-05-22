@@ -41,6 +41,28 @@ export const createCustomer = async (req, res) => {
     const finalAddress = contact_info || address;
     const userId = req.user?.id;
 
+    // Kiểm tra trùng tên khách hàng
+    if (name) {
+      const existingName = await pool.query(
+        'SELECT id FROM customers WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL',
+        [name.trim()]
+      );
+      if (existingName.rowCount > 0) {
+        return res.status(400).json({ message: 'Tên khách hàng đã tồn tại trong hệ thống' });
+      }
+    }
+
+    // Kiểm tra trùng mã khách hàng
+    if (code) {
+      const existingCode = await pool.query(
+        'SELECT id FROM customers WHERE LOWER(code) = LOWER($1) AND deleted_at IS NULL',
+        [code.trim()]
+      );
+      if (existingCode.rowCount > 0) {
+        return res.status(400).json({ message: 'Mã khách hàng đã tồn tại trong hệ thống' });
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO customers (code, name, address, phone, is_active, created_by, modified_by) 
        VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $6) RETURNING *`,
@@ -55,7 +77,7 @@ export const createCustomer = async (req, res) => {
 
     res.status(201).json(newCustomer);
   } catch (error) {
-    if (error.code === '23505') return res.status(400).json({ message: 'Customer code already exists' });
+    if (error.code === '23505') return res.status(400).json({ message: 'Mã khách hàng đã tồn tại' });
     res.status(500).json({ message: 'Error creating customer', error });
   }
 };
@@ -69,6 +91,28 @@ export const updateCustomer = async (req, res) => {
 
     const beforeRes = await pool.query('SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
+
+    // Kiểm tra trùng tên với khách hàng khác
+    if (name) {
+      const existingName = await pool.query(
+        'SELECT id FROM customers WHERE LOWER(name) = LOWER($1) AND deleted_at IS NULL AND id != $2',
+        [name.trim(), id]
+      );
+      if (existingName.rowCount > 0) {
+        return res.status(400).json({ message: 'Tên khách hàng đã tồn tại trong hệ thống' });
+      }
+    }
+
+    // Kiểm tra trùng mã với khách hàng khác
+    if (code) {
+      const existingCode = await pool.query(
+        'SELECT id FROM customers WHERE LOWER(code) = LOWER($1) AND deleted_at IS NULL AND id != $2',
+        [code.trim(), id]
+      );
+      if (existingCode.rowCount > 0) {
+        return res.status(400).json({ message: 'Mã khách hàng đã tồn tại trong hệ thống' });
+      }
+    }
 
     const result = await pool.query(
       `UPDATE customers 

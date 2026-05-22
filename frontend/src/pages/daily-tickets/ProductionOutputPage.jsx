@@ -50,17 +50,37 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
           <CommandList className="max-h-[300px] p-1">
             <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
             <CommandGroup>
-              {options.map(o => (
-                <CommandItem
-                  key={o.id}
-                  value={o.name}
-                  onSelect={() => onChange(String(o.id))}
-                  className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1"
-                >
-                  <span className="text-xs font-bold">{o.name}</span>
-                  <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(value) === String(o.id) ? "opacity-100" : "opacity-0")} />
-                </CommandItem>
-              ))}
+              {options.map(o => {
+                const isItemDisabled = !!o.disabled;
+                return (
+                  <CommandItem
+                    key={o.id}
+                    value={o.name}
+                    disabled={isItemDisabled}
+                    onSelect={() => {
+                      if (!isItemDisabled) {
+                        onChange(String(o.id));
+                      }
+                    }}
+                    className={cn(
+                      "px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1 flex items-center justify-between",
+                      isItemDisabled && "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50"
+                    )}
+                  >
+                    <div className="flex flex-col text-left">
+                      <span className={cn("text-xs font-bold", isItemDisabled && "text-zinc-400 line-through")}>
+                        {o.name}
+                      </span>
+                      {o.subLabel && (
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          {o.subLabel}
+                        </span>
+                      )}
+                    </div>
+                    <Check className={cn("ml-auto h-3 w-3 text-indigo-600 shrink-0", String(value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -113,29 +133,47 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
 
   // Fetch danh sách công đoạn ĐÚNG của nhóm sản phẩm này (để lấy product_group_operation_id hợp lệ)
   const { data: pgoList, isLoading: isLoadingPgo } = useQuery({
-    queryKey: ["product-group-operations", selectedProduct?.product_group_id],
-    queryFn: () => productGroupService.getOperations(selectedProduct?.product_group_id),
+    queryKey: ["product-group-operations", selectedProduct?.product_group_id, row.order_id, row.product_id],
+    queryFn: () => productGroupService.getOperations(selectedProduct?.product_group_id, { orderId: row.order_id, productId: row.product_id }),
     enabled: !!selectedProduct?.product_group_id,
   });
 
   const operationOptions = useMemo(() => {
     // Ưu tiên dùng list PGO (vì cần ID của bảng product_group_operations để ghi vào DB)
     if (pgoList && pgoList.length > 0) {
-      return pgoList.map(item => ({
-        id: item.id, // Đây là product_group_operation_id
-        name: item.operation_name
-      }));
+      return pgoList.map(item => {
+        const orderQty = parseFloat(item.order_quantity) || 0;
+        const totalActual = parseFloat(item.total_actual) || 0;
+        const isCompleted = orderQty > 0 && totalActual >= orderQty;
+        return {
+          id: item.id, // Đây là product_group_operation_id
+          name: item.operation_name,
+          subLabel: orderQty > 0 ? `Đã làm: ${totalActual}/${orderQty}` : undefined,
+          disabled: isCompleted
+        };
+      });
     }
     
-    // Nếu chưa chọn sản phẩm hoặc không có PGO, dùng fallback allOperations (có thể gây lỗi FK nếu chọn nhầm)
-    // Nhưng do ta đã khóa Combobox nên an toàn hơn
+    // Nếu chưa chọn sản phẩm hoặc không có PGO, dùng fallback allOperations
     const map = new Map();
     (allOperations || []).forEach(o => { if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.name }); });
     return Array.from(map.values());
   }, [pgoList, allOperations]);
 
+  const selectedPgo = useMemo(() => {
+    if (!row.product_group_operation_id || !pgoList) return null;
+    return pgoList.find(item => String(item.id) === String(row.product_group_operation_id));
+  }, [pgoList, row.product_group_operation_id]);
+
+  const remainingQuantity = useMemo(() => {
+    if (!selectedPgo) return null;
+    const orderQty = parseFloat(selectedPgo.order_quantity) || 0;
+    const totalActual = parseFloat(selectedPgo.total_actual) || 0;
+    return Math.max(0, orderQty - totalActual);
+  }, [selectedPgo]);
+
   return (
-    <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_110px_110px_180px_36px] gap-2 items-center">
+    <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 items-center">
       {/* Đơn hàng */}
       <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
         <Combobox 
@@ -185,6 +223,22 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
           icon={Settings}
         />
       )} />
+
+      {/* Còn thiếu */}
+      <div className="flex justify-center">
+        {remainingQuantity !== null ? (
+          <span className={cn(
+            "text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm",
+            remainingQuantity > 0 
+              ? "bg-amber-50 text-amber-700 border-amber-200" 
+              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+          )}>
+            {remainingQuantity}
+          </span>
+        ) : (
+          <span className="text-zinc-300 font-bold text-xs">-</span>
+        )}
+      </div>
 
       {/* SL kế hoạch (tùy chọn) */}
       <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
@@ -538,10 +592,11 @@ export default function ProductionOutputPage() {
 
           <div className="p-6 space-y-3">
             {/* Column headers */}
-            <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_110px_110px_180px_36px] gap-2 px-0 mb-1">
+            <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 px-0 mb-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Mã hàng</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center font-black">Còn thiếu</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">SL Kế Hoạch</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">SL Thực Tế</p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>

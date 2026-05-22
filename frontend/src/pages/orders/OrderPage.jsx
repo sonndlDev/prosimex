@@ -107,6 +107,8 @@ const defaultValues = {
   customer_confirmation_result: "",
   pallet_info: "",
   accessory_status: "",
+  expected_material_date: "",
+  actual_material_date: "",
 };
 
 export default function OrderPage() {
@@ -259,195 +261,293 @@ export default function OrderPage() {
   };
 
   const columns = [
-    {
-      id: "report_action",
-      label: "Báo cáo",
-      className: "min-w-[80px] w-[80px] max-w-[80px] text-center bg-white font-bold  text-red",
-      isSticky: true,
-      stickyLeft: "100px",
-      width: "80px",
-      format: (_, row) => (
-        <div className="flex items-center justify-center gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSummaryOrderId(row.id);
-                  setOpenSummaryDialog(true);
-                }}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent "
-              >
-                <LayoutDashboard className="w-4 h-4" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
-                <p>Báo cáo tổng hợp</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+  {
+    id: "po_auto_code",
+    label: "PO Hệ thống",
+    className: "min-w-[150px] w-[150px] max-w-[150px] font-semibold text-zinc-900 bg-white",
+    isSticky: true,
+    stickyLeft: "100px",
+    width: "150px",
+    format: (value) => value || "-"
+  },
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setRemainingQuantityOrderId(row.id);
-                  setOpenRemainingQuantity(true);
-                }}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
-              >
-                <Layers className="w-4 h-4" />
-              </TooltipTrigger>
-              <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
-                <p>Số lượng còn thiếu</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      )
-    },
-    {
-      id: "po_customer",
-      label: "PO KH",
-      className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600 bg-white",
-      isSticky: true,
-      stickyLeft: "180px",
-      width: "120px",
-      format: (value, row) => (
+  {
+    id: "report_action",
+    label: "Báo cáo",
+    className: "min-w-[80px] w-[80px] max-w-[80px] text-center bg-white font-bold text-red",
+    isSticky: true,
+    stickyLeft: "250px",
+    width: "80px",
+    format: (_, row) => (
+      <div className="flex items-center justify-center gap-1">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpen(row);
+                setSummaryOrderId(row.id);
+                setOpenSummaryDialog(true);
               }}
-              className="inline-flex items-center gap-1 font-black text-blue-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
             >
-              {value || "-"}
+              <LayoutDashboard className="w-4 h-4" />
             </TooltipTrigger>
+
             <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
-              <p>Xem chi tiết đơn hàng</p>
+              <p>Báo cáo tổng hợp</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      )
-    },
-    { 
-      id: "name", 
-      label: "Tên đơn hàng", 
-      className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900 bg-white",
-      isSticky: true,
-      stickyLeft: "300px",
-      width: "250px"
-    },
-    { 
-      id: "customer_name", 
-      label: "Tên khách", 
-      className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate bg-white",
-      isSticky: true,
-      stickyLeft: "550px",
-      width: "150px"
-    },
-    { 
-      id: "person_in_charge", 
-      label: "Người phụ trách", 
-      className: "min-w-[150px] w-[150px] max-w-[150px] truncate bg-white",
-      isSticky: true,
-      stickyLeft: "700px",
-      width: "150px"
-    },
-    {
-      id: "received_date",
-      label: "Ngày nhận đơn",
-      className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white",
-      isSticky: true,
-      stickyLeft: "850px",
-      isLastSticky: true,
-      width: "110px",
-      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
-    },
-    {
-      id: "expected_material_date",
-      label: <p className="text-center">Ngày NL về xưởng <br /> (Dự kiến)</p>,
-      format: (value, row) => row.expected_material_date ? DateTime.fromISO(row.expected_material_date).toFormat("dd/MM/yyyy") : "-"
-    },
-    {
-      id: "production_start_date",
-      label: "Ngày bắt đầu sản xuất",
-      format: (value) => value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
-    },
-    {
-      id: "expected_shipping_date",
-      label: <p className="text-center">Ngày xuất hàng <br /> (Dự kiến)</p>,
-      format: (value) => {
-        if (Array.isArray(value) && value.length > 0) {
-           return value.map((d, i) => <div key={i}>{DateTime.fromISO(d).toFormat("dd/MM/yyyy")}</div>);
-        }
-        return value && typeof value === 'string' ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : "";
-      }
-    },
-    {
-      id: "actual_material_date",
-      label: <p className="text-center">Ngày báo XNK</p>,
-      format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
-    },
-    {
-      id: "expected_container_shipping_date",
-      label: <p className="text-center">Ngày xuất công <br /> (Thực tế)</p>,
-      format: (value) => {
-        if (Array.isArray(value) && value.length > 0) {
-           return value.map((d, i) => <div key={i}>{DateTime.fromISO(d).toFormat("dd/MM/yyyy")}</div>);
-        }
-        return value && typeof value === 'string' ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : "";
-      }
-    },
-    {
-      id: "status",
-      label: "Trạng thái",
-      format: (value) => getStatusBadge(value),
-    },
-    {
-      id: "customer_confirmation_result",
-      label: "Kết quả xác nhận Kh"
-    },
-    {
-      id: "completion_percentage",
-      label: "Phần trăm hoàn thành đơn hàng",
-      format: (value, row) => (
-        <div
-          className="flex justify-center items-center h-full w-full cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            setReportOrderId(row.id);
-            setOpenCompletionReport(true);
-          }}
-        >
-          <Badge
-            variant={(row.completion_percentage || 0) >= 100 ? "success" : (row.completion_percentage || 0) > 0 ? "warning" : "outline"}
-            className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100"
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+                setRemainingQuantityOrderId(row.id);
+                setOpenRemainingQuantity(true);
+              }}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+            >
+              <Layers className="w-4 h-4" />
+            </TooltipTrigger>
+
+            <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+              <p>Số lượng còn thiếu</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    )
+  },
+
+  {
+    id: "po_customer",
+    label: "PO KH",
+    className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600 bg-white",
+    isSticky: true,
+    stickyLeft: "330px",
+    width: "120px",
+    format: (value, row) => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpen(row);
+            }}
+            className="inline-flex items-center gap-1 font-black text-blue-600 hover:text-indigo-700 hover:underline cursor-pointer transition-colors"
           >
-            {(row.completion_percentage || 0)}%
-          </Badge>
-        </div>
-      )
-    },
-    { id: "note", label: "Ghi chú", className: "max-w-[150px] truncate" },
-    {
-      id: "total_quantity",
-      label: "Số lượng",
-      className: "text-right font-bold tabular-nums",
-      format: (value, row) =>
-        row.products
-          ?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
-          .toLocaleString() || "0",
-    },
-    { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
-    { id: "package_count_text", label: "Số kiện", format: (value, row) => row.package_count_text || "-" },
-    { id: "container_volume_text", label: "Khối lượng cont/ lẻ", format: (value, row) => row.container_volume_text || "-" },
-    { id: "pallet_info", label: "Loại pallet, kích thước, tải trọng", format: (value, row) => row.pallet_info || "-" },
-    { id: "accessory_status", label: "Tình trạng phụ kiện", format: (value, row) => row.accessory_status || "-" },
-    getAuditColumn(),
-  ];
+            {value || "-"}
+          </TooltipTrigger>
+
+          <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+            <p>Xem chi tiết đơn hàng</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  },
+
+  {
+    id: "name",
+    label: "Tên đơn hàng",
+    className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900 bg-white",
+    isSticky: true,
+    stickyLeft: "450px",
+    width: "250px"
+  },
+
+  {
+    id: "customer_name",
+    label: "Tên khách",
+    className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate bg-white",
+    isSticky: true,
+    stickyLeft: "700px",
+    width: "150px"
+  },
+
+  {
+    id: "person_in_charge",
+    label: "Người phụ trách",
+    className: "min-w-[150px] w-[150px] max-w-[150px] truncate bg-white",
+    isSticky: true,
+    stickyLeft: "850px",
+    width: "150px"
+  },
+
+  {
+    id: "received_date",
+    label: "Ngày nhận đơn",
+    className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white",
+    isSticky: true,
+    stickyLeft: "1000px",
+    isLastSticky: true,
+    width: "110px",
+    format: (value) =>
+      value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+  },
+
+  {
+    id: "expected_material_date",
+    label: (
+      <p className="text-center">
+        Ngày NL về xưởng <br /> (Dự kiến)
+      </p>
+    ),
+    format: (value, row) =>
+      row.expected_material_date
+        ? DateTime.fromISO(row.expected_material_date).toFormat("dd/MM/yyyy")
+        : "-"
+  },
+
+  {
+    id: "production_start_date",
+    label: "Ngày bắt đầu sản xuất",
+    format: (value) =>
+      value ? DateTime.fromISO(value).toFormat("dd/MM/yyyy") : ""
+  },
+
+  {
+    id: "expected_shipping_date",
+    label: (
+      <p className="text-center">
+        Ngày xuất hàng <br /> (Dự kiến)
+      </p>
+    ),
+    format: (value) => {
+      if (Array.isArray(value) && value.length > 0) {
+        return value.map((d, i) => (
+          <div key={i}>
+            {DateTime.fromISO(d).toFormat("dd/MM/yyyy")}
+          </div>
+        ));
+      }
+
+      return value && typeof value === "string"
+        ? DateTime.fromISO(value).toFormat("dd/MM/yyyy")
+        : "";
+    }
+  },
+
+  {
+    id: "actual_material_date",
+    label: <p className="text-center">Ngày báo XNK</p>,
+    format: (value, row) =>
+      row.actual_material_date
+        ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy")
+        : "-"
+  },
+
+  {
+    id: "expected_container_shipping_date",
+    label: (
+      <p className="text-center">
+        Ngày xuất công <br /> (Thực tế)
+      </p>
+    ),
+    format: (value) => {
+      if (Array.isArray(value) && value.length > 0) {
+        return value.map((d, i) => (
+          <div key={i}>
+            {DateTime.fromISO(d).toFormat("dd/MM/yyyy")}
+          </div>
+        ));
+      }
+
+      return value && typeof value === "string"
+        ? DateTime.fromISO(value).toFormat("dd/MM/yyyy")
+        : "";
+    }
+  },
+
+  {
+    id: "status",
+    label: "Trạng thái",
+    format: (value) => getStatusBadge(value),
+  },
+
+  {
+    id: "customer_confirmation_result",
+    label: "Kết quả xác nhận Kh"
+  },
+
+  {
+    id: "completion_percentage",
+    label: "Phần trăm hoàn thành đơn hàng",
+    format: (value, row) => (
+      <div
+        className="flex justify-center items-center h-full w-full cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          setReportOrderId(row.id);
+          setOpenCompletionReport(true);
+        }}
+      >
+        <Badge
+          variant={
+            (row.completion_percentage || 0) >= 100
+              ? "success"
+              : (row.completion_percentage || 0) > 0
+              ? "warning"
+              : "outline"
+          }
+          className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100"
+        >
+          {(row.completion_percentage || 0)}%
+        </Badge>
+      </div>
+    )
+  },
+
+  {
+    id: "note",
+    label: "Ghi chú",
+    className: "max-w-[150px] truncate"
+  },
+
+  {
+    id: "total_quantity",
+    label: "Số lượng",
+    className: "text-right font-bold tabular-nums",
+    format: (value, row) =>
+      row.products
+        ?.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0)
+        .toLocaleString() || "0",
+  },
+
+  {
+    id: "net_weight_text",
+    label: "Net W",
+    format: (value, row) => row.net_weight_text || "-"
+  },
+
+  {
+    id: "package_count_text",
+    label: "Số kiện",
+    format: (value, row) => row.package_count_text || "-"
+  },
+
+  {
+    id: "container_volume_text",
+    label: "Khối lượng cont/ lẻ",
+    format: (value, row) => row.container_volume_text || "-"
+  },
+
+  {
+    id: "pallet_info",
+    label: "Loại pallet, kích thước, tải trọng",
+    format: (value, row) => row.pallet_info || "-"
+  },
+
+  {
+    id: "accessory_status",
+    label: "Tình trạng phụ kiện",
+    format: (value, row) => row.accessory_status || "-"
+  },
+
+  getAuditColumn(),
+];
 
   const handleOpen = (order = null) => {
     if (order) {
@@ -481,6 +581,8 @@ export default function OrderPage() {
         customer_confirmation_result: order.customer_confirmation_result || "",
         pallet_info: order.pallet_info || "",
         accessory_status: order.accessory_status || "",
+        expected_material_date: order.expected_material_date ? DateTime.fromISO(order.expected_material_date).toFormat("yyyy-MM-dd") : "",
+        actual_material_date: order.actual_material_date ? DateTime.fromISO(order.actual_material_date).toFormat("yyyy-MM-dd") : "",
       });
     } else {
       setSelectedOrder(null);
@@ -1069,6 +1171,45 @@ export default function OrderPage() {
                         />
                       </div>
                     </div>
+
+                    {/* XNK Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-zinc-100 pb-5">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Ngày NL về xưởng (Dự kiến)
+                        </Label>
+                        <Controller
+                          name="expected_material_date"
+                          control={control}
+                          render={({ field }) => (
+                            <PremiumDatePicker
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Chọn ngày NL về xưởng"
+                            />
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Ngày báo XNK
+                        </Label>
+                        <Controller
+                          name="actual_material_date"
+                          control={control}
+                          render={({ field }) => (
+                            <PremiumDatePicker
+                              date={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Chọn ngày báo XNK"
+                            />
+                          )}
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold">Kết quả xác nhận Khách hàng</Label>
                       <Controller
