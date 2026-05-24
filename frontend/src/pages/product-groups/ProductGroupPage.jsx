@@ -21,6 +21,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function ProductGroupPage() {
   const queryClient = useQueryClient();
@@ -65,7 +67,12 @@ export default function ProductGroupPage() {
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["productGroups"] }); handleClose(); } };
   const createMutation = useMutation({ mutationFn: productGroupService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => productGroupService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: productGroupService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["productGroups"] }) });
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "product_group",
+    entityLabel: "nhóm mã hàng",
+    deleteFn: productGroupService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["productGroups"] }),
+  });
 
   const addOpMutation = useMutation({
     mutationFn: (payload) => productGroupService.addOperation(selectedGroup.id, payload),
@@ -173,7 +180,7 @@ export default function ProductGroupPage() {
           isLoading={isLoading}
           error={error}
           onEdit={hasPermission("product_groups:update") ? handleOpen : undefined}
-          onDelete={hasPermission("product_groups:delete") ? (g) => { if (window.confirm(`Xóa nhóm "${g.name}"?`)) deleteMutation.mutate(g.id); } : undefined}
+          onDelete={hasPermission("product_groups:delete") ? (g) => openDelete(g) : undefined}
           isServerSide={true}
           totalItems={totalItems}
           page={page}
@@ -428,6 +435,8 @@ export default function ProductGroupPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

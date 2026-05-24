@@ -1,4 +1,9 @@
 import pool from "../../config/db.js";
+import {
+  ORDER_PRODUCT_JSON_FIELDS,
+  insertOrderProductWithSnapshot,
+  refreshOrderProductSnapshots,
+} from "../../utils/order-product-snapshot.util.js";
 
 export const getOrders = async (req, res) => {
   try {
@@ -45,7 +50,11 @@ export const getOrders = async (req, res) => {
 
     if (product_id && product_id !== "ALL") {
       queryParams.push(product_id);
-      whereClause += ` AND EXISTS (SELECT 1 FROM order_products op_f WHERE op_f.order_id = o.id AND op_f.product_id = $${queryParams.length})`;
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM order_products op_f
+        JOIN products p_f ON op_f.product_id = p_f.id AND p_f.deleted_at IS NULL
+        WHERE op_f.order_id = o.id AND op_f.product_id = $${queryParams.length}
+      )`;
     }
 
     if (person_in_charge) {
@@ -79,7 +88,7 @@ export const getOrders = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) 
       FROM orders o
-      JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN customers c ON o.customer_id = c.id AND c.deleted_at IS NULL
       LEFT JOIN order_ext oe ON o.id = oe.order_id
       ${whereClause}
     `;
@@ -111,6 +120,7 @@ export const getOrders = async (req, res) => {
             WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
           ), 0) as total_packaging_out
         FROM order_products op
+        JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
         GROUP BY op.order_id
       )
       SELECT o.*, c.name as customer_name, 
@@ -123,14 +133,16 @@ export const getOrders = async (req, res) => {
                ELSE 0 
              END as completion_percentage,
              COALESCE(
-               (SELECT json_agg(json_build_object('id', p.id, 'name', p.name, 'product_group_id', p.product_group_id, 'quantity', op.quantity))
+               (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
                 FROM order_products op
-                JOIN products p ON op.product_id = p.id
+                JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
+                LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
+                LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
                 WHERE op.order_id = o.id),
                '[]'
              ) as products
       FROM orders o
-      JOIN customers c ON o.customer_id = c.id
+      LEFT JOIN customers c ON o.customer_id = c.id AND c.deleted_at IS NULL
       LEFT JOIN users cu ON o.created_by = cu.id
       LEFT JOIN users mu ON o.modified_by = mu.id
       LEFT JOIN order_ext oe ON o.id = oe.order_id
@@ -159,6 +171,76 @@ export const getOrders = async (req, res) => {
 };
 
 
+export const getOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dataQuery = `
+      WITH order_completion AS (
+        SELECT 
+          op.order_id,
+          SUM(op.quantity) as total_required,
+          COALESCE((
+            SELECT SUM(dti.actual_quantity) 
+            FROM daily_production_ticket_items dti 
+            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+            WHERE dti.order_id = op.order_id AND dt.deleted_at IS NULL
+          ), 0) as total_sx,
+          COALESCE((
+            SELECT SUM(oti.quantity_out) 
+            FROM outsourcing_tickets ot 
+            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+            WHERE oti.order_id = op.order_id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+          ), 0) as total_plating_out,
+          COALESCE((
+            SELECT SUM(oti.quantity_out) 
+            FROM outsourcing_tickets ot 
+            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+            WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+          ), 0) as total_packaging_out
+        FROM order_products op
+        JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
+        WHERE op.order_id = $1
+        GROUP BY op.order_id
+      )
+      SELECT o.*, c.name as customer_name, 
+             COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
+             oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
+             oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
+             oe.pallet_info, oe.accessory_status,
+             CASE 
+               WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
+               ELSE 0 
+             END as completion_percentage,
+             COALESCE(
+               (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
+                FROM order_products op
+                JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
+                LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
+                LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
+                WHERE op.order_id = o.id),
+               '[]'
+             ) as products
+      FROM orders o
+      LEFT JOIN customers c ON o.customer_id = c.id AND c.deleted_at IS NULL
+      LEFT JOIN users cu ON o.created_by = cu.id
+      LEFT JOIN users mu ON o.modified_by = mu.id
+      LEFT JOIN order_ext oe ON o.id = oe.order_id
+      LEFT JOIN order_completion oc ON o.id = oc.order_id
+      WHERE o.id = $1 AND o.deleted_at IS NULL
+    `;
+
+    const result = await pool.query(dataQuery, [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get Order By Id Error:", error);
+    res.status(500).json({ message: "Error retrieving order" });
+  }
+};
+
 export const getOrderCompletionReport = async (req, res) => {
   try {
     const { id } = req.params;
@@ -167,7 +249,8 @@ export const getOrderCompletionReport = async (req, res) => {
       WITH product_stages AS (
           SELECT 
               op.product_id,
-              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id
+              COALESCE(op.product_group_id, p.product_group_id) AS effective_group_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id
           FROM order_products op
           JOIN products p ON op.product_id = p.id
           WHERE op.order_id = $1
@@ -204,7 +287,7 @@ export const getOrderCompletionReport = async (req, res) => {
       )
       SELECT 
         p.id as product_id,
-        p.name as product_code,
+        COALESCE(op.product_name, p.name) as product_code,
         op.quantity as required_quantity,
         COALESCE(st.total_sx, 0) as sx_quantity,
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
@@ -273,9 +356,10 @@ export const getOrderSummaryReport = async (req, res) => {
       WITH product_stages AS (
           SELECT 
               op.product_id,
-              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order ASC LIMIT 1) as start_pgo_id,
-              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id,
-              (SELECT o.name FROM product_group_operations pgo JOIN operations o ON pgo.operation_id = o.id WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_op_name
+              COALESCE(op.product_group_id, p.product_group_id) AS effective_group_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order ASC LIMIT 1) as start_pgo_id,
+              (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id,
+              (SELECT o.name FROM product_group_operations pgo JOIN operations o ON pgo.operation_id = o.id WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_op_name
           FROM order_products op
           JOIN products p ON op.product_id = p.id
           WHERE op.order_id = $1
@@ -304,7 +388,7 @@ export const getOrderSummaryReport = async (req, res) => {
       )
       SELECT 
           p.id as product_id,
-          p.name as product_name,
+          COALESCE(op.product_name, p.name) as product_name,
           op.quantity as required_quantity,
           ps.final_op_name,
           COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.start_pgo_id AND dt.deleted_at IS NULL), 0) as started_quantity,
@@ -327,7 +411,7 @@ export const getOrderSummaryReport = async (req, res) => {
               WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL
               GROUP BY dti.product_group_operation_id
             ) op_totals ON op_totals.product_group_operation_id = pgo.id
-            WHERE pgo.product_group_id = p.product_group_id AND pgo.deleted_at IS NULL
+            WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL
           ) as operations_detail
       FROM order_products op
       JOIN products p ON op.product_id = p.id
@@ -448,11 +532,13 @@ export const createOrder = async (req, res) => {
 
     const orderId = insertRes.rows[0].id;
 
-    // 2. Insert Order Products with quantity
+    // 2. Insert Order Products with quantity + snapshot
     for (const item of items) {
-      await client.query(
-        "INSERT INTO order_products (order_id, product_id, quantity) VALUES ($1, $2, $3)",
-        [orderId, item.product_id, parseFloat(item.quantity) || 0],
+      await insertOrderProductWithSnapshot(
+        client,
+        orderId,
+        item.product_id,
+        item.quantity,
       );
     }
 
@@ -545,10 +631,24 @@ export const updateOrder = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
     const beforeData = currentOrderRes.rows[0];
+    const currentStatus = beforeData.status;
+    const newStatus = status ?? currentStatus;
+
+    if (
+      currentStatus === "DONE" &&
+      ((product_items && Array.isArray(product_items)) ||
+        (typeof product_ids !== "undefined" && Array.isArray(product_ids)))
+    ) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        message: "Đơn hàng đã hoàn thành, không thể thay đổi danh sách mã hàng.",
+      });
+    }
 
     // po_auto_code is now manual, we take it directly from req.body
-    if (po_auto_code === undefined) {
-      po_auto_code = beforeData.po_auto_code;
+    let resolvedPoAutoCode = po_auto_code;
+    if (resolvedPoAutoCode === undefined) {
+      resolvedPoAutoCode = beforeData.po_auto_code;
     }
 
     // Sync Products - support both product_items (new) and product_ids (legacy)
@@ -558,9 +658,11 @@ export const updateOrder = async (req, res) => {
         id,
       ]);
       for (const item of product_items) {
-        await client.query(
-          "INSERT INTO order_products (order_id, product_id, quantity) VALUES ($1, $2, $3)",
-          [id, item.product_id, parseFloat(item.quantity) || 0],
+        await insertOrderProductWithSnapshot(
+          client,
+          id,
+          item.product_id,
+          item.quantity,
         );
       }
       totalQuantity = product_items.reduce(
@@ -583,10 +685,7 @@ export const updateOrder = async (req, res) => {
         id,
       ]);
       for (const pId of product_ids) {
-        await client.query(
-          "INSERT INTO order_products (order_id, product_id) VALUES ($1, $2)",
-          [id, pId],
-        );
+        await insertOrderProductWithSnapshot(client, id, pId, 0);
       }
 
       // Update legacy product_id
@@ -617,7 +716,7 @@ export const updateOrder = async (req, res) => {
       [
         name,
         po_customer,
-        po_auto_code,
+        resolvedPoAutoCode,
         received_date,
         delivery_date || null,
         totalQuantity || quantity,
@@ -631,6 +730,10 @@ export const updateOrder = async (req, res) => {
     );
 
     const afterData = result.rows[0];
+
+    if (newStatus === "DONE" && currentStatus !== "DONE") {
+      await refreshOrderProductSnapshots(client, id);
+    }
 
     // Update order_ext
     const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
@@ -723,6 +826,108 @@ export const deleteOrder = async (req, res) => {
     res.status(500).json({ message: "Error deleting order", error });
   } finally {
     client.release();
+  }
+};
+
+export const getOrderProductSnapshots = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search = "",
+      order_id,
+      status,
+      drift_only,
+    } = req.query;
+    const pageInt = parseInt(page) || 1;
+    const limitInt = Math.min(parseInt(limit) || 20, 100);
+    const offsetInt = (pageInt - 1) * limitInt;
+
+    let whereClause = "WHERE o.deleted_at IS NULL";
+    const queryParams = [];
+
+    if (search) {
+      queryParams.push(`%${search}%`);
+      const i = queryParams.length;
+      whereClause += ` AND (
+        o.order_code ILIKE $${i} OR o.name ILIKE $${i}
+        OR op.product_name ILIKE $${i} OR p.name ILIKE $${i}
+        OR op.product_group_name ILIKE $${i}
+      )`;
+    }
+
+    if (order_id) {
+      queryParams.push(order_id);
+      whereClause += ` AND o.id = $${queryParams.length}`;
+    }
+
+    if (status && status !== "ALL") {
+      queryParams.push(status);
+      whereClause += ` AND o.status = $${queryParams.length}`;
+    }
+
+    if (drift_only === "true" || drift_only === "1") {
+      whereClause += ` AND (
+        (op.product_name IS NOT NULL AND p.name IS DISTINCT FROM op.product_name)
+        OR (op.product_group_id IS NOT NULL AND p.product_group_id IS DISTINCT FROM op.product_group_id)
+      )`;
+    }
+
+    const countQuery = `
+      SELECT COUNT(*)
+      FROM order_products op
+      JOIN orders o ON o.id = op.order_id
+      JOIN products p ON p.id = op.product_id AND p.deleted_at IS NULL
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    const dataQuery = `
+      SELECT
+        (op.order_id::text || '-' || op.product_id::text) AS id,
+        op.order_id,
+        op.product_id,
+        op.quantity,
+        op.product_name AS snapshot_product_name,
+        op.product_group_id AS snapshot_product_group_id,
+        op.product_group_name AS snapshot_product_group_name,
+        op.snapshot_at,
+        p.name AS current_product_name,
+        p.product_group_id AS current_product_group_id,
+        pg_live.name AS current_product_group_name,
+        o.order_code,
+        o.name AS order_name,
+        o.status AS order_status,
+        c.name AS customer_name,
+        (op.product_name IS NOT NULL AND p.name IS DISTINCT FROM op.product_name)
+          OR (op.product_group_id IS NOT NULL AND p.product_group_id IS DISTINCT FROM op.product_group_id)
+          AS has_master_drift
+      FROM order_products op
+      JOIN orders o ON o.id = op.order_id
+      JOIN products p ON p.id = op.product_id AND p.deleted_at IS NULL
+      LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
+      LEFT JOIN customers c ON c.id = o.customer_id AND c.deleted_at IS NULL
+      ${whereClause}
+      ORDER BY op.snapshot_at DESC NULLS LAST, o.order_code ASC, op.product_id ASC
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+    `;
+
+    const result = await pool.query(dataQuery, [
+      ...queryParams,
+      limitInt,
+      offsetInt,
+    ]);
+
+    res.json({
+      data: result.rows,
+      total,
+      page: pageInt,
+      limit: limitInt,
+    });
+  } catch (error) {
+    console.error("Get Order Product Snapshots Error:", error);
+    res.status(500).json({ message: "Error retrieving order product snapshots" });
   }
 };
 

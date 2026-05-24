@@ -1,4 +1,5 @@
 import pool from '../../config/db.js'
+import { cascadeOnProductGroupDelete } from '../../utils/cascade-delete.util.js'
 
 export const getProductGroups = async (req, res) => {
   try {
@@ -91,22 +92,31 @@ export const updateProductGroup = async (req, res) => {
 }
 
 export const deleteProductGroup = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const userId = req.user?.id;
-    const beforeRes = await pool.query('SELECT * FROM product_groups WHERE id = $1 AND deleted_at IS NULL', [id]);
+    const beforeRes = await client.query('SELECT * FROM product_groups WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Product group not found' });
-    await pool.query(
+
+    await client.query('BEGIN');
+    await cascadeOnProductGroupDelete(client, id, userId);
+    await client.query(
       'UPDATE product_groups SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1',
-      [id, userId]
+      [id, userId],
     );
-    await pool.query(
+    await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data) VALUES ($1, 'DELETE', 'ProductGroup', $2, $3)`,
-      [userId, id, beforeRes.rows[0]]
+      [userId, id, beforeRes.rows[0]],
     );
+    await client.query('COMMIT');
+
     res.json({ message: 'Product group deleted successfully' });
   } catch (error) {
+    await client.query('ROLLBACK');
     res.status(500).json({ message: 'Error deleting product group', error });
+  } finally {
+    client.release();
   }
 }
 

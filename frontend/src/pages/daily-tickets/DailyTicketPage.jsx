@@ -4,6 +4,7 @@ import { DateTime } from "luxon";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { dailyTicketService } from "../../services/daily-ticket.service";
+import { userService } from "../../services/user.service";
 import * as XLSX from 'xlsx';
 import { Download } from "lucide-react";
 
@@ -14,7 +15,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import GenericTable from "@/components/GenericTable";
@@ -22,14 +33,15 @@ import { getAuditColumn } from "@/utils/audit";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+const TICKET_STATUS_OPTIONS = [
+  { value: "ALL", label: "Tất cả phiếu" },
+  { value: "DRAFT", label: "Nháp" },
+  { value: "APPROVED", label: "Đã duyệt" },
+  { value: "COMPLETED", label: "Xong" },
+];
 
+const getUserDisplayName = (user) =>
+  user?.full_name || user?.username || (user?.id ? `#${user.id}` : "");
 
 export default function DailyTicketPage() {
   const navigate = useNavigate();
@@ -45,6 +57,7 @@ export default function DailyTicketPage() {
     startDate: "",
     endDate: "",
     ticket_status: "ALL",
+    created_by: "ALL",
     search: "",
   };
 
@@ -60,15 +73,30 @@ export default function DailyTicketPage() {
     setAppliedFilters(initialFilters);
   }, [initialFilters]);
 
+  const { data: usersData } = useQuery({
+    queryKey: ["users", "daily-ticket-filter"],
+    queryFn: () => userService.getAll({ limit: 1000 }),
+  });
+  const users = usersData?.data || [];
+
+  const buildTicketQueryParams = useCallback((filters, extra = {}, { forExport = false } = {}) => {
+    const { ticket_status, created_by, ...rest } = filters;
+    return {
+      ...rest,
+      ...extra,
+      ...(forExport
+        ? { ticket_status }
+        : { status: ticket_status, exclude_pending: true }),
+      ...(created_by && created_by !== "ALL" ? { created_by } : {}),
+    };
+  }, []);
+
   const { data: ticketData, isLoading, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
-    queryFn: () => dailyTicketService.getAll({
+    queryFn: () => dailyTicketService.getAll(buildTicketQueryParams(appliedFilters, {
       page,
       limit: pageSize,
-      ...appliedFilters,
-      status: appliedFilters.ticket_status,
-      exclude_pending: true
-    }),
+    })),
   });
 
   const tickets = ticketData?.data || [];
@@ -102,9 +130,7 @@ export default function DailyTicketPage() {
 
   const handleExportExcel = async () => {
     try {
-      const params = {
-        ...appliedFilters,
-      };
+      const params = buildTicketQueryParams(appliedFilters, {}, { forExport: true });
       if (selectedIds.length > 0) {
         params.ids = selectedIds.join(',');
       }
@@ -266,6 +292,7 @@ export default function DailyTicketPage() {
           onSearch={handleSearch}
           onReset={handleReset}
           initialFilters={initialFilters}
+          users={users}
         />
       </div>
 
@@ -368,8 +395,16 @@ export default function DailyTicketPage() {
   );
 }
 
-const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
+const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, users = [] }) => {
   const [tempFilters, setTempFilters] = useState(initialFilters);
+
+  const selectedStatusLabel =
+    TICKET_STATUS_OPTIONS.find((o) => o.value === tempFilters.ticket_status)?.label || "Tất cả phiếu";
+
+  const selectedCreatorLabel =
+    tempFilters.created_by === "ALL" || !tempFilters.created_by
+      ? "Tất cả"
+      : getUserDisplayName(users.find((u) => String(u.id) === String(tempFilters.created_by))) || "Tất cả";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -401,25 +436,110 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
         </div>
 
         {/* Filters Grid */}
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Trạng thái */}
-          <Select
-            value={tempFilters.ticket_status}
-            onValueChange={val => setTempFilters(prev => ({ ...prev, ticket_status: val }))}
-          >
-            <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
-              <div className="flex items-center gap-2 overflow-hidden">
-                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Trạng thái:</span>
-                <SelectValue placeholder="Tất cả" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả phiêú</SelectItem>
-              <SelectItem value="DRAFT">Nháp</SelectItem>
-              <SelectItem value="APPROVED">Đã duyệt</SelectItem>
-              <SelectItem value="COMPLETED">Xong</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Trạng thái:</span>
+                  <span className="truncate text-[11px] text-zinc-900">{selectedStatusLabel}</span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandList className="max-h-[220px] p-1">
+                  <CommandGroup>
+                    {TICKET_STATUS_OPTIONS.map((opt) => (
+                      <CommandItem
+                        key={opt.value}
+                        value={opt.label}
+                        onSelect={() => setTempFilters((prev) => ({ ...prev, ticket_status: opt.value }))}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                      >
+                        <span className="text-[11px] font-bold">{opt.label}</span>
+                        <Check
+                          className={cn(
+                            "h-4 w-4 text-indigo-600",
+                            tempFilters.ticket_status === opt.value ? "opacity-100" : "opacity-0"
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Người tạo */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Người tạo:</span>
+                  <span className="truncate text-[11px] text-zinc-900">{selectedCreatorLabel}</span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm người tạo..." />
+                <CommandList className="max-h-[300px] p-1">
+                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                    Không thấy người dùng
+                  </CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="tat-ca"
+                      onSelect={() => setTempFilters((prev) => ({ ...prev, created_by: "ALL" }))}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                    >
+                      <span className="text-[11px] font-bold">Tất cả</span>
+                      <Check
+                        className={cn(
+                          "h-4 w-4 text-indigo-600",
+                          tempFilters.created_by === "ALL" ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                    {users.map((u) => {
+                      const label = getUserDisplayName(u);
+                      return (
+                        <CommandItem
+                          key={u.id}
+                          value={label}
+                          onSelect={() => setTempFilters((prev) => ({ ...prev, created_by: String(u.id) }))}
+                          className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                        >
+                          <span className="text-[11px] font-bold">{label}</span>
+                          <Check
+                            className={cn(
+                              "h-4 w-4 text-indigo-600",
+                              String(tempFilters.created_by) === String(u.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
 
           {/* Khoảng ngày */}
           <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">

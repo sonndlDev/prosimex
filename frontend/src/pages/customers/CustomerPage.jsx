@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function CustomerPage() {
   const queryClient = useQueryClient();
@@ -37,7 +39,12 @@ export default function CustomerPage() {
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["customers"] }); handleClose(); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Có lỗi xảy ra") };
   const createMutation = useMutation({ mutationFn: customerService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => customerService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: customerService.delete, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["customers"] }); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "customer",
+    entityLabel: "khách hàng",
+    deleteFn: customerService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+  });
 
   const columns = [
     { id: "code", label: "Mã công ty" },
@@ -77,8 +84,8 @@ export default function CustomerPage() {
       <GenericTable
         data={customers} columns={columns} isLoading={isLoading} error={error}
         onEdit={hasPermission("customers:update") ? handleOpen : undefined}
-        onDelete={hasPermission("customers:delete") ? (c) => { if (window.confirm(`Xóa khách hàng "${c.name}"?`)) deleteMutation.mutate(c.id); } : undefined}
-        onBulkDelete={hasPermission("customers:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} khách hàng?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
+        onDelete={hasPermission("customers:delete") ? (c) => openDelete(c) : undefined}
+        onBulkDelete={hasPermission("customers:delete") ? (ids) => openDelete(ids) : undefined}
         isServerSide={true}
         totalItems={totalItems}
         page={page}
@@ -119,6 +126,8 @@ export default function CustomerPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

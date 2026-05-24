@@ -1,4 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
@@ -80,7 +81,8 @@ import {
   RotateCcw,
   MessageSquare,
   Upload,
-  Download
+  Download,
+  Camera,
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
@@ -88,35 +90,25 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import * as XLSX from "xlsx";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "../../context/AuthContext";
+import {
+  PRODUCT_ITEMS_GRID,
+  orderFormDefaultValues,
+  orderToFormValues,
+  getOrderStatusBadge,
+} from "./orderForm.utils.jsx";
 
-const defaultValues = {
-  order_code: "",
-  po_auto_code: "",
-  name: "",
-  customer_id: "",
-  product_items: [],
-  po_customer: "",
-  received_date: DateTime.now().toFormat("yyyy-MM-dd"),
-  production_location: "",
-  person_in_charge: "",
-  note: "",
-  status: "DRAFT",
-  production_start_date: "",
-  expected_shipping_date: [],
-  expected_container_shipping_date: [],
-  customer_confirmation_result: "",
-  pallet_info: "",
-  accessory_status: "",
-  expected_material_date: "",
-  actual_material_date: "",
-};
-
-export default function OrderPage() {
+function OrderPageCore({
+  mode = "page",
+  externalOpen = false,
+  externalOnClose,
+  externalOrder = null,
+}) {
+  const isEmbed = mode === "embed";
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -169,7 +161,7 @@ export default function OrderPage() {
     watch,
     setValue,
   } = useForm({
-    defaultValues,
+    defaultValues: orderFormDefaultValues,
   });
   const { fields, append, remove } = useFieldArray({
     control,
@@ -177,6 +169,18 @@ export default function OrderPage() {
   });
   const formStatus = watch("status");
   const formPoAutoCode = watch("po_auto_code");
+  const activeOrder = isEmbed ? externalOrder : selectedOrder;
+  const dialogOpen = isEmbed ? externalOpen : openModal;
+  const isProductsLocked =
+    activeOrder?.status === "DONE" || formStatus === "DONE";
+
+  React.useEffect(() => {
+    if (!isEmbed || !externalOpen) return;
+    if (externalOrder) {
+      setSelectedOrder(externalOrder);
+      reset(orderToFormValues(externalOrder));
+    }
+  }, [isEmbed, externalOpen, externalOrder, reset]);
 
   // Queries
   const { data: customersData } = useQuery({
@@ -212,10 +216,16 @@ export default function OrderPage() {
   const totalItems = ordersData?.total || 0;
 
   // Mutations
+  const closeDialog = () => {
+    if (isEmbed) externalOnClose?.();
+    else handleClose();
+  };
+
   const mutationOpts = {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      handleClose();
+      queryClient.invalidateQueries({ queryKey: ["order-product-snapshots"] });
+      closeDialog();
     },
   };
   const createMutation = useMutation({
@@ -244,21 +254,6 @@ export default function OrderPage() {
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa đơn hàng"),
   });
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "PLANNED":
-        return <Badge variant="primary" className="gap-1"><Timer className="w-3 h-3" /> PLANNED</Badge>;
-      case "IN_PROGRESS":
-        return <Badge variant="warning" className="gap-1"><Clock className="w-3 h-3" /> IN PROGRESS</Badge>;
-      case "DONE":
-        return <Badge variant="success" className="gap-1"><CheckCircle2 className="w-3 h-3" /> DONE</Badge>;
-      case "CANCELLED":
-        return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> CANCELLED</Badge>;
-      default:
-        return <Badge variant="outline">DRAFT</Badge>;
-    }
-  };
 
   const columns = [
   {
@@ -464,7 +459,7 @@ export default function OrderPage() {
   {
     id: "status",
     label: "Trạng thái",
-    format: (value) => getStatusBadge(value),
+    format: (value) => getOrderStatusBadge(value),
   },
 
   {
@@ -552,41 +547,10 @@ export default function OrderPage() {
   const handleOpen = (order = null) => {
     if (order) {
       setSelectedOrder(order);
-      reset({
-        order_code: order.order_code,
-        po_auto_code: order.po_auto_code || "",
-        name: order.name,
-        customer_id: String(order.customer_id),
-        product_items:
-          order.products?.map((p) => ({
-            product_group_id: String(p.product_group_id || ""),
-            product_id: String(p.id),
-            quantity: p.quantity || "",
-          })) || [],
-        po_customer: order.po_customer,
-        received_date: DateTime.fromISO(order.received_date).toFormat(
-          "yyyy-MM-dd",
-        ),
-        production_location: order.production_location || "",
-        person_in_charge: order.person_in_charge || "",
-        note: order.note || "",
-        status: order.status,
-        production_start_date: order.production_start_date ? DateTime.fromISO(order.production_start_date).toFormat("yyyy-MM-dd") : "",
-        expected_shipping_date: Array.isArray(order.expected_shipping_date) 
-          ? order.expected_shipping_date.map(d => DateTime.fromISO(d).toFormat("yyyy-MM-dd"))
-          : order.expected_shipping_date ? [DateTime.fromISO(order.expected_shipping_date).toFormat("yyyy-MM-dd")] : [],
-        expected_container_shipping_date: Array.isArray(order.expected_container_shipping_date)
-          ? order.expected_container_shipping_date.map(d => DateTime.fromISO(d).toFormat("yyyy-MM-dd"))
-          : order.expected_container_shipping_date ? [DateTime.fromISO(order.expected_container_shipping_date).toFormat("yyyy-MM-dd")] : [],
-        customer_confirmation_result: order.customer_confirmation_result || "",
-        pallet_info: order.pallet_info || "",
-        accessory_status: order.accessory_status || "",
-        expected_material_date: order.expected_material_date ? DateTime.fromISO(order.expected_material_date).toFormat("yyyy-MM-dd") : "",
-        actual_material_date: order.actual_material_date ? DateTime.fromISO(order.actual_material_date).toFormat("yyyy-MM-dd") : "",
-      });
+      reset(orderToFormValues(order));
     } else {
       setSelectedOrder(null);
-      reset(defaultValues);
+      reset(orderFormDefaultValues);
     }
     setOpenModal(true);
   };
@@ -597,26 +561,37 @@ export default function OrderPage() {
   };
 
   const onSubmit = (data) => {
-    const product_items = data.product_items.filter(
-      (item) => item.product_id && parseFloat(item.quantity) > 0,
-    );
-
-    if (product_items.length === 0) {
-      toast.warning("Vui lòng chọn ít nhất một mã hàng và nhập số lượng.");
-      return;
-    }
-
-    const payload = {
-      ...data,
-      product_items,
-      quantity: product_items.reduce(
-        (sum, item) => sum + parseFloat(item.quantity || 0),
-        0,
-      ),
-    };
+    const payload = { ...data };
     delete payload.product_ids;
 
-    if (selectedOrder) updateMutation.mutate({ id: selectedOrder.id, payload });
+    const skipProductItems = activeOrder?.status === "DONE";
+
+    if (!skipProductItems) {
+      const product_items = data.product_items.filter(
+        (item) => item.product_id && parseFloat(item.quantity) > 0,
+      );
+
+      if (product_items.length === 0) {
+        toast.warning("Vui lòng chọn ít nhất một mã hàng và nhập số lượng.");
+        return;
+      }
+
+      payload.product_items = product_items.map(
+        ({ product_id, product_group_id, quantity }) => ({
+          product_id,
+          product_group_id,
+          quantity,
+        }),
+      );
+      payload.quantity = product_items.reduce(
+        (sum, item) => sum + parseFloat(item.quantity || 0),
+        0,
+      );
+    } else {
+      delete payload.product_items;
+    }
+
+    if (activeOrder) updateMutation.mutate({ id: activeOrder.id, payload });
     else createMutation.mutate(payload);
   };
 
@@ -724,13 +699,146 @@ export default function OrderPage() {
     }
   };
 
+  const formatExportDate = (value) => {
+    if (!value) return "";
+    if (Array.isArray(value)) {
+      return value
+        .filter(Boolean)
+        .map((d) => DateTime.fromISO(d).toFormat("dd/MM/yyyy"))
+        .join(", ");
+    }
+    return DateTime.fromISO(value).toFormat("dd/MM/yyyy");
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "PLANNED":
+        return "PLANNED";
+      case "IN_PROGRESS":
+        return "IN PROGRESS";
+      case "DONE":
+        return "DONE";
+      case "CANCELLED":
+        return "CANCELLED";
+      default:
+        return "DRAFT";
+    }
+  };
+
+  const handleExportExcel = async () => {
+    const toastId = toast.loading("Đang xuất Excel...");
+    try {
+      const exportLimit = Math.max(totalItems, 1);
+      const result = await orderService.getAll({
+        ...appliedFilters,
+        page: 1,
+        limit: exportLimit,
+      });
+      const rows = result?.data || [];
+
+      if (rows.length === 0) {
+        toast.info("Không có dữ liệu để xuất", { id: toastId });
+        return;
+      }
+
+      const formattedData = rows.map((row, index) => {
+        const totalQty =
+          row.products?.reduce(
+            (sum, p) => sum + (parseFloat(p.quantity) || 0),
+            0,
+          ) || 0;
+        const productDetails =
+          row.products
+            ?.map((p) => `${p.name}: ${parseFloat(p.quantity) || 0}`)
+            .join("; ") || "";
+
+        return {
+          STT: index + 1,
+          "PO Hệ thống": row.po_auto_code || "",
+          "PO KH": row.po_customer || "",
+          "Tên đơn hàng": row.name || "",
+          "Tên khách": row.customer_name || "",
+          "Người phụ trách": row.person_in_charge || "",
+          "Ngày nhận đơn": formatExportDate(row.received_date),
+          "Ngày NL về xưởng (Dự kiến)": formatExportDate(row.expected_material_date),
+          "Ngày bắt đầu sản xuất": formatExportDate(row.production_start_date),
+          "Ngày xuất hàng (Dự kiến)": formatExportDate(row.expected_shipping_date),
+          "Ngày báo XNK": formatExportDate(row.actual_material_date),
+          "Ngày xuất công (Thực tế)": formatExportDate(row.expected_container_shipping_date),
+          "Trạng thái": getStatusLabel(row.status),
+          "Kết quả xác nhận Kh": row.customer_confirmation_result || "",
+          "% Hoàn thành": row.completion_percentage ?? 0,
+          "Ghi chú": row.note || "",
+          "Số lượng": totalQty,
+          "Chi tiết mã hàng": productDetails,
+          "Net W": row.net_weight_text || "",
+          "Số kiện": row.package_count_text || "",
+          "Khối lượng cont/ lẻ": row.container_volume_text || "",
+          "Loại pallet, kích thước, tải trọng": row.pallet_info || "",
+          "Tình trạng phụ kiện": row.accessory_status || "",
+          "Người tạo": row.creator_name || "",
+          "Ngày tạo": row.created_at
+            ? DateTime.fromISO(row.created_at).toFormat("dd/MM/yyyy HH:mm")
+            : "",
+          "Người sửa": row.modifier_name || "",
+          "Ngày sửa": row.updated_at
+            ? DateTime.fromISO(row.updated_at).toFormat("dd/MM/yyyy HH:mm")
+            : "",
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "DonHang");
+
+      worksheet["!cols"] = [
+        { wch: 5 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 28 },
+        { wch: 20 },
+        { wch: 16 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 24 },
+        { wch: 10 },
+        { wch: 40 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 16 },
+        { wch: 24 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 18 },
+      ];
+
+      XLSX.writeFile(
+        workbook,
+        `DonHang_${DateTime.now().toFormat("yyyyMMdd_HHmm")}.xlsx`,
+      );
+      toast.success(`Đã xuất ${rows.length} đơn hàng`, { id: toastId });
+    } catch (err) {
+      console.error("Export orders error:", err);
+      toast.error("Lỗi khi xuất file Excel", { id: toastId });
+    }
+  };
+
   const handleBulkDelete = (selectedIds) => {
     if (window.confirm(`Xóa ${selectedIds.length} đơn hàng đã chọn?`)) {
       selectedIds.forEach((id) => deleteMutation.mutate(id));
     }
   };
 
-   return (
+  const pageContent = !isEmbed ? (
     <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-4">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col">
@@ -738,6 +846,23 @@ export default function OrderPage() {
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate("/orders/product-snapshots")}
+            className="h-11 px-6 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl font-bold gap-2"
+          >
+            <Camera className="w-4 h-4" />
+            Snapshot mã hàng
+          </Button> */}
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Xuất Excel
+          </Button>
           {hasPermission("orders:create") && (
             <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
               <Plus className="w-4 h-4" /> Thêm đơn hàng
@@ -775,8 +900,11 @@ export default function OrderPage() {
           freezeFirstCols={true}
         />
       </div>
+    </div>
+  ) : null;
 
-      <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
+  const orderFormDialog = (
+      <Dialog open={dialogOpen} onOpenChange={(v) => !v && closeDialog()}>
         <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl ">
           <form
             onSubmit={rhfHandleSubmit(onSubmit)}
@@ -786,13 +914,13 @@ export default function OrderPage() {
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-4">
                   <DialogTitle className="text-xl font-black tracking-tighter text-zinc-950 uppercase">
-                    {selectedOrder ? `Chỉnh sửa đơn hàng` : "Tạo đơn hàng mới"}
+                    {activeOrder ? `Chỉnh sửa đơn hàng` : "Tạo đơn hàng mới"}
                   </DialogTitle>
-                  {selectedOrder && (
+                  {activeOrder && (
                     <div className="flex items-center gap-2">
-                      {getStatusBadge(formStatus)}
+                      {getOrderStatusBadge(formStatus)}
                       <span className="text-lg font-black text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">
-                        #{selectedOrder.order_code}
+                        #{activeOrder.product_id}
                       </span>
                     </div>
                   )}
@@ -801,7 +929,7 @@ export default function OrderPage() {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={handleClose}
+                    onClick={closeDialog}
                     className="font-bold text-zinc-500 hover:text-zinc-950 px-6"
                   >
                     Hủy bỏ
@@ -1005,7 +1133,7 @@ export default function OrderPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold">Trạng thái</Label>
-                        {selectedOrder ? (
+                        {activeOrder ? (
                           <Controller
                             name="status"
                             control={control}
@@ -1054,7 +1182,7 @@ export default function OrderPage() {
               </div>
 
               {/* Tiến độ và Xác nhận (chỉ hiển thị khi Update theo yêu cầu) */}
-              {selectedOrder && (
+              {activeOrder && (
                 <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
                   <CardContent className="p-6 space-y-5">
                     <div className="flex items-center gap-2">
@@ -1292,6 +1420,15 @@ export default function OrderPage() {
                   </div>
 
                   <div className="p-6 space-y-4">
+                    {isProductsLocked && (
+                      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>
+                          Đơn đã hoàn thành — danh mục mã hàng được khóa theo bản snapshot.
+                          Xem so sánh với dữ liệu gốc tại màn hình Snapshot mã hàng đơn.
+                        </span>
+                      </div>
+                    )}
                     {fields.length === 0 ? (
                       <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
                         <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
@@ -1299,12 +1436,12 @@ export default function OrderPage() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 px-2 mb-2">
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">STT</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Nhóm mã</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Mã hàng</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right">Số lượng</span>
-                          <div />
+                        <div className={cn(PRODUCT_ITEMS_GRID, "px-2 mb-2")}>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-center">STT</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider min-w-0">Nhóm mã</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider min-w-0">Mã hàng</span>
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right min-w-0">Số lượng</span>
+                          <div className="w-9 shrink-0" aria-hidden />
                         </div>
                         {(() => {
                           const watchedItems = watch("product_items") || [];
@@ -1314,31 +1451,46 @@ export default function OrderPage() {
                               .map((it) => String(it.product_id));
 
                             const currentGroupId = watchedItems[index]?.product_group_id;
+                            const snapshotGroupName =
+                              watchedItems[index]?.snapshot_product_group_name ||
+                              productGroups.find((g) => String(g.id) === String(currentGroupId))?.name;
+                            const snapshotProductName =
+                              watchedItems[index]?.snapshot_product_name ||
+                              products.find((p) => String(p.id) === String(watchedItems[index]?.product_id))?.name;
 
                             return (
                               <div
                                 key={field.id}
-                                className="grid grid-cols-[40px_1fr_1.5fr_1fr_40px] gap-4 items-center p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
+                                className={cn(
+                                  PRODUCT_ITEMS_GRID,
+                                  "p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
+                                )}
                               >
-                                <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors pl-1">
+                                <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors text-center tabular-nums">
                                   {String(index + 1).padStart(2, '0')}
                                 </span>
 
+                                {isProductsLocked ? (
+                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-700 truncate">
+                                    {snapshotGroupName || "—"}
+                                  </div>
+                                ) : (
                                 <Controller
                                   name={`product_items.${index}.product_group_id`}
                                   control={control}
                                   render={({ field: f }) => (
+                                    <div className="min-w-0">
                                     <Popover>
                                       <PopoverTrigger asChild>
                                         <Button
                                           variant="outline"
                                           role="combobox"
                                           className={cn(
-                                            "bg-white h-10 border-zinc-200 text-[11px] font-bold justify-between w-full px-3",
+                                            "bg-white h-10 border-zinc-200 text-[11px] font-bold justify-between w-full min-w-0 px-3",
                                             !f.value && "text-zinc-500 font-medium"
                                           )}
                                         >
-                                          <span className="truncate">
+                                          <span className="truncate min-w-0">
                                             {f.value
                                               ? productGroups.find(g => String(g.id) === String(f.value))?.name
                                               : "Chọn nhóm..."}
@@ -1381,9 +1533,16 @@ export default function OrderPage() {
                                         </Command>
                                       </PopoverContent>
                                     </Popover>
+                                    </div>
                                   )}
                                 />
+                                )}
 
+                                {isProductsLocked ? (
+                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-700 truncate">
+                                    {snapshotProductName || "—"}
+                                  </div>
+                                ) : (
                                 <Controller
                                   name={`product_items.${index}.product_id`}
                                   control={control}
@@ -1396,6 +1555,7 @@ export default function OrderPage() {
                                     );
 
                                     return (
+                                      <div className="min-w-0">
                                       <Popover>
                                         <PopoverTrigger asChild>
                                           <Button
@@ -1403,11 +1563,11 @@ export default function OrderPage() {
                                             role="combobox"
                                             disabled={!currentGroupId}
                                             className={cn(
-                                              "w-full h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
+                                              "w-full min-w-0 h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
                                               !f.value && "text-zinc-400 font-medium"
                                             )}
                                           >
-                                            <span className="truncate">
+                                            <span className="truncate min-w-0">
                                               {f.value ? products.find(p => String(p.id) === String(f.value))?.name : "Chọn mã hàng"}
                                             </span>
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1435,30 +1595,38 @@ export default function OrderPage() {
                                           </Command>
                                         </PopoverContent>
                                       </Popover>
+                                      </div>
                                     );
                                   }}
                                 />
+                                )}
 
                                 <Controller
                                   name={`product_items.${index}.quantity`}
                                   control={control}
                                   render={({ field: f }) => (
-                                    <Input
-                                      {...f}
-                                      type="number"
-                                      className="h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white"
-                                      placeholder="0"
-                                    />
+                                    <div className="min-w-0">
+                                      <Input
+                                        {...f}
+                                        type="number"
+                                        disabled={isProductsLocked}
+                                        className="w-full h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white disabled:bg-zinc-50"
+                                        placeholder="0"
+                                      />
+                                    </div>
                                   )}
                                 />
 
+                                {!isProductsLocked && (
                                 <button
                                   type="button"
                                   onClick={() => remove(index)}
-                                  className="w-8 h-8 flex items-center justify-center rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                  className="w-9 h-9 mx-auto flex items-center justify-center rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                                  aria-label="Xóa dòng"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
+                                )}
                               </div>
                             );
                           });
@@ -1466,6 +1634,7 @@ export default function OrderPage() {
                       </div>
                     )}
 
+                    {!isProductsLocked && (
                     <div className="flex gap-2">
                       <input
                         type="file"
@@ -1499,6 +1668,7 @@ export default function OrderPage() {
                         <Download className="w-3 h-3" /> Tải file mẫu
                       </Button>
                     </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1506,34 +1676,9 @@ export default function OrderPage() {
           </form>
         </DialogContent>
       </Dialog>
+  );
 
-      <CompletionReportDialog
-        orderId={reportOrderId}
-        open={openCompletionReport}
-        onClose={() => {
-          setOpenCompletionReport(false);
-          setReportOrderId(null);
-        }}
-      />
-
-      <OrderSummaryDialog
-        orderId={summaryOrderId}
-        open={openSummaryDialog}
-        onClose={() => {
-          setOpenSummaryDialog(false);
-          setSummaryOrderId(null);
-        }}
-      />
-
-      <RemainingQuantityDialog
-        orderId={remainingQuantityOrderId}
-        open={openRemainingQuantity}
-        onClose={() => {
-          setOpenRemainingQuantity(false);
-          setRemainingQuantityOrderId(null);
-        }}
-      />
-
+  const importErrorsDialog = (
       <Dialog open={showImportErrors} onOpenChange={setShowImportErrors}>
         <DialogContent className="max-w-md bg-white rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 bg-red-50 border-b border-red-100">
@@ -1565,8 +1710,67 @@ export default function OrderPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
   );
+
+  if (isEmbed) {
+    return (
+      <>
+        {orderFormDialog}
+        {importErrorsDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {pageContent}
+      {orderFormDialog}
+
+      <CompletionReportDialog
+        orderId={reportOrderId}
+        open={openCompletionReport}
+        onClose={() => {
+          setOpenCompletionReport(false);
+          setReportOrderId(null);
+        }}
+      />
+
+      <OrderSummaryDialog
+        orderId={summaryOrderId}
+        open={openSummaryDialog}
+        onClose={() => {
+          setOpenSummaryDialog(false);
+          setSummaryOrderId(null);
+        }}
+      />
+
+      <RemainingQuantityDialog
+        orderId={remainingQuantityOrderId}
+        open={openRemainingQuantity}
+        onClose={() => {
+          setOpenRemainingQuantity(false);
+          setRemainingQuantityOrderId(null);
+        }}
+      />
+
+      {importErrorsDialog}
+    </>
+  );
+}
+
+export function OrderFormDialog({ open, onClose, order }) {
+  return (
+    <OrderPageCore
+      mode="embed"
+      externalOpen={open}
+      externalOnClose={onClose}
+      externalOrder={order}
+    />
+  );
+}
+
+export default function OrderPage() {
+  return <OrderPageCore mode="page" />;
 }
 
 const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFilters }) => {

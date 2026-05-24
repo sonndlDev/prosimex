@@ -705,7 +705,7 @@ export default function PlanVsActualPage() {
                         const pQty = row.planByDate[date.key] || 0;
                         const aQty = row.actualByDate[date.key] || 0;
                         return (
-                          <React.Fragment key={`data-${row.id}-${date.key}`}>
+                          <React.Fragment key={`data-${row.pp_id || row.order_id}-${date.key}`}>
                             <TableCell className={cn(
                               "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
                               pQty > 0 ? "text-amber-600 bg-amber-50/20" : "text-zinc-200"

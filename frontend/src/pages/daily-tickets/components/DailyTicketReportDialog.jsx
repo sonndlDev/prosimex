@@ -220,7 +220,7 @@ export default function DailyTicketReportDialog({ open, onClose }) {
 
                     <TableBody>
                       {rows.map((row, idx) => (
-                        <TableRow key={row.id} className="group hover:bg-zinc-50 active:bg-zinc-100 transition-colors">
+                        <TableRow key={row.pp_id || `${row.order_id}-${row.product_id}-${row.product_group_operation_id}`} className="group hover:bg-zinc-50 active:bg-zinc-100 transition-colors">
                           <TableCell className="sticky left-0 bg-white group-hover:bg-zinc-50 z-30 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums">{idx + 1}</TableCell>
                           <TableCell className="sticky left-[50px] bg-white group-hover:bg-zinc-50 z-30 font-bold text-center border-r border-zinc-100 tabular-nums">{row.sequence_order || ""}</TableCell>
                           <TableCell className="sticky left-[110px] bg-white group-hover:bg-zinc-50 z-30 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tighter truncate max-w-[200px]">{row.product_name || ""}</TableCell>
@@ -256,7 +256,7 @@ export default function DailyTicketReportDialog({ open, onClose }) {
                              const actQty = row.actualByDate[date.key] || 0;
                              
                              return (
-                               <React.Fragment key={`data-${row.id}-${date.key}`}>
+                               <React.Fragment key={`data-${row.pp_id || row.order_id}-${date.key}`}>
                                   <TableCell className={`text-right text-[11px] font-black border-l border-zinc-100 tabular-nums ${planQty > 0 ? 'text-amber-600 bg-amber-50/10' : 'text-zinc-200'}`}>
                                     {planQty > 0 ? planQty.toLocaleString() : "-"}
                                   </TableCell>

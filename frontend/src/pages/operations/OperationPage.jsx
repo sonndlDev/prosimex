@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 import {
   Select,
@@ -91,10 +93,11 @@ export default function OperationPage() {
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi khi cập nhật công đoạn"),
   });
-  const deleteMutation = useMutation({
-    mutationFn: operationService.delete,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["operations"] }),
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "operation",
+    entityLabel: "công đoạn",
+    deleteFn: operationService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["operations"] }),
   });
 
   const columns = [
@@ -190,22 +193,8 @@ export default function OperationPage() {
           isLoading={isLoading}
           error={error}
           onEdit={hasPermission("operations:update") ? handleOpen : undefined}
-          onDelete={
-            hasPermission("operations:delete")
-              ? (op) => {
-                  if (window.confirm(`Xóa công đoạn "${op.name}"?`))
-                    deleteMutation.mutate(op.id);
-                }
-              : undefined
-          }
-          onBulkDelete={
-            hasPermission("operations:delete")
-              ? (ids) => {
-                  if (window.confirm(`Xóa ${ids.length} công đoạn?`))
-                    ids.forEach((id) => deleteMutation.mutate(id));
-                }
-              : undefined
-          }
+          onDelete={hasPermission("operations:delete") ? (op) => openDelete(op) : undefined}
+          onBulkDelete={hasPermission("operations:delete") ? (ids) => openDelete(ids) : undefined}
           isServerSide={true}
           totalItems={totalItems}
           page={page}
@@ -272,6 +261,8 @@ export default function OperationPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

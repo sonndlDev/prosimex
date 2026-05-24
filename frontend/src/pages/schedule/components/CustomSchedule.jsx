@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
-import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { isMachineDayOverCapacity } from '../../planning/components/shared';
 
 const COLUMN_WIDTH = 50; // px
 const ROW_HEIGHT = 25;
@@ -21,6 +22,8 @@ const getVnDayName = (day) => {
     };
     return map[weekday] || "";
 };
+
+const isSunday = (day) => day.weekday === 7;
 
 export default function CustomSchedule({ resources = [], events = [], dateRange, onStop, isStopping }) {
     const [hoveredEvent, setHoveredEvent] = useState(null);
@@ -61,23 +64,33 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
         return result;
     }, [start, end]);
 
-    // Calculate total "công" per day
-    const totalsByDay = useMemo(() => {
+    // Tổng công theo ngày (header) và theo máy+ngày (cảnh báo đỏ)
+    const { totalsByDay, machineDayMetrics } = useMemo(() => {
         const totals = {};
+        const byMachine = {};
+
         events.forEach(event => {
             const dateStr = DateTime.fromISO(event.start).toISODate();
             const eventDate = DateTime.fromISO(event.start);
             const stoppedAt = event.stopped_at ? DateTime.fromISO(event.stopped_at) : null;
 
-            // Nếu đã dừng và ngày hiện tại trễ hơn ngày dừng -> Không tính vào tổng công
             if (stoppedAt && eventDate.startOf('day') > stoppedAt.startOf('day')) {
                 return;
             }
 
             const cong = parseFloat(event.planned_work_quantity) || 0;
             totals[dateStr] = (totals[dateStr] || 0) + cong;
+
+            const resourceId = String(event.resourceId);
+            if (!byMachine[dateStr]) byMachine[dateStr] = {};
+            if (!byMachine[dateStr][resourceId]) {
+                byMachine[dateStr][resourceId] = { totalHours: 0, hasOvertime: false };
+            }
+            byMachine[dateStr][resourceId].totalHours += cong;
+            if (event.is_overtime) byMachine[dateStr][resourceId].hasOvertime = true;
         });
-        return totals;
+
+        return { totalsByDay: totals, machineDayMetrics: byMachine };
     }, [events]);
 
     const totalGridWidth = days.length * COLUMN_WIDTH;
@@ -163,19 +176,37 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                             <div
                                 key={i}
                                 style={{ width: COLUMN_WIDTH }}
-                                className={`h-full border-r border-zinc-300 flex flex-col items-center justify-end pb-2 transition-colors ${day.isWeekend ? 'bg-zinc-200/50' : (day.hasSame(DateTime.now(), 'day') ? 'bg-blue-50' : 'transparent')
-                                    }`}
+                                className={cn(
+                                    "h-full border-r border-zinc-300 flex flex-col items-center justify-end pb-2 transition-colors",
+                                    isSunday(day)
+                                        ? "bg-zinc-400 text-red-50"
+                                        : day.hasSame(DateTime.now(), 'day')
+                                            ? "bg-blue-50"
+                                            : "transparent"
+                                )}
                             >
                                 <div className="mb-auto pt-2 flex flex-col items-center">
-                                    <span className="text-[10px] font-black text-blue-600 bg-blue-100/50 px-1.5 py-0.5 rounded-full leading-none">
+                                    <span className={cn(
+                                        "text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none",
+                                        isSunday(day) ? "bg-red-100 text-red-700" : "text-blue-600 bg-blue-100/50"
+                                    )}>
                                         {Number(totalsByDay[day.toISODate()] || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}
                                     </span>
-                                    <span className="text-[6px] font-black text-zinc-400 uppercase tracking-tighter mt-0.5">CÔNG</span>
+                                    <span className={cn(
+                                        "text-[6px] font-black uppercase tracking-tighter mt-0.5",
+                                        isSunday(day) ? "text-red-200 opacity-70" : "text-zinc-400"
+                                    )}>CÔNG</span>
                                 </div>
-                                <span className={`text-[8px] font-black uppercase ${day.isWeekend ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                                <span className={cn(
+                                    "text-[8px] font-black uppercase",
+                                    isSunday(day) ? "text-red-100 opacity-80" : "text-zinc-500"
+                                )}>
                                     {getVnDayName(day)}
                                 </span>
-                                <span className={`text-base font-black ${day.hasSame(DateTime.now(), 'day') ? 'text-blue-600' : 'text-zinc-900'}`}>
+                                <span className={cn(
+                                    "text-base font-black",
+                                    isSunday(day) ? "text-red-50" : day.hasSame(DateTime.now(), 'day') ? "text-blue-600" : "text-zinc-900"
+                                )}>
                                     {day.day}
                                 </span>
                             </div>
@@ -208,13 +239,37 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
 
                     {/* Timeline Grid (Absolute Layer Over Resources) */}
                     <div className="absolute top-0 pointer-events-none" style={{ left: RESOURCE_WIDTH, width: totalGridWidth, height: totalHeight }}>
+                        {/* Cảnh báo đỏ: vượt công suất theo từng máy/ngày */}
+                        {layouts.map(layout =>
+                            days.map((day, i) => {
+                                const dateStr = day.toISODate();
+                                const usage = machineDayMetrics[dateStr]?.[String(layout.resourceId)];
+                                const over = usage && isMachineDayOverCapacity(usage.totalHours, usage.hasOvertime);
+                                if (!over) return null;
+                                return (
+                                    <div
+                                        key={`${layout.resourceId}-${i}`}
+                                        style={{
+                                            left: i * COLUMN_WIDTH,
+                                            width: COLUMN_WIDTH,
+                                            top: layout.top,
+                                            height: layout.height,
+                                        }}
+                                        className="absolute bg-red-500/25 border-x border-red-400/50 z-[5]"
+                                    />
+                                );
+                            })
+                        )}
+
                         {/* Vertical Lines */}
                         {days.map((day, i) => (
                             <div
                                 key={i}
                                 style={{ left: i * COLUMN_WIDTH, width: COLUMN_WIDTH }}
-                                className={`absolute top-0 bottom-0 border-r border-zinc-300 ${day.isWeekend ? 'bg-zinc-50/50' : 'transparent'
-                                    }`}
+                                className={cn(
+                                    "absolute top-0 bottom-0 border-r border-zinc-300",
+                                    isSunday(day) ? "bg-zinc-400" : "transparent"
+                                )}
                             />
                         ))}
 
@@ -235,7 +290,14 @@ export default function CustomSchedule({ resources = [], events = [], dateRange,
                                 const width = COLUMN_WIDTH;
 
                                     const isStopped = event.stopped_at && DateTime.fromISO(event.start).startOf('day') > DateTime.fromISO(event.stopped_at).startOf('day');
-                                    const bgColor = isStopped ? '#94a3b8' : (event.backgroundColor || '#2563eb');
+                                    const dateStr = eStart.toISODate();
+                                    const dayUsage = machineDayMetrics[dateStr]?.[String(layout.resourceId)];
+                                    const isOverCapacity = dayUsage && isMachineDayOverCapacity(dayUsage.totalHours, dayUsage.hasOvertime);
+                                    const bgColor = isStopped
+                                        ? '#94a3b8'
+                                        : isOverCapacity
+                                            ? '#ef4444'
+                                            : (event.backgroundColor || '#2563eb');
 
                                     return (
                                         <div

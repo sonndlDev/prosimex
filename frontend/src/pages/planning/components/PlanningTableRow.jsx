@@ -10,7 +10,13 @@ import {
   Loader2,
   HelpCircle
 } from "lucide-react";
-import { ExcelDataCell, ManagedTextField } from "./shared";
+import {
+  ExcelDataCell,
+  ManagedTextField,
+  toDisplayQuantity,
+  parseOvertimeFlag,
+  isMachineDayOverCapacity,
+} from "./shared";
 import {
   Tooltip,
   TooltipContent,
@@ -117,27 +123,24 @@ const PlanningTableRow = React.memo(
               cellBg = "#94a3b8"; // Slate gray for stopped days
               textColor = "#fff";
             } else if (isSunday) {
-              cellBg = "#d4d4d8"; // Darker gray (zinc-300) for Sunday with work
-              textColor = "#000";
+              cellBg = "#71717a"; // zinc-500 for Sunday with work
+              textColor = "#fff";
             } else if (!plan.machine_id) {
               // Nếu không có máy, luôn hiển thị màu xanh theo yêu cầu
               cellBg = "#22c55e"; // Green
               textColor = "#fff";
-            } else if (totalHours > 1.43) {
-              cellBg = "#ef4444"; // Red
+            } else if (isMachineDayOverCapacity(totalHours, hasOvertime)) {
+              cellBg = "#ef4444"; // Red — vượt 1 công hoặc 1,43 nếu tăng ca
               textColor = "#fff";
             } else if (hasOvertime) {
               cellBg = "#22c55e"; // Green
               textColor = "#fff";
-            } else if (totalHours > 1) {
-              cellBg = "#eab308"; // Yellow
-              textColor = "#854d0e";
             } else {
               cellBg = "#22c55e"; // Green
               textColor = "#fff";
             }
           } else if (isSunday) {
-            cellBg = "#e4e4e7"; // zinc-200 for empty Sunday
+            cellBg = "#a1a1aa"; // zinc-400 for empty Sunday
           }
 
           return (
@@ -161,7 +164,7 @@ const PlanningTableRow = React.memo(
                   </span>
                   <ManagedTextField
                     type="number"
-                    value={editDayData ? editDayData.hours : "0"}
+                    value={editDayData ? editDayData.quantity : "0"}
                     onCommit={(val) => onInlineDayChange(plan, date.key, val)}
                     autoFocus={colIdx === 0}
                     className="w-full border-none shadow-none text-blue-600 focus-visible:ring-0"
@@ -169,18 +172,12 @@ const PlanningTableRow = React.memo(
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-0.5">
-                  <span className={`text-[7px] font-black uppercase ${dayData?.is_overtime ? "opacity-100" : "opacity-0"}`}>
+                  <span className={`text-[7px] font-black uppercase ${parseOvertimeFlag(dayData?.is_overtime) ? "opacity-100" : "opacity-0"}`}>
                     TC
                   </span>
                   <span className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}>
                     {dayData
-                      ? (() => {
-                        const qty = parseFloat(dayData.planned_work_quantity) || 0;
-                        const dinhMuc = parseFloat(plan.dinh_muc) || 0;
-                        const base = qty / 8;
-                        const total = Math.round(base * dinhMuc);
-                        return total.toLocaleString('en-US');
-                      })()
+                      ? Math.round(toDisplayQuantity(dayData.planned_work_quantity, plan.dinh_muc))
                       : "-"}
                   </span>
                 </div>

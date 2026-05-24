@@ -18,6 +18,8 @@ import { Check, ChevronsUpDown, Factory, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function MachinePage() {
   const queryClient = useQueryClient();
@@ -47,7 +49,12 @@ export default function MachinePage() {
   const mutationOpts = { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["machines"] }); handleClose(); } };
   const createMutation = useMutation({ mutationFn: machineService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => machineService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({ mutationFn: machineService.delete, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["machines"] }) });
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "machine",
+    entityLabel: "máy",
+    deleteFn: machineService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["machines"] }),
+  });
 
   const columns = [
     { id: "sort_order", label: "Thứ tự sắp xếp", className: "w-16 text-center italic text-zinc-400" },
@@ -100,8 +107,8 @@ export default function MachinePage() {
       });
     }
   };
-  const handleDelete = (m) => { if (window.confirm(`Xóa máy "${m.name}"?`)) deleteMutation.mutate(m.id); };
-  const handleBulkDelete = (ids) => { if (window.confirm(`Xóa ${ids.length} máy đã chọn?`)) ids.forEach(id => deleteMutation.mutate(id)); };
+  const handleDelete = (m) => openDelete(m);
+  const handleBulkDelete = (ids) => openDelete(ids);
 
   return (
     <div className="space-y-6">
@@ -256,6 +263,8 @@ export default function MachinePage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { getIo } from "../../sockets/index.js";
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
   try {
-    const { page = 1, limit = 10, startDate, endDate, search, status } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, search, status, is_manual, created_by } = req.query;
     const offset = (page - 1) * limit;
 
     let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
@@ -25,9 +25,23 @@ export const getTickets = async (req, res) => {
     } else if (req.query.exclude_pending === 'true') {
       whereClause += ` AND dt.status NOT IN ('PENDING_APPROVAL', 'REJECTED')`;
     }
+    if (is_manual === 'true') {
+      whereClause += ` AND dt.is_manual = true`;
+    }
+    if (created_by) {
+      queryParams.push(parseInt(created_by, 10));
+      whereClause += ` AND dt.created_by = $${queryParams.length}`;
+    }
     if (search) {
       queryParams.push(`%${search}%`);
-      whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.po_customer ILIKE $${queryParams.length} OR p.name ILIKE $${queryParams.length})`;
+      whereClause += ` AND (
+        o.name ILIKE $${queryParams.length} OR 
+        o.po_customer ILIKE $${queryParams.length} OR 
+        p.name ILIKE $${queryParams.length} OR
+        CAST(dt.id AS TEXT) ILIKE $${queryParams.length} OR
+        cu.username ILIKE $${queryParams.length} OR
+        cu.full_name ILIKE $${queryParams.length}
+      )`;
     }
 
     const countResult = await pool.query(
@@ -36,6 +50,7 @@ export const getTickets = async (req, res) => {
        LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
        LEFT JOIN orders o ON dti.order_id = o.id
        LEFT JOIN products p ON dti.product_id = p.id
+       LEFT JOIN users cu ON dt.created_by = cu.id
        ${whereClause}`,
       queryParams
     );
@@ -49,6 +64,7 @@ export const getTickets = async (req, res) => {
                 dt.status as ticket_status,
                 dt.ticket_date,
                 dt.is_manual,
+                dt.created_by,
                 dt.created_at,
                 m.name as machine_name,
                 STRING_AGG(DISTINCT o.name, ', ') as order_name,
@@ -82,7 +98,7 @@ export const getTickets = async (req, res) => {
             LEFT JOIN users mu ON dt.modified_by = mu.id
             ${whereClause}
             GROUP BY 
-                dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_at, m.name,
+                dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_by, dt.created_at, m.name,
                 cu.full_name, cu.username, mu.full_name, mu.username
             ORDER BY dt.ticket_date DESC, dt.id DESC
             LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -507,14 +523,21 @@ export const getPlanVsActualReport = async (req, res) => {
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     // Map frontend sort keys to database columns
+    const ppMatchSql = `
+      pp_m.order_id = base.order_id
+      AND pp_m.product_id IS NOT DISTINCT FROM base.product_id
+      AND pp_m.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
+      AND pp_m.deleted_at IS NULL
+    `;
+
     const sortMap = {
       order_code: "o.order_code",
       product_name: "p.name",
       operation_name: "op.name",
       sequence_order: "pgo.sequence_order",
       plan_quantity: "plan_quantity",
-      planned_start_date: "pp.planned_start_date",
-      planned_end_date: "pp.planned_end_date",
+      planned_start_date: `(SELECT MIN(pp_s.planned_start_date) FROM production_plans pp_s WHERE pp_s.deleted_at IS NULL AND pp_s.order_id = base.order_id AND pp_s.product_id IS NOT DISTINCT FROM base.product_id AND pp_s.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id)`,
+      planned_end_date: `(SELECT MAX(pp_s.planned_end_date) FROM production_plans pp_s WHERE pp_s.deleted_at IS NULL AND pp_s.order_id = base.order_id AND pp_s.product_id IS NOT DISTINCT FROM base.product_id AND pp_s.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id)`,
     };
 
     const orderBy = sortMap[sortBy] || "o.order_code";
@@ -537,31 +560,49 @@ export const getPlanVsActualReport = async (req, res) => {
     }
     if (startDate) {
       queryParams.push(startDate);
-      // Nếu có KH thì lọc theo ngày KH, nếu không có KH (manual) thì lọc theo ngày ghi nhận thực tế
+      // Nếu có KH thì lọc theo ngày KH (mọi máy), nếu không có KH (manual) thì lọc theo ngày ghi nhận thực tế
       whereFilters.push(`(
-        (pp.id IS NOT NULL AND pp.planned_end_date >= $${queryParams.length}) OR 
-        (pp.id IS NULL AND EXISTS (
-          SELECT 1 FROM daily_production_ticket_items dti_f 
-          JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
-          WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date >= $${queryParams.length}
-            AND dti_f.order_id = base.order_id 
-            AND dti_f.product_id IS NOT DISTINCT FROM base.product_id 
-            AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
-        ))
+        EXISTS (
+          SELECT 1 FROM production_plans pp_f
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_f")}
+            AND pp_f.planned_end_date >= $${queryParams.length}
+        ) OR (
+          NOT EXISTS (
+            SELECT 1 FROM production_plans pp_f2
+            WHERE ${ppMatchSql.replace(/pp_m/g, "pp_f2")}
+          )
+          AND EXISTS (
+            SELECT 1 FROM daily_production_ticket_items dti_f
+            JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
+            WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date >= $${queryParams.length}
+              AND dti_f.order_id = base.order_id
+              AND dti_f.product_id IS NOT DISTINCT FROM base.product_id
+              AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
+          )
+        )
       )`);
     }
     if (endDate) {
       queryParams.push(endDate);
       whereFilters.push(`(
-        (pp.id IS NOT NULL AND pp.planned_start_date <= $${queryParams.length}) OR 
-        (pp.id IS NULL AND EXISTS (
-          SELECT 1 FROM daily_production_ticket_items dti_f 
-          JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
-          WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date <= $${queryParams.length}
-            AND dti_f.order_id = base.order_id 
-            AND dti_f.product_id IS NOT DISTINCT FROM base.product_id 
-            AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
-        ))
+        EXISTS (
+          SELECT 1 FROM production_plans pp_f
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_f")}
+            AND pp_f.planned_start_date <= $${queryParams.length}
+        ) OR (
+          NOT EXISTS (
+            SELECT 1 FROM production_plans pp_f2
+            WHERE ${ppMatchSql.replace(/pp_m/g, "pp_f2")}
+          )
+          AND EXISTS (
+            SELECT 1 FROM daily_production_ticket_items dti_f
+            JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
+            WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date <= $${queryParams.length}
+              AND dti_f.order_id = base.order_id
+              AND dti_f.product_id IS NOT DISTINCT FROM base.product_id
+              AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
+          )
+        )
       )`);
     }
     if (search) {
@@ -577,27 +618,17 @@ export const getPlanVsActualReport = async (req, res) => {
 
     const whereClause = "WHERE " + whereFilters.join(" AND ");
 
-    // Gộp tất cả các tổ hợp (Order, Product, Operation) có từ Kế hoạch HOẶC từ Phiếu thực tế
+    // Gộp theo (Order, Product, Operation) — cộng dồn mọi kế hoạch máy (1 công đoạn / nhiều máy)
     const baseCombinationsQuery = `
       WITH base_items AS (
-        -- Lấy từ Kế hoạch
-        SELECT 
-          order_id, 
-          product_id, 
-          product_group_operation_id,
-          MAX(id) as pp_id
+        SELECT order_id, product_id, product_group_operation_id
         FROM production_plans
         WHERE deleted_at IS NULL
         GROUP BY order_id, product_id, product_group_operation_id
 
         UNION
 
-        -- Lấy từ Thực tế (những thứ không có trong kế hoạch hoặc không link pp_id)
-        SELECT 
-          dti.order_id, 
-          dti.product_id, 
-          dti.product_group_operation_id,
-          NULL as pp_id
+        SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
         FROM daily_production_ticket_items dti
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
         WHERE dt.deleted_at IS NULL
@@ -605,30 +636,76 @@ export const getPlanVsActualReport = async (req, res) => {
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
       unique_base AS (
-        SELECT order_id, product_id, product_group_operation_id, MAX(pp_id) as pp_id
+        SELECT order_id, product_id, product_group_operation_id
         FROM base_items
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT 
-        base.*,
+        base.order_id,
+        base.product_id,
+        base.product_group_operation_id,
+        (SELECT MAX(pp_rep.id) FROM production_plans pp_rep WHERE ${ppMatchSql.replace(/pp_m/g, "pp_rep")}) as pp_id,
         o.order_code, o.name as order_name, o.po_customer,
         p.name as product_name, pgo.sequence_order,
         pg.name as product_group_name,
-        op.name as operation_name,
-        m.name as machine_name,
+        COALESCE(
+          op.name,
+          (
+            SELECT MAX(dti_sn.operation_name)
+            FROM daily_production_ticket_items dti_sn
+            JOIN daily_production_tickets dt_sn ON dt_sn.id = dti_sn.ticket_id
+            WHERE dt_sn.deleted_at IS NULL
+              AND dti_sn.order_id = base.order_id
+              AND dti_sn.product_id IS NOT DISTINCT FROM base.product_id
+              AND dti_sn.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
+          )
+        ) as operation_name,
+        COALESCE(
+          (
+            SELECT string_agg(DISTINCT COALESCE(m_agg.name, m_agg.code), ', ' ORDER BY COALESCE(m_agg.name, m_agg.code))
+            FROM production_plans pp_agg
+            JOIN machines m_agg ON pp_agg.machine_id = m_agg.id
+            WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+          ),
+          (SELECT m_pgo.name FROM machines m_pgo WHERE m_pgo.id = pgo.machine_id)
+        ) as machine_name,
         COALESCE(op_qty.quantity, o.quantity, 0) as plan_quantity,
-        pp.inventory_input,
-        pp.total_required_work,
-        pp.planned_start_date,
-        pp.planned_end_date,
-        COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
+        (
+          SELECT MAX(pp_agg.inventory_input)
+          FROM production_plans pp_agg
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+        ) as inventory_input,
+        (
+          SELECT COALESCE(SUM(pp_agg.total_required_work), 0)
+          FROM production_plans pp_agg
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+        ) as total_required_work,
+        (
+          SELECT MIN(pp_agg.planned_start_date)
+          FROM production_plans pp_agg
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+        ) as planned_start_date,
+        (
+          SELECT MAX(pp_agg.planned_end_date)
+          FROM production_plans pp_agg
+          WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+        ) as planned_end_date,
+        COALESCE(
+          (
+            SELECT MAX(pp_agg.dinh_muc)
+            FROM production_plans pp_agg
+            WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+          ),
+          pgo.dinh_muc
+        ) as dinh_muc,
         (
             SELECT json_agg(json_build_object(
                 'working_date', ppd.working_date,
                 'planned_quantity', ppd.planned_work_quantity
             ))
             FROM production_plan_days ppd
-            WHERE ppd.production_plan_id = pp.id
+            JOIN production_plans pp_agg ON ppd.production_plan_id = pp_agg.id
+            WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
         ) as plan_days,
         (
             SELECT json_agg(json_build_object(
@@ -639,23 +716,23 @@ export const getPlanVsActualReport = async (req, res) => {
             JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
             WHERE dt.deleted_at IS NULL
               AND (
-                dti.production_plan_id = pp.id 
+                dti.production_plan_id IN (
+                  SELECT pp_agg.id FROM production_plans pp_agg WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+                )
                 OR (
-                  dti.production_plan_id IS NULL 
-                  AND dti.order_id = base.order_id 
-                  AND dti.product_id IS NOT DISTINCT FROM base.product_id 
+                  dti.production_plan_id IS NULL
+                  AND dti.order_id = base.order_id
+                  AND dti.product_id IS NOT DISTINCT FROM base.product_id
                   AND dti.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
                 )
               )
         ) as actual_tickets
       FROM unique_base base
-      LEFT JOIN production_plans pp ON base.pp_id = pp.id
       LEFT JOIN orders o ON base.order_id = o.id
       LEFT JOIN products p ON base.product_id = p.id
       LEFT JOIN product_groups pg ON p.product_group_id = pg.id
       LEFT JOIN product_group_operations pgo ON base.product_group_operation_id = pgo.id
       LEFT JOIN operations op ON pgo.operation_id = op.id
-      LEFT JOIN machines m ON COALESCE(pp.machine_id, pgo.machine_id) = m.id
       LEFT JOIN order_products op_qty ON op_qty.order_id = base.order_id AND op_qty.product_id = base.product_id
       ${whereClause}
       ORDER BY ${orderBy} ${orderDir}, pgo.sequence_order ASC
@@ -665,24 +742,14 @@ export const getPlanVsActualReport = async (req, res) => {
     // Count for pagination
     const countQuery = `
       WITH base_items AS (
-        -- Lấy từ Kế hoạch
-        SELECT 
-          order_id, 
-          product_id, 
-          product_group_operation_id,
-          MAX(id) as pp_id
+        SELECT order_id, product_id, product_group_operation_id
         FROM production_plans
         WHERE deleted_at IS NULL
         GROUP BY order_id, product_id, product_group_operation_id
 
         UNION
 
-        -- Lấy từ Thực tế (những thứ không có trong kế hoạch hoặc không link pp_id)
-        SELECT 
-          dti.order_id, 
-          dti.product_id, 
-          dti.product_group_operation_id,
-          NULL as pp_id
+        SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
         FROM daily_production_ticket_items dti
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
         WHERE dt.deleted_at IS NULL
@@ -690,13 +757,12 @@ export const getPlanVsActualReport = async (req, res) => {
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
       unique_base AS (
-        SELECT order_id, product_id, product_group_operation_id, MAX(pp_id) as pp_id
+        SELECT order_id, product_id, product_group_operation_id
         FROM base_items
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT COUNT(*) as total 
       FROM unique_base base
-      LEFT JOIN production_plans pp ON base.pp_id = pp.id
       LEFT JOIN orders o ON base.order_id = o.id
       LEFT JOIN products p ON base.product_id = p.id
       LEFT JOIN product_group_operations pgo ON base.product_group_operation_id = pgo.id
@@ -760,42 +826,51 @@ export const triggerAutoGenerate = async (req, res) => {
 
 // POST /api/daily-tickets/manual-output
 // Nhập sản lượng thực tế trực tiếp từ đơn hàng/mã hàng, không cần phiếu có sẵn.
-// Tự động tìm hoặc tạo phiếu is_manual=true cho ngày đó rồi ghi actual_quantity.
+// Mỗi lần gọi API tạo một phiếu is_manual=true mới cho ngày đó.
 export const manualOutputEntry = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const { ticket_date, items } = req.body; // items: [{ order_id, product_id, product_group_operation_id, operation_name, actual_quantity, planned_quantity, notes }]
+    const { ticket_date, items, target_ticket_id } = req.body; // items: [{ order_id, product_id, ... }]
     const user_id = req.user.id;
 
     if (!ticket_date || !items || items.length === 0) {
       return res.status(400).json({ message: "ticket_date và items là bắt buộc" });
     }
 
-    // Tìm phiếu manual chưa COMPLETED của ngày này
-    let ticketRes = await client.query(
-      `SELECT id FROM daily_production_tickets
-       WHERE ticket_date = $1 AND is_manual = true AND deleted_at IS NULL AND status != 'COMPLETED'
-       ORDER BY id DESC LIMIT 1`,
-      [ticket_date]
-    );
+    for (const item of items) {
+      if (!item.product_id) {
+        return res.status(400).json({ message: "Mỗi dòng phải chọn mã hàng" });
+      }
+      // if (!item.product_group_operation_id && !item.operation_name) {
+      //   return res.status(400).json({ message: "Mỗi dòng phải chọn công đoạn hoặc 'Không công đoạn'" });
+      // }
+    }
 
-    let ticketId;
-    let isNewTicket = false;
-    
     // Check permission instead of hardcoding 'PLANNER'
     const hasAutoApprove = req.user.role_name === 'ADMIN' || (req.user.permissions || []).includes('daily_tickets:auto_approve');
-    let ticketStatus = hasAutoApprove ? 'APPROVED' : 'PENDING_APPROVAL';
+    const ticketStatus = hasAutoApprove ? 'APPROVED' : 'PENDING_APPROVAL';
 
-    if (ticketRes.rowCount > 0) {
-      ticketId = ticketRes.rows[0].id;
-      // Chuyển lại trạng thái thành PENDING_APPROVAL nếu chưa được auto-approve
+    let ticketId;
+    if (target_ticket_id) {
+      const existing = await client.query(
+        `SELECT id FROM daily_production_tickets
+         WHERE id = $1 AND is_manual = true AND deleted_at IS NULL AND status != 'COMPLETED'
+           AND ticket_date = $2 AND created_by = $3`,
+        [target_ticket_id, ticket_date, user_id]
+      );
+      if (existing.rowCount === 0) {
+        return res.status(400).json({ message: "Phiếu không tồn tại hoặc không thể bổ sung dòng" });
+      }
+      ticketId = existing.rows[0].id;
+      await client.query(
+        `UPDATE daily_production_tickets SET modified_by = $2, modified_time = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+        [ticketId, user_id]
+      );
       if (!hasAutoApprove) {
         await client.query("UPDATE daily_production_tickets SET status = 'PENDING_APPROVAL' WHERE id = $1", [ticketId]);
       }
     } else {
-      // Tạo phiếu manual mới
-      isNewTicket = true;
       const newTicket = await client.query(
         `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by, status)
          VALUES ($1, true, $2, $2, $3) RETURNING id`,
@@ -841,8 +916,7 @@ export const manualOutputEntry = async (req, res) => {
     // Emit socket notification if needed
     if (ticketStatus === 'PENDING_APPROVAL') {
       try {
-        const actionText = isNewTicket ? 'tạo' : 'cập nhật';
-        const message = `Tài khoản ${req.user.full_name || req.user.username} vừa ${actionText} phiếu thủ công #${ticketId} cần phê duyệt!`;
+        const message = `Tài khoản ${req.user.full_name || req.user.username} vừa tạo phiếu thủ công #${ticketId} cần phê duyệt!`;
         
         // Save notification to DB for PLANNERs
         await pool.query(
@@ -861,7 +935,15 @@ export const manualOutputEntry = async (req, res) => {
       }
     }
 
-    res.status(201).json({ message: "Đã ghi nhận sản lượng thủ công!", ticket_id: ticketId });
+    const dateKey = String(ticket_date).replace(/-/g, "");
+    const displayCode = `${dateKey}U${user_id}#${ticketId}`;
+
+    res.status(201).json({
+      message: "Đã ghi nhận sản lượng thủ công!",
+      ticket_id: ticketId,
+      display_code: displayCode,
+      created_by: user_id,
+    });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Manual Output Entry Error:", error);
@@ -874,7 +956,7 @@ export const manualOutputEntry = async (req, res) => {
 // GET /api/daily-tickets/export/detailed
 export const exportDetailedTickets = async (req, res) => {
   try {
-    const { startDate, endDate, search, ticket_status, ids } = req.query;
+    const { startDate, endDate, search, ticket_status, ids, created_by } = req.query;
 
     let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
     const queryParams = [];
@@ -899,6 +981,10 @@ export const exportDetailedTickets = async (req, res) => {
       if (search) {
         queryParams.push(`%${search}%`);
         whereClause += ` AND (o.name ILIKE $${queryParams.length} OR o.po_customer ILIKE $${queryParams.length} OR p.name ILIKE $${queryParams.length})`;
+      }
+      if (created_by) {
+        queryParams.push(parseInt(created_by, 10));
+        whereClause += ` AND dt.created_by = $${queryParams.length}`;
       }
     }
 

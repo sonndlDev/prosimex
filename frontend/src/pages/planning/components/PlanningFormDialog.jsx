@@ -66,6 +66,14 @@ import {
   ManagedTextField,
   autoCalculateSchedule,
   rebalanceDays,
+  buildDailyMachineMetrics,
+  mergeFormPreviewIntoMetrics,
+  getMachineDayUsage,
+  isMachineDayOverCapacity,
+  getCapacityLimit,
+  formatShiftHours,
+  normalizePlannedDay,
+  parseOvertimeFlag,
 } from "./shared";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -152,6 +160,52 @@ const PlanningFormDialog = React.memo(
       queryFn: () => machineService.getAll({ factoryId: selectedFactoryId, limit: 1000 }),
     });
     const machines = machinesData?.data || [];
+
+    const { data: allPlansForCapacity } = useQuery({
+      queryKey: ["plans", "capacity-check"],
+      queryFn: () => planningService.getAll({ limit: 5000 }),
+      enabled: open && !isFullOrderMode && (selectedMachineIds.length > 0 || !!editingPlan),
+      staleTime: 30_000,
+    });
+
+    const capacityExcludeIds = useMemo(() => {
+      const ids = [];
+      if (editingPlan?.id) ids.push(editingPlan.id);
+      if (editingPlan?.planGroup?.length) {
+        editingPlan.planGroup.forEach((p) => ids.push(p.id));
+      }
+      return ids;
+    }, [editingPlan]);
+
+    const previewMachineMetrics = useMemo(() => {
+      const base = buildDailyMachineMetrics(allPlansForCapacity?.data || [], {
+        excludePlanIds: capacityExcludeIds,
+      });
+      return mergeFormPreviewIntoMetrics(base, { plannedDays, selectedMachineIds });
+    }, [
+      allPlansForCapacity,
+      capacityExcludeIds,
+      plannedDays,
+      selectedMachineIds,
+    ]);
+
+    const hasCapacityConflict = useMemo(() => {
+      if (!plannedDays?.length || selectedMachineIds.length === 0) return false;
+      return plannedDays.some((day) => {
+        if (selectedMachineIds.length > 1) {
+          return selectedMachineIds.some((mId) => {
+            const usage = getMachineDayUsage(previewMachineMetrics, day.date, mId);
+            return isMachineDayOverCapacity(usage.totalHours, usage.hasOvertime);
+          });
+        }
+        const usage = getMachineDayUsage(
+          previewMachineMetrics,
+          day.date,
+          selectedMachineIds[0],
+        );
+        return isMachineDayOverCapacity(usage.totalHours, usage.hasOvertime);
+      });
+    }, [plannedDays, selectedMachineIds, previewMachineMetrics]);
 
     const selectedOrder = orders?.find((o) => String(o.id) === String(selectedOrderId));
     const selectedProduct = selectedOrder?.products?.find(
@@ -248,11 +302,26 @@ const PlanningFormDialog = React.memo(
           endDate: DateTime.fromISO(editingPlan.planned_end_date).toISODate(),
           selectedMachineIds: machineIds,
           isFullOrderMode: editingPlan.is_full_order_mode || false,
-          plannedDays: editingPlan.days.map((d) => ({
-            date: DateTime.fromISO(d.working_date).toISODate(),
-            hours: Math.round(parseFloat(d.planned_work_quantity) / 8),
-            is_overtime: d.is_overtime,
-          })),
+          plannedDays: (editingPlan._mergedPlannedDays || editingPlan.days).map((d) => {
+            const date = d.date || DateTime.fromISO(d.working_date).toISODate();
+            const shiftHours =
+              d.hours != null && d.hours !== ""
+                ? parseFloat(d.hours)
+                : parseFloat(d.planned_work_quantity) / 8;
+            if (d.machineHours) {
+              return normalizePlannedDay({
+                date,
+                hours: shiftHours,
+                is_overtime: d.is_overtime,
+                machineHours: d.machineHours,
+              });
+            }
+            return normalizePlannedDay({
+              date,
+              hours: shiftHours,
+              is_overtime: d.is_overtime,
+            });
+          }),
         });
       } else if (open) {
         reset({
@@ -372,16 +441,23 @@ const PlanningFormDialog = React.memo(
       replaceCase2(currentItems);
     };
 
+  // Chỉ tự tính lịch khi tạo mới — không ghi đè dữ liệu khi mở chỉnh sửa
     useEffect(() => {
+      if (editingPlan) return;
       if (startDate && debouncedTotalDaysNeeded > 0 && !isFullOrderMode) {
-        const newDays = autoCalculateSchedule(debouncedTotalDaysNeeded, startDate, [], selectedMachineIds);
-        replaceDays(newDays);
+        const newDays = autoCalculateSchedule(
+          debouncedTotalDaysNeeded,
+          startDate,
+          [],
+          selectedMachineIds,
+        );
+        replaceDays(newDays.map(normalizePlannedDay));
       }
-    }, [debouncedTotalDaysNeeded, startDate, isFullOrderMode, selectedMachineIds]);
+    }, [debouncedTotalDaysNeeded, startDate, isFullOrderMode, selectedMachineIds, editingPlan]);
 
     const handleDayChange = (index, value) => {
       const newDays = rebalanceDays(plannedDays, index, value, totalDaysNeeded, selectedMachineIds);
-      replaceDays(newDays);
+      replaceDays(newDays.map(normalizePlannedDay));
     };
 
     const handleAddDay = () => {
@@ -397,9 +473,9 @@ const PlanningFormDialog = React.memo(
 
     const handleStartDateChange = (val) => {
       setValue("startDate", val);
-      if (val && totalDaysNeeded > 0 && !isFullOrderMode) {
+      if (val && totalDaysNeeded > 0 && !isFullOrderMode && !editingPlan) {
         const newDays = autoCalculateSchedule(totalDaysNeeded, val, [], selectedMachineIds);
-        replaceDays(newDays);
+        replaceDays(newDays.map(normalizePlannedDay));
       }
     };
 
@@ -1184,7 +1260,7 @@ const PlanningFormDialog = React.memo(
                       <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex flex-col items-center justify-center">
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">TỔNG CÔNG CẦN</span>
                         <div className="text-3xl font-black text-indigo-600 tabular-nums">
-                          {totalDaysNeeded.toLocaleString('en-US')}
+                          {totalDaysNeeded.toLocaleString("en-US")}
                         </div>
                       </div>
                     </div>
@@ -1294,6 +1370,14 @@ const PlanningFormDialog = React.memo(
                   {/* Daily List */}
                   {!isFullOrderMode && (
                     <Card className="border-zinc-200 bg-zinc-50 overflow-hidden">
+                      {hasCapacityConflict && (
+                        <div className="px-4 py-2.5 bg-red-50 border-b border-red-100 flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                          <p className="text-[11px] font-bold text-red-700 leading-snug">
+                            Một số ngày vượt công suất máy: tối đa <strong>1 công</strong>/ngày (hoặc <strong>1,43</strong> nếu tăng ca). Ô đỏ là ngày+máy đã vượt (gồm kế hoạch khác trên cùng máy).
+                          </p>
+                        </div>
+                      )}
                       <div className="px-4 py-3 bg-white border-b border-zinc-100 flex justify-between items-center">
                         <span className="text-xs font-black uppercase text-zinc-950 tracking-tight">Danh sách ngày sản xuất</span>
                         <Button
@@ -1342,7 +1426,7 @@ const PlanningFormDialog = React.memo(
                                 key={idx}
                                 className={cn(
                                   "items-center gap-2 px-4 py-3 group transition-colors",
-                                  isSunday ? "bg-zinc-100/80 hover:bg-zinc-200/50" : "bg-white hover:bg-zinc-50/50",
+                                  isSunday ? "bg-zinc-300/90 hover:bg-zinc-400/60" : "bg-white hover:bg-zinc-50/50",
                                   hasMultiMachines ? "grid" : "flex gap-4"
                                 )}
                                 style={hasMultiMachines ? { gridTemplateColumns: `160px repeat(${selectedMachineIds.length}, 1fr) 130px 60px` } : undefined}
@@ -1364,38 +1448,77 @@ const PlanningFormDialog = React.memo(
 
                                 {/* Machine-specific hours OR single hours */}
                                 {hasMultiMachines ? (
-                                  selectedMachineIds.map(machineId => (
-                                    <div key={machineId} className="flex justify-center">
-                                      <div className="flex flex-col items-center gap-0.5">
-                                        <ManagedTextField
-                                          type="number"
-                                          value={day.machineHours?.[machineId] ?? ""}
-                                          onCommit={(val) => {
-                                            const newDays = [...plannedDays];
-                                            const mh = { ...(newDays[idx].machineHours || {}) };
-                                            mh[machineId] = val;
-                                            // Tổng số công = tổng các máy
-                                            const total = selectedMachineIds.reduce((s, mid) => s + parseFloat(mh[mid] || 0), 0);
-                                            newDays[idx] = { ...newDays[idx], machineHours: mh, hours: total.toString() };
-                                            replaceDays(newDays);
-                                          }}
-                                          className="w-16 border-zinc-100 shadow-none hover:bg-zinc-100 transition-colors font-black text-indigo-600 text-center"
-                                        />
+                                  selectedMachineIds.map(machineId => {
+                                    const usage = getMachineDayUsage(previewMachineMetrics, day.date, machineId);
+                                    const over = isMachineDayOverCapacity(usage.totalHours, usage.hasOvertime);
+                                    const limit = getCapacityLimit(usage.hasOvertime);
+                                    return (
+                                      <div key={machineId} className="flex justify-center">
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <ManagedTextField
+                                            type="number"
+                                            value={
+                                              day.machineHours?.[machineId] != null &&
+                                              day.machineHours[machineId] !== ""
+                                                ? formatShiftHours(day.machineHours[machineId])
+                                                : ""
+                                            }
+                                            onCommit={(val) => {
+                                              const newDays = [...plannedDays];
+                                              const mh = { ...(newDays[idx].machineHours || {}) };
+                                              mh[machineId] = val;
+                                              const total = selectedMachineIds.reduce((s, mid) => s + parseFloat(mh[mid] || 0), 0);
+                                              newDays[idx] = { ...newDays[idx], machineHours: mh, hours: total.toString() };
+                                              replaceDays(newDays);
+                                            }}
+                                            className={cn(
+                                              "w-16 shadow-none hover:bg-zinc-100 transition-colors font-black text-center",
+                                              over
+                                                ? "border-red-400 bg-red-50 text-red-700 ring-1 ring-red-300"
+                                                : "border-zinc-100 text-indigo-600",
+                                            )}
+                                          />
+                                          {over && (
+                                            <span className="text-[8px] font-black text-red-600 tabular-nums">
+                                              {usage.totalHours.toFixed(1)}/{limit}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))
+                                    );
+                                  })
                                 ) : (
-                                  <div className="flex-1 flex justify-center">
-                                    <div className="flex flex-col items-center relative gap-0.5">
-                                      <span className="text-[7px] font-black uppercase text-zinc-300 absolute -top-3">Số công</span>
-                                      <ManagedTextField
-                                        type="number"
-                                        value={day.hours}
-                                        onCommit={(val) => handleDayChange(idx, val)}
-                                        className="w-20 border-zinc-100 shadow-none hover:bg-zinc-100 transition-colors font-black text-indigo-600"
-                                      />
-                                    </div>
-                                  </div>
+                                  (() => {
+                                    const machineId = selectedMachineIds[0];
+                                    const usage = machineId
+                                      ? getMachineDayUsage(previewMachineMetrics, day.date, machineId)
+                                      : { totalHours: 0, hasOvertime: false };
+                                    const over = machineId && isMachineDayOverCapacity(usage.totalHours, usage.hasOvertime);
+                                    const limit = getCapacityLimit(usage.hasOvertime);
+                                    return (
+                                      <div className="flex-1 flex justify-center">
+                                        <div className="flex flex-col items-center relative gap-0.5">
+                                          <span className="text-[7px] font-black uppercase text-zinc-300 absolute -top-3">Số công</span>
+                                          <ManagedTextField
+                                            type="number"
+                                            value={formatShiftHours(day.hours)}
+                                            onCommit={(val) => handleDayChange(idx, val)}
+                                            className={cn(
+                                              "w-20 shadow-none hover:bg-zinc-100 transition-colors font-black",
+                                              over
+                                                ? "border-red-400 bg-red-50 text-red-700 ring-1 ring-red-300"
+                                                : "border-zinc-100 text-indigo-600",
+                                            )}
+                                          />
+                                          {over && (
+                                            <span className="text-[8px] font-black text-red-600 tabular-nums">
+                                              {usage.totalHours.toFixed(1)}/{limit} công
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
                                 )}
 
                                 {/* Tăng ca + Delete */}
@@ -1403,15 +1526,21 @@ const PlanningFormDialog = React.memo(
                                   <div className="flex items-center gap-2">
                                     <Checkbox
                                       id={`ot-${idx}`}
-                                      checked={day.is_overtime}
+                                      checked={parseOvertimeFlag(day.is_overtime)}
                                       onCheckedChange={(checked) => {
                                         const newDays = [...plannedDays];
                                         newDays[idx] = { ...newDays[idx], is_overtime: !!checked };
                                         let nextVal = parseFloat(newDays[idx].hours);
                                         if (checked && nextVal >= 1.0) nextVal = 1.43;
                                         if (!checked && nextVal > 1.0) nextVal = 1.0;
-                                        const recalculated = rebalanceDays(newDays, idx, nextVal.toString(), totalDaysNeeded, selectedMachineIds);
-                                        replaceDays(recalculated);
+                                        const recalculated = rebalanceDays(
+                                          newDays,
+                                          idx,
+                                          nextVal.toString(),
+                                          totalDaysNeeded,
+                                          selectedMachineIds,
+                                        );
+                                        replaceDays(recalculated.map(normalizePlannedDay));
                                       }}
                                     />
                                     <Label htmlFor={`ot-${idx}`} className="text-[10px] font-black uppercase cursor-pointer text-zinc-500">Tăng ca</Label>
@@ -1448,7 +1577,13 @@ const PlanningFormDialog = React.memo(
                           <div className="uppercase tracking-tighter">Tổng</div>
                           {selectedMachineIds.map(machineId => (
                             <div key={machineId} className="text-center tabular-nums">
-                              {plannedDays.reduce((s, d) => s + parseFloat(d.machineHours?.[machineId] || 0), 0).toFixed(1)} công
+                              {plannedDays
+                                .reduce(
+                                  (s, d) => s + parseFloat(d.machineHours?.[machineId] || 0),
+                                  0,
+                                )
+                                .toFixed(1)}{" "}
+                              công
                             </div>
                           ))}
                           <div />

@@ -28,6 +28,7 @@ import supplierRoutes from './modules/supplier/supplier.routes.js'
 import productInventoryRoutes from './modules/product-inventory/product-inventory.routes.js'
 import importExcelRoutes from './modules/import-excel/import-excel.routes.js'
 import notificationRoutes from './modules/notification/notification.routes.js'
+import deleteImpactRoutes from './modules/delete-impact/delete-impact.routes.js'
 import { startScheduler } from './workers/scheduler.js'
 import { initSocket } from './sockets/index.js'
 
@@ -63,6 +64,7 @@ app.use('/api/suppliers', supplierRoutes)
 app.use('/api/product-inventory', productInventoryRoutes)
 app.use('/api/import-excel', importExcelRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/delete-impact', deleteImpactRoutes)
 
 // Global Error Handler
 app.use((err, req, res, next) => {

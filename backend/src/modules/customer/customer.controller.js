@@ -1,4 +1,5 @@
 import pool from '../../config/db.js'
+import { cascadeOnCustomerDelete } from '../../utils/cascade-delete.util.js'
 
 export const getCustomers = async (req, res) => {
   try {
@@ -137,25 +138,31 @@ export const updateCustomer = async (req, res) => {
 };
 
 export const deleteCustomer = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const beforeRes = await pool.query('SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL', [id]);
+    const beforeRes = await client.query('SELECT * FROM customers WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Customer not found' });
 
-    await pool.query(
+    await client.query('BEGIN');
+    await cascadeOnCustomerDelete(client, id);
+    await client.query(
       'UPDATE customers SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1',
-      [id, userId]
+      [id, userId],
     );
-
-    await pool.query(
+    await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data) VALUES ($1, 'DELETE', 'Customer', $2, $3)`,
-      [userId, id, beforeRes.rows[0]]
+      [userId, id, beforeRes.rows[0]],
     );
+    await client.query('COMMIT');
 
     res.json({ message: 'Customer deleted successfully' });
   } catch (error) {
+    await client.query('ROLLBACK');
     res.status(500).json({ message: 'Error deleting customer', error });
+  } finally {
+    client.release();
   }
 };

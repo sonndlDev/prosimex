@@ -5,6 +5,10 @@ export const orderService = {
         const { data } = await api.get('/orders', { params });
         return data;
     },
+    getById: async (id) => {
+        const { data } = await api.get(`/orders/${id}`);
+        return data;
+    },
     create: async (payload) => {
         const { data } = await api.post('/orders', payload);
         return data;
@@ -27,6 +31,10 @@ export const orderService = {
     },
     getSummaryReport: async (id) => {
         const { data } = await api.get(`/orders/${id}/summary-report`);
+        return data;
+    },
+    getProductSnapshots: async (params = {}) => {
+        const { data } = await api.get('/orders/product-snapshots', { params });
         return data;
     },
 };

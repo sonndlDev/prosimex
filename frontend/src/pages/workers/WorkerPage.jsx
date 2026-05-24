@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function WorkerPage() {
   const queryClient = useQueryClient();
@@ -38,7 +40,12 @@ export default function WorkerPage() {
 
   const createMutation = useMutation({ mutationFn: workerService.create, onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo") });
   const updateMutation = useMutation({ mutationFn: (data) => workerService.update(data.id, data.payload), onSuccess: () => { queryClient.invalidateQueries(["workers"]); setOpenModal(false); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật") });
-  const deleteMutation = useMutation({ mutationFn: workerService.delete, onSuccess: () => { queryClient.invalidateQueries(["workers"]); toast.success("Thành công"); }, onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa") });
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "worker",
+    entityLabel: "công nhân",
+    deleteFn: workerService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workers"] }),
+  });
 
   const columns = [
     { id: "code", label: "Mã nhân công" },
@@ -82,12 +89,8 @@ export default function WorkerPage() {
           columns={columns}
           data={workers}
           onEdit={hasPermission("workers:update") ? handleOpenModal : undefined}
-          onDelete={
-            hasPermission("workers:delete")
-              ? (row) => { if (window.confirm("Bạn có chắc muốn xóa công nhân này?")) deleteMutation.mutate(row.id); }
-              : undefined
-          }
-          onBulkDelete={(ids) => { if (window.confirm(`Xóa ${ids.length} công nhân?`)) ids.forEach(id => deleteMutation.mutate(id)); }}
+          onDelete={hasPermission("workers:delete") ? (row) => openDelete(row) : undefined}
+          onBulkDelete={(ids) => openDelete(ids)}
           isLoading={isLoading}
           isServerSide={true}
           totalItems={totalItems}
@@ -140,6 +143,8 @@ export default function WorkerPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

@@ -77,8 +77,8 @@ export const getProductionPlans = async (req, res) => {
                 o.po_customer,
                 COALESCE(op_qty.quantity, o.quantity, 0) as quantity,
                 COALESCE(op_qty.quantity, o.quantity, 0) as product_quantity,
-                p.name as product_name,
-                pg.name as product_group_name,
+                COALESCE(op_qty.product_name, p.name) as product_name,
+                COALESCE(op_qty.product_group_name, pg.name) as product_group_name,
                 pgo.sequence_order, 
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 op.name as operation_name, 
@@ -91,12 +91,12 @@ export const getProductionPlans = async (req, res) => {
             FROM production_plans pp
             LEFT JOIN orders o ON pp.order_id = o.id
             LEFT JOIN products p ON pp.product_id = p.id
-            LEFT JOIN product_groups pg ON p.product_group_id = pg.id
+            LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
+            LEFT JOIN product_groups pg ON pg.id = COALESCE(op_qty.product_group_id, p.product_group_id)
             LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
             LEFT JOIN operations op ON pgo.operation_id = op.id
             LEFT JOIN machines m ON pp.machine_id = m.id
             LEFT JOIN factories f ON pp.factory_id = f.id
-            LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
             LEFT JOIN users cu ON pp.created_by = cu.id
             LEFT JOIN users mu ON pp.modified_by = mu.id
             ${whereClause}
@@ -789,7 +789,7 @@ export const getPlannedStatusByOrder = async (req, res) => {
 
     // Lấy tất cả products trong đơn hàng kèm product_group_id
     const productsRes = await pool.query(
-      `SELECT op.product_id, p.product_group_id
+      `SELECT op.product_id, COALESCE(op.product_group_id, p.product_group_id) AS product_group_id
        FROM order_products op
        JOIN products p ON p.id = op.product_id
        WHERE op.order_id = $1`,

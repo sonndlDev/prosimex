@@ -419,22 +419,30 @@ export const updateTicket = async (req, res) => {
     await client.query("BEGIN");
     const { id } = req.params;
     const user_id = req.user.id;
-    const { supplier_id, dispatch_date, expected_return_date, items } = req.body;
+    const { supplier_id, dispatch_date, expected_return_date, items, status, type: ticketType } = req.body;
 
     const ticketRes = await client.query("SELECT * FROM outsourcing_tickets WHERE id = $1 AND deleted_at IS NULL", [id]);
     if (ticketRes.rowCount === 0) {
       return res.status(404).json({ message: "Không tìm thấy phiếu" });
     }
 
-    const type = ticketRes.rows[0].type;
-
     await client.query(
       `UPDATE outsourcing_tickets 
-       SET supplier_id = $1, dispatch_date = $2, expected_return_date = $3, modified_by = $4, updated_at = CURRENT_TIMESTAMP
+       SET supplier_id = $1, dispatch_date = $2, expected_return_date = $3, modified_by = $4,
+           type = COALESCE($6, type), status = COALESCE($7, status), updated_at = CURRENT_TIMESTAMP
        WHERE id = $5`,
-      [supplier_id || null, dispatch_date || null, expected_return_date || null, user_id, id]
+      [
+        supplier_id || null,
+        dispatch_date || null,
+        expected_return_date || null,
+        user_id,
+        id,
+        ticketType || null,
+        status || null
+      ]
     );
 
+    if (Array.isArray(items) && items.length > 0) {
     // Get existing items with their returns count
     const existingItemsRes = await client.query(
       `SELECT i.id, 
@@ -494,28 +502,31 @@ export const updateTicket = async (req, res) => {
         );
       }
     }
+    }
 
-    // Re-evaluate total status
-    const checkStatusRes = await client.query(
-      `SELECT 
-        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as total_out,
-        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
-         FROM outsourcing_returns r 
-         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
-         WHERE i.ticket_id = $1) as total_returned`,
-      [id]
-    );
+    // Re-evaluate total status when not manually set
+    if (!status) {
+      const checkStatusRes = await client.query(
+        `SELECT 
+          (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as total_out,
+          (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+           FROM outsourcing_returns r 
+           JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+           WHERE i.ticket_id = $1) as total_returned`,
+        [id]
+      );
 
-    if (checkStatusRes.rowCount > 0) {
-      const { total_out, total_returned } = checkStatusRes.rows[0];
-      let newStatus = 'PENDING';
-      if (parseFloat(total_returned) >= parseFloat(total_out) && parseFloat(total_out) > 0) {
-        newStatus = 'COMPLETED';
-      } else if (parseFloat(total_returned) > 0) {
-        newStatus = 'PARTIAL';
+      if (checkStatusRes.rowCount > 0) {
+        const { total_out, total_returned } = checkStatusRes.rows[0];
+        let newStatus = 'PENDING';
+        if (parseFloat(total_returned) >= parseFloat(total_out) && parseFloat(total_out) > 0) {
+          newStatus = 'COMPLETED';
+        } else if (parseFloat(total_returned) > 0) {
+          newStatus = 'PARTIAL';
+        }
+
+        await client.query("UPDATE outsourcing_tickets SET status = $1 WHERE id = $2", [newStatus, id]);
       }
-      
-      await client.query("UPDATE outsourcing_tickets SET status = $1 WHERE id = $2", [newStatus, id]);
     }
 
     await client.query(

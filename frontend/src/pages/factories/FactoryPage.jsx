@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function FactoryPage() {
   const { hasPermission } = useAuth();
@@ -47,10 +49,11 @@ export default function FactoryPage() {
   };
   const createMutation = useMutation({ mutationFn: factoryService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => factoryService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({
-    mutationFn: factoryService.delete,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["factories"] }); toast.success("Thành công"); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "factory",
+    entityLabel: "nhà máy",
+    deleteFn: factoryService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["factories"] }),
   });
 
   const columns = [
@@ -74,12 +77,8 @@ export default function FactoryPage() {
     if (selectedFactory) updateMutation.mutate({ id: selectedFactory.id, payload: data });
     else createMutation.mutate(data);
   };
-  const handleDelete = (factory) => {
-    if (window.confirm(`Xóa nhà máy "${factory.name}"?`)) deleteMutation.mutate(factory.id);
-  };
-  const handleBulkDelete = (ids) => {
-    if (window.confirm(`Xóa ${ids.length} nhà máy đã chọn?`)) ids.forEach(id => deleteMutation.mutate(id));
-  };
+  const handleDelete = (factory) => openDelete(factory);
+  const handleBulkDelete = (ids) => openDelete(ids);
 
   return (
     <div className="space-y-6">
@@ -153,6 +152,8 @@ export default function FactoryPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
     </div>
   );
 }

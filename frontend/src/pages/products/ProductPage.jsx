@@ -17,6 +17,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown, Package, Layers, Factory, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../context/AuthContext";
+import DeleteImpactDialog from "../../components/DeleteImpactDialog";
+import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
 
 export default function ProductPage() {
   const queryClient = useQueryClient();
@@ -60,10 +62,11 @@ export default function ProductPage() {
   };
   const createMutation = useMutation({ mutationFn: productService.create, ...mutationOpts });
   const updateMutation = useMutation({ mutationFn: ({ id, payload }) => productService.update(id, payload), ...mutationOpts });
-  const deleteMutation = useMutation({
-    mutationFn: productService.delete,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); toast.success("Thành công"); },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
+  const { openDelete, confirmDelete, closeDelete, deleteDialogProps } = useDeleteWithImpact({
+    entityType: "product",
+    entityLabel: "mã hàng",
+    deleteFn: productService.delete,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
   });
 
   const columns = [
@@ -91,12 +94,8 @@ export default function ProductPage() {
     if (selectedProduct) updateMutation.mutate({ id: selectedProduct.id, payload: data });
     else createMutation.mutate(data);
   };
-  const handleDelete = (product) => {
-    if (window.confirm(`Xóa mã hàng "${product.name}"?`)) deleteMutation.mutate(product.id);
-  };
-  const handleBulkDelete = (ids) => {
-    if (window.confirm(`Xóa ${ids.length} mã hàng đã chọn?`)) ids.forEach(id => deleteMutation.mutate(id));
-  };
+  const handleDelete = (product) => openDelete(product);
+  const handleBulkDelete = (ids) => openDelete(ids);
 
   return (
     <div className="space-y-6">
@@ -296,6 +295,12 @@ export default function ProductPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeleteImpactDialog
+        {...deleteDialogProps}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

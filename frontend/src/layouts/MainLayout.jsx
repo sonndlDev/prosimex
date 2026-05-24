@@ -17,7 +17,7 @@ import {
   Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
   Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
   Hammer, UserCircle, Warehouse, Calendar, Layers,
-  BarChart2, FileSpreadsheet, CheckSquare
+  BarChart2, FileSpreadsheet, CheckSquare, Camera
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { canShowMenu } from "../constants/permissions";
@@ -50,6 +50,8 @@ const menuItems = [
   { text: "Quản lý chấm công", icon: Clock, path: "/attendance/management", permission: "attendance_management" },
   { text: "Quản lý công nhân", icon: Users, path: "/workers", permission: "workers" },
   { text: "Người dùng & Quyền", icon: Users, path: "/users", permission: "users" },
+  { text: "Snapshot", icon: Camera, path: "/orders/product-snapshots", permission: "orders" },
+
   { text: "Cài đặt hệ thống", icon: Settings, path: "/settings", permission: "settings" },
 ];
 

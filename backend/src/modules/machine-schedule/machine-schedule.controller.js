@@ -42,6 +42,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
                 ppd.working_date as start,
                 ppd.working_date as end,
                 (ppd.planned_work_quantity / 8.0) as planned_work_quantity,
+                ppd.is_overtime as is_overtime,
                 pp.status as color_status,
                 pp.stopped_at as stopped_at,
                 pp.status as status

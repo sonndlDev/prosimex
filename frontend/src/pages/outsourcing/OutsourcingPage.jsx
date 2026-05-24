@@ -27,6 +27,13 @@ import { orderService } from "@/services/order.service";
 import { productService } from "@/services/product.service";
 import { supplierService } from "@/services/supplier.service";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DateTime } from "luxon";
 
 import ExcelJS from 'exceljs';
@@ -38,7 +45,7 @@ export default function OutsourcingPage() {
   const { hasPermission } = useAuth();
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="space-y-6  mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Gia công ngoài</h2>
@@ -163,7 +170,7 @@ function OutsourcingContent({ type }) {
       <CardContent className="p-6 md:p-8">
         {subTab === "out" && <OutboundTicketForm type={type} orders={orders} products={products} suppliers={suppliers} />}
         {subTab === "in" && type !== 'PACKAGING' && <InboundTicketForm type={type} />}
-        {subTab === "history" && <OutsourcingHistory type={type} orders={orders} products={products} />}
+        {subTab === "history" && <OutsourcingHistory type={type} orders={orders} products={products} suppliers={suppliers} />}
       </CardContent>
     </Card>
   );
@@ -902,17 +909,408 @@ function InboundTicketForm({ type }) {
   );
 }
 
-function OutsourcingHistory({ type, orders, products }) {
+function mapTicketItemForEdit(item) {
+  return {
+    localKey: item.id,
+    id: item.id,
+    isNew: false,
+    order_id: item.order_id ? String(item.order_id) : "",
+    product_id: item.product_id ? String(item.product_id) : "",
+    order_quantity: item.order_quantity ?? "",
+    processing_type: item.processing_type ?? "",
+    quantity_out: item.quantity_out ?? "",
+    gross_weight: item.gross_weight ?? "",
+    pallet_weight: item.pallet_weight ?? "",
+    net_weight: item.net_weight ?? "",
+    notes: item.notes ?? "",
+    packing_specification: item.packing_specification ?? "",
+    package_count: item.package_count ?? "",
+    unit_net_weight: item.unit_net_weight ?? "",
+    total_returned: parseFloat(item.total_returned || 0),
+  };
+}
+
+function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, orders, products, suppliers, onSaved }) {
+  const [ticket, setTicket] = useState(null);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const ticketType = ticket?.type || type;
+
+  useEffect(() => {
+    if (!open || !ticketCode) {
+      setTicket(null);
+      setItems([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await outsourcingService.getByCode(ticketCode);
+        if (cancelled) return;
+        const t = res.ticket;
+        setTicket({
+          ...t,
+          supplier_id: t.supplier_id ? String(t.supplier_id) : "",
+          dispatch_date: t.dispatch_date ? DateTime.fromISO(t.dispatch_date).toFormat("yyyy-MM-dd") : "",
+          expected_return_date: t.expected_return_date ? DateTime.fromISO(t.expected_return_date).toFormat("yyyy-MM-dd") : "",
+        });
+        setItems((t.items || []).map(mapTicketItemForEdit));
+      } catch {
+        if (!cancelled) toast.error("Không tải được chi tiết phiếu");
+        onOpenChange(false);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, ticketCode, onOpenChange]);
+
+  const handleItemChange = (localKey, field, value) => {
+    setItems(prev => prev.map(item => {
+      if (item.localKey !== localKey) return item;
+      const newItem = { ...item, [field]: value };
+      if (field === "gross_weight" || field === "pallet_weight") {
+        const g = parseFloat(newItem.gross_weight || 0);
+        const p = parseFloat(newItem.pallet_weight || 0);
+        newItem.net_weight = (g - p).toFixed(2);
+      }
+      return newItem;
+    }));
+  };
+
+  const addItem = () => {
+    setItems(prev => [...prev, {
+      localKey: `new-${Date.now()}`,
+      id: null,
+      isNew: true,
+      order_id: "",
+      product_id: "",
+      order_quantity: "",
+      processing_type: "",
+      quantity_out: "",
+      gross_weight: "",
+      pallet_weight: "",
+      net_weight: "",
+      notes: "",
+      packing_specification: "",
+      package_count: "",
+      unit_net_weight: "",
+      total_returned: 0,
+    }]);
+  };
+
+  const removeItem = (localKey) => {
+    const item = items.find(i => i.localKey === localKey);
+    if (item?.total_returned > 0) {
+      toast.error(`Không thể xóa dòng đã có ${item.total_returned} hàng nhập về`);
+      return;
+    }
+    if (items.length > 1) {
+      setItems(prev => prev.filter(i => i.localKey !== localKey));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!ticket) return;
+    if (ticketType !== "PACKAGING" && !ticket.supplier_id) {
+      toast.error("Vui lòng chọn Nhà cung cấp");
+      return;
+    }
+    const invalidItem = items.find(i => !i.order_id || !i.product_id || (ticketType !== "PACKAGING" && !i.quantity_out));
+    if (invalidItem) {
+      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (ticketType !== "PACKAGING" ? " và Số lượng xuất" : "") + " cho tất cả các phần!");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        supplier_id: ticketType === "PACKAGING" ? null : ticket.supplier_id,
+        type: ticket.type,
+        status: ticket.status,
+        dispatch_date: ticket.dispatch_date && ticketType !== "PACKAGING"
+          ? DateTime.fromFormat(ticket.dispatch_date, "yyyy-MM-dd").toISO()
+          : null,
+        expected_return_date: ticket.expected_return_date && ticketType !== "PACKAGING"
+          ? DateTime.fromFormat(ticket.expected_return_date, "yyyy-MM-dd").toISO()
+          : null,
+        items: items.map(i => {
+          const row = {
+            order_id: i.order_id,
+            product_id: i.product_id,
+            order_quantity: i.order_quantity || 0,
+            processing_type: i.processing_type || null,
+            quantity_out: i.quantity_out || 0,
+            gross_weight: i.gross_weight || null,
+            pallet_weight: i.pallet_weight || null,
+            net_weight: i.net_weight || null,
+            notes: i.notes || null,
+            packing_specification: i.packing_specification || null,
+            package_count: i.package_count || null,
+            unit_net_weight: i.unit_net_weight || null,
+          };
+          if (!i.isNew && i.id) row.id = i.id;
+          return row;
+        }),
+      };
+      await outsourcingService.update(ticket.id, payload);
+      toast.success("Cập nhật phiếu gia công thành công!");
+      onOpenChange(false);
+      onSaved?.();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Lỗi khi cập nhật phiếu gia công");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa phiếu gia công</DialogTitle>
+          <DialogDescription className="text-xs font-medium text-zinc-500">
+            {ticketCode ? `Cập nhật thông tin phiếu: ${ticketCode}` : "Đang tải..."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <p className="py-8 text-center text-sm font-medium text-zinc-500">Đang tải dữ liệu phiếu...</p>
+        ) : ticket && (
+          <div className="space-y-6 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-zinc-500 uppercase">Loại</Label>
+                <Select value={ticket.type} onValueChange={v => setTicket({ ...ticket, type: v })}>
+                  <SelectTrigger className="h-11 font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PLATING">Xi mạ - Sơn</SelectItem>
+                    <SelectItem value="PACKAGING">Đóng gói</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-zinc-500 uppercase">Trạng thái</Label>
+                <Select value={ticket.status || "PENDING"} onValueChange={v => setTicket({ ...ticket, status: v })}>
+                  <SelectTrigger className="h-11 font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PENDING">Đang chờ</SelectItem>
+                    <SelectItem value="PARTIAL">Một phần</SelectItem>
+                    <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {ticketType !== "PACKAGING" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-zinc-500 uppercase">Nhà cung cấp</Label>
+                  <SupplierSelect
+                    value={ticket.supplier_id}
+                    onChange={v => setTicket({ ...ticket, supplier_id: v })}
+                    suppliers={suppliers}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày xuất đi</Label>
+                  <PremiumDatePicker
+                    date={ticket.dispatch_date}
+                    onSelect={d => setTicket({ ...ticket, dispatch_date: d })}
+                    placeholder="Chọn ngày"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày dự kiến về</Label>
+                  <PremiumDatePicker
+                    date={ticket.expected_return_date}
+                    onSelect={d => setTicket({ ...ticket, expected_return_date: d })}
+                    placeholder="Chọn ngày"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4 pt-2 border-t border-zinc-100">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                  <Package className="w-5 h-5 text-indigo-600" />
+                  Danh sách hàng hóa
+                </Label>
+                <Button type="button" onClick={addItem} variant="outline" size="sm" className="gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold">
+                  <Plus className="w-4 h-4" />
+                  Thêm phần
+                </Button>
+              </div>
+
+              {items.map((item, index) => (
+                <div key={item.localKey} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl">
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.localKey)}
+                      className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                  <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">
+                    Phần {index + 1}
+                    {item.total_returned > 0 && (
+                      <span className="ml-2 text-amber-600 normal-case">(đã nhập về: {item.total_returned})</span>
+                    )}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="space-y-1.5 lg:col-span-1">
+                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
+                      <OrderSelect
+                        value={item.order_id}
+                        onChange={v => {
+                          handleItemChange(item.localKey, "order_id", v);
+                          const selectedOrder = orders.find(o => String(o.id) === String(v));
+                          if (selectedOrder?.products && item.product_id) {
+                            const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
+                            if (matchedProduct?.quantity) {
+                              handleItemChange(item.localKey, "order_quantity", parseFloat(matchedProduct.quantity));
+                            }
+                          }
+                        }}
+                        orders={orders}
+                      />
+                    </div>
+                    <div className="space-y-1.5 lg:col-span-1">
+                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
+                      <ProductSelect
+                        value={item.product_id}
+                        onChange={v => {
+                          handleItemChange(item.localKey, "product_id", v);
+                          if (item.order_id) {
+                            const selectedOrder = orders.find(o => String(o.id) === String(item.order_id));
+                            const matchedProduct = selectedOrder?.products?.find(p => String(p.id) === String(v));
+                            if (matchedProduct?.quantity) {
+                              handleItemChange(item.localKey, "order_quantity", parseFloat(matchedProduct.quantity));
+                            }
+                          }
+                        }}
+                        products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
+                      <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.localKey, "order_quantity", e.target.value)} />
+                    </div>
+                    {ticketType === "PACKAGING" && (
+                      <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
+                        <Input
+                          placeholder="VD: 24 cái/thùng"
+                          className="h-9 font-bold bg-white"
+                          value={item.packing_specification || ""}
+                          onChange={e => handleItemChange(item.localKey, "packing_specification", e.target.value)}
+                        />
+                      </div>
+                    )}
+                    {ticketType !== "PACKAGING" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
+                        <select
+                          className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          value={item.processing_type}
+                          onChange={e => handleItemChange(item.localKey, "processing_type", e.target.value)}
+                        >
+                          <option value="">Chọn loại</option>
+                          <option value="Xi">Xi</option>
+                          <option value="Mạ">Mạ</option>
+                          <option value="Sơn">Sơn</option>
+                          <option value="Ly tâm">Ly tâm</option>
+                        </select>
+                      </div>
+                    )}
+                    <div className={cn(
+                      "space-y-1.5 p-2 rounded-lg border",
+                      ticketType === "PACKAGING" ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
+                    )}>
+                      <Label className={cn("text-[10px] font-bold uppercase", ticketType === "PACKAGING" ? "text-emerald-700" : "text-blue-700")}>
+                        {ticketType === "PACKAGING" ? "SL Đóng gói *" : "SL Xuất *"}
+                      </Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        className={cn("h-9 font-bold", ticketType === "PACKAGING" ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
+                        value={item.quantity_out}
+                        onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {ticketType !== "PACKAGING" && (
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
+                        <Input type="number" placeholder="0" className="h-10" value={item.package_count} onChange={e => handleItemChange(item.localKey, "package_count", e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
+                        <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.localKey, "gross_weight", e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
+                        <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.localKey, "pallet_weight", e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL Tịnh (kg/cái)</Label>
+                        <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.unit_net_weight} onChange={e => handleItemChange(item.localKey, "unit_net_weight", e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
+                        <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.localKey, "notes", e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
+                        <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold">
+            Hủy
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving || loading || !ticket}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+          >
+            {saving ? "Đang lưu..." : "Lưu thay đổi"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function OutsourcingHistory({ type, orders, products, suppliers }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
   const [filterOrderId, setFilterOrderId] = useState("");
   const [filterProductId, setFilterProductId] = useState("");
-  const [editingTicket, setEditingTicket] = useState(null);
+  const [editTicketCode, setEditTicketCode] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [deleteTicketId, setDeleteTicketId] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
@@ -925,7 +1323,7 @@ function OutsourcingHistory({ type, orders, products }) {
   const total = data?.total || 0;
 
   const handleEdit = (ticket) => {
-    setEditingTicket(ticket);
+    setEditTicketCode(ticket.ticket_code);
     setShowEditDialog(true);
   };
 
@@ -948,29 +1346,6 @@ function OutsourcingHistory({ type, orders, products }) {
       toast.error("Lỗi khi xóa phiếu gia công");
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const handleUpdateTicket = async () => {
-    if (!editingTicket) return;
-    setIsUpdating(true);
-    try {
-      const updateData = {
-        type: editingTicket.type,
-        supplier_id: editingTicket.supplier_id,
-        dispatch_date: editingTicket.dispatch_date,
-        expected_return_date: editingTicket.expected_return_date
-      };
-      await outsourcingService.update(editingTicket.id, updateData);
-      toast.success("Cập nhật phiếu gia công thành công!");
-      setShowEditDialog(false);
-      setEditingTicket(null);
-      refetch();
-    } catch (error) {
-      console.error("Update error:", error);
-      toast.error("Lỗi khi cập nhật phiếu gia công");
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -1238,87 +1613,19 @@ function OutsourcingHistory({ type, orders, products }) {
         onDelete={handleDelete}
       />
 
-      {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="sm:max-w-md bg-white border border-zinc-200 rounded-2xl shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa phiếu gia công</DialogTitle>
-            <DialogDescription className="text-xs font-medium text-zinc-500">
-              Cập nhật thông tin phiếu: {editingTicket?.ticket_code}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingTicket && (
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">Loại</Label>
-                <Input
-                  disabled
-                  value={editingTicket.type === 'PLATING' ? 'Xi mạ - Sơn' : 'Đóng gói'}
-                  className="bg-zinc-50 text-zinc-600 font-bold"
-                />
-              </div>
-              
-              {editingTicket.type === 'PLATING' && (
-                <>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-zinc-500 uppercase">Nhà cung cấp</Label>
-                    <Input
-                      disabled
-                      value={editingTicket.supplier || "—"}
-                      className="bg-zinc-50 text-zinc-600 font-bold"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày xuất đi</Label>
-                    <PremiumDatePicker
-                      date={editingTicket.dispatch_date ? DateTime.fromISO(editingTicket.dispatch_date).toFormat('yyyy-MM-dd') : ''}
-                      onSelect={d => setEditingTicket({ ...editingTicket, dispatch_date: d })}
-                      placeholder="Chọn ngày"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày dự kiến về</Label>
-                    <PremiumDatePicker
-                      date={editingTicket.expected_return_date ? DateTime.fromISO(editingTicket.expected_return_date).toFormat('yyyy-MM-dd') : ''}
-                      onSelect={d => setEditingTicket({ ...editingTicket, expected_return_date: d })}
-                      placeholder="Chọn ngày"
-                    />
-                  </div>
-                </>
-              )}
-              
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">Trạng thái</Label>
-                <Input
-                  disabled
-                  value={editingTicket.status === 'COMPLETED' ? 'Hoàn thành' : editingTicket.status === 'PARTIAL' ? 'Một phần' : 'Đang chờ'}
-                  className="bg-zinc-50 text-zinc-600 font-bold"
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
-            <Button
-              variant="outline"
-              onClick={() => setShowEditDialog(false)}
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleUpdateTicket}
-              disabled={isUpdating}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-            >
-              {isUpdating ? "Đang lưu..." : "Lưu thay đổi"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditOutsourcingTicketDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) setEditTicketCode(null);
+        }}
+        ticketCode={editTicketCode}
+        type={type}
+        orders={orders}
+        products={products}
+        suppliers={suppliers}
+        onSaved={refetch}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

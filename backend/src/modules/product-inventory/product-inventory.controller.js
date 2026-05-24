@@ -25,8 +25,8 @@ export const getInventory = async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) 
       FROM product_inventory pi
-      JOIN products p ON pi.product_id = p.id
-      JOIN operations o ON pi.operation_id = o.id
+      JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
+      JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
@@ -40,8 +40,8 @@ export const getInventory = async (req, res) => {
         o.name as operation_name,
         COALESCE(u.full_name, u.username) as recorder_name
       FROM product_inventory pi
-      JOIN products p ON pi.product_id = p.id
-      JOIN operations o ON pi.operation_id = o.id
+      JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
+      JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
       LEFT JOIN users u ON pi.recorded_by = u.id
       ${whereClause}
       ORDER BY pi.recorded_at DESC

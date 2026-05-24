@@ -45,10 +45,24 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Sub-components
-import { ExcelHeaderCell, rebalanceDays } from "./components/shared";
+import {
+  ExcelHeaderCell,
+  rebalanceDaysAsQuantity,
+  toDisplayQuantity,
+  buildDailyMachineMetrics,
+  parseOvertimeFlag,
+} from "./components/shared";
 import PlanningTableRow from "./components/PlanningTableRow";
 import PlanningFormDialog from "./components/PlanningFormDialog";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
+
+/** Mã máy (code) là duy nhất theo xưởng; name có thể trùng giữa nhiều bản ghi. */
+const formatMachineFilterLabel = (machine) => {
+  const code = machine?.code?.trim();
+  const name = machine?.name?.trim();
+  if (code && name && code !== name) return `${code} — ${name}`;
+  return code || name || `#${machine?.id}`;
+};
 
 export default function PlanningPage() {
   const queryClient = useQueryClient();
@@ -97,6 +111,14 @@ export default function PlanningPage() {
   const totalCount = plansData?.total || 0;
   const totalPages = Math.ceil(totalCount / rowsPerPage);
 
+  // Toàn bộ kế hoạch — dùng cho cảnh báo đỏ (không phụ thuộc phân trang)
+  const { data: allPlansForMetrics } = useQuery({
+    queryKey: ["plans", "capacity-check"],
+    queryFn: () => planningService.getAll({ limit: 5000 }),
+    staleTime: 30_000,
+  });
+  const allPlans = allPlansForMetrics?.data || [];
+
   const { data: allOrdersData } = useQuery({
     queryKey: ["orders"],
     queryFn: () => orderService.getAll({ limit: 1000 }), // Lấy nhiều để filter
@@ -115,38 +137,10 @@ export default function PlanningPage() {
   });
   const filterMachines = machinesData?.data || [];
 
-  // Calculates aggregate hours per machine per day
-  const dailyMachineMetrics = useMemo(() => {
-    if (!plans) return {};
-    const metrics = {};
-
-    plans.forEach((plan) => {
-      const isStopped = plan.status === 'STOPPED';
-      const stoppedAt = plan.stopped_at ? DateTime.fromISO(plan.stopped_at) : null;
-
-      const daysToUse = inlineEditingId === plan.id ? inlineEditDays : plan.days;
-      daysToUse?.forEach((day) => {
-        const dateISO = day.working_date ? DateTime.fromISO(day.working_date).toFormat("yyyy-MM-dd") : day.date;
-        const currentDate = DateTime.fromISO(dateISO);
-
-        // Nếu kế hoạch đã dừng và ngày hiện tại trễ hơn ngày dừng -> Bỏ qua không tính công suất
-        if (isStopped && stoppedAt && currentDate.startOf('day') > stoppedAt.startOf('day')) {
-          return;
-        }
-
-        const machineId = plan.machine_id || "unknown";
-        const hours = day.hours ? parseFloat(day.hours) : parseFloat(day.planned_work_quantity) / 8;
-
-        if (!metrics[dateISO]) metrics[dateISO] = {};
-        if (!metrics[dateISO][machineId]) {
-          metrics[dateISO][machineId] = { totalHours: 0, hasOvertime: false };
-        }
-        metrics[dateISO][machineId].totalHours += hours;
-        if (day.is_overtime) metrics[dateISO][machineId].hasOvertime = true;
-      });
-    });
-    return metrics;
-  }, [plans, inlineEditingId, inlineEditDays]);
+  const dailyMachineMetrics = useMemo(
+    () => buildDailyMachineMetrics(allPlans, { inlineEditingId, inlineEditDays }),
+    [allPlans, inlineEditingId, inlineEditDays],
+  );
 
   // Aggregates total shifts (công) across all machines per day
   const dailyTotalCong = useMemo(() => {
@@ -250,13 +244,66 @@ export default function PlanningPage() {
     setEditingPlan(null);
   }, []);
 
-  const handleOpenEdit = useCallback((plan) => {
-    setEditingPlan(plan);
-    setOpenModal(true);
+  const findSiblingPlans = useCallback((plan, allPlans) => {
+    if (!plan.machine_id) return [];
+    return allPlans.filter(
+      (p) =>
+        p.id !== plan.id &&
+        p.order_id === plan.order_id &&
+        p.product_id === plan.product_id &&
+        p.product_group_operation_id === plan.product_group_operation_id &&
+        p.machine_id,
+    );
   }, []);
 
+  const buildMergedPlanForEdit = useCallback((plan, siblings) => {
+    if (siblings.length === 0) return plan;
+
+    const allPlans = [plan, ...siblings];
+    const machineIds = allPlans.map((p) => String(p.machine_id)).filter(Boolean);
+    const daysByDate = {};
+
+    for (const p of allPlans) {
+      const mId = String(p.machine_id);
+      for (const d of p.days || []) {
+        const date = DateTime.fromISO(d.working_date).toISODate();
+        if (!daysByDate[date]) {
+          daysByDate[date] = { date, hours: "0", is_overtime: false, machineHours: {} };
+        }
+        daysByDate[date].machineHours[mId] = (parseFloat(d.planned_work_quantity) / 8).toFixed(2);
+        if (parseOvertimeFlag(d.is_overtime)) daysByDate[date].is_overtime = true;
+      }
+    }
+
+    const mergedPlannedDays = Object.values(daysByDate)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((day) => {
+        const total = machineIds.reduce(
+          (s, mid) => s + parseFloat(day.machineHours[mid] || 0),
+          0,
+        );
+        return { ...day, hours: total.toFixed(2), is_overtime: Boolean(day.is_overtime) };
+      });
+
+    return {
+      ...plan,
+      machine_ids: machineIds,
+      planGroup: allPlans.map((p) => ({ id: p.id, machine_id: p.machine_id })),
+      _mergedPlannedDays: mergedPlannedDays,
+    };
+  }, []);
+
+  const handleOpenEdit = useCallback(
+    (plan) => {
+      const siblings = findSiblingPlans(plan, plans);
+      setEditingPlan(buildMergedPlanForEdit(plan, siblings));
+      setOpenModal(true);
+    },
+    [plans, findSiblingPlans, buildMergedPlanForEdit],
+  );
+
   const handleFormSubmit = useCallback(
-    (payload) => {
+    async (payload) => {
       if (payload.isFullOrderMode) {
         batchOrderMutation.mutate({
           order_id: payload.order_id,
@@ -268,6 +315,44 @@ export default function PlanningPage() {
         });
         return;
       }
+      if (editingPlan?.planGroup?.length > 1) {
+        try {
+          await Promise.all(
+            editingPlan.planGroup.map(({ id, machine_id }) => {
+              const mId = String(machine_id);
+              const planRecord = plans.find((p) => p.id === id) || editingPlan;
+              const mDays = (payload.days || [])
+                .map((d) => {
+                  const machineHrs = parseFloat(d.machine_hours?.[mId] ?? 0);
+                  if (machineHrs <= 0) return null;
+                  return {
+                    date: d.date,
+                    hours: (machineHrs * 8).toFixed(2),
+                    is_overtime: d.is_overtime || false,
+                  };
+                })
+                .filter(Boolean);
+
+              return planningService.update(id, {
+                order_id: planRecord.order_id,
+                product_id: planRecord.product_id,
+                product_group_operation_id: planRecord.product_group_operation_id,
+                inventory_input: payload.inventory_input ?? planRecord.inventory_input,
+                planned_start_date: payload.planned_start_date ?? planRecord.planned_start_date,
+                dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
+                machine_id: machine_id || null,
+                days: mDays,
+              });
+            }),
+          );
+          queryClient.invalidateQueries({ queryKey: ["plans"] });
+          handleCloseModal();
+          toast.success("Cập nhật thành công!");
+        } catch (err) {
+          toast.error(err.response?.data?.message || "Lỗi khi cập nhật");
+        }
+        return;
+      }
       if (editingPlan) {
         updateMutation.mutate(
           { id: editingPlan.id, payload },
@@ -277,19 +362,33 @@ export default function PlanningPage() {
         createMutation.mutate(payload);
       }
     },
-    [editingPlan, updateMutation, createMutation, batchOrderMutation, handleCloseModal],
+    [
+      editingPlan,
+      plans,
+      updateMutation,
+      createMutation,
+      batchOrderMutation,
+      handleCloseModal,
+      queryClient,
+    ],
   );
+
+  const mapDaysWithQuantity = useCallback((days, dinhMuc) => {
+    return days.map((d) => {
+      const hours = parseFloat((parseFloat(d.planned_work_quantity) / 8).toFixed(10));
+      return {
+        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
+        hours,
+        quantity: String(Math.round(toDisplayQuantity(d.planned_work_quantity, dinhMuc))),
+        is_overtime: d.is_overtime,
+      };
+    });
+  }, []);
 
   const handleStartInlineEdit = useCallback((plan) => {
     setInlineEditingId(plan.id);
-    setInlineEditDays(
-      plan.days.map((d) => ({
-        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
-        hours: (parseFloat(d.planned_work_quantity) / 8).toFixed(2),
-        is_overtime: d.is_overtime,
-      })),
-    );
-  }, []);
+    setInlineEditDays(mapDaysWithQuantity(plan.days, plan.dinh_muc));
+  }, [mapDaysWithQuantity]);
 
   const handleCancelInlineEdit = useCallback(() => {
     setInlineEditingId(null);
@@ -298,26 +397,69 @@ export default function PlanningPage() {
 
   const handleInlineDayChange = useCallback((plan, dateISO, value) => {
     setInlineEditDays((prev) => {
-      const planTotalNeeded = (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / (parseFloat(plan.dinh_muc) || 1);
+      const dinhMuc = parseFloat(plan.dinh_muc) || 1;
+      // Calculate total work needed from the existing days (not from order quantity)
+      // This ensures multi-machine plans maintain their allocated portion
+      const totalHoursInPlan = (prev || []).reduce((sum, d) => sum + parseFloat(d.hours || 0), 0);
+      const planTotalNeeded = totalHoursInPlan > 0 ? totalHoursInPlan : 
+        (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / dinhMuc;
+      
       let newDays = [...prev];
       let index = newDays.findIndex((d) => d.date === dateISO);
       if (index === -1) {
-        newDays.push({ date: dateISO, hours: "0.00", is_overtime: false });
+        newDays.push({ date: dateISO, hours: "0.00", quantity: "0", is_overtime: false });
         newDays.sort((a, b) => a.date.localeCompare(b.date));
         index = newDays.findIndex((d) => d.date === dateISO);
       }
-      return rebalanceDays(newDays, index, value, planTotalNeeded);
+      return rebalanceDaysAsQuantity(newDays, index, value, planTotalNeeded, dinhMuc);
     });
-  }, []);
+  }, [rebalanceDaysAsQuantity]);
 
   const handleInlineOTToggle = useCallback((plan, dateISO) => {
     setInlineEditDays((prev) => {
-      const planTotalNeeded = (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / (parseFloat(plan.dinh_muc) || 1);
-      const newDays = prev.map((d) => d.date === dateISO ? { ...d, is_overtime: !d.is_overtime } : d);
-      const index = newDays.findIndex((d) => d.date === dateISO);
-      return rebalanceDays(newDays, index, newDays[index].hours, planTotalNeeded);
+      const dinhMuc = parseFloat(plan.dinh_muc) || 1;
+      // Calculate total work needed from the existing days (not from order quantity)
+      // This ensures multi-machine plans maintain their allocated portion
+      const totalHoursInPlan = (prev || []).reduce((sum, d) => sum + parseFloat(d.hours || 0), 0);
+      const planTotalNeeded = totalHoursInPlan > 0 ? totalHoursInPlan : 
+        (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / dinhMuc;
+      
+      let newDays = [...prev];
+      let index = newDays.findIndex((d) => d.date === dateISO);
+      if (index === -1) {
+        const existingDay = plan.days?.find(
+          (d) =>
+            DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd") === dateISO,
+        );
+        const hours = existingDay
+          ? (parseFloat(existingDay.planned_work_quantity) / 8).toFixed(2)
+          : "0.00";
+        const quantity = existingDay
+          ? String(toDisplayQuantity(existingDay.planned_work_quantity, dinhMuc))
+          : "0";
+        newDays.push({
+          date: dateISO,
+          hours,
+          quantity,
+          is_overtime: existingDay?.is_overtime || false,
+        });
+        newDays.sort((a, b) => a.date.localeCompare(b.date));
+        index = newDays.findIndex((d) => d.date === dateISO);
+      }
+      newDays = newDays.map((d) =>
+        d.date === dateISO ? { ...d, is_overtime: !d.is_overtime } : d,
+      );
+      const day = newDays[index];
+      if (!day) return prev;
+      return rebalanceDaysAsQuantity(
+        newDays,
+        index,
+        day.quantity,
+        planTotalNeeded,
+        dinhMuc,
+      );
     });
-  }, []);
+  }, [rebalanceDaysAsQuantity]);
 
   const handleSaveInline = useCallback((plan) => {
     const payload = {
@@ -574,16 +716,24 @@ export default function PlanningPage() {
                   {filterMachines.map((m) => (
                     <CommandItem
                       key={m.id}
+                      value={`${m.code || ""} ${m.name || ""}`}
                       onSelect={() => toggleMachineSelection(m.id)}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                     >
                       <div className={cn(
-                        "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
-                        selectedMachineIds.includes(m.id) ? "bg-indigo-600 border-indigo-600" : "bg-white"
+                        "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors shrink-0",
+                        selectedMachineIds.some((mid) => String(mid) === String(m.id)) ? "bg-indigo-600 border-indigo-600" : "bg-white"
                       )}>
-                        {selectedMachineIds.includes(m.id) && <Check className="w-3 h-3 text-white" />}
+                        {selectedMachineIds.some((mid) => String(mid) === String(m.id)) && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className="font-bold text-xs break-all leading-tight">{m.name}</span>
+                      <div className="flex flex-col min-w-0">
+                        {m.code && (
+                          <span className="font-bold text-xs text-indigo-700 leading-tight">{m.code}</span>
+                        )}
+                        <span className={cn("text-[10px] leading-tight break-all", m.code ? "text-zinc-500 font-medium" : "font-bold text-xs text-zinc-900")}>
+                          {m.name}
+                        </span>
+                      </div>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -712,14 +862,17 @@ export default function PlanningPage() {
             </Badge>
           )}
 
-          {selectedMachinesDisplay.slice(0, 5).map(m => (
+          {selectedMachinesDisplay.slice(0, 5).map(m => {
+            const machineLabel = formatMachineFilterLabel(m);
+            return (
             <Badge key={m.id} variant="secondary" className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200">
-              Máy: {m.name.substring(0, 20)}{m.name.length > 20 ? '...' : ''}
+              Máy: {machineLabel.substring(0, 28)}{machineLabel.length > 28 ? '...' : ''}
               <button onClick={() => toggleMachineSelection(m.id)} className="hover:text-red-500 rounded-full p-0.5 ml-1">
                 <X className="w-3 h-3" />
               </button>
             </Badge>
-          ))}
+          );
+          })}
           {selectedMachineIds.length > 5 && (
             <Badge variant="outline" className="h-6 text-[10px] font-bold bg-white border-dashed">
               +{selectedMachineIds.length - 5} máy khác
@@ -775,7 +928,7 @@ export default function PlanningPage() {
                         key={date.key}
                         className={cn(
                           "text-[9px] min-w-[54px] p-1 h-auto py-2",
-                          isSunday ? "bg-zinc-200 text-red-600" : "bg-sky-50/50 text-zinc-600"
+                          isSunday ? "bg-zinc-400 text-red-50" : "bg-sky-50/50 text-zinc-600"
                         )}
                       >
                         <div className="flex flex-col items-center gap-1.5">

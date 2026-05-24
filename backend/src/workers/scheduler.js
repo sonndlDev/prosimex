@@ -20,7 +20,12 @@ export function startScheduler() {
     CRON_EXPRESSION,
     async () => {
       // Derive today's date in Vietnam timezone (YYYY-MM-DD)
-      const targetDate = new Date().toLocaleDateString("en-CA", {
+      // const targetDate = new Date().toLocaleDateString("en-CA", {
+      //   timeZone: "Asia/Ho_Chi_Minh",
+      // });
+      const targetDate = new Date(
+        Date.now() + 24 * 60 * 60 * 1000 
+      ).toLocaleDateString("en-CA", {
         timeZone: "Asia/Ho_Chi_Minh",
       });
 

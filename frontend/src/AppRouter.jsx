@@ -23,6 +23,7 @@ const ProductPage = React.lazy(() => import("./pages/products/ProductPage"));
 const UserPage = React.lazy(() => import("./pages/auth/UserPage"));
 const CustomerPage = React.lazy(() => import("./pages/customers/CustomerPage"));
 const OrderPage = React.lazy(() => import("./pages/orders/OrderPage"));
+const OrderProductSnapshotPage = React.lazy(() => import("./pages/orders/OrderProductSnapshotPage"));
 const WarehousePage = React.lazy(() => import("./pages/warehouse/WarehousePage"));
 const SuppliersPage = React.lazy(() => import("./pages/suppliers/SuppliersPage"));
 const PlanningPage = React.lazy(() => import("./pages/planning/PlanningPage"));
@@ -119,6 +120,7 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="orders:read" />}>
                 <Route path="/orders" element={<OrderPage />} />
+                <Route path="/orders/product-snapshots" element={<OrderProductSnapshotPage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="warehouse:read" />}>
                 <Route path="/warehouse" element={<WarehousePage />} />

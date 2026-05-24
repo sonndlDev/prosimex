@@ -3,6 +3,7 @@ import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { dailyTicketService } from "../../services/daily-ticket.service";
+import { useAuth } from "../../context/AuthContext";
 import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
@@ -139,26 +140,35 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
   });
 
   const operationOptions = useMemo(() => {
-    // Ưu tiên dùng list PGO (vì cần ID của bảng product_group_operations để ghi vào DB)
+    if (!row.product_id) return [];
+
+    // Nhóm mã không có công đoạn → ghi SL tổng theo mã hàng (pgo_id = null)
+    if (selectedProduct?.product_group_id && pgoList && pgoList.length === 0) {
+      return [{
+        id: "__no_operation__",
+        name: "(Không công đoạn – SL tổng mã hàng)",
+        subLabel: "Dùng cho mã hàng chưa khai báo quy trình",
+      }];
+    }
+
     if (pgoList && pgoList.length > 0) {
       return pgoList.map(item => {
         const orderQty = parseFloat(item.order_quantity) || 0;
         const totalActual = parseFloat(item.total_actual) || 0;
         const isCompleted = orderQty > 0 && totalActual >= orderQty;
         return {
-          id: item.id, // Đây là product_group_operation_id
+          id: item.id,
           name: item.operation_name,
           subLabel: orderQty > 0 ? `Đã làm: ${totalActual}/${orderQty}` : undefined,
           disabled: isCompleted
         };
       });
     }
-    
-    // Nếu chưa chọn sản phẩm hoặc không có PGO, dùng fallback allOperations
-    const map = new Map();
-    (allOperations || []).forEach(o => { if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.name }); });
-    return Array.from(map.values());
-  }, [pgoList, allOperations]);
+
+    return [];
+  }, [pgoList, allOperations, row.product_id, selectedProduct?.product_group_id]);
+
+  const isNoOperation = !row.product_group_operation_id && row.operation_name;
 
   const selectedPgo = useMemo(() => {
     if (!row.product_group_operation_id || !pgoList) return null;
@@ -211,11 +221,16 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
       {/* Công đoạn */}
       <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
         <Combobox
-          value={field.value}
+          value={field.value || (isNoOperation ? "__no_operation__" : "")}
           onChange={v => {
-            field.onChange(v);
-            const found = operationOptions.find(o => String(o.id) === String(v));
-            if (found) setValue(`items.${index}.operation_name`, found.name);
+            if (v === "__no_operation__") {
+              field.onChange("");
+              setValue(`items.${index}.operation_name`, "Không công đoạn");
+            } else {
+              field.onChange(v);
+              const found = operationOptions.find(o => String(o.id) === String(v));
+              if (found) setValue(`items.${index}.operation_name`, found.name);
+            }
           }}
           disabled={!row.product_id || isLoadingPgo}
           options={operationOptions}
@@ -264,9 +279,23 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
   );
 }
 
+const formatManualTicketCode = (ticketDate, userId, ticketId) => {
+  const dateKey = DateTime.fromISO(ticketDate).toFormat("yyyyMMdd");
+  return `${dateKey}U${userId}#${ticketId}`;
+};
+
+const parseManualTicketCode = (code) => {
+  const m = String(code).trim().match(/^(\d{8})U(\d+)#(\d+)$/i);
+  if (!m) return null;
+  const date = DateTime.fromFormat(m[1], "yyyyMMdd");
+  if (!date.isValid) return null;
+  return { date: date.toISODate(), userId: m[2], ticketId: m[3] };
+};
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function ProductionOutputPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Chế độ (nhập theo phiếu / nhập thủ công)
   const [isManualMode, setIsManualMode] = useState(false);
@@ -316,13 +345,21 @@ export default function ProductionOutputPage() {
     if (!searchTicketId) { toast.warning("Vui lòng nhập mã số phiếu!"); return; }
     let finalId = searchTicketId;
     let finalDate = searchDate;
-    if (searchTicketId.length >= 9 && /^\d+$/.test(searchTicketId)) {
+
+    const manualParsed = parseManualTicketCode(searchTicketId);
+    if (manualParsed) {
+      finalDate = manualParsed.date;
+      finalId = manualParsed.ticketId;
+      setSearchDate(finalDate);
+    } else if (searchTicketId.length >= 9 && /^\d+$/.test(searchTicketId)) {
       const datePart = searchTicketId.substring(0, 8);
       const idPart = searchTicketId.substring(8);
       const parsedDate = DateTime.fromFormat(datePart, "yyyyMMdd");
       if (parsedDate.isValid) { finalDate = parsedDate.toISODate(); finalId = idPart; setSearchDate(finalDate); }
     } else if (searchTicketId.includes("_#")) {
       finalId = searchTicketId.split("_#")[1];
+    } else if (searchTicketId.includes("#")) {
+      finalId = searchTicketId.split("#").pop();
     }
     if (!finalDate) { toast.warning("Vui lòng chọn ngày sản xuất!"); return; }
     setActiveTicketId(finalId);
@@ -351,6 +388,9 @@ export default function ProductionOutputPage() {
 
   // ── Chế độ THỦ CÔNG ──────────────────────────────────────────────────────
   const [manualDate, setManualDate] = useState(DateTime.now().toFormat("yyyy-MM-dd"));
+  const [showAllManualTickets, setShowAllManualTickets] = useState(false);
+  const [editingManualTicket, setEditingManualTicket] = useState(null);
+  const [manualSearchCode, setManualSearchCode] = useState("");
 
   const { data: allOrdersResp } = useQuery({
     queryKey: ["all-orders"],
@@ -374,30 +414,123 @@ export default function ProductionOutputPage() {
   const { fields: manualFields, append: manualAppend, remove: manualRemove } = useFieldArray({ control: manualControl, name: "items" });
   const manualWatchItems = manualWatch("items");
 
+  const { data: manualTicketsResp, isLoading: manualTicketsLoading } = useQuery({
+    queryKey: ["manual-tickets", manualDate, showAllManualTickets, user?.id],
+    queryFn: () => {
+      const params = {
+        startDate: manualDate,
+        endDate: manualDate,
+        is_manual: true,
+        limit: 200,
+        page: 1,
+      };
+      if (!showAllManualTickets && user?.id) params.created_by = user.id;
+      return dailyTicketService.getAll(params);
+    },
+    enabled: isManualMode && !!manualDate,
+  });
+
+  const manualTickets = manualTicketsResp?.data || [];
+
+  const loadManualTicketForEdit = async (ticketMeta) => {
+    try {
+      const full = await dailyTicketService.getById(ticketMeta.id);
+      setEditingManualTicket(full);
+      setManualDate(DateTime.fromISO(full.ticket_date).toFormat("yyyy-MM-dd"));
+      manualReset({
+        items: (full.items || []).map((item) => ({
+          id: item.id,
+          order_id: item.order_id ? String(item.order_id) : "",
+          product_id: item.product_id ? String(item.product_id) : "",
+          product_group_operation_id: item.product_group_operation_id ? String(item.product_group_operation_id) : "",
+          operation_name: item.operation_name || item.pgo_operation_name || "",
+          planned_quantity: parseFloat(item.planned_quantity) || "",
+          actual_quantity: parseFloat(item.actual_quantity) || "",
+          notes: item.notes || "",
+        })),
+      });
+      toast.success(`Đã mở phiếu ${formatManualTicketCode(full.ticket_date, full.created_by, full.id)}`);
+    } catch (e) {
+      toast.error("Không tải được phiếu!");
+    }
+  };
+
+  const handleManualCodeSearch = () => {
+    const parsed = parseManualTicketCode(manualSearchCode);
+    if (!parsed) {
+      toast.warning("Mã phiếu thủ công: yyyyMMddU{userId}#{ticketId}");
+      return;
+    }
+    setManualDate(parsed.date);
+    loadManualTicketForEdit({ id: parsed.ticketId });
+  };
+
   const manualOutputMutation = useMutation({
     mutationFn: (data) => dailyTicketService.manualOutput(data),
     onSuccess: (res) => {
-      toast.success(`Đã ghi nhận sản lượng! Lưu vào phiếu #${res.ticket_id}`);
-      manualReset({ items: [] });
+      const code = res.display_code || `#${res.ticket_id}`;
+      toast.success(`Đã ghi nhận! Mã phiếu: ${code}`);
+      if (!editingManualTicket) manualReset({ items: [] });
+      setEditingManualTicket(null);
       queryClient.invalidateQueries(["daily-tickets"]);
+      queryClient.invalidateQueries(["manual-tickets"]);
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi ghi nhận sản lượng!"),
   });
 
-  const onManualSubmit = (data) => {
+  const manualUpdateMutation = useMutation({
+    mutationFn: ({ ticketId, items }) => dailyTicketService.updateResults(ticketId, items),
+    onSuccess: () => {
+      toast.success("Đã cập nhật phiếu thủ công!");
+      queryClient.invalidateQueries(["daily-tickets"]);
+      queryClient.invalidateQueries(["manual-tickets"]);
+      if (editingManualTicket?.id) loadManualTicketForEdit({ id: editingManualTicket.id });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật!"),
+  });
+
+  const mapManualItemPayload = (i) => ({
+    order_id: i.order_id || null,
+    product_id: i.product_id || null,
+    product_group_operation_id: i.product_group_operation_id || null,
+    operation_name: i.operation_name || null,
+    planned_quantity: parseFloat(i.planned_quantity) || 0,
+    actual_quantity: parseFloat(i.actual_quantity) || 0,
+    notes: i.notes || null,
+  });
+
+  const onManualSubmit = async (data) => {
     if (data.items.length === 0) { toast.warning("Vui lòng thêm ít nhất một dòng!"); return; }
-    manualOutputMutation.mutate({
-      ticket_date: manualDate,
-      items: data.items.map(i => ({
-        order_id: i.order_id || null,
-        product_id: i.product_id || null,
-        product_group_operation_id: i.product_group_operation_id || null,
-        operation_name: i.operation_name || null,
-        planned_quantity: parseFloat(i.planned_quantity) || 0,
-        actual_quantity: parseFloat(i.actual_quantity) || 0,
-        notes: i.notes || null,
-      })),
-    });
+
+    const existingRows = data.items.filter((i) => i.id);
+    const newRows = data.items.filter((i) => !i.id);
+
+    if (editingManualTicket?.id && existingRows.length > 0) {
+      await manualUpdateMutation.mutateAsync({
+        ticketId: editingManualTicket.id,
+        items: existingRows.map((i) => ({
+          id: i.id,
+          actual_quantity: parseFloat(i.actual_quantity) || 0,
+          notes: i.notes || null,
+        })),
+      });
+    }
+
+    if (newRows.length > 0) {
+      manualOutputMutation.mutate({
+        ticket_date: manualDate,
+        items: newRows.map(mapManualItemPayload),
+        ...(editingManualTicket?.id ? { target_ticket_id: editingManualTicket.id } : {}),
+      });
+    } else if (editingManualTicket?.id && existingRows.length > 0) {
+      setEditingManualTicket(null);
+      manualReset({ items: [] });
+    } else if (!editingManualTicket) {
+      manualOutputMutation.mutate({
+        ticket_date: manualDate,
+        items: data.items.map(mapManualItemPayload),
+      });
+    }
   };
 
   return (
@@ -581,7 +714,7 @@ export default function ProductionOutputPage() {
                 <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">Nhập sản lượng từ đơn hàng / mã hàng</h3>
               </div>
               <p className="text-xs text-indigo-500 font-medium md:ml-2">
-                Dùng khi không có phiếu sản xuất — hệ thống sẽ tự tạo/gộp phiếu thủ công cho ngày đã chọn.
+                Mỗi lần ghi nhận tạo một phiếu mới. Mã phiếu: <span className="font-mono">yyyyMMddU{'{userId}'}#{'{id}'}</span>
               </p>
               <div className="md:ml-auto w-full md:w-52 space-y-1">
                 <Label className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Ngày sản xuất</Label>
@@ -589,6 +722,82 @@ export default function ProductionOutputPage() {
               </div>
             </div>
           </div>
+
+          {/* <div className="p-6 space-y-4 border-b border-indigo-100 bg-white/60">
+            <div className="flex flex-col md:flex-row gap-3 md:items-end">
+              <div className="flex-1 space-y-1">
+                <Label className="text-xs font-bold text-zinc-500">Tìm mã phiếu thủ công</Label>
+                <Input
+                  placeholder="VD: 20260522U5#123"
+                  value={manualSearchCode}
+                  onChange={(e) => setManualSearchCode(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleManualCodeSearch()}
+                />
+              </div>
+              <Button variant="outline" onClick={handleManualCodeSearch} className="font-bold">Mở phiếu</Button>
+              <div className="flex items-center gap-2 pb-1">
+                <Switch checked={showAllManualTickets} onCheckedChange={setShowAllManualTickets} id="show-all-manual" />
+                <Label htmlFor="show-all-manual" className="text-xs font-bold cursor-pointer">Xem phiếu mọi user</Label>
+              </div>
+            </div>
+
+            {editingManualTicket && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <p className="text-xs font-bold text-amber-900">
+                  Đang sửa phiếu{" "}
+                  <span className="font-mono">
+                    {formatManualTicketCode(editingManualTicket.ticket_date, editingManualTicket.created_by, editingManualTicket.id)}
+                  </span>
+                  {" "}— {editingManualTicket.creator_name}
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-amber-800 font-bold"
+                  onClick={() => { setEditingManualTicket(null); manualReset({ items: [] }); }}
+                >
+                  Hủy / Nhập mới
+                </Button>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-zinc-200 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-zinc-50">
+                    <TableHead>Mã phiếu</TableHead>
+                    <TableHead>Người nhập</TableHead>
+                    <TableHead className="text-right">SL TT</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="w-[100px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {manualTicketsLoading ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-zinc-400">Đang tải...</TableCell></TableRow>
+                  ) : manualTickets.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-zinc-400">Chưa có phiếu thủ công trong ngày này</TableCell></TableRow>
+                  ) : manualTickets.map((t) => (
+                    <TableRow key={t.id} className={editingManualTicket?.id === t.id ? "bg-indigo-50" : ""}>
+                      <TableCell className="font-mono text-xs font-bold text-indigo-700">
+                        {formatManualTicketCode(t.ticket_date, t.created_by, t.id)}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{t.creator_name}</TableCell>
+                      <TableCell className="text-right font-bold">{parseFloat(t.actual_quantity) || 0}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] font-bold">{t.ticket_status || t.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline" className="h-8 text-xs font-bold" onClick={() => loadManualTicketForEdit(t)}>
+                          Sửa
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div> */}
 
           <div className="p-6 space-y-3">
             {/* Column headers */}
@@ -639,15 +848,16 @@ export default function ProductionOutputPage() {
 
           <CardFooter className="p-6 bg-indigo-50/30 border-t border-indigo-100 justify-between items-center">
             <p className="text-xs text-zinc-500 font-medium">
-              Sẽ lưu vào phiếu thủ công ngày <span className="font-black text-indigo-700">{DateTime.fromISO(manualDate).toFormat("dd/MM/yyyy")}</span>
+              Phiếu của <span className="font-black text-indigo-700">{user?.username}</span> — ngày{" "}
+              <span className="font-black text-indigo-700">{DateTime.fromISO(manualDate).toFormat("dd/MM/yyyy")}</span>
             </p>
             <Button
               size="lg"
               onClick={manualHandleSubmit(onManualSubmit)}
-              disabled={manualOutputMutation.isPending || manualFields.length === 0}
+              disabled={(manualOutputMutation.isPending || manualUpdateMutation.isPending) || manualFields.length === 0}
               className="px-8 font-bold bg-indigo-600 hover:bg-indigo-700"
             >
-              {manualOutputMutation.isPending ? "Đang lưu..." : "Ghi Nhận Sản Lượng"}
+              {(manualOutputMutation.isPending || manualUpdateMutation.isPending) ? "Đang lưu..." : (editingManualTicket ? "Cập nhật phiếu" : "Ghi Nhận Sản Lượng")}
             </Button>
           </CardFooter>
         </Card>

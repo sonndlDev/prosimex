@@ -1,4 +1,5 @@
 import pool from '../../config/db.js';
+import { cascadeOnWorkerDelete } from '../../utils/cascade-delete.util.js';
 
 export const getWorkers = async (req, res) => {
   try {
@@ -101,26 +102,32 @@ export const updateWorker = async (req, res) => {
 };
 
 export const deleteWorker = async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const beforeRes = await pool.query('SELECT * FROM workers WHERE id = $1 AND deleted_at IS NULL', [id]);
+    const beforeRes = await client.query('SELECT * FROM workers WHERE id = $1 AND deleted_at IS NULL', [id]);
     if (beforeRes.rowCount === 0) return res.status(404).json({ message: 'Worker not found' });
 
-    await pool.query(
+    await client.query('BEGIN');
+    await cascadeOnWorkerDelete(client, id);
+    await client.query(
       `UPDATE workers SET deleted_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1`,
-      [id, userId]
+      [id, userId],
     );
-
-    await pool.query(
+    await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data) VALUES ($1, 'DELETE', 'Worker', $2, $3)`,
-      [userId, id, beforeRes.rows[0]]
+      [userId, id, beforeRes.rows[0]],
     );
+    await client.query('COMMIT');
 
     res.json({ message: 'Worker deleted successfully' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('deleteWorker error:', error);
     res.status(500).json({ message: 'Internal server error' });
+  } finally {
+    client.release();
   }
 };

@@ -49,27 +49,18 @@ import CustomSchedule from './components/CustomSchedule';
 export default function SchedulePage() {
     const queryClient = useQueryClient();
     const [factoryId, setFactoryId] = useState('all');
-    const [viewType, setViewType] = useState('month'); // day, week, month
     const [activeTab, setActiveTab] = useState('assigned'); // assigned, unassigned
-    const [currentDate, setCurrentDate] = useState(DateTime.now());
+    const [rangeStart, setRangeStart] = useState(() => DateTime.now().startOf('day'));
 
     const { data: factories } = useQuery({ queryKey: ['factories'], queryFn: factoryService.getAll });
     const factoriesArray = Array.isArray(factories) ? factories : [];
 
     const dateRange = useMemo(() => {
-        let start, end;
-        if (viewType === 'day') {
-            start = currentDate.startOf('day');
-            end = currentDate.endOf('day');
-        } else if (viewType === 'week') {
-            start = currentDate.startOf('week');
-            end = currentDate.endOf('week');
-        } else {
-            start = currentDate.startOf('month');
-            end = currentDate.endOf('month');
-        }
+        const today = DateTime.now().startOf('day');
+        const start = rangeStart < today ? today : rangeStart;
+        const end = start.plus({ months: 1 });
         return { start: start.toISODate(), end: end.toISODate() };
-    }, [currentDate, viewType]);
+    }, [rangeStart]);
 
     const { data: scheduleData, isLoading, error } = useQuery({
         queryKey: ['schedule', dateRange, factoryId, activeTab],
@@ -95,28 +86,29 @@ export default function SchedulePage() {
     };
 
     const handlePrev = () => {
-        if (viewType === 'day') setCurrentDate(prev => prev.minus({ days: 1 }));
-        else if (viewType === 'week') setCurrentDate(prev => prev.minus({ weeks: 1 }));
-        else setCurrentDate(prev => prev.minus({ months: 1 }));
+        const today = DateTime.now().startOf('day');
+        setRangeStart((prev) => {
+            const next = prev.minus({ months: 1 });
+            return next < today ? today : next;
+        });
     };
 
     const handleNext = () => {
-        if (viewType === 'day') setCurrentDate(prev => prev.plus({ days: 1 }));
-        else if (viewType === 'week') setCurrentDate(prev => prev.plus({ weeks: 1 }));
-        else setCurrentDate(prev => prev.plus({ months: 1 }));
+        setRangeStart((prev) => prev.plus({ months: 1 }));
     };
 
-    const handleToday = () => setCurrentDate(DateTime.now());
+    const handleToday = () => setRangeStart(DateTime.now().startOf('day'));
+
+    const canGoPrev = useMemo(() => {
+        const today = DateTime.now().startOf('day');
+        return rangeStart > today;
+    }, [rangeStart]);
 
     const title = useMemo(() => {
-        if (viewType === 'day') return currentDate.toFormat('dd/MM/yyyy');
-        if (viewType === 'week') {
-            const start = currentDate.startOf('week');
-            const end = currentDate.endOf('week');
-            return `${start.toFormat('dd/MM')} - ${end.toFormat('dd/MM/yyyy')}`;
-        }
-        return `THÁNG ${currentDate.month} NĂM ${currentDate.year}`;
-    }, [currentDate, viewType]);
+        const start = DateTime.fromISO(dateRange.start);
+        const end = DateTime.fromISO(dateRange.end);
+        return `${start.toFormat('dd/MM/yyyy')} - ${end.toFormat('dd/MM/yyyy')}`;
+    }, [dateRange]);
 
     return (
         <div className="h-[calc(100vh-100px)] flex flex-col gap-4 px-2 py-4">
@@ -226,7 +218,7 @@ export default function SchedulePage() {
                 <CardHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-200 flex flex-row items-center justify-between space-y-0">
                     <div className="flex items-center gap-2">
                         <div className="flex rounded-lg border border-zinc-200 bg-white shadow-sm overflow-hidden">
-                            <Button variant="ghost" size="icon" onClick={handlePrev} className="h-9 w-9 border-r border-zinc-100 rounded-none hover:bg-zinc-50">
+                            <Button variant="ghost" size="icon" onClick={handlePrev} disabled={!canGoPrev} className="h-9 w-9 border-r border-zinc-100 rounded-none hover:bg-zinc-50 disabled:opacity-40">
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={handleNext} className="h-9 w-9 rounded-none hover:bg-zinc-50">
@@ -247,13 +239,9 @@ export default function SchedulePage() {
                         {title}
                     </CardTitle>
 
-                    <Tabs value={viewType} onValueChange={setViewType} className="w-auto">
-                        <TabsList className="bg-zinc-100 border border-zinc-200 h-9 p-1 rounded-lg">
-                            <TabsTrigger value="day" className="px-4 text-xs font-bold rounded-md">Ngày</TabsTrigger>
-                            <TabsTrigger value="week" className="px-4 text-xs font-bold rounded-md">Tuần</TabsTrigger>
-                            <TabsTrigger value="month" className="px-4 text-xs font-bold rounded-md">Tháng</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-2">
+                        {DateTime.fromISO(dateRange.end).diff(DateTime.fromISO(dateRange.start), 'days').days + 1} ngày
+                    </div>
                 </CardHeader>
 
                 <CardContent className="flex-1 p-0 relative min-h-0 bg-zinc-50/20">
@@ -278,7 +266,6 @@ export default function SchedulePage() {
                                 resources={scheduleData?.machines || []} 
                                 events={scheduleData?.events || []} 
                                 dateRange={dateRange}
-                                viewType={viewType}
                                 onStop={handleStop}
                                 isStopping={stopMutation.isPending}
                             />
