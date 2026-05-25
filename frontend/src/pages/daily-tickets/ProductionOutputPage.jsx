@@ -18,15 +18,50 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
 import { Separator } from "@/components/ui/separator";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Trash2, Check, ChevronsUpDown, ShoppingCart, Package, Settings, ClipboardList, Pencil } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Plus,
+  Trash2,
+  Check,
+  ChevronsUpDown,
+  ShoppingCart,
+  Package,
+  Settings,
+  ClipboardList,
+  Pencil,
+} from "lucide-react";
 
 // ─── Combobox helper ────────────────────────────────────────────────────────
-function Combobox({ value, onChange, options = [], placeholder = "Chọn...", disabled = false, icon: Icon }) {
+function Combobox({
+  value,
+  onChange,
+  options = [],
+  placeholder = "Chọn...",
+  disabled = false,
+  icon: Icon,
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -39,19 +74,25 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
           <div className="flex items-center gap-1.5 truncate">
             {Icon && <Icon className="h-3 w-3 text-indigo-500 shrink-0" />}
             <span className="truncate">
-              {options.find(o => String(o.id) === String(value))?.name || placeholder}
+              {options.find((o) => String(o.id) === String(value))?.name ||
+                placeholder}
             </span>
           </div>
           <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+      <PopoverContent
+        className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden"
+        align="start"
+      >
         <Command>
           <CommandInput placeholder={`Tìm ${placeholder.toLowerCase()}...`} />
           <CommandList className="max-h-[300px] p-1">
-            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">
+              Không thấy
+            </CommandEmpty>
             <CommandGroup>
-              {options.map(o => {
+              {options.map((o) => {
                 const isItemDisabled = !!o.disabled;
                 return (
                   <CommandItem
@@ -65,11 +106,17 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
                     }}
                     className={cn(
                       "px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1 flex items-center justify-between",
-                      isItemDisabled && "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50"
+                      isItemDisabled &&
+                        "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50",
                     )}
                   >
                     <div className="flex flex-col text-left">
-                      <span className={cn("text-xs font-bold", isItemDisabled && "text-zinc-400 line-through")}>
+                      <span
+                        className={cn(
+                          "text-xs font-bold",
+                          isItemDisabled && "text-zinc-400 line-through",
+                        )}
+                      >
                         {o.name}
                       </span>
                       {o.subLabel && (
@@ -78,7 +125,14 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
                         </span>
                       )}
                     </div>
-                    <Check className={cn("ml-auto h-3 w-3 text-indigo-600 shrink-0", String(value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                    <Check
+                      className={cn(
+                        "ml-auto h-3 w-3 text-indigo-600 shrink-0",
+                        String(value) === String(o.id)
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    />
                   </CommandItem>
                 );
               })}
@@ -91,13 +145,23 @@ function Combobox({ value, onChange, options = [], placeholder = "Chọn...", di
 }
 
 // ─── Row nhập thủ công ──────────────────────────────────────────────────────
-function ManualRow({ index, control, setValue, remove, watchItems, allOrders, allProducts, allOperations }) {
+function ManualRow({
+  index,
+  control,
+  setValue,
+  remove,
+  watchItems,
+  allOrders,
+  allProducts,
+  allOperations,
+}) {
   const row = watchItems[index] || {};
 
   const orderOptions = useMemo(() => {
     const map = new Map();
-    (allOrders || []).forEach(o => {
-      if (!map.has(o.id)) map.set(o.id, { id: o.id, name: o.order_code || o.name || `#${o.id}` });
+    (allOrders || []).forEach((o) => {
+      if (!map.has(o.id))
+        map.set(o.id, { id: o.id, name: o.order_code || o.name || `#${o.id}` });
     });
     return Array.from(map.values());
   }, [allOrders]);
@@ -105,23 +169,30 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
   const productOptions = useMemo(() => {
     // Nếu đã chọn Đơn hàng, ưu tiên lấy danh sách mã hàng từ chính đơn hàng đó
     if (row.order_id) {
-      const selectedOrder = (allOrders || []).find(o => String(o.id) === String(row.order_id));
+      const selectedOrder = (allOrders || []).find(
+        (o) => String(o.id) === String(row.order_id),
+      );
       if (selectedOrder && selectedOrder.products) {
-        return selectedOrder.products.map(p => ({ 
-          id: p.id, 
-          name: p.name, 
-          product_group_id: p.product_group_id 
+        return selectedOrder.products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          product_group_id: p.product_group_id,
         }));
       }
     }
-    
+
     // Nếu chưa chọn đơn hàng, không hiện mã hàng nào để tránh nhầm lẫn
     if (!row.order_id) return [];
 
     // Fallback nếu không tìm thấy list products trong order (nên hiếm khi xảy ra)
     const map = new Map();
-    (allProducts || []).forEach(p => { 
-      if (!map.has(p.id)) map.set(p.id, { id: p.id, name: p.name, product_group_id: p.product_group_id }); 
+    (allProducts || []).forEach((p) => {
+      if (!map.has(p.id))
+        map.set(p.id, {
+          id: p.id,
+          name: p.name,
+          product_group_id: p.product_group_id,
+        });
     });
     return Array.from(map.values());
   }, [allProducts, allOrders, row.order_id]);
@@ -129,13 +200,22 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
   // Tìm product_group_id của sản phẩm đang chọn trong dòng này
   const selectedProduct = useMemo(() => {
     if (!row.product_id) return null;
-    return productOptions.find(p => String(p.id) === String(row.product_id));
+    return productOptions.find((p) => String(p.id) === String(row.product_id));
   }, [productOptions, row.product_id]);
 
   // Fetch danh sách công đoạn ĐÚNG của nhóm sản phẩm này (để lấy product_group_operation_id hợp lệ)
   const { data: pgoList, isLoading: isLoadingPgo } = useQuery({
-    queryKey: ["product-group-operations", selectedProduct?.product_group_id, row.order_id, row.product_id],
-    queryFn: () => productGroupService.getOperations(selectedProduct?.product_group_id, { orderId: row.order_id, productId: row.product_id }),
+    queryKey: [
+      "product-group-operations",
+      selectedProduct?.product_group_id,
+      row.order_id,
+      row.product_id,
+    ],
+    queryFn: () =>
+      productGroupService.getOperations(selectedProduct?.product_group_id, {
+        orderId: row.order_id,
+        productId: row.product_id,
+      }),
     enabled: !!selectedProduct?.product_group_id,
   });
 
@@ -144,35 +224,45 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
 
     // Nhóm mã không có công đoạn → ghi SL tổng theo mã hàng (pgo_id = null)
     if (selectedProduct?.product_group_id && pgoList && pgoList.length === 0) {
-      return [{
-        id: "__no_operation__",
-        name: "(Không công đoạn – SL tổng mã hàng)",
-        subLabel: "Dùng cho mã hàng chưa khai báo quy trình",
-      }];
+      return [
+        {
+          id: "__no_operation__",
+          name: "(Không công đoạn – SL tổng mã hàng)",
+          subLabel: "Dùng cho mã hàng chưa khai báo quy trình",
+        },
+      ];
     }
 
     if (pgoList && pgoList.length > 0) {
-      return pgoList.map(item => {
+      return pgoList.map((item) => {
         const orderQty = parseFloat(item.order_quantity) || 0;
         const totalActual = parseFloat(item.total_actual) || 0;
         const isCompleted = orderQty > 0 && totalActual >= orderQty;
         return {
           id: item.id,
           name: item.operation_name,
-          subLabel: orderQty > 0 ? `Đã làm: ${totalActual}/${orderQty}` : undefined,
-          disabled: isCompleted
+          subLabel:
+            orderQty > 0 ? `Đã làm: ${totalActual}/${orderQty}` : undefined,
+          disabled: isCompleted,
         };
       });
     }
 
     return [];
-  }, [pgoList, allOperations, row.product_id, selectedProduct?.product_group_id]);
+  }, [
+    pgoList,
+    allOperations,
+    row.product_id,
+    selectedProduct?.product_group_id,
+  ]);
 
   const isNoOperation = !row.product_group_operation_id && row.operation_name;
 
   const selectedPgo = useMemo(() => {
     if (!row.product_group_operation_id || !pgoList) return null;
-    return pgoList.find(item => String(item.id) === String(row.product_group_operation_id));
+    return pgoList.find(
+      (item) => String(item.id) === String(row.product_group_operation_id),
+    );
   }, [pgoList, row.product_group_operation_id]);
 
   const remainingQuantity = useMemo(() => {
@@ -185,69 +275,92 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
   return (
     <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 items-center">
       {/* Đơn hàng */}
-      <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
-        <Combobox 
-          value={field.value} 
-          onChange={v => { 
-            field.onChange(v); 
-            // Reset mã hàng và công đoạn khi đổi đơn hàng
-            setValue(`items.${index}.product_id`, "");
-            setValue(`items.${index}.product_group_operation_id`, "");
-            setValue(`items.${index}.operation_name`, "");
-          }} 
-          options={orderOptions} 
-          placeholder="Đơn hàng" 
-          icon={ShoppingCart} 
-        />
-      )} />
+      <Controller
+        name={`items.${index}.order_id`}
+        control={control}
+        render={({ field }) => (
+          <Combobox
+            value={field.value}
+            onChange={(v) => {
+              field.onChange(v);
+              // Reset mã hàng và công đoạn khi đổi đơn hàng
+              setValue(`items.${index}.product_id`, "");
+              setValue(`items.${index}.product_group_operation_id`, "");
+              setValue(`items.${index}.operation_name`, "");
+            }}
+            options={orderOptions}
+            placeholder="Đơn hàng"
+            icon={ShoppingCart}
+          />
+        )}
+      />
 
       {/* Mã hàng */}
-      <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
-        <Combobox 
-          value={field.value} 
-          onChange={v => {
-            field.onChange(v);
-            // Reset công đoạn khi đổi mã hàng
-            setValue(`items.${index}.product_group_operation_id`, "");
-            setValue(`items.${index}.operation_name`, "");
-          }} 
-          options={productOptions} 
-          placeholder={row.order_id ? "Mã hàng" : "Chọn đơn hàng trước"} 
-          disabled={!row.order_id} 
-          icon={Package} 
-        />
-      )} />
+      <Controller
+        name={`items.${index}.product_id`}
+        control={control}
+        render={({ field }) => (
+          <Combobox
+            value={field.value}
+            onChange={(v) => {
+              field.onChange(v);
+              // Reset công đoạn khi đổi mã hàng
+              setValue(`items.${index}.product_group_operation_id`, "");
+              setValue(`items.${index}.operation_name`, "");
+            }}
+            options={productOptions}
+            placeholder={row.order_id ? "Mã hàng" : "Chọn đơn hàng trước"}
+            disabled={!row.order_id}
+            icon={Package}
+          />
+        )}
+      />
 
       {/* Công đoạn */}
-      <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
-        <Combobox
-          value={field.value || (isNoOperation ? "__no_operation__" : "")}
-          onChange={v => {
-            if (v === "__no_operation__") {
-              field.onChange("");
-              setValue(`items.${index}.operation_name`, "Không công đoạn");
-            } else {
-              field.onChange(v);
-              const found = operationOptions.find(o => String(o.id) === String(v));
-              if (found) setValue(`items.${index}.operation_name`, found.name);
+      <Controller
+        name={`items.${index}.product_group_operation_id`}
+        control={control}
+        render={({ field }) => (
+          <Combobox
+            value={field.value || (isNoOperation ? "__no_operation__" : "")}
+            onChange={(v) => {
+              if (v === "__no_operation__") {
+                field.onChange("");
+                setValue(`items.${index}.operation_name`, "Không công đoạn");
+              } else {
+                field.onChange(v);
+                const found = operationOptions.find(
+                  (o) => String(o.id) === String(v),
+                );
+                if (found)
+                  setValue(`items.${index}.operation_name`, found.name);
+              }
+            }}
+            disabled={!row.product_id || isLoadingPgo}
+            options={operationOptions}
+            placeholder={
+              !row.product_id
+                ? "Chọn mã hàng trước"
+                : isLoadingPgo
+                  ? "Đang tải..."
+                  : "Công đoạn"
             }
-          }}
-          disabled={!row.product_id || isLoadingPgo}
-          options={operationOptions}
-          placeholder={!row.product_id ? "Chọn mã hàng trước" : (isLoadingPgo ? "Đang tải..." : "Công đoạn")}
-          icon={Settings}
-        />
-      )} />
+            icon={Settings}
+          />
+        )}
+      />
 
       {/* Còn thiếu */}
       <div className="flex justify-center">
         {remainingQuantity !== null ? (
-          <span className={cn(
-            "text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm",
-            remainingQuantity > 0 
-              ? "bg-amber-50 text-amber-700 border-amber-200" 
-              : "bg-emerald-50 text-emerald-700 border-emerald-200"
-          )}>
+          <span
+            className={cn(
+              "text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm",
+              remainingQuantity > 0
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200",
+            )}
+          >
             {remainingQuantity}
           </span>
         ) : (
@@ -256,23 +369,54 @@ function ManualRow({ index, control, setValue, remove, watchItems, allOrders, al
       </div>
 
       {/* SL kế hoạch (tùy chọn) */}
-      <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
-        <Input {...field} type="number" placeholder="SL KH" className="h-9 text-sm text-right" min={0} />
-      )} />
+      <Controller
+        name={`items.${index}.planned_quantity`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            type="number"
+            placeholder="SL KH"
+            className="h-9 text-sm text-right"
+            min={0}
+          />
+        )}
+      />
 
       {/* SL thực tế */}
-      <Controller name={`items.${index}.actual_quantity`} control={control} render={({ field }) => (
-        <Input {...field} type="number" placeholder="SL TT" className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500" min={0} />
-      )} />
+      <Controller
+        name={`items.${index}.actual_quantity`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            type="number"
+            placeholder="SL TT"
+            className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500"
+            min={0}
+          />
+        )}
+      />
 
       {/* Ghi chú */}
-      <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
-        <Input {...field} placeholder="Ghi chú..." className="h-9 text-xs border-zinc-300" />
-      )} />
+      <Controller
+        name={`items.${index}.notes`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            placeholder="Ghi chú..."
+            className="h-9 text-xs border-zinc-300"
+          />
+        )}
+      />
 
       {/* Xóa */}
-      <button type="button" onClick={() => remove(index)}
-        className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+      <button
+        type="button"
+        onClick={() => remove(index)}
+        className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+      >
         <Trash2 className="w-4 h-4" />
       </button>
     </div>
@@ -285,7 +429,9 @@ const formatManualTicketCode = (ticketDate, userId, ticketId) => {
 };
 
 const parseManualTicketCode = (code) => {
-  const m = String(code).trim().match(/^(\d{8})U(\d+)#(\d+)$/i);
+  const m = String(code)
+    .trim()
+    .match(/^(\d{8})U(\d+)#(\d+)$/i);
   if (!m) return null;
   const date = DateTime.fromFormat(m[1], "yyyyMMdd");
   if (!date.isValid) return null;
@@ -301,25 +447,41 @@ export default function ProductionOutputPage() {
   const [isManualMode, setIsManualMode] = useState(false);
 
   // ── Chế độ THEO PHIẾU ────────────────────────────────────────────────────
-  const [searchDate, setSearchDate] = useState(DateTime.now().toFormat("yyyy-MM-dd"));
+  const [searchDate, setSearchDate] = useState(
+    DateTime.now().toFormat("yyyy-MM-dd"),
+  );
   const [searchTicketId, setSearchTicketId] = useState("");
   const [activeTicketId, setActiveTicketId] = useState(null);
 
-  const { data: ticket, isLoading, isError, error } = useQuery({
+  const {
+    data: ticket,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["daily-ticket", activeTicketId],
     queryFn: () => dailyTicketService.getById(activeTicketId),
     enabled: !!activeTicketId && !isManualMode,
     retry: false,
   });
 
-  const { control: ticketControl, handleSubmit: ticketHandleSubmit, reset: ticketReset } = useForm({
+  const {
+    control: ticketControl,
+    handleSubmit: ticketHandleSubmit,
+    reset: ticketReset,
+  } = useForm({
     defaultValues: { items: [] },
   });
-  const { fields: ticketFields, replace: ticketReplace } = useFieldArray({ control: ticketControl, name: "items" });
+  const { fields: ticketFields, replace: ticketReplace } = useFieldArray({
+    control: ticketControl,
+    name: "items",
+  });
 
   React.useEffect(() => {
     if (ticket) {
-      const rcvDate = DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd");
+      const rcvDate = DateTime.fromISO(ticket.ticket_date).toFormat(
+        "yyyy-MM-dd",
+      );
       if (rcvDate !== searchDate) {
         toast.error("Không tìm thấy phiếu trong ngày này!");
         setActiveTicketId(null);
@@ -335,14 +497,17 @@ export default function ProductionOutputPage() {
             planned_quantity: parseFloat(item.planned_quantity),
             actual_quantity: parseFloat(item.actual_quantity) || "",
             notes: item.notes || "",
-          }))
+          })),
         );
       }
     }
   }, [ticket, ticketReplace, searchDate]);
 
   const handleSearch = () => {
-    if (!searchTicketId) { toast.warning("Vui lòng nhập mã số phiếu!"); return; }
+    if (!searchTicketId) {
+      toast.warning("Vui lòng nhập mã số phiếu!");
+      return;
+    }
     let finalId = searchTicketId;
     let finalDate = searchDate;
 
@@ -355,24 +520,33 @@ export default function ProductionOutputPage() {
       const datePart = searchTicketId.substring(0, 8);
       const idPart = searchTicketId.substring(8);
       const parsedDate = DateTime.fromFormat(datePart, "yyyyMMdd");
-      if (parsedDate.isValid) { finalDate = parsedDate.toISODate(); finalId = idPart; setSearchDate(finalDate); }
+      if (parsedDate.isValid) {
+        finalDate = parsedDate.toISODate();
+        finalId = idPart;
+        setSearchDate(finalDate);
+      }
     } else if (searchTicketId.includes("_#")) {
       finalId = searchTicketId.split("_#")[1];
     } else if (searchTicketId.includes("#")) {
       finalId = searchTicketId.split("#").pop();
     }
-    if (!finalDate) { toast.warning("Vui lòng chọn ngày sản xuất!"); return; }
+    if (!finalDate) {
+      toast.warning("Vui lòng chọn ngày sản xuất!");
+      return;
+    }
     setActiveTicketId(finalId);
   };
 
   const updateMutation = useMutation({
-    mutationFn: (data) => dailyTicketService.updateResults(activeTicketId, data),
+    mutationFn: (data) =>
+      dailyTicketService.updateResults(activeTicketId, data),
     onSuccess: () => {
       toast.success("Đã cập nhật kết quả sản xuất!");
       queryClient.invalidateQueries(["daily-tickets"]);
       queryClient.invalidateQueries(["daily-ticket", activeTicketId]);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi lưu kết quả!"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi khi lưu kết quả!"),
   });
 
   const onTicketSubmit = (data) => {
@@ -387,7 +561,9 @@ export default function ProductionOutputPage() {
   const isCompleted = ticket?.status === "COMPLETED";
 
   // ── Chế độ THỦ CÔNG ──────────────────────────────────────────────────────
-  const [manualDate, setManualDate] = useState(DateTime.now().toFormat("yyyy-MM-dd"));
+  const [manualDate, setManualDate] = useState(
+    DateTime.now().toFormat("yyyy-MM-dd"),
+  );
   const [showAllManualTickets, setShowAllManualTickets] = useState(false);
   const [editingManualTicket, setEditingManualTicket] = useState(null);
   const [manualSearchCode, setManualSearchCode] = useState("");
@@ -408,27 +584,39 @@ export default function ProductionOutputPage() {
     enabled: isManualMode,
   });
 
-  const { control: manualControl, handleSubmit: manualHandleSubmit, watch: manualWatch, setValue: manualSetValue, reset: manualReset } = useForm({
+  const {
+    control: manualControl,
+    handleSubmit: manualHandleSubmit,
+    watch: manualWatch,
+    setValue: manualSetValue,
+    reset: manualReset,
+  } = useForm({
     defaultValues: { items: [] },
   });
-  const { fields: manualFields, append: manualAppend, remove: manualRemove } = useFieldArray({ control: manualControl, name: "items" });
+  const {
+    fields: manualFields,
+    append: manualAppend,
+    remove: manualRemove,
+  } = useFieldArray({ control: manualControl, name: "items" });
   const manualWatchItems = manualWatch("items");
 
-  const { data: manualTicketsResp, isLoading: manualTicketsLoading } = useQuery({
-    queryKey: ["manual-tickets", manualDate, showAllManualTickets, user?.id],
-    queryFn: () => {
-      const params = {
-        startDate: manualDate,
-        endDate: manualDate,
-        is_manual: true,
-        limit: 200,
-        page: 1,
-      };
-      if (!showAllManualTickets && user?.id) params.created_by = user.id;
-      return dailyTicketService.getAll(params);
+  const { data: manualTicketsResp, isLoading: manualTicketsLoading } = useQuery(
+    {
+      queryKey: ["manual-tickets", manualDate, showAllManualTickets, user?.id],
+      queryFn: () => {
+        const params = {
+          startDate: manualDate,
+          endDate: manualDate,
+          is_manual: true,
+          limit: 200,
+          page: 1,
+        };
+        if (!showAllManualTickets && user?.id) params.created_by = user.id;
+        return dailyTicketService.getAll(params);
+      },
+      enabled: isManualMode && !!manualDate,
     },
-    enabled: isManualMode && !!manualDate,
-  });
+  );
 
   const manualTickets = manualTicketsResp?.data || [];
 
@@ -442,14 +630,18 @@ export default function ProductionOutputPage() {
           id: item.id,
           order_id: item.order_id ? String(item.order_id) : "",
           product_id: item.product_id ? String(item.product_id) : "",
-          product_group_operation_id: item.product_group_operation_id ? String(item.product_group_operation_id) : "",
+          product_group_operation_id: item.product_group_operation_id
+            ? String(item.product_group_operation_id)
+            : "",
           operation_name: item.operation_name || item.pgo_operation_name || "",
           planned_quantity: parseFloat(item.planned_quantity) || "",
           actual_quantity: parseFloat(item.actual_quantity) || "",
           notes: item.notes || "",
         })),
       });
-      toast.success(`Đã mở phiếu ${formatManualTicketCode(full.ticket_date, full.created_by, full.id)}`);
+      toast.success(
+        `Đã mở phiếu ${formatManualTicketCode(full.ticket_date, full.created_by, full.id)}`,
+      );
     } catch (e) {
       toast.error("Không tải được phiếu!");
     }
@@ -475,18 +667,22 @@ export default function ProductionOutputPage() {
       queryClient.invalidateQueries(["daily-tickets"]);
       queryClient.invalidateQueries(["manual-tickets"]);
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi ghi nhận sản lượng!"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi khi ghi nhận sản lượng!"),
   });
 
   const manualUpdateMutation = useMutation({
-    mutationFn: ({ ticketId, items }) => dailyTicketService.updateResults(ticketId, items),
+    mutationFn: ({ ticketId, items }) =>
+      dailyTicketService.updateResults(ticketId, items),
     onSuccess: () => {
       toast.success("Đã cập nhật phiếu thủ công!");
       queryClient.invalidateQueries(["daily-tickets"]);
       queryClient.invalidateQueries(["manual-tickets"]);
-      if (editingManualTicket?.id) loadManualTicketForEdit({ id: editingManualTicket.id });
+      if (editingManualTicket?.id)
+        loadManualTicketForEdit({ id: editingManualTicket.id });
     },
-    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi cập nhật!"),
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi khi cập nhật!"),
   });
 
   const mapManualItemPayload = (i) => ({
@@ -500,7 +696,10 @@ export default function ProductionOutputPage() {
   });
 
   const onManualSubmit = async (data) => {
-    if (data.items.length === 0) { toast.warning("Vui lòng thêm ít nhất một dòng!"); return; }
+    if (data.items.length === 0) {
+      toast.warning("Vui lòng thêm ít nhất một dòng!");
+      return;
+    }
 
     const existingRows = data.items.filter((i) => i.id);
     const newRows = data.items.filter((i) => !i.id);
@@ -520,7 +719,9 @@ export default function ProductionOutputPage() {
       manualOutputMutation.mutate({
         ticket_date: manualDate,
         items: newRows.map(mapManualItemPayload),
-        ...(editingManualTicket?.id ? { target_ticket_id: editingManualTicket.id } : {}),
+        ...(editingManualTicket?.id
+          ? { target_ticket_id: editingManualTicket.id }
+          : {}),
       });
     } else if (editingManualTicket?.id && existingRows.length > 0) {
       setEditingManualTicket(null);
@@ -540,13 +741,17 @@ export default function ProductionOutputPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
         <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Nhập Sản Lượng</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Kết quả kiểm tra và báo cáo sản xuất hàng ngày</p>
+          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">
+            Nhập Sản Lượng
+          </h2>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">
+            Kết quả kiểm tra và báo cáo sản xuất hàng ngày
+          </p>
         </div>
         {/* Modern Tab Bar - Segmented UI */}
         <div
           className={cn(
-            "relative h-11 w-full max-w-[360px] p-1 bg-zinc-100/80 border border-zinc-200/50 rounded-full flex items-center cursor-pointer select-none transition-all duration-300"
+            "relative h-11 w-full max-w-[360px] p-1 bg-zinc-100/80 border border-zinc-200/50 rounded-full flex items-center cursor-pointer select-none transition-all duration-300",
           )}
           onClick={() => {
             const newVal = !isManualMode;
@@ -560,26 +765,38 @@ export default function ProductionOutputPage() {
           <div
             className={cn(
               "absolute h-9 w-[calc(50%-4px)] bg-white rounded-full shadow-sm border border-zinc-200/50 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) z-0",
-              isManualMode ? "translate-x-[calc(100%+4px)]" : "translate-x-0"
+              isManualMode ? "translate-x-[calc(100%+4px)]" : "translate-x-0",
             )}
           />
 
           {/* Tab 1: Theo phiếu */}
-          <div className={cn(
-            "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
-            !isManualMode ? "text-indigo-600 font-bold" : "text-zinc-500 font-medium"
-          )}>
+          <div
+            className={cn(
+              "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
+              !isManualMode
+                ? "text-indigo-600 font-bold"
+                : "text-zinc-500 font-medium",
+            )}
+          >
             <ClipboardList className="w-4 h-4" />
-            <span className="text-[11px] uppercase tracking-wide">Theo phiếu</span>
+            <span className="text-[11px] uppercase tracking-wide">
+              Theo phiếu
+            </span>
           </div>
 
           {/* Tab 2: Nhập thủ công */}
-          <div className={cn(
-            "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
-            isManualMode ? "text-indigo-600 font-bold" : "text-zinc-500 font-medium"
-          )}>
+          <div
+            className={cn(
+              "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
+              isManualMode
+                ? "text-indigo-600 font-bold"
+                : "text-zinc-500 font-medium",
+            )}
+          >
             <Pencil className="w-4 h-4" />
-            <span className="text-[11px] uppercase tracking-wide">Nhập thủ công</span>
+            <span className="text-[11px] uppercase tracking-wide">
+              Nhập thủ công
+            </span>
           </div>
         </div>
       </div>
@@ -592,7 +809,11 @@ export default function ProductionOutputPage() {
               <div className="flex flex-col md:flex-row items-end gap-4">
                 <div className="w-full md:w-1/4 space-y-2">
                   <Label>Ngày sản xuất</Label>
-                  <PremiumDatePicker date={searchDate} onSelect={(val) => setSearchDate(val)} placeholder="Chọn ngày sản xuất" />
+                  <PremiumDatePicker
+                    date={searchDate}
+                    onSelect={(val) => setSearchDate(val)}
+                    placeholder="Chọn ngày sản xuất"
+                  />
                 </div>
                 <div className="w-full md:w-1/4 space-y-2">
                   <Label htmlFor="ticketId">Mã số phiếu</Label>
@@ -601,11 +822,17 @@ export default function ProductionOutputPage() {
                     placeholder="VD: 202603268"
                     value={searchTicketId}
                     onChange={(e) => setSearchTicketId(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSearch();
+                    }}
                   />
                 </div>
                 <div className="w-full md:w-auto">
-                  <Button onClick={handleSearch} disabled={isLoading} className="w-full md:w-auto px-8 font-semibold">
+                  <Button
+                    onClick={handleSearch}
+                    disabled={isLoading}
+                    className="w-full md:w-auto px-8 font-semibold"
+                  >
                     {isLoading ? "Đang tìm..." : "Tìm Kiếm"}
                   </Button>
                 </div>
@@ -621,86 +848,137 @@ export default function ProductionOutputPage() {
             </Card>
           )}
 
-          {!isLoading && !isError && ticket && DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd") === searchDate && (
-            <Card className="overflow-hidden">
-              <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold text-lg text-zinc-950">
-                    Phiếu Sản Xuất {DateTime.fromISO(ticket.ticket_date).toFormat("yyyyMMdd")}{ticket.id}
-                  </h3>
-                  <p className="text-sm text-zinc-500 font-medium">Người lập: {ticket.creator_name}</p>
+          {!isLoading &&
+            !isError &&
+            ticket &&
+            DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd") ===
+              searchDate && (
+              <Card className="overflow-hidden">
+                <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg text-zinc-950">
+                      Phiếu Sản Xuất{" "}
+                      {DateTime.fromISO(ticket.ticket_date).toFormat(
+                        "yyyyMMdd",
+                      )}
+                      {ticket.id}
+                    </h3>
+                    <p className="text-sm text-zinc-500 font-medium">
+                      Người lập: {ticket.creator_name}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={isCompleted ? "default" : "secondary"}
+                    className={
+                      isCompleted
+                        ? "bg-green-600 hover:bg-green-700 font-bold"
+                        : "bg-orange-100 text-orange-800 hover:bg-orange-200 font-bold"
+                    }
+                  >
+                    {isCompleted
+                      ? user?.role === "ADMIN"
+                        ? "Đã chốt (Admin có thể sửa)"
+                        : "Đã chốt (Không thể sửa)"
+                      : "Đang thực hiện"}
+                  </Badge>
                 </div>
-                <Badge variant={isCompleted ? "default" : "secondary"} className={isCompleted ? "bg-green-600 hover:bg-green-700 font-bold" : "bg-orange-100 text-orange-800 hover:bg-orange-200 font-bold"}>
-                  {isCompleted ? "Đã chốt (Không thể sửa)" : "Đang thực hiện"}
-                </Badge>
-              </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-                    <TableHead className="w-[80px]">STT</TableHead>
-                    <TableHead>Đơn hàng</TableHead>
-                    <TableHead>Mã hàng</TableHead>
-                    <TableHead>Công đoạn</TableHead>
-                    <TableHead className="text-right">SL Kế Hoạch</TableHead>
-                    <TableHead className="text-right w-[180px]">SL Thực Tế</TableHead>
-                    <TableHead className="w-[200px]">Ghi chú</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ticketFields.map((field, index) => (
-                    <TableRow key={field.id} className="cursor-default">
-                      <TableCell className="font-medium text-zinc-500">{index + 1}</TableCell>
-                      <TableCell>{field.order_code || "N/A"}</TableCell>
-                      <TableCell>{field.product_name || "N/A"}</TableCell>
-                      <TableCell className="font-semibold text-zinc-700">{field.operation_name}</TableCell>
-                      <TableCell className="text-right font-bold text-zinc-900">{field.planned_quantity}</TableCell>
-                      <TableCell className="text-right">
-                        <Controller
-                          name={`items.${index}.actual_quantity`}
-                          control={ticketControl}
-                          render={({ field: inputField }) => (
-                            <Input
-                              {...inputField}
-                              type="number"
-                              disabled={isCompleted || updateMutation.isPending}
-                              className={`text-right font-bold w-full ${!isCompleted ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
-                              min={0}
-                            />
-                          )}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Controller
-                          name={`items.${index}.notes`}
-                          control={ticketControl}
-                          render={({ field: inputField }) => (
-                            <Input {...inputField} placeholder="Ghi chú nếu có..." disabled={isCompleted || updateMutation.isPending} className="text-xs h-9 border-zinc-300" />
-                          )}
-                        />
-                      </TableCell>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+                      <TableHead className="w-[80px]">STT</TableHead>
+                      <TableHead>Đơn hàng</TableHead>
+                      <TableHead>Mã hàng</TableHead>
+                      <TableHead>Công đoạn</TableHead>
+                      <TableHead className="text-right">SL Kế Hoạch</TableHead>
+                      <TableHead className="text-right w-[180px]">
+                        SL Thực Tế
+                      </TableHead>
+                      <TableHead className="w-[200px]">Ghi chú</TableHead>
                     </TableRow>
-                  ))}
-                  {ticketFields.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-zinc-500 font-medium">Không có sản phẩm nào</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {ticketFields.map((field, index) => (
+                      <TableRow key={field.id} className="cursor-default">
+                        <TableCell className="font-medium text-zinc-500">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell>{field.order_code || "N/A"}</TableCell>
+                        <TableCell>{field.product_name || "N/A"}</TableCell>
+                        <TableCell className="font-semibold text-zinc-700">
+                          {field.operation_name}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-zinc-900">
+                          {field.planned_quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Controller
+                            name={`items.${index}.actual_quantity`}
+                            control={ticketControl}
+                            render={({ field: inputField }) => (
+                              <Input
+                                {...inputField}
+                                type="number"
+                                disabled={
+                                  (isCompleted && user?.role !== "ADMIN") ||
+                                  updateMutation.isPending
+                                }
+                                className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
+                                min={0}
+                              />
+                            )}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Controller
+                            name={`items.${index}.notes`}
+                            control={ticketControl}
+                            render={({ field: inputField }) => (
+                              <Input
+                                {...inputField}
+                                placeholder="Ghi chú nếu có..."
+                                disabled={
+                                  (isCompleted && user?.role !== "ADMIN") ||
+                                  updateMutation.isPending
+                                }
+                                className="text-xs h-9 border-zinc-300"
+                              />
+                            )}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {ticketFields.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={7}
+                          className="h-24 text-center text-zinc-500 font-medium"
+                        >
+                          Không có sản phẩm nào
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
 
-              <CardFooter className="p-6 bg-zinc-50/50 border-t border-zinc-200 justify-end">
-                <Button
-                  size="lg"
-                  onClick={ticketHandleSubmit(onTicketSubmit)}
-                  disabled={isCompleted || updateMutation.isPending || ticketFields.length === 0}
-                  className="px-8 font-bold"
-                >
-                  {updateMutation.isPending ? "Đang lưu..." : "Ghi Nhận Sản Lượng"}
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
+                <CardFooter className="p-6 bg-zinc-50/50 border-t border-zinc-200 justify-end">
+                  <Button
+                    size="lg"
+                    onClick={ticketHandleSubmit(onTicketSubmit)}
+                    disabled={
+                      (isCompleted && user?.role !== "ADMIN") ||
+                      updateMutation.isPending ||
+                      ticketFields.length === 0
+                    }
+                    className="px-8 font-bold"
+                  >
+                    {updateMutation.isPending
+                      ? "Đang lưu..."
+                      : "Ghi Nhận Sản Lượng"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
         </>
       )}
 
@@ -711,14 +989,25 @@ export default function ProductionOutputPage() {
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex items-center gap-2">
                 <Pencil className="h-4 w-4 text-indigo-600" />
-                <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">Nhập sản lượng từ đơn hàng / mã hàng</h3>
+                <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">
+                  Nhập sản lượng từ đơn hàng / mã hàng
+                </h3>
               </div>
               <p className="text-xs text-indigo-500 font-medium md:ml-2">
-                Mỗi lần ghi nhận tạo một phiếu mới. Mã phiếu: <span className="font-mono">yyyyMMddU{'{userId}'}#{'{id}'}</span>
+                Mỗi lần ghi nhận tạo một phiếu mới. Mã phiếu:{" "}
+                <span className="font-mono">
+                  yyyyMMddU{"{userId}"}#{"{id}"}
+                </span>
               </p>
               <div className="md:ml-auto w-full md:w-52 space-y-1">
-                <Label className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Ngày sản xuất</Label>
-                <PremiumDatePicker date={manualDate} onSelect={(val) => setManualDate(val)} placeholder="Chọn ngày" />
+                <Label className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                  Ngày sản xuất
+                </Label>
+                <PremiumDatePicker
+                  date={manualDate}
+                  onSelect={(val) => setManualDate(val)}
+                  placeholder="Chọn ngày"
+                />
               </div>
             </div>
           </div>
@@ -802,13 +1091,27 @@ export default function ProductionOutputPage() {
           <div className="p-6 space-y-3">
             {/* Column headers */}
             <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 px-0 mb-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Mã hàng</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center font-black">Còn thiếu</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">SL Kế Hoạch</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">SL Thực Tế</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Đơn hàng
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Mã hàng
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Công đoạn
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center font-black">
+                Còn thiếu
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">
+                SL Kế Hoạch
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">
+                SL Thực Tế
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Ghi chú
+              </p>
               <div />
             </div>
 
@@ -840,7 +1143,17 @@ export default function ProductionOutputPage() {
               variant="outline"
               size="sm"
               className="gap-2 mt-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-              onClick={() => manualAppend({ order_id: "", product_id: "", product_group_operation_id: "", operation_name: "", planned_quantity: "", actual_quantity: "", notes: "" })}
+              onClick={() =>
+                manualAppend({
+                  order_id: "",
+                  product_id: "",
+                  product_group_operation_id: "",
+                  operation_name: "",
+                  planned_quantity: "",
+                  actual_quantity: "",
+                  notes: "",
+                })
+              }
             >
               <Plus className="w-3.5 h-3.5" /> Thêm dòng
             </Button>
@@ -848,16 +1161,30 @@ export default function ProductionOutputPage() {
 
           <CardFooter className="p-6 bg-indigo-50/30 border-t border-indigo-100 justify-between items-center">
             <p className="text-xs text-zinc-500 font-medium">
-              Phiếu của <span className="font-black text-indigo-700">{user?.username}</span> — ngày{" "}
-              <span className="font-black text-indigo-700">{DateTime.fromISO(manualDate).toFormat("dd/MM/yyyy")}</span>
+              Phiếu của{" "}
+              <span className="font-black text-indigo-700">
+                {user?.username}
+              </span>{" "}
+              — ngày{" "}
+              <span className="font-black text-indigo-700">
+                {DateTime.fromISO(manualDate).toFormat("dd/MM/yyyy")}
+              </span>
             </p>
             <Button
               size="lg"
               onClick={manualHandleSubmit(onManualSubmit)}
-              disabled={(manualOutputMutation.isPending || manualUpdateMutation.isPending) || manualFields.length === 0}
+              disabled={
+                manualOutputMutation.isPending ||
+                manualUpdateMutation.isPending ||
+                manualFields.length === 0
+              }
               className="px-8 font-bold bg-indigo-600 hover:bg-indigo-700"
             >
-              {(manualOutputMutation.isPending || manualUpdateMutation.isPending) ? "Đang lưu..." : (editingManualTicket ? "Cập nhật phiếu" : "Ghi Nhận Sản Lượng")}
+              {manualOutputMutation.isPending || manualUpdateMutation.isPending
+                ? "Đang lưu..."
+                : editingManualTicket
+                  ? "Cập nhật phiếu"
+                  : "Ghi Nhận Sản Lượng"}
             </Button>
           </CardFooter>
         </Card>
