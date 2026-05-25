@@ -139,11 +139,9 @@ export default function UserPage() {
 
   const togglePermission = (key) => {
     const current = (watchPermissions || []).filter((p) => p.includes(":"));
-    const moduleKey = key.split(":")[0];
-    const withoutModule = current.filter((p) => !p.startsWith(`${moduleKey}:`) && p !== moduleKey);
     setValue(
       "permissions",
-      current.includes(key) ? withoutModule : [...withoutModule, key]
+      current.includes(key) ? current.filter(p => p !== key) : [...current, key]
     );
   };
 
