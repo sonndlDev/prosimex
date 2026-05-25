@@ -875,6 +875,8 @@ const PlanningFormDialog = React.memo(
                           name="selectedMachineIds"
                           control={control}
                           render={({ field }) => {
+                            const availableMachineIds = (selectedOp?.machine_ids || (selectedOp?.machine_id ? [selectedOp.machine_id] : [])).map(String);
+                            const availableMachines = selectedOp ? machines?.filter(m => availableMachineIds.includes(String(m.id))) : [];
                             const currentIds = field.value || [];
                             const toggleMachine = (id) => {
                               const sid = String(id);
@@ -919,7 +921,7 @@ const PlanningFormDialog = React.memo(
                                     <CommandList className="max-h-[300px] p-1">
                                       <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có máy</CommandEmpty>
                                       <CommandGroup>
-                                        {machines?.map((m) => {
+                                        {availableMachines?.map((m) => {
                                           const isChecked = currentIds.includes(String(m.id));
                                           return (
                                             <CommandItem
