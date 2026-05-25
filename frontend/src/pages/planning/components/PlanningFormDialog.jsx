@@ -919,7 +919,7 @@ const PlanningFormDialog = React.memo(
                                     <CommandList className="max-h-[300px] p-1">
                                       <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có máy</CommandEmpty>
                                       <CommandGroup>
-                                        {availableMachines?.map((m) => {
+                                        {machines?.map((m) => {
                                           const isChecked = currentIds.includes(String(m.id));
                                           return (
                                             <CommandItem
