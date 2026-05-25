@@ -823,7 +823,7 @@ const PlanningFormDialog = React.memo(
                                 <Command className="w-full">
                                   <CommandInput placeholder="Tìm công đoạn..." className="h-11" />
                                   <CommandList className="max-h-[300px] p-1">
-                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest tracking-widest">Không có dữ liệu</CommandEmpty>
+                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
                                     <CommandGroup>
                                       {operations?.map((op) => (
                                         <CommandItem
@@ -875,20 +875,17 @@ const PlanningFormDialog = React.memo(
                           name="selectedMachineIds"
                           control={control}
                           render={({ field }) => {
-                            const availableMachineIds = (selectedOp?.machine_ids || (selectedOp?.machine_id ? [selectedOp.machine_id] : [])).map(String);
-                            const availableMachines = selectedOp ? machines?.filter(m => availableMachineIds.includes(String(m.id))) : [];
                             const currentIds = field.value || [];
-
                             const toggleMachine = (id) => {
                               const sid = String(id);
                               const next = currentIds.includes(sid)
                                 ? currentIds.filter(x => x !== sid)
                                 : [...currentIds, sid];
                               field.onChange(next);
-                              // Clear ngày khi thay đổi máy
-                              replaceDays([]);
+                              if (!editingPlan) {
+                                replaceDays([]);
+                              }
                             };
-
                             return (
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -899,7 +896,7 @@ const PlanningFormDialog = React.memo(
                                     className={cn(
                                       "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                       "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
-                                      (isOutsourced || !selectedOp) && "opacity-80 bg-zinc-50"
+                                      (isOutsourced || !selectedOp) && "opacity-80 bg-zinc-50 border-zinc-200"
                                     )}
                                   >
                                     <div className="flex items-center gap-3 truncate">
@@ -998,7 +995,7 @@ const PlanningFormDialog = React.memo(
                                       {currentIds.length === 0
                                         ? (!isOutsourced ? "Chọn máy..." : "Gia công ngoài")
                                         : currentIds.map(id => machines?.find(m => String(m.id) === id)?.code || machines?.find(m => String(m.id) === id)?.name).filter(Boolean).join(", ")
-                                      }
+                                    }
                                     </span>
                                   </div>
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
@@ -1008,7 +1005,7 @@ const PlanningFormDialog = React.memo(
                                 <Command className="w-full">
                                   <CommandInput placeholder="Tìm máy..." className="h-11" />
                                   <CommandList className="max-h-[300px] p-1">
-                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
+                                    <CommandEmpty className="py-6 text-center">Không thấy nhà máy</CommandEmpty>
                                     <CommandGroup>
                                       {machines?.map((m) => {
                                         const isChecked = currentIds.includes(String(m.id));
