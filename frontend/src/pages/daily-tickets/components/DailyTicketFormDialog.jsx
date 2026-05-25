@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { DateTime } from "luxon";
 import { dailyTicketService } from "../../../services/daily-ticket.service";
 import { planningService } from "../../../services/planning.service";
+import { productGroupService } from "../../../services/product-group.service";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,24 +34,38 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
-const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watchItems, isManualMode, manualOrders, manualProducts, manualOperations }) => {
+const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watchItems, isManualMode, manualOrders }) => {
   const selectedOrderId = watchItems[index]?.order_id;
   const selectedProductId = watchItems[index]?.product_id;
+
+  const productGroupId = useMemo(() => {
+    if (!isManualMode || !manualOrders || !selectedOrderId || !selectedProductId) return null;
+    const order = manualOrders.find(o => String(o.id) === String(selectedOrderId));
+    const product = order?.products?.find(p => String(p.id) === String(selectedProductId));
+    return product?.product_group_id;
+  }, [isManualMode, manualOrders, selectedOrderId, selectedProductId]);
+
+  const { data: manualOpsData } = useQuery({
+    queryKey: ["orderOps", productGroupId, selectedOrderId, selectedProductId],
+    queryFn: () => productGroupService.getOperations(productGroupId, { orderId: selectedOrderId, productId: selectedProductId }),
+    enabled: !!productGroupId && isManualMode,
+  });
 
   const availableProducts = useMemo(() => {
     const map = new Map();
 
-    if (isManualMode && manualProducts) {
-      // Add all products uniquely by NAME to avoid visual duplicates
-      manualProducts.forEach(p => {
-        if (!map.has(p.name)) {
-          map.set(p.name, { id: p.id, name: p.name });
-        }
-      });
+    if (isManualMode && manualOrders) {
+      const order = manualOrders.find(o => String(o.id) === String(selectedOrderId));
+      if (order && order.products) {
+        order.products.forEach(p => {
+          map.set(p.id, { id: p.id, name: p.name });
+        });
+      }
+      
       // Optionally fallback context for current value
       const self = watchItems[index];
-      if (self?.product_id && self?.product_name && !map.has(self.product_name)) {
-        map.set(self.product_name, { id: self.product_id, name: self.product_name });
+      if (self?.product_id && self?.product_name && !map.has(self.product_id)) {
+        map.set(self.product_id, { id: self.product_id, name: self.product_name });
       }
       return Array.from(map.values());
     }
@@ -69,20 +84,22 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       map.set(self.product_id, { id: self.product_id, name: self.product_name });
     }
     return Array.from(map.values());
-  }, [selectedOrderId, plans, watchItems, index, isManualMode, manualProducts]);
+  }, [selectedOrderId, plans, watchItems, index, isManualMode, manualOrders]);
 
   const availableOperations = useMemo(() => {
     const map = new Map();
 
-    if (isManualMode && manualOperations) {
-      manualOperations.forEach(o => {
-        if (!map.has(o.name)) {
-          map.set(o.name, { id: o.id, name: o.name });
-        }
-      });
+    if (isManualMode) {
+      if (manualOpsData) {
+        manualOpsData.forEach(o => {
+          if (!map.has(o.id)) {
+            map.set(o.id, { id: o.id, name: o.operation_name });
+          }
+        });
+      }
       const self = watchItems[index];
-      if (self?.product_group_operation_id && self?.operation_name && !map.has(self.operation_name)) {
-        map.set(self.operation_name, { id: self.product_group_operation_id, name: self.operation_name });
+      if (self?.product_group_operation_id && self?.operation_name && !map.has(self.product_group_operation_id)) {
+        map.set(self.product_group_operation_id, { id: self.product_group_operation_id, name: self.operation_name });
       }
       return Array.from(map.values());
     }
@@ -98,7 +115,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
       ops.push({ id: self.product_group_operation_id, name: self.operation_name });
     }
     return ops;
-  }, [selectedOrderId, selectedProductId, plans, watchItems, index, isManualMode, manualOperations]);
+  }, [selectedOrderId, selectedProductId, plans, watchItems, index, isManualMode, manualOpsData]);
 
   // Derive order name from plans OR from the current form item (for backup during loading/editing)
   const uniqueOrders = useMemo(() => {
@@ -320,8 +337,6 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
   const plans = plansData?.data || [];
 
   const { data: manualOrdersResp } = useQuery({ queryKey: ["all-orders"], queryFn: () => orderService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
-  const { data: manualProductsResp } = useQuery({ queryKey: ["all-products"], queryFn: () => productService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
-  const { data: manualOperationsResp } = useQuery({ queryKey: ["all-operations"], queryFn: () => operationService.getAll({ limit: 1000 }), enabled: watchIsManual && open });
 
   useEffect(() => {
     if (!open) { reset({ ticket_date: DateTime.local().toISODate(), items: [] }); return; }
@@ -427,8 +442,6 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
                   remove={remove} plans={plans} isCompleted={isCompleted} watchItems={watchItems}
                   isManualMode={watchIsManual}
                   manualOrders={manualOrdersResp?.data}
-                  manualProducts={manualProductsResp?.data}
-                  manualOperations={manualOperationsResp?.data}
                 />
               ))}
             </div>
