@@ -339,35 +339,29 @@ export function rebalanceDays(daysArray, changedIndex, newValRaw, targetTotal, m
 
 /** Rebalance lịch theo số lượng SP; ngày cuối hấp thụ phần dư sau làm tròn */
 export function rebalanceDaysAsQuantity(
-  daysArray,
-  changedIndex,
-  qtyRaw,
-  targetTotalHours,
-  dinhMuc,
+  daysArray, changedIndex, qtyRaw, targetTotalHours, dinhMuc,
 ) {
   const hoursVal = displayQtyToHours(qtyRaw, dinhMuc);
   const rebalanced = rebalanceDays(daysArray, changedIndex, String(hoursVal), targetTotalHours);
   const targetTotalQty = Math.round(hoursToDisplayQty(targetTotalHours, dinhMuc));
 
-  const withQty = rebalanced.map((d) => {
-    const displayValue = hoursToDisplayQty(d.hours, dinhMuc);
+  // Dùng cumulative rounding thay vì round từng ngày
+  let allocated = 0;
+  const withQty = rebalanced.map((d, i) => {
+    const isLast = i === rebalanced.length - 1;
+    let qty;
+    if (isLast) {
+      qty = targetTotalQty - allocated; // ngày cuối lấy phần còn lại chính xác
+    } else {
+      const exact = hoursToDisplayQty(d.hours, dinhMuc);
+      qty = Math.round(exact);
+      allocated += qty;
+    }
     return {
       ...d,
-      quantity: String(Math.round(displayValue)),
+      quantity: String(Math.max(0, qty)),
     };
   });
-
-  const currentSum = withQty.reduce((s, d) => s + (parseInt(d.quantity, 10) || 0), 0);
-  const diff = targetTotalQty - currentSum;
-  if (diff !== 0 && withQty.length > 0) {
-    const lastIdx = withQty.length - 1;
-    const adjustedQty = Math.max(0, (parseInt(withQty[lastIdx].quantity, 10) || 0) + diff);
-    withQty[lastIdx] = {
-      ...withQty[lastIdx],
-      quantity: String(adjustedQty),
-      hours: displayQtyToHours(adjustedQty, dinhMuc).toFixed(10),
-    };
-  }
 
   return withQty;
 }

@@ -131,8 +131,7 @@ export const updateInventory = async (req, res) => {
       UPDATE product_inventory 
       SET quantity = COALESCE($1, quantity),
           note = COALESCE($2, note),
-          inventory_type = COALESCE($3, inventory_type),
-          updated_at = CURRENT_TIMESTAMP
+          inventory_type = COALESCE($3, inventory_type)
       WHERE id = $4
       RETURNING *
     `;

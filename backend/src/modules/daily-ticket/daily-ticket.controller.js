@@ -638,6 +638,12 @@ export const getPlanVsActualReport = async (req, res) => {
       unique_base AS (
         SELECT order_id, product_id, product_group_operation_id
         FROM base_items
+        WHERE product_group_operation_id IS NOT NULL OR (
+          product_group_operation_id IS NULL AND EXISTS (
+            SELECT 1 FROM products p 
+            WHERE p.id = base_items.product_id AND p.product_group_id IS NULL
+          )
+        )
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT 
@@ -746,7 +752,7 @@ export const getPlanVsActualReport = async (req, res) => {
         FROM production_plans
         WHERE deleted_at IS NULL
         GROUP BY order_id, product_id, product_group_operation_id
-
+        
         UNION
 
         SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
@@ -759,6 +765,12 @@ export const getPlanVsActualReport = async (req, res) => {
       unique_base AS (
         SELECT order_id, product_id, product_group_operation_id
         FROM base_items
+        WHERE product_group_operation_id IS NOT NULL OR (
+          product_group_operation_id IS NULL AND EXISTS (
+            SELECT 1 FROM products p 
+            WHERE p.id = base_items.product_id AND p.product_group_id IS NULL
+          )
+        )
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT COUNT(*) as total 

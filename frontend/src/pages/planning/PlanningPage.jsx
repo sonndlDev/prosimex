@@ -442,10 +442,7 @@ export default function PlanningPage() {
           0,
         );
         const planTotalNeeded =
-          totalHoursInPlan > 0
-            ? totalHoursInPlan
-            : (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-              dinhMuc;
+          (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / dinhMuc;
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);
