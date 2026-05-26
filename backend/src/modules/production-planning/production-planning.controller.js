@@ -112,21 +112,30 @@ export const getProductionPlans = async (req, res) => {
     if (result.rows.length > 0) {
       const planIds = result.rows.map(r => r.id);
       const allDaysRes = await pool.query(
-        `SELECT 
-              ppd.production_plan_id,
-              ppd.working_date, 
-              ppd.planned_work_quantity, 
-              ppd.is_overtime,
-              (SELECT COUNT(*) FROM worker_plan_assignments wpa 
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_count,
-              (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
-               JOIN workers w ON wpa.worker_id = w.id
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_names
-           FROM production_plan_days ppd 
-           WHERE ppd.production_plan_id = ANY($1)
-           ORDER BY ppd.working_date ASC`,
+        `WITH wpa_agg AS (
+            SELECT
+              wpa.production_plan_id,
+              wpa.working_date,
+              COUNT(*) AS worker_count,
+              string_agg(w.name, ', ' ORDER BY w.name) AS worker_names
+            FROM worker_plan_assignments wpa
+            JOIN workers w ON wpa.worker_id = w.id
+            WHERE wpa.production_plan_id = ANY($1)
+            GROUP BY wpa.production_plan_id, wpa.working_date
+          )
+          SELECT
+            ppd.production_plan_id,
+            ppd.working_date,
+            ppd.planned_work_quantity,
+            ppd.is_overtime,
+            COALESCE(wa.worker_count, 0) AS worker_count,
+            COALESCE(wa.worker_names, '') AS worker_names
+          FROM production_plan_days ppd
+          LEFT JOIN wpa_agg wa
+            ON wa.production_plan_id = ppd.production_plan_id
+           AND wa.working_date = ppd.working_date
+          WHERE ppd.production_plan_id = ANY($1)
+          ORDER BY ppd.working_date ASC`,
         [planIds],
       );
 

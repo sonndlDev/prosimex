@@ -5,6 +5,34 @@ import {
   refreshOrderProductSnapshots,
 } from "../../utils/order-product-snapshot.util.js";
 
+function normalizeExpectedDatesInput(value) {
+  if (!value) return [];
+  const arr = Array.isArray(value) ? value : [value];
+  return arr
+    .filter((v) => v !== null && v !== undefined)
+    .map((v) => String(v).trim())
+    .filter((v) => v.length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(v));
+}
+
+async function syncOrderExpectedDates(client, orderId, kind, expectedDates) {
+  // Keep order_expected_dates in sync with order_ext JSONB arrays (app-level).
+  // Strategy: delete existing (order_id, kind) then insert cleaned list.
+  await client.query(
+    `DELETE FROM order_expected_dates WHERE order_id = $1 AND kind = $2`,
+    [orderId, kind],
+  );
+
+  if (!expectedDates || expectedDates.length === 0) return;
+
+  await client.query(
+    `INSERT INTO order_expected_dates (order_id, kind, expected_date)
+     SELECT $1, $2, v::date
+     FROM unnest($3::text[]) AS v
+     ON CONFLICT (order_id, kind, expected_date) DO NOTHING`,
+    [orderId, kind, expectedDates],
+  );
+}
+
 export const getOrders = async (req, res) => {
   try {
     const {
@@ -69,8 +97,17 @@ export const getOrders = async (req, res) => {
 
     if (startDate && endDate) {
       if (dateType === "shipping" || dateType === "container") {
-        let jsonbCol = dateType === "shipping" ? "oe.expected_shipping_date" : "oe.expected_container_shipping_date";
-        whereClause += ` AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(${jsonbCol}) d WHERE d::date >= $${queryParams.length + 1} AND d::date <= $${queryParams.length + 2})`;
+        // NOTE: order_ext stores these dates as JSONB arrays, but JSONB element filtering doesn't scale.
+        // Use normalized table order_expected_dates (kind, expected_date) for index-friendly range scans.
+        whereClause += ` AND EXISTS (
+          SELECT 1
+          FROM order_expected_dates oed
+          WHERE oed.order_id = o.id
+            AND oed.kind = $${queryParams.length + 1}
+            AND oed.expected_date >= $${queryParams.length + 2}
+            AND oed.expected_date <= $${queryParams.length + 3}
+        )`;
+        queryParams.push(dateType);
         queryParams.push(startDate);
         queryParams.push(endDate);
       } else {
@@ -95,58 +132,75 @@ export const getOrders = async (req, res) => {
     const countResult = await pool.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
-    // Get data with calculated completion percentage (includes joins needed for whereClause)
+    // Get data with calculated completion percentage.
+    // Optimizations:
+    // - Replace correlated SUM subqueries with set-based aggregates by order_id
+    // - Replace per-row product json_agg subquery with one aggregate grouped by order_id
     const dataQuery = `
-      WITH order_completion AS (
-        SELECT 
-          op.order_id,
-          SUM(op.quantity) as total_required,
-          COALESCE((
-            SELECT SUM(dti.actual_quantity) 
-            FROM daily_production_ticket_items dti 
-            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-            WHERE dti.order_id = op.order_id AND dt.deleted_at IS NULL
-          ), 0) as total_sx,
-          COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-          ), 0) as total_plating_out,
-          COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
-          ), 0) as total_packaging_out
+      WITH order_completion_required AS (
+        SELECT op.order_id, SUM(op.quantity) AS total_required
         FROM order_products op
         JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
         GROUP BY op.order_id
+      ),
+      order_completion_sx AS (
+        SELECT dti.order_id, SUM(dti.actual_quantity) AS total_sx
+        FROM daily_production_ticket_items dti
+        JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+        WHERE dt.deleted_at IS NULL
+        GROUP BY dti.order_id
+      ),
+      order_completion_outsourcing AS (
+        SELECT oti.order_id,
+               SUM(oti.quantity_out) FILTER (WHERE ot.type = 'PLATING')   AS total_plating_out,
+               SUM(oti.quantity_out) FILTER (WHERE ot.type = 'PACKAGING') AS total_packaging_out
+        FROM outsourcing_ticket_items oti
+        JOIN outsourcing_tickets ot ON ot.id = oti.ticket_id
+        WHERE ot.deleted_at IS NULL
+          AND ot.type IN ('PLATING', 'PACKAGING')
+        GROUP BY oti.order_id
+      ),
+      order_products_json AS (
+        SELECT
+          op.order_id,
+          COALESCE(
+            json_agg(
+              json_build_object(${ORDER_PRODUCT_JSON_FIELDS})
+              ORDER BY op.id
+            ),
+            '[]'::json
+          ) AS products
+        FROM order_products op
+        JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
+        LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
+        GROUP BY op.order_id
       )
-      SELECT o.*, c.name as customer_name, 
+      SELECT o.*, c.name as customer_name,
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
              oe.pallet_info, oe.accessory_status,
-             CASE 
-               WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
-               ELSE 0 
+             CASE
+               WHEN ocr.total_required > 0 THEN ROUND((
+                 (
+                   COALESCE(ocs.total_sx, 0)
+                   + COALESCE(oco.total_plating_out, 0)
+                   + COALESCE(oco.total_packaging_out, 0)
+                 ) / ocr.total_required
+               ) * 100)
+               ELSE 0
              END as completion_percentage,
-             COALESCE(
-               (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
-                FROM order_products op
-                JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
-                LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
-                LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
-                WHERE op.order_id = o.id),
-               '[]'
-             ) as products
+             COALESCE(opj.products, '[]'::json) as products
       FROM orders o
       LEFT JOIN customers c ON o.customer_id = c.id AND c.deleted_at IS NULL
       LEFT JOIN users cu ON o.created_by = cu.id
       LEFT JOIN users mu ON o.modified_by = mu.id
       LEFT JOIN order_ext oe ON o.id = oe.order_id
-      LEFT JOIN order_completion oc ON o.id = oc.order_id
+      LEFT JOIN order_completion_required ocr ON o.id = ocr.order_id
+      LEFT JOIN order_completion_sx ocs ON o.id = ocs.order_id
+      LEFT JOIN order_completion_outsourcing oco ON o.id = oco.order_id
+      LEFT JOIN order_products_json opj ON o.id = opj.order_id
       ${whereClause}
       ORDER BY o.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -552,8 +606,13 @@ export const createOrder = async (req, res) => {
 
     // 4. Insert into order_ext if provided
     if (production_start_date || expected_shipping_date || expected_container_shipping_date || customer_confirmation_result || pallet_info || accessory_status || expected_material_date || actual_material_date) {
-      const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
-      const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
+      const shippingDateArr = normalizeExpectedDatesInput(expected_shipping_date);
+      const containerDateArr = normalizeExpectedDatesInput(
+        expected_container_shipping_date,
+      );
+
+      const shippingDateVal = JSON.stringify(shippingDateArr);
+      const containerDateVal = JSON.stringify(containerDateArr);
       
       await client.query(
         `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status, expected_material_date, actual_material_date)
@@ -569,6 +628,15 @@ export const createOrder = async (req, res) => {
           expected_material_date || null,
           actual_material_date || null,
         ]
+      );
+
+      // Sync normalized dates used by scalable filters
+      await syncOrderExpectedDates(client, orderId, 'shipping', shippingDateArr);
+      await syncOrderExpectedDates(
+        client,
+        orderId,
+        'container',
+        containerDateArr,
       );
     }
 
@@ -736,8 +804,13 @@ export const updateOrder = async (req, res) => {
     }
 
     // Update order_ext
-    const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
-    const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
+    const shippingDateArr = normalizeExpectedDatesInput(expected_shipping_date);
+    const containerDateArr = normalizeExpectedDatesInput(
+      expected_container_shipping_date,
+    );
+
+    const shippingDateVal = JSON.stringify(shippingDateArr);
+    const containerDateVal = JSON.stringify(containerDateArr);
     
     await client.query(
       `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status, expected_material_date, actual_material_date)
@@ -763,6 +836,10 @@ export const updateOrder = async (req, res) => {
         actual_material_date || null,
       ]
     );
+
+  // Sync normalized dates used by scalable filters
+  await syncOrderExpectedDates(client, id, 'shipping', shippingDateArr);
+  await syncOrderExpectedDates(client, id, 'container', containerDateArr);
 
     afterData.production_start_date = production_start_date || null;
     afterData.expected_shipping_date = expected_shipping_date || null;
