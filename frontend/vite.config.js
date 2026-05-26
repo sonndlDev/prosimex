@@ -13,20 +13,6 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React runtime
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          // Data fetching & utilities
-          "vendor-utils": ["@tanstack/react-query", "axios", "luxon", "sonner"],
-          // Calendar (only used in SchedulePage)
-          "vendor-calendar": [
-            "@fullcalendar/core",
-            "@fullcalendar/daygrid",
-            "@fullcalendar/interaction",
-            "@fullcalendar/react",
-            "@fullcalendar/resource-timeline",
-          ],
-        },
       },
     },
   },
