@@ -403,20 +403,19 @@ export default function PlanningPage() {
   );
 
   const mapDaysWithQuantity = useCallback((days, dinhMuc) => {
-    return days.map((d) => {
-      const hours = parseFloat(
-        (parseFloat(d.planned_work_quantity) / 8).toFixed(10),
-      );
-      return {
-        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
-        hours,
-        quantity: String(
-          Math.round(toDisplayQuantity(d.planned_work_quantity, dinhMuc)),
-        ),
-        is_overtime: d.is_overtime,
-      };
-    });
-  }, []);
+  return days.map((d) => {
+    const hours = parseFloat(
+      (parseFloat(d.planned_work_quantity) / 8).toFixed(10), // giữ precision
+    );
+    return {
+      date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
+      hours,
+      // FIX: quantity cũng tính từ full precision hours
+      quantity: String(Math.round(hours * parseFloat(dinhMuc))),
+      is_overtime: d.is_overtime,
+    };
+  });
+}, []);
 
   const handleStartInlineEdit = useCallback(
     (plan) => {
@@ -441,8 +440,7 @@ export default function PlanningPage() {
           (sum, d) => sum + parseFloat(d.hours || 0),
           0,
         );
-        const planTotalNeeded =
-          (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) / dinhMuc;
+        const planTotalNeeded = parseFloat(plan.remaining_quantity) / dinhMuc;
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);

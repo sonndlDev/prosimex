@@ -33,22 +33,19 @@ export function formatShiftHours(hours) {
   return s.replace(/\.?0+$/, "") || "0";
 }
 
-/** Chuẩn hóa một ngày trong form (giờ công + tăng ca) */
+// Trong PlanningFormDialog, khi replaceDays:
+// autoCalculateSchedule → trả về hours với .toFixed(10) → OK
+// normalizePlannedDay cắt về 2 decimal → MẤT PRECISION
+
+// FIX: bỏ formatShiftHours khỏi normalizePlannedDay,
+// chỉ dùng nó khi render UI (ManagedTextField value=)
 export function normalizePlannedDay(day) {
   if (!day) return day;
-  const normalized = {
+  return {
     ...day,
     is_overtime: parseOvertimeFlag(day.is_overtime),
+    // KHÔNG format hours ở đây — giữ nguyên precision
   };
-  if (day.hours != null && day.hours !== "") {
-    normalized.hours = formatShiftHours(day.hours);
-  }
-  if (day.machineHours) {
-    normalized.machineHours = Object.fromEntries(
-      Object.entries(day.machineHours).map(([id, h]) => [id, formatShiftHours(h)]),
-    );
-  }
-  return normalized;
 }
 
 /** Vượt 1 công (chuẩn) hoặc 1,43 công (tăng ca) */
@@ -343,17 +340,21 @@ export function rebalanceDaysAsQuantity(
 ) {
   const hoursVal = displayQtyToHours(qtyRaw, dinhMuc);
   const rebalanced = rebalanceDays(daysArray, changedIndex, String(hoursVal), targetTotalHours);
-  const targetTotalQty = Math.round(hoursToDisplayQty(targetTotalHours, dinhMuc));
+  
+  // FIX: tính targetTotalQty từ targetTotalHours với full precision,
+  // KHÔNG qua formatShiftHours
+  const exactTotalQty = (targetTotalHours * dinhMuc); // hours * dinhMuc = qty
+  const targetTotalQty = Math.round(exactTotalQty);
 
-  // Dùng cumulative rounding thay vì round từng ngày
   let allocated = 0;
   const withQty = rebalanced.map((d, i) => {
     const isLast = i === rebalanced.length - 1;
     let qty;
     if (isLast) {
-      qty = targetTotalQty - allocated; // ngày cuối lấy phần còn lại chính xác
+      qty = targetTotalQty - allocated;
     } else {
-      const exact = hoursToDisplayQty(d.hours, dinhMuc);
+      // FIX: dùng parseFloat(d.hours) trực tiếp thay vì qua formatShiftHours
+      const exact = parseFloat(d.hours) * parseFloat(dinhMuc);
       qty = Math.round(exact);
       allocated += qty;
     }
