@@ -167,7 +167,6 @@ function ManualRow({
   }, [allOrders]);
 
   const productOptions = useMemo(() => {
-    // Nếu đã chọn Đơn hàng, ưu tiên lấy danh sách mã hàng từ chính đơn hàng đó
     if (row.order_id) {
       const selectedOrder = (allOrders || []).find(
         (o) => String(o.id) === String(row.order_id),
@@ -177,14 +176,13 @@ function ManualRow({
           id: p.id,
           name: p.name,
           product_group_id: p.product_group_id,
+          // FIX A: giữ lại order_quantity và total_actual để tính remaining khi không có công đoạn
+          order_quantity: parseFloat(p.quantity || p.order_quantity) || 0,
+          total_actual: parseFloat(p.total_actual) || 0,
         }));
       }
     }
-
-    // Nếu chưa chọn đơn hàng, không hiện mã hàng nào để tránh nhầm lẫn
     if (!row.order_id) return [];
-
-    // Fallback nếu không tìm thấy list products trong order (nên hiếm khi xảy ra)
     const map = new Map();
     (allProducts || []).forEach((p) => {
       if (!map.has(p.id))
@@ -192,18 +190,18 @@ function ManualRow({
           id: p.id,
           name: p.name,
           product_group_id: p.product_group_id,
+          order_quantity: 0,
+          total_actual: 0,
         });
     });
     return Array.from(map.values());
   }, [allProducts, allOrders, row.order_id]);
 
-  // Tìm product_group_id của sản phẩm đang chọn trong dòng này
   const selectedProduct = useMemo(() => {
     if (!row.product_id) return null;
     return productOptions.find((p) => String(p.id) === String(row.product_id));
   }, [productOptions, row.product_id]);
 
-  // Fetch danh sách công đoạn ĐÚNG của nhóm sản phẩm này (để lấy product_group_operation_id hợp lệ)
   const { data: pgoList, isLoading: isLoadingPgo } = useQuery({
     queryKey: [
       "product-group-operations",
@@ -221,8 +219,6 @@ function ManualRow({
 
   const operationOptions = useMemo(() => {
     if (!row.product_id) return [];
-
-    // Nhóm mã không có công đoạn → ghi SL tổng theo mã hàng (pgo_id = null)
     if (selectedProduct?.product_group_id && pgoList && pgoList.length === 0) {
       return [
         {
@@ -232,7 +228,6 @@ function ManualRow({
         },
       ];
     }
-
     if (pgoList && pgoList.length > 0) {
       return pgoList.map((item) => {
         const orderQty = parseFloat(item.order_quantity) || 0;
@@ -247,14 +242,8 @@ function ManualRow({
         };
       });
     }
-
     return [];
-  }, [
-    pgoList,
-    allOperations,
-    row.product_id,
-    selectedProduct?.product_group_id,
-  ]);
+  }, [pgoList, allOperations, row.product_id, selectedProduct?.product_group_id]);
 
   const isNoOperation = !row.product_group_operation_id && row.operation_name;
 
@@ -266,11 +255,25 @@ function ManualRow({
   }, [pgoList, row.product_group_operation_id]);
 
   const remainingQuantity = useMemo(() => {
-    if (!selectedPgo) return null;
-    const orderQty = parseFloat(selectedPgo.order_quantity) || 0;
-    const totalActual = parseFloat(selectedPgo.total_actual) || 0;
-    return Math.max(0, orderQty - totalActual);
-  }, [selectedPgo]);
+    // Trường hợp có chọn công đoạn cụ thể → dùng remaining từ pgo
+    if (selectedPgo) {
+      const orderQty = parseFloat(selectedPgo.order_quantity) || 0;
+      const totalActual = parseFloat(selectedPgo.total_actual) || 0;
+      return Math.max(0, orderQty - totalActual);
+    }
+
+    // Trường hợp "Không công đoạn" (pgo_id rỗng nhưng đã chọn product) → dùng order_quantity của product
+    if (
+      selectedProduct &&
+      isNoOperation // operation_name được set = "Không công đoạn"
+    ) {
+      const orderQty = selectedProduct.order_quantity || 0;
+      const totalActual = selectedProduct.total_actual || 0;
+      if (orderQty > 0) return Math.max(0, orderQty - totalActual);
+    }
+
+    return null;
+  }, [selectedPgo, selectedProduct, isNoOperation]);
 
   return (
     <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 items-center">

@@ -184,7 +184,7 @@ export const deleteInventory = async (req, res) => {
     // Soft delete - set deleted_at timestamp
     const result = await client.query(
       `UPDATE product_inventory 
-       SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       SET deleted_at = CURRENT_TIMESTAMP
        WHERE id = $1
        RETURNING *`,
       [id]

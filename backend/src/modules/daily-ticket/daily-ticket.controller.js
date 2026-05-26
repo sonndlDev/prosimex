@@ -75,7 +75,11 @@ export const getTickets = async (req, res) => {
                 SUM(dti.planned_quantity) as planned_quantity,
                 SUM(dti.actual_quantity) as actual_quantity,
                 STRING_AGG(DISTINCT dti.notes, '; ') as notes,
-                MAX(pp.remaining_quantity) as remaining_quantity,
+                -- FIX #2: Nếu không có production_plan thì tính remaining = planned - actual từ items
+                COALESCE(
+                  MAX(pp.remaining_quantity),
+                  SUM(dti.planned_quantity) - SUM(dti.actual_quantity)
+                ) as remaining_quantity,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 COALESCE(mu.full_name, mu.username) as modifier_name
             FROM daily_production_tickets dt
@@ -522,7 +526,6 @@ export const getPlanVsActualReport = async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Map frontend sort keys to database columns
     const ppMatchSql = `
       pp_m.order_id = base.order_id
       AND pp_m.product_id IS NOT DISTINCT FROM base.product_id
@@ -560,7 +563,6 @@ export const getPlanVsActualReport = async (req, res) => {
     }
     if (startDate) {
       queryParams.push(startDate);
-      // Nếu có KH thì lọc theo ngày KH (mọi máy), nếu không có KH (manual) thì lọc theo ngày ghi nhận thực tế
       whereFilters.push(`(
         EXISTS (
           SELECT 1 FROM production_plans pp_f
@@ -618,7 +620,17 @@ export const getPlanVsActualReport = async (req, res) => {
 
     const whereClause = "WHERE " + whereFilters.join(" AND ");
 
-    // Gộp theo (Order, Product, Operation) — cộng dồn mọi kế hoạch máy (1 công đoạn / nhiều máy)
+    // -------------------------------------------------------------------------
+    // FIX #1: unique_base — bỏ điều kiện lọc sai mã hàng không có công đoạn.
+    //
+    // Logic cũ yêu cầu: nếu product_group_operation_id IS NULL thì product phải
+    // có product_group_id IS NULL. Điều này loại mất các mã hàng thuộc nhóm hàng
+    // nhưng được nhập thủ công (manual) mà không gắn công đoạn.
+    //
+    // Logic mới: chấp nhận mọi combination (order, product, operation=null) miễn
+    // là có ít nhất 1 production_plan HOẶC 1 manual ticket ghi nhận combination đó.
+    // GROUP BY trong base_items đã đảm bảo unique — không cần filter thêm.
+    // -------------------------------------------------------------------------
     const baseCombinationsQuery = `
       WITH base_items AS (
         SELECT order_id, product_id, product_group_operation_id
@@ -636,14 +648,9 @@ export const getPlanVsActualReport = async (req, res) => {
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
       unique_base AS (
+        -- FIX #1: Bỏ điều kiện "product_group_id IS NULL" — chấp nhận mọi combination
         SELECT order_id, product_id, product_group_operation_id
         FROM base_items
-        WHERE product_group_operation_id IS NOT NULL OR (
-          product_group_operation_id IS NULL AND EXISTS (
-            SELECT 1 FROM products p 
-            WHERE p.id = base_items.product_id AND p.product_group_id IS NULL
-          )
-        )
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT 
@@ -745,7 +752,10 @@ export const getPlanVsActualReport = async (req, res) => {
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
 
-    // Count for pagination
+    // -------------------------------------------------------------------------
+    // FIX #3: countQuery — thêm LEFT JOIN orders, products, product_group_operations,
+    // operations để whereClause có thể filter theo o.*, p.*, op.* mà không bị lỗi.
+    // -------------------------------------------------------------------------
     const countQuery = `
       WITH base_items AS (
         SELECT order_id, product_id, product_group_operation_id
@@ -763,18 +773,14 @@ export const getPlanVsActualReport = async (req, res) => {
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
       unique_base AS (
+        -- FIX #1 (count): cùng logic với query chính
         SELECT order_id, product_id, product_group_operation_id
         FROM base_items
-        WHERE product_group_operation_id IS NOT NULL OR (
-          product_group_operation_id IS NULL AND EXISTS (
-            SELECT 1 FROM products p 
-            WHERE p.id = base_items.product_id AND p.product_group_id IS NULL
-          )
-        )
         GROUP BY order_id, product_id, product_group_operation_id
       )
       SELECT COUNT(*) as total 
       FROM unique_base base
+      -- FIX #3: bổ sung các JOIN còn thiếu để whereClause hoạt động đúng
       LEFT JOIN orders o ON base.order_id = o.id
       LEFT JOIN products p ON base.product_id = p.id
       LEFT JOIN product_group_operations pgo ON base.product_group_operation_id = pgo.id
@@ -854,9 +860,6 @@ export const manualOutputEntry = async (req, res) => {
       if (!item.product_id) {
         return res.status(400).json({ message: "Mỗi dòng phải chọn mã hàng" });
       }
-      // if (!item.product_group_operation_id && !item.operation_name) {
-      //   return res.status(400).json({ message: "Mỗi dòng phải chọn công đoạn hoặc 'Không công đoạn'" });
-      // }
     }
 
     // Check permission instead of hardcoding 'PLANNER'
@@ -1036,4 +1039,3 @@ export const exportDetailedTickets = async (req, res) => {
     res.status(500).json({ message: "Error exporting daily tickets", error });
   }
 };
-
