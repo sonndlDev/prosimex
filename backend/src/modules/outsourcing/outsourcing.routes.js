@@ -5,6 +5,8 @@ import {
   getTicketByCode,
   createTicket,
   addReturnEntry,
+  updateReturnEntry,
+  deleteReturnEntry,
   updateTicket,
   deleteTicket
 } from "./outsourcing.controller.js";
@@ -26,6 +28,8 @@ router.get("/export-detailed", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outso
 router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:create'), createTicket);
 router.get("/:ticket_code", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), getTicketByCode);
 router.post("/:ticket_id/returns", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:create'), addReturnEntry);
+router.put("/returns/:return_id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:update'), updateReturnEntry);
+router.delete("/returns/:return_id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:delete'), deleteReturnEntry);
 router.put("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:update'), updateTicket);
 router.delete("/:id", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:delete'), deleteTicket);
 

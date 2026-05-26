@@ -17,6 +17,14 @@ export const outsourcingService = {
     const { data } = await api.post(`/outsourcing/${id}/returns`, payload);
     return data;
   },
+  updateReturn: async (returnId, payload) => {
+    const { data } = await api.put(`/outsourcing/returns/${returnId}`, payload);
+    return data;
+  },
+  deleteReturn: async (returnId) => {
+    const { data } = await api.delete(`/outsourcing/returns/${returnId}`);
+    return data;
+  },
   exportDetailed: async (params = {}) => {
     const { data } = await api.get('/outsourcing/export-detailed', { params });
     return data;

@@ -29,6 +29,19 @@ export const exportDetailedItems = async (req, res) => {
     }
 
     const dataQuery = `
+      WITH returns_agg AS (
+        SELECT
+          r.ticket_item_id,
+          MAX(r.returned_at) AS last_returned_at,
+          SUM(r.quantity_returned) AS total_returned,
+          SUM(r.gross_weight) AS return_gross_weight,
+          SUM(r.pallet_weight) AS return_pallet_weight,
+          SUM(r.net_weight) AS return_net_weight,
+          SUM(r.missing_weight) AS return_missing_weight,
+          string_agg(r.notes, '; ' ORDER BY r.returned_at) FILTER (WHERE r.notes IS NOT NULL AND r.notes != '') AS return_notes
+        FROM outsourcing_returns r
+        GROUP BY r.ticket_item_id
+      )
       SELECT 
         t.dispatch_date,
         t.ticket_code,
@@ -44,18 +57,19 @@ export const exportDetailedItems = async (req, res) => {
         i.net_weight,
         i.notes,
         t.expected_return_date,
-        (SELECT MAX(returned_at) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as last_returned_at,
-        (SELECT SUM(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as total_returned,
-        (SELECT SUM(gross_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_gross_weight,
-        (SELECT SUM(pallet_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_pallet_weight,
-        (SELECT SUM(net_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_net_weight,
-        (SELECT SUM(missing_weight) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as return_missing_weight,
-        (SELECT string_agg(notes, '; ') FROM outsourcing_returns r WHERE r.ticket_item_id = i.id AND notes IS NOT NULL AND notes != '') as return_notes
+        ra.last_returned_at,
+        ra.total_returned,
+        ra.return_gross_weight,
+        ra.return_pallet_weight,
+        ra.return_net_weight,
+        ra.return_missing_weight,
+        ra.return_notes
       FROM outsourcing_ticket_items i
       JOIN outsourcing_tickets t ON i.ticket_id = t.id
       LEFT JOIN suppliers s ON t.supplier_id = s.id
       LEFT JOIN orders o ON i.order_id = o.id
       LEFT JOIN products p ON i.product_id = p.id
+      LEFT JOIN returns_agg ra ON ra.ticket_item_id = i.id
       ${whereClause}
       ORDER BY t.created_at DESC, i.id ASC
     `;
@@ -109,17 +123,48 @@ export const getTickets = async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const dataQuery = `
-      SELECT t.*, s.name as supplier, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
-             COALESCE((SELECT SUM(quantity_out) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as quantity_out,
-             COALESCE((SELECT SUM(package_count) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as total_packages,
-             COALESCE((SELECT SUM(r.quantity_returned) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id), 0) as total_returned,
-             (SELECT string_agg(DISTINCT p.name, ', ') FROM outsourcing_ticket_items i JOIN products p ON i.product_id = p.id WHERE i.ticket_id = t.id) as product_name,
-             (SELECT string_agg(DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''), ', ') FROM outsourcing_ticket_items i JOIN orders o ON i.order_id = o.id WHERE i.ticket_id = t.id) as order_code,
-             (SELECT string_agg(DISTINCT i.packing_specification, '; ') FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id) as packing_specification
+      WITH ticket_items_agg AS (
+        SELECT
+          i.ticket_id,
+          SUM(i.quantity_out) AS quantity_out,
+          SUM(i.package_count) AS total_packages,
+          string_agg(DISTINCT p.name, ', ' ORDER BY p.name) AS product_name,
+          string_agg(
+            DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''),
+            ', '
+            ORDER BY NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), '')
+          ) AS order_code,
+          string_agg(DISTINCT i.packing_specification, '; ' ORDER BY i.packing_specification) AS packing_specification
+        FROM outsourcing_ticket_items i
+        LEFT JOIN products p ON i.product_id = p.id
+        LEFT JOIN orders o ON i.order_id = o.id
+        GROUP BY i.ticket_id
+      ),
+      ticket_returns_agg AS (
+        SELECT
+          i.ticket_id,
+          SUM(r.quantity_returned) AS total_returned
+        FROM outsourcing_returns r
+        JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+        GROUP BY i.ticket_id
+      )
+      SELECT
+        t.*,
+        s.name as supplier,
+        COALESCE(cu.full_name, cu.username) as creator_name,
+        COALESCE(mu.full_name, mu.username) as modifier_name,
+        COALESCE(tia.quantity_out, 0) as quantity_out,
+        COALESCE(tia.total_packages, 0) as total_packages,
+        COALESCE(tra.total_returned, 0) as total_returned,
+        tia.product_name,
+        tia.order_code,
+        tia.packing_specification
       FROM outsourcing_tickets t
       LEFT JOIN suppliers s ON t.supplier_id = s.id
       LEFT JOIN users cu ON t.created_by = cu.id
       LEFT JOIN users mu ON t.modified_by = mu.id
+      LEFT JOIN ticket_items_agg tia ON tia.ticket_id = t.id
+      LEFT JOIN ticket_returns_agg tra ON tra.ticket_id = t.id
       ${whereClause}
       ORDER BY t.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -144,16 +189,52 @@ export const getTicketByCode = async (req, res) => {
   try {
     const { ticket_code } = req.params;
     const dataQuery = `
-      SELECT t.*, s.name as supplier, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
-             COALESCE((SELECT SUM(quantity_out) FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id), 0) as quantity_out,
-             COALESCE((SELECT SUM(r.quantity_returned) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id), 0) as total_returned,
-             (SELECT string_agg(DISTINCT p.name, ', ') FROM outsourcing_ticket_items i JOIN products p ON i.product_id = p.id WHERE i.ticket_id = t.id) as product_name,
-             (SELECT string_agg(DISTINCT o.order_code, ', ') FROM outsourcing_ticket_items i JOIN orders o ON i.order_id = o.id WHERE i.ticket_id = t.id) as order_name
-      FROM outsourcing_tickets t
+      WITH ticket_match AS (
+        SELECT *
+        FROM outsourcing_tickets
+        WHERE ticket_code = $1 AND deleted_at IS NULL
+        LIMIT 1
+      ),
+      ticket_items_agg AS (
+        SELECT
+          i.ticket_id,
+          SUM(i.quantity_out) AS quantity_out,
+          string_agg(DISTINCT p.name, ', ' ORDER BY p.name) AS product_name,
+          string_agg(
+            DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''),
+            ', '
+            ORDER BY NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), '')
+          ) AS order_name
+        FROM outsourcing_ticket_items i
+        LEFT JOIN products p ON i.product_id = p.id
+        LEFT JOIN orders o ON i.order_id = o.id
+        WHERE i.ticket_id IN (SELECT id FROM ticket_match)
+        GROUP BY i.ticket_id
+      ),
+      ticket_returns_agg AS (
+        SELECT
+          i.ticket_id,
+          SUM(r.quantity_returned) AS total_returned
+        FROM outsourcing_returns r
+        JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+        WHERE i.ticket_id IN (SELECT id FROM ticket_match)
+        GROUP BY i.ticket_id
+      )
+      SELECT
+        t.*,
+        s.name as supplier,
+        COALESCE(cu.full_name, cu.username) as creator_name,
+        COALESCE(mu.full_name, mu.username) as modifier_name,
+        COALESCE(tia.quantity_out, 0) as quantity_out,
+        COALESCE(tra.total_returned, 0) as total_returned,
+        tia.product_name,
+        tia.order_name
+      FROM ticket_match t
       LEFT JOIN suppliers s ON t.supplier_id = s.id
       LEFT JOIN users cu ON t.created_by = cu.id
       LEFT JOIN users mu ON t.modified_by = mu.id
-      WHERE t.ticket_code = $1 AND t.deleted_at IS NULL
+      LEFT JOIN ticket_items_agg tia ON tia.ticket_id = t.id
+      LEFT JOIN ticket_returns_agg tra ON tra.ticket_id = t.id
     `;
     const result = await pool.query(dataQuery, [ticket_code]);
     if (result.rowCount === 0) {
@@ -163,11 +244,21 @@ export const getTicketByCode = async (req, res) => {
 
     // Get items
     const itemsQuery = `
-        SELECT i.*, p.name as product_name, o.order_code, o.name as order_name,
-            COALESCE((SELECT sum(quantity_returned) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id), 0) as total_returned
+        WITH returns_agg AS (
+          SELECT ticket_item_id, SUM(quantity_returned) AS total_returned
+          FROM outsourcing_returns
+          GROUP BY ticket_item_id
+        )
+        SELECT
+          i.*,
+          p.name as product_name,
+          o.order_code,
+          o.name as order_name,
+          COALESCE(ra.total_returned, 0) as total_returned
         FROM outsourcing_ticket_items i
         JOIN products p ON i.product_id = p.id
         JOIN orders o ON i.order_id = o.id
+        LEFT JOIN returns_agg ra ON ra.ticket_item_id = i.id
         WHERE i.ticket_id = $1
     `;
     const itemsResult = await pool.query(itemsQuery, [ticket.id]);
@@ -360,6 +451,147 @@ export const addReturnEntry = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Add Return Entry Error:", error);
     res.status(500).json({ message: "Error adding return entry" });
+  } finally {
+    client.release();
+  }
+};
+
+export const updateReturnEntry = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { return_id } = req.params;
+    const { quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
+    const modified_by = req.user.id;
+
+    // Get the current return entry to find the ticket_id
+    const currentRes = await client.query(
+      `SELECT r.*, i.ticket_id FROM outsourcing_returns r
+       JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+       WHERE r.id = $1`,
+      [return_id]
+    );
+
+    if (currentRes.rowCount === 0) {
+      return res.status(404).json({ message: "Return entry not found" });
+    }
+
+    const ticket_id = currentRes.rows[0].ticket_id;
+
+    // Update return entry
+    const updateRes = await client.query(
+      `UPDATE outsourcing_returns 
+       SET quantity_returned = $1, gross_weight = $2, pallet_weight = $3, net_weight = $4, missing_weight = $5, notes = $6, updated_at = CURRENT_TIMESTAMP, modified_by = $7
+       WHERE id = $8 RETURNING *`,
+      [quantity_returned || null, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, modified_by, return_id]
+    );
+
+    // Recalculate ticket status
+    const checkRes = await client.query(
+      `SELECT 
+        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
+        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+         FROM outsourcing_returns r 
+         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+         WHERE i.ticket_id = $1) as total_returned`,
+      [ticket_id]
+    );
+
+    if (checkRes.rowCount > 0) {
+      const { quantity_out, total_returned } = checkRes.rows[0];
+      let newStatus = 'PENDING';
+      if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
+        newStatus = 'COMPLETED';
+      } else if (parseFloat(total_returned) > 0) {
+        newStatus = 'PARTIAL';
+      }
+      
+      await client.query(
+        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
+        [newStatus, ticket_id, modified_by]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE', 'OutsourcingReturn', $2, $3)`,
+      [modified_by, ticket_id, updateRes.rows[0]]
+    );
+
+    await client.query("COMMIT");
+    res.json(updateRes.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Return Entry Error:", error);
+    res.status(500).json({ message: "Error updating return entry" });
+  } finally {
+    client.release();
+  }
+};
+
+export const deleteReturnEntry = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { return_id } = req.params;
+    const deleted_by = req.user.id;
+
+    // Get the return entry and ticket_id before deleting
+    const currentRes = await client.query(
+      `SELECT r.*, i.ticket_id FROM outsourcing_returns r
+       JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+       WHERE r.id = $1`,
+      [return_id]
+    );
+
+    if (currentRes.rowCount === 0) {
+      return res.status(404).json({ message: "Return entry not found" });
+    }
+
+    const ticket_id = currentRes.rows[0].ticket_id;
+
+    // Delete the return entry
+    await client.query(
+      `DELETE FROM outsourcing_returns WHERE id = $1`,
+      [return_id]
+    );
+
+    // Recalculate ticket status
+    const checkRes = await client.query(
+      `SELECT 
+        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
+        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+         FROM outsourcing_returns r 
+         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+         WHERE i.ticket_id = $1) as total_returned`,
+      [ticket_id]
+    );
+
+    if (checkRes.rowCount > 0) {
+      const { quantity_out, total_returned } = checkRes.rows[0];
+      let newStatus = 'PENDING';
+      if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
+        newStatus = 'COMPLETED';
+      } else if (parseFloat(total_returned) > 0) {
+        newStatus = 'PARTIAL';
+      }
+      
+      await client.query(
+        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
+        [newStatus, ticket_id, deleted_by]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'DELETE', 'OutsourcingReturn', $2, $3)`,
+      [deleted_by, ticket_id, JSON.stringify({ deleted_return_id: return_id })]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Return entry deleted successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Return Entry Error:", error);
+    res.status(500).json({ message: "Error deleting return entry" });
   } finally {
     client.release();
   }

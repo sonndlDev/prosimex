@@ -77,8 +77,8 @@ export const getProductionPlans = async (req, res) => {
                 o.po_customer,
                 COALESCE(op_qty.quantity, o.quantity, 0) as quantity,
                 COALESCE(op_qty.quantity, o.quantity, 0) as product_quantity,
-                COALESCE(op_qty.product_name, p.name) as product_name,
-                COALESCE(op_qty.product_group_name, pg.name) as product_group_name,
+                p.name as product_name,
+                pg.name as product_group_name,
                 pgo.sequence_order, 
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 op.name as operation_name, 
@@ -92,7 +92,7 @@ export const getProductionPlans = async (req, res) => {
             LEFT JOIN orders o ON pp.order_id = o.id
             LEFT JOIN products p ON pp.product_id = p.id
             LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
-            LEFT JOIN product_groups pg ON pg.id = COALESCE(op_qty.product_group_id, p.product_group_id)
+            LEFT JOIN product_groups pg ON pg.id = p.product_group_id
             LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
             LEFT JOIN operations op ON pgo.operation_id = op.id
             LEFT JOIN machines m ON pp.machine_id = m.id
@@ -112,21 +112,30 @@ export const getProductionPlans = async (req, res) => {
     if (result.rows.length > 0) {
       const planIds = result.rows.map(r => r.id);
       const allDaysRes = await pool.query(
-        `SELECT 
-              ppd.production_plan_id,
-              ppd.working_date, 
-              ppd.planned_work_quantity, 
-              ppd.is_overtime,
-              (SELECT COUNT(*) FROM worker_plan_assignments wpa 
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_count,
-              (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
-               JOIN workers w ON wpa.worker_id = w.id
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_names
-           FROM production_plan_days ppd 
-           WHERE ppd.production_plan_id = ANY($1)
-           ORDER BY ppd.working_date ASC`,
+        `WITH wpa_agg AS (
+            SELECT
+              wpa.production_plan_id,
+              wpa.working_date,
+              COUNT(*) AS worker_count,
+              string_agg(w.name, ', ' ORDER BY w.name) AS worker_names
+            FROM worker_plan_assignments wpa
+            JOIN workers w ON wpa.worker_id = w.id
+            WHERE wpa.production_plan_id = ANY($1)
+            GROUP BY wpa.production_plan_id, wpa.working_date
+          )
+          SELECT
+            ppd.production_plan_id,
+            ppd.working_date,
+            ppd.planned_work_quantity,
+            ppd.is_overtime,
+            COALESCE(wa.worker_count, 0) AS worker_count,
+            COALESCE(wa.worker_names, '') AS worker_names
+          FROM production_plan_days ppd
+          LEFT JOIN wpa_agg wa
+            ON wa.production_plan_id = ppd.production_plan_id
+           AND wa.working_date = ppd.working_date
+          WHERE ppd.production_plan_id = ANY($1)
+          ORDER BY ppd.working_date ASC`,
         [planIds],
       );
 

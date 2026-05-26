@@ -58,55 +58,64 @@ export const getTickets = async (req, res) => {
 
     const result = await pool.query(
       `
-            SELECT 
-                dt.id as id,
-                dt.id as master_id,
-                dt.status as ticket_status,
-                dt.ticket_date,
-                dt.is_manual,
-                dt.created_by,
-                dt.created_at,
-                m.name as machine_name,
-                STRING_AGG(DISTINCT o.name, ', ') as order_name,
-                STRING_AGG(DISTINCT o.po_customer, ', ') as po_customer,
-                STRING_AGG(DISTINCT p.name, ', ') as product_name,
-                STRING_AGG(DISTINCT op.name, ', ') as fallback_operation_name,
-                STRING_AGG(DISTINCT dti.operation_name, ', ') as operation_name,
-                SUM(dti.planned_quantity) as planned_quantity,
-                SUM(dti.actual_quantity) as actual_quantity,
-                STRING_AGG(DISTINCT dti.notes, '; ') as notes,
-                -- FIX #2: Nếu không có production_plan thì tính remaining = planned - actual từ items
-                COALESCE(
-                  MAX(pp.remaining_quantity),
-                  SUM(dti.planned_quantity) - SUM(dti.actual_quantity)
-                ) as remaining_quantity,
-                COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
-                COALESCE(mu.full_name, mu.username) as modifier_name
-            FROM daily_production_tickets dt
-            LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
-            LEFT JOIN orders o ON dti.order_id = o.id
-            LEFT JOIN products p ON dti.product_id = p.id
-            LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
-            LEFT JOIN operations op ON pgo.operation_id = op.id
-            LEFT JOIN machines m ON dt.machine_id = m.id
-            LEFT JOIN production_plans pp ON pp.id = COALESCE(
-                dti.production_plan_id,
-                (SELECT id FROM production_plans 
-                 WHERE order_id = dti.order_id 
-                   AND product_id = dti.product_id 
-                   AND product_group_operation_id = dti.product_group_operation_id 
-                   AND deleted_at IS NULL 
-                 LIMIT 1)
-            )
-            LEFT JOIN users cu ON dt.created_by = cu.id
-            LEFT JOIN users mu ON dt.modified_by = mu.id
-            ${whereClause}
-            GROUP BY 
-                dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_by, dt.created_at, m.name,
-                cu.full_name, cu.username, mu.full_name, mu.username
-            ORDER BY dt.ticket_date DESC, dt.id DESC
-            LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
-        `,
+        WITH plan_map AS (
+          -- Pick one active plan per (order_id, product_id, product_group_operation_id)
+          -- Used only when dti.production_plan_id is NULL
+          SELECT
+            pp.order_id,
+            pp.product_id,
+            pp.product_group_operation_id,
+            MIN(pp.id) AS production_plan_id
+          FROM production_plans pp
+          WHERE pp.deleted_at IS NULL
+          GROUP BY pp.order_id, pp.product_id, pp.product_group_operation_id
+        )
+        SELECT
+            dt.id as id,
+            dt.id as master_id,
+            dt.status as ticket_status,
+            dt.ticket_date,
+            dt.is_manual,
+            dt.created_by,
+            dt.created_at,
+            m.name as machine_name,
+            STRING_AGG(DISTINCT o.name, ', ') as order_name,
+            STRING_AGG(DISTINCT o.po_customer, ', ') as po_customer,
+            STRING_AGG(DISTINCT p.name, ', ') as product_name,
+            STRING_AGG(DISTINCT op.name, ', ') as fallback_operation_name,
+            STRING_AGG(DISTINCT dti.operation_name, ', ') as operation_name,
+            SUM(dti.planned_quantity) as planned_quantity,
+            SUM(dti.actual_quantity) as actual_quantity,
+            STRING_AGG(DISTINCT dti.notes, '; ') as notes,
+            -- If no plan: remaining = planned - actual (from items)
+            COALESCE(
+              MAX(pp.remaining_quantity),
+              SUM(dti.planned_quantity) - SUM(dti.actual_quantity)
+            ) as remaining_quantity,
+            COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
+            COALESCE(mu.full_name, mu.username) as modifier_name
+        FROM daily_production_tickets dt
+        LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
+        LEFT JOIN orders o ON dti.order_id = o.id
+        LEFT JOIN products p ON dti.product_id = p.id
+        LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
+        LEFT JOIN operations op ON pgo.operation_id = op.id
+        LEFT JOIN machines m ON dt.machine_id = m.id
+        LEFT JOIN plan_map pm
+          ON pm.order_id = dti.order_id
+         AND pm.product_id = dti.product_id
+         AND pm.product_group_operation_id = dti.product_group_operation_id
+        LEFT JOIN production_plans pp
+          ON pp.id = COALESCE(dti.production_plan_id, pm.production_plan_id)
+        LEFT JOIN users cu ON dt.created_by = cu.id
+        LEFT JOIN users mu ON dt.modified_by = mu.id
+        ${whereClause}
+        GROUP BY
+            dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_by, dt.created_at, m.name,
+            cu.full_name, cu.username, mu.full_name, mu.username
+        ORDER BY dt.ticket_date DESC, dt.id DESC
+        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+      `,
       [...queryParams, limit, offset]
     );
 
@@ -165,7 +174,17 @@ export const getTicketById = async (req, res) => {
     const ticket = ticketRes.rows[0];
 
     const itemsRes = await pool.query(
-      `SELECT dti.*, 
+      `WITH plan_map AS (
+          SELECT
+            pp.order_id,
+            pp.product_id,
+            pp.product_group_operation_id,
+            MIN(pp.id) AS production_plan_id
+          FROM production_plans pp
+          WHERE pp.deleted_at IS NULL
+          GROUP BY pp.order_id, pp.product_id, pp.product_group_operation_id
+       )
+       SELECT dti.*, 
               o.order_code, o.name as order_name, o.po_customer,
               c.name as customer_name,
               p.name as product_name,
@@ -181,15 +200,12 @@ export const getTicketById = async (req, res) => {
        LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
        LEFT JOIN operations op ON pgo.operation_id = op.id
        LEFT JOIN machines m ON pgo.machine_id = m.id
-       LEFT JOIN production_plans pp ON pp.id = COALESCE(
-            dti.production_plan_id,
-            (SELECT id FROM production_plans 
-             WHERE order_id = dti.order_id 
-               AND product_id = dti.product_id 
-               AND product_group_operation_id = dti.product_group_operation_id 
-               AND deleted_at IS NULL 
-             LIMIT 1)
-        )
+       LEFT JOIN plan_map pm
+         ON pm.order_id = dti.order_id
+        AND pm.product_id = dti.product_id
+        AND pm.product_group_operation_id = dti.product_group_operation_id
+       LEFT JOIN production_plans pp
+         ON pp.id = COALESCE(dti.production_plan_id, pm.production_plan_id)
        WHERE dti.ticket_id = $1`,
       [id]
     );

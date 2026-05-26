@@ -140,33 +140,35 @@ export const getProductGroupOperations = async (req, res) => {
         SELECT pgo.*, 
                o.name as operation_name, 
                (SELECT string_agg(m.name, ', ') FROM machines m WHERE m.id = ANY(pgo.machine_ids)) as machine_names,
-               EXISTS (
-                 SELECT 1 FROM production_plans pp
-                 WHERE pp.product_group_operation_id = pgo.id
-                   AND pp.order_id = $2
-                   AND pp.product_id = $3
-                   AND pp.deleted_at IS NULL
-               ) as is_planned,
-               COALESCE(
-                 (SELECT SUM(dti.actual_quantity) 
-                  FROM daily_production_ticket_items dti
-                  JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
-                  WHERE dt.deleted_at IS NULL
-                    AND dti.order_id = $2
-                    AND dti.product_id = $3
-                    AND dti.product_group_operation_id = pgo.id),
-                 0
-               )::numeric as total_actual,
-               COALESCE(
-                 (SELECT op_qty.quantity 
-                  FROM order_products op_qty 
-                  WHERE op_qty.order_id = $2 
-                    AND op_qty.product_id = $3
-                  LIMIT 1),
-                 0
-               )::numeric as order_quantity
+               COALESCE(pl.is_planned, false) as is_planned,
+               COALESCE(act.total_actual, 0)::numeric as total_actual,
+               COALESCE(opq.quantity, 0)::numeric as order_quantity
         FROM product_group_operations pgo
         LEFT JOIN operations o ON pgo.operation_id = o.id
+        LEFT JOIN (
+          SELECT product_group_operation_id, true as is_planned
+          FROM production_plans
+          WHERE deleted_at IS NULL
+            AND order_id = $2
+            AND product_id = $3
+          GROUP BY product_group_operation_id
+        ) pl ON pl.product_group_operation_id = pgo.id
+        LEFT JOIN (
+          SELECT dti.product_group_operation_id, SUM(dti.actual_quantity) as total_actual
+          FROM daily_production_ticket_items dti
+          JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+          WHERE dt.deleted_at IS NULL
+            AND dti.order_id = $2
+            AND dti.product_id = $3
+          GROUP BY dti.product_group_operation_id
+        ) act ON act.product_group_operation_id = pgo.id
+        LEFT JOIN (
+          SELECT quantity
+          FROM order_products
+          WHERE order_id = $2 AND product_id = $3
+          ORDER BY id ASC
+          LIMIT 1
+        ) opq ON true
         WHERE pgo.product_group_id = $1 AND pgo.deleted_at IS NULL
         ORDER BY pgo.sequence_order ASC`;
       params = [id, order_id, product_id];
