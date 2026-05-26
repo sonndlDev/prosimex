@@ -1,0 +1,24 @@
+# PROSIMEX MES - AI CODING GUIDELINES & RULES
+
+You are an AI coding assistant working on the Prosimex MES project. 
+To ensure that adding, editing, or deleting features DOES NOT break existing functionality, you MUST strictly adhere to the following rules:
+
+## 1. DATABASE & BACKEND (Node.js, Express, PostgreSQL)
+- **NO HARD DELETES:** Never execute `DELETE FROM table`. Always use Soft Deletes by setting `deleted_at = CURRENT_TIMESTAMP`.
+- **QUERY FILTERING:** Every `SELECT` query (especially in reports and dashboards) MUST include `WHERE deleted_at IS NULL` to avoid calculating deleted records.
+- **TRANSACTIONS:** When performing multiple related `INSERT` or `UPDATE` operations (e.g., creating an order and its items), you MUST use a database transaction (`BEGIN`, `COMMIT`, `ROLLBACK`) using `pool.connect()`. Release the client with `client.release()` in the `finally` block.
+- **AUDIT LOGGING:** Any critical `INSERT`, `UPDATE`, or soft `DELETE` (especially for Orders, Tickets, Plans) MUST be logged in the `audit_logs` table. Always record the `action`, `user_id` (from `req.user.id`), `entity`, `entity_id`, and the JSON data (`before_data` and/or `after_data`).
+- **COMPLEX QUERIES:** Reports heavy heavily on Common Table Expressions (CTEs - `WITH ... AS`). When modifying these, double-check your `JOIN` conditions to prevent Cartesian products (duplicate counting of quantities).
+
+## 2. FRONTEND (React 19, Vite, Tailwind CSS, Shadcn)
+- **UI CONSISTENCY:** Do not create basic UI components from scratch. Always use the existing components in `frontend/src/components/` (which are based on Shadcn UI and Tailwind CSS).
+- **STICKY TABLES:** The application deals with heavy data tables. Many reports (like Production Planning, Daily Tickets) use pixel-based sticky positioning for columns. When adding a new column, you MUST calculate and preserve the `minWidth`, `width`, and `left` offset for sticky columns so horizontal scrolling doesn't break.
+- **ROUTING & RBAC:** All new routes must be added to `frontend/src/AppRouter.jsx`. They must be lazy-loaded (`React.lazy`) and wrapped in `<ProtectedRoute requiredPermission="your_permission_name" />` to enforce Role-Based Access Control.
+- **STATE & CACHE:** The app uses `@tanstack/react-query`. When you create, update, or delete data via API, you MUST call `queryClient.invalidateQueries({ queryKey: [...] })` to refresh the UI automatically. Do not rely on page reloads.
+
+## 3. GENERAL WORKFLOW
+- Before modifying any core reporting function (like `getOrderSummaryReport` or `getPlanVsActualReport`), read the existing SQL query carefully.
+- Maintain existing naming conventions (snake_case for DB columns, camelCase for JS variables).
+- Never modify the database schema without updating the corresponding controllers and ensuring `deleted_at` is handled.
+
+FAILURE TO FOLLOW THESE RULES WILL CAUSE CRITICAL SYSTEM BUGS. Always double-check your SQL queries and UI layouts.
