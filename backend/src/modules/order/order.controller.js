@@ -166,13 +166,13 @@ export const getOrders = async (req, res) => {
           COALESCE(
             json_agg(
               json_build_object(${ORDER_PRODUCT_JSON_FIELDS})
-              ORDER BY op.id
+              ORDER BY op.product_id
             ),
             '[]'::json
           ) AS products
         FROM order_products op
         JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
-        LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
+        LEFT JOIN product_groups pg_snap ON pg_snap.id = COALESCE(op.product_group_id, p.product_group_id) AND pg_snap.deleted_at IS NULL
         LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
         GROUP BY op.order_id
       )
@@ -270,7 +270,7 @@ export const getOrderById = async (req, res) => {
                (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
                 FROM order_products op
                 JOIN products p ON op.product_id = p.id AND p.deleted_at IS NULL
-                LEFT JOIN product_groups pg_snap ON pg_snap.id = op.product_group_id AND pg_snap.deleted_at IS NULL
+                LEFT JOIN product_groups pg_snap ON pg_snap.id = COALESCE(op.product_group_id, p.product_group_id) AND pg_snap.deleted_at IS NULL
                 LEFT JOIN product_groups pg_live ON pg_live.id = p.product_group_id AND pg_live.deleted_at IS NULL
                 WHERE op.order_id = o.id),
                '[]'

@@ -456,6 +456,147 @@ export const addReturnEntry = async (req, res) => {
   }
 };
 
+export const updateReturnEntry = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { return_id } = req.params;
+    const { quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
+    const modified_by = req.user.id;
+
+    // Get the current return entry to find the ticket_id
+    const currentRes = await client.query(
+      `SELECT r.*, i.ticket_id FROM outsourcing_returns r
+       JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+       WHERE r.id = $1`,
+      [return_id]
+    );
+
+    if (currentRes.rowCount === 0) {
+      return res.status(404).json({ message: "Return entry not found" });
+    }
+
+    const ticket_id = currentRes.rows[0].ticket_id;
+
+    // Update return entry
+    const updateRes = await client.query(
+      `UPDATE outsourcing_returns 
+       SET quantity_returned = $1, gross_weight = $2, pallet_weight = $3, net_weight = $4, missing_weight = $5, notes = $6, updated_at = CURRENT_TIMESTAMP, modified_by = $7
+       WHERE id = $8 RETURNING *`,
+      [quantity_returned || null, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, modified_by, return_id]
+    );
+
+    // Recalculate ticket status
+    const checkRes = await client.query(
+      `SELECT 
+        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
+        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+         FROM outsourcing_returns r 
+         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+         WHERE i.ticket_id = $1) as total_returned`,
+      [ticket_id]
+    );
+
+    if (checkRes.rowCount > 0) {
+      const { quantity_out, total_returned } = checkRes.rows[0];
+      let newStatus = 'PENDING';
+      if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
+        newStatus = 'COMPLETED';
+      } else if (parseFloat(total_returned) > 0) {
+        newStatus = 'PARTIAL';
+      }
+      
+      await client.query(
+        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
+        [newStatus, ticket_id, modified_by]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE', 'OutsourcingReturn', $2, $3)`,
+      [modified_by, ticket_id, updateRes.rows[0]]
+    );
+
+    await client.query("COMMIT");
+    res.json(updateRes.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Update Return Entry Error:", error);
+    res.status(500).json({ message: "Error updating return entry" });
+  } finally {
+    client.release();
+  }
+};
+
+export const deleteReturnEntry = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { return_id } = req.params;
+    const deleted_by = req.user.id;
+
+    // Get the return entry and ticket_id before deleting
+    const currentRes = await client.query(
+      `SELECT r.*, i.ticket_id FROM outsourcing_returns r
+       JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
+       WHERE r.id = $1`,
+      [return_id]
+    );
+
+    if (currentRes.rowCount === 0) {
+      return res.status(404).json({ message: "Return entry not found" });
+    }
+
+    const ticket_id = currentRes.rows[0].ticket_id;
+
+    // Delete the return entry
+    await client.query(
+      `DELETE FROM outsourcing_returns WHERE id = $1`,
+      [return_id]
+    );
+
+    // Recalculate ticket status
+    const checkRes = await client.query(
+      `SELECT 
+        (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
+        (SELECT COALESCE(SUM(r.quantity_returned), 0) 
+         FROM outsourcing_returns r 
+         JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id 
+         WHERE i.ticket_id = $1) as total_returned`,
+      [ticket_id]
+    );
+
+    if (checkRes.rowCount > 0) {
+      const { quantity_out, total_returned } = checkRes.rows[0];
+      let newStatus = 'PENDING';
+      if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
+        newStatus = 'COMPLETED';
+      } else if (parseFloat(total_returned) > 0) {
+        newStatus = 'PARTIAL';
+      }
+      
+      await client.query(
+        "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
+        [newStatus, ticket_id, deleted_by]
+      );
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'DELETE', 'OutsourcingReturn', $2, $3)`,
+      [deleted_by, ticket_id, JSON.stringify({ deleted_return_id: return_id })]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Return entry deleted successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Delete Return Entry Error:", error);
+    res.status(500).json({ message: "Error deleting return entry" });
+  } finally {
+    client.release();
+  }
+};
+
 // Xóa phiếu gia công
 export const deleteTicket = async (req, res) => {
   const client = await pool.connect();
