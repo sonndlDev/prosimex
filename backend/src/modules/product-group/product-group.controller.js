@@ -129,9 +129,6 @@ export const getProductGroupOperations = async (req, res) => {
     const { id } = req.params // product_group_id
     const { order_id, product_id } = req.query
 
-    // Base query: lấy danh sách công đoạn của product group
-    // Nếu có order_id và product_id, kiểm tra xem công đoạn đã được lập kế hoạch chưa,
-    // đồng thời tính tổng sản lượng thực tế đã sản xuất và số lượng đặt hàng của sản phẩm đó.
     let query;
     let params;
 
@@ -186,7 +183,50 @@ export const getProductGroupOperations = async (req, res) => {
     }
 
     const result = await pool.query(query, params);
-    res.json(result.rows)
+    let rows = result.rows;
+
+    // Tính thêm sản lượng manual (product_group_operation_id IS NULL)
+    if (order_id && product_id) {
+      const nullOpRes = await pool.query(`
+        SELECT 
+          COALESCE(SUM(dti.actual_quantity), 0)::numeric as total_actual,
+          COALESCE(
+            (SELECT op_qty.quantity FROM order_products op_qty
+             WHERE op_qty.order_id = $1 AND op_qty.product_id = $2 LIMIT 1),
+            0
+          )::numeric as order_quantity
+        FROM daily_production_ticket_items dti
+        JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
+        WHERE dt.deleted_at IS NULL
+          AND dti.order_id = $1
+          AND dti.product_id = $2
+          AND dti.product_group_operation_id IS NULL
+      `, [order_id, product_id]);
+
+      const nullActualQty = parseFloat(nullOpRes.rows[0].total_actual) || 0;
+
+      if (nullActualQty > 0) {
+        rows = [
+          ...rows,
+          {
+            id: null,
+            product_group_id: id,
+            operation_id: null,
+            operation_name: "Không công đoạn",
+            machine_names: null,
+            machine_ids: null,
+            sequence_order: null,
+            dinh_muc: null,
+            is_planned: false,
+            total_actual: nullOpRes.rows[0].total_actual,
+            order_quantity: nullOpRes.rows[0].order_quantity,
+            deleted_at: null,
+          }
+        ];
+      }
+    }
+
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving operations for group', error })
   }

@@ -2131,7 +2131,7 @@ const PlanningFormDialog = React.memo(
                                       ),
                                     0,
                                   )
-                                  .toFixed(1)}{" "}
+                                  .toFixed(2)}{" "}
                                 công
                               </div>
                             ))}

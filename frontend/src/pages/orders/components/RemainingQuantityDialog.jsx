@@ -63,12 +63,43 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
             className: "text-left align-top min-w-[320px] align-middle",
             format: (_, row) => {
                 const ops = row.operations_detail || [];
+                console.log("Operations Detail for", row.product_name, ops);
                 const plating = Number(row.plating_out_quantity) || 0;
                 const packaging = Number(row.packaging_out_quantity) || 0;
                 const required = Number(row.required_quantity) || 0;
 
-                if (ops.length === 0 && plating === 0 && packaging === 0) {
-                    return <div className="mt-2"><span className="text-zinc-400 italic text-[11px]">Chưa có dữ liệu</span></div>;
+                // if (ops.length === 0 && plating === 0 && packaging === 0) {
+                //     return <div className="mt-2"><span className="text-zinc-400 italic text-[11px]">Chưa có dữ liệu</span></div>;
+                // }
+
+                if (ops.length === 0) {
+                    const originalSx = Number(row.original_total_sx) || 0;
+                    const diff = required - originalSx;
+                    const remainingLabel = diff < 0
+                        ? `Dư ${Math.abs(diff).toLocaleString()}`
+                        : diff.toLocaleString();
+                    const remainingClass = diff < 0
+                        ? 'text-emerald-500'
+                        : diff === 0 ? 'text-zinc-300' : 'text-rose-500';
+
+                    return (
+                        <div className="flex flex-col text-[11px] text-zinc-600 mt-1 w-full min-w-[320px]">
+                            <div className="flex items-center pb-1.5 mb-1 border-b border-zinc-200 font-black text-[9px] uppercase tracking-widest text-zinc-400 px-1">
+                                <span className="flex-1">Công đoạn</span>
+                                <span className="w-20 text-right">Thực tế</span>
+                                <span className="w-20 text-right text-rose-500">Còn thiếu</span>
+                            </div>
+                            <div className="flex items-center py-1.5 px-1.5 rounded-md">
+                                <span className="font-semibold text-zinc-400 italic flex-1">Không có công đoạn</span>
+                                <span className={`w-20 text-right font-black tabular-nums ${originalSx > 0 ? 'text-indigo-600' : 'text-zinc-300'}`}>
+                                    {originalSx.toLocaleString()}
+                                </span>
+                                <span className={`w-20 text-right font-black tabular-nums ${remainingClass}`}>
+                                    {remainingLabel}
+                                </span>
+                            </div>
+                        </div>
+                    );
                 }
 
                 return (
@@ -80,20 +111,24 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                         </div>
                         {ops.map((op, i) => {
                             const actual = Number(op.actual_quantity) || 0;
-                            const remaining = Math.max(0, required - actual);
+                            const remaining = required - actual;
+                    const remainingClass = remaining < 0
+                        ? 'text-emerald-500'
+                        : remaining === 0 ? 'text-zinc-300' : 'text-rose-500';
+
                             return (
                                 <div key={i} className="flex items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
                                     <span className="font-semibold text-zinc-700 truncate pr-4 flex-1">{op.operation_name}</span>
                                     <span className={`w-20 text-right font-black tabular-nums ${actual > 0 ? 'text-indigo-600' : 'text-zinc-300'}`}>
                                         {actual.toLocaleString()}
                                     </span>
-                                    <span className={`w-20 text-right font-black tabular-nums ${remaining > 0 ? 'text-rose-500' : 'text-zinc-300'}`}>
-                                        {remaining.toLocaleString()}
+                                    <span className={`w-20 text-right font-black tabular-nums ${remainingClass}`}>
+                                        {remaining < 0 ? `Dư ${Math.abs(remaining).toLocaleString()}` : remaining.toLocaleString()}
                                     </span>
                                 </div>
                             );
                         })}
-                        {plating > 0 && (
+                        {/* {plating > 0 && (
                             <div className="flex items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
                                 <span className="font-semibold text-zinc-700 truncate pr-4 flex-1">Mạ (Gia công)</span>
                                 <span className="w-20 text-right font-black text-indigo-600 tabular-nums">{plating.toLocaleString()}</span>
@@ -106,7 +141,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                                 <span className="w-20 text-right font-black text-indigo-600 tabular-nums">{packaging.toLocaleString()}</span>
                                 <span className="w-20 text-right font-black tabular-nums text-rose-500">{Math.max(0, required - packaging).toLocaleString()}</span>
                             </div>
-                        )}
+                        )} */}
                     </div>
                 );
             }

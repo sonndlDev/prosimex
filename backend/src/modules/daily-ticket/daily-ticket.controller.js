@@ -1,7 +1,7 @@
 import pool from "../../config/db.js";
 import { generateDailyTickets } from "../../workers/dailyTicketWorker.js";
 import { getIo } from "../../sockets/index.js";
-
+const toIntOrNull = (v) => (v === null || v === undefined || v === "null" || v === "") ? null : parseInt(v);
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
   try {
@@ -297,14 +297,14 @@ export const updateTicket = async (req, res) => {
       const itemParams = [
         id,
         ...items.flatMap(item => [
-          item.order_id || null,
-          item.product_id || null,
-          item.product_group_operation_id || null,
+          toIntOrNull(item.order_id),
+          toIntOrNull(item.product_id),
+          toIntOrNull(item.product_group_operation_id),  // ← không còn bị "null" string
           item.operation_name || null,
-          item.planned_quantity || 0,
-          item.actual_quantity || 0,
+          parseFloat(item.planned_quantity) || 0,
+          parseFloat(item.actual_quantity) || 0,
           item.notes ? String(item.notes) : null,
-          item.production_plan_id || null
+          null
         ]),
       ];
       await client.query(
@@ -902,14 +902,14 @@ export const manualOutputEntry = async (req, res) => {
       const itemParams = [
         ticketId,
         ...items.flatMap(item => [
-          item.order_id || null,
-          item.product_id || null,
-          item.product_group_operation_id || null,
+          toIntOrNull(item.order_id),
+          toIntOrNull(item.product_id),
+          toIntOrNull(item.product_group_operation_id),  // ← không còn bị "null" string
           item.operation_name || null,
           parseFloat(item.planned_quantity) || 0,
           parseFloat(item.actual_quantity) || 0,
           item.notes ? String(item.notes) : null,
-          null // production_plan_id
+          null
         ]),
       ];
       await client.query(
