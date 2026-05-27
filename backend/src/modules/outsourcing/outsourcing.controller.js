@@ -614,12 +614,9 @@ export const deleteTicket = async (req, res) => {
     const { id } = req.params;
     const user_id = req.user.id;
 
-    // Check if the ticket has returns
+    // Kiểm tra phiếu tồn tại
     const checkRes = await client.query(
-      `SELECT t.status, 
-        (SELECT COUNT(*) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id) as returns_count
-       FROM outsourcing_tickets t
-       WHERE t.id = $1 AND t.deleted_at IS NULL`,
+      `SELECT id FROM outsourcing_tickets WHERE id = $1 AND deleted_at IS NULL`,
       [id]
     );
 
@@ -627,18 +624,32 @@ export const deleteTicket = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy phiếu hoặc đã bị xoá" });
     }
 
-    if (parseInt(checkRes.rows[0].returns_count) > 0) {
-      return res.status(400).json({ message: "Không thể xoá phiếu đã có hàng nhập về" });
-    }
-
-    // Soft delete
+    // Xóa outsourcing_returns trước (liên kết qua ticket_items)
     await client.query(
-      "UPDATE outsourcing_tickets SET deleted_at = CURRENT_TIMESTAMP, modified_by = $1 WHERE id = $2",
+      `DELETE FROM outsourcing_returns
+       WHERE ticket_item_id IN (
+         SELECT id FROM outsourcing_ticket_items WHERE ticket_id = $1
+       )`,
+      [id]
+    );
+
+    // Xóa outsourcing_ticket_items
+    await client.query(
+      `DELETE FROM outsourcing_ticket_items WHERE ticket_id = $1`,
+      [id]
+    );
+
+    // Soft delete phiếu chính
+    await client.query(
+      `UPDATE outsourcing_tickets 
+       SET deleted_at = CURRENT_TIMESTAMP, modified_by = $1 
+       WHERE id = $2`,
       [user_id, id]
     );
 
     await client.query(
-      `INSERT INTO audit_logs (user_id, action, entity, entity_id) VALUES ($1, 'DELETE', 'OutsourcingTicket', $2)`,
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id)
+       VALUES ($1, 'DELETE', 'OutsourcingTicket', $2)`,
       [user_id, id]
     );
 
