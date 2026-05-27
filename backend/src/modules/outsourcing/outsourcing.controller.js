@@ -292,58 +292,74 @@ export const createTicket = async (req, res) => {
   try {
     await client.query("BEGIN");
     const {
-      type, // 'PLATING' or 'PACKAGING'
+      type,
       supplier_id,
       dispatch_date,
       expected_return_date,
-      items // array of items
+      items
     } = req.body;
 
     const created_by = req.user.id;
 
     // Generate auto ticket_code
     let prefix = type === "PLATING" ? "PRO" : "DG";
-    
+
     // Fetch supplier code for PLATING
     if (type === "PLATING" && supplier_id) {
       const supplierRes = await client.query("SELECT code FROM suppliers WHERE id = $1", [supplier_id]);
-      if (supplierRes.rowCount > 0) {
+      if (supplierRes.rowCount > 0 && supplierRes.rows[0].code) {
         prefix = `PRO-${supplierRes.rows[0].code}`;
       }
     }
 
-    // Determine date for code (NGÀY XUẤT)
+    // FIX 1: Parse ngày trực tiếp từ chuỗi ISO, tránh lệch múi giờ UTC
     let datePart = "";
     if (dispatch_date) {
-      const d = new Date(dispatch_date);
-      if (!isNaN(d.getTime())) {
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const yyyy = d.getFullYear();
-        datePart = `${dd}${mm}${yyyy}`;
+      const dateStr = dispatch_date.split("T")[0]; // "2026-05-25"
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        const [yyyy, mm, dd] = parts;
+        datePart = `${dd}${mm}${yyyy}`; // "25052026"
       }
     }
-    
+
     if (!datePart) {
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, '0');
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const yyyy = now.getFullYear();
+      // Fallback: dùng giờ UTC+7
+      const now = new Date(Date.now() + 7 * 60 * 60 * 1000);
+      const dd = String(now.getUTCDate()).padStart(2, "0");
+      const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+      const yyyy = now.getUTCFullYear();
       datePart = `${dd}${mm}${yyyy}`;
     }
 
-    // Determine ticket code
+    // FIX 2: Kiểm tra trùng ticket_code cho cả PLATING và PACKAGING
     let ticket_code = "";
+    const baseCode = `${prefix}-${datePart}`;
+
     if (type === "PLATING") {
-      ticket_code = `${prefix}-${datePart}`;
+      // PLATING: PRO-XX-ddmmyyyy, nếu trùng thêm -001, -002...
+      const exactRes = await client.query(
+        "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code = $1",
+        [baseCode]
+      );
+      if (parseInt(exactRes.rows[0].count) === 0) {
+        ticket_code = baseCode;
+      } else {
+        const likeRes = await client.query(
+          "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
+          [`${baseCode}%`]
+        );
+        const seq = parseInt(likeRes.rows[0].count) + 1;
+        ticket_code = `${baseCode}-${seq.toString().padStart(3, "0")}`;
+      }
     } else {
-      // For other types (like PACKAGING), keep the sequence to avoid duplicates
+      // PACKAGING: DG-ddmmyyyy-001, -002...
       const countRes = await client.query(
         "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
-        [`${prefix}-${datePart}-%`]
+        [`${baseCode}-%`]
       );
-      const count = parseInt(countRes.rows[0].count) + 1;
-      ticket_code = `${prefix}-${datePart}-${count.toString().padStart(3, '0')}`;
+      const seq = parseInt(countRes.rows[0].count) + 1;
+      ticket_code = `${baseCode}-${seq.toString().padStart(3, "0")}`;
     }
 
     const insertRes = await client.query(
@@ -357,28 +373,28 @@ export const createTicket = async (req, res) => {
 
     // Insert items
     if (items && items.length > 0) {
-        for (const item of items) {
-            await client.query(
-                `INSERT INTO outsourcing_ticket_items 
-                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-                [
-                  newTicket.id, 
-                  item.order_id, 
-                  item.product_id, 
-                  item.order_quantity || 0, 
-                  item.processing_type || null, 
-                  item.quantity_out || 0, 
-                  item.gross_weight || null, 
-                  item.pallet_weight || null, 
-                  item.net_weight || null, 
-                  item.notes || null,
-                  item.packing_specification || null,
-                  item.package_count || null,
-                  item.unit_net_weight || null
-                ]
-            );
-        }
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO outsourcing_ticket_items 
+          (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            newTicket.id,
+            item.order_id,
+            item.product_id,
+            item.order_quantity || 0,
+            item.processing_type || null,
+            item.quantity_out || 0,
+            item.gross_weight || null,
+            item.pallet_weight || null,
+            item.net_weight || null,
+            item.notes || null,
+            item.packing_specification || null,
+            item.package_count || null,
+            item.unit_net_weight || null
+          ]
+        );
+      }
     }
 
     await client.query(
@@ -391,7 +407,7 @@ export const createTicket = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create Ticket Error:", error);
-    res.status(500).json({ message: "Error creating ticket" });
+    res.status(500).json({ message: "Error creating ticket", error: error.message });
   } finally {
     client.release();
   }
