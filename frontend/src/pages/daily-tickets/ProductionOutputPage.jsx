@@ -267,6 +267,7 @@ function ManualRow({
       selectedProduct &&
       isNoOperation // operation_name được set = "Không công đoạn"
     ) {
+                console.log("selectedProduct Detail for", selectedProduct);
       const orderQty = selectedProduct.order_quantity || 0;
       const totalActual = selectedProduct.total_actual || 0;
       if (orderQty > 0) return Math.max(0, orderQty - totalActual);
