@@ -292,18 +292,18 @@ export const createTicket = async (req, res) => {
   try {
     await client.query("BEGIN");
     const {
-      type, // 'PLATING' or 'PACKAGING'
+      type,
       supplier_id,
       dispatch_date,
       expected_return_date,
-      items // array of items
+      items
     } = req.body;
 
     const created_by = req.user.id;
 
     // Generate auto ticket_code
     let prefix = type === "PLATING" ? "PRO" : "DG";
-    
+
     // Fetch supplier code for PLATING
     if (type === "PLATING" && supplier_id) {
       const supplierRes = await client.query("SELECT code FROM suppliers WHERE id = $1", [supplier_id]);
@@ -312,38 +312,49 @@ export const createTicket = async (req, res) => {
       }
     }
 
-    // Determine date for code (NGÀY XUẤT)
+    // Parse ngày từ chuỗi ISO, tránh lệch múi giờ UTC
     let datePart = "";
     if (dispatch_date) {
-      const d = new Date(dispatch_date);
-      if (!isNaN(d.getTime())) {
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const yyyy = d.getFullYear();
-        datePart = `${dd}${mm}${yyyy}`;
+      const dateStr = dispatch_date.split("T")[0]; // "2026-05-25"
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        const [yyyy, mm, dd] = parts;
+        datePart = `${dd}${mm}${yyyy}`; // "25052026"
       }
     }
-    
+
     if (!datePart) {
       const now = new Date();
-      const dd = String(now.getDate()).padStart(2, '0');
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
       const yyyy = now.getFullYear();
       datePart = `${dd}${mm}${yyyy}`;
     }
 
-    // Determine ticket code
+    // Xác định ticket_code
     let ticket_code = "";
     if (type === "PLATING") {
-      ticket_code = `${prefix}-${datePart}`;
+      const baseCode = `${prefix}-${datePart}`;
+
+      // Kiểm tra trùng mã phiếu
+      const existsRes = await client.query(
+        "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
+        [`${baseCode}%`]
+      );
+      const existsCount = parseInt(existsRes.rows[0].count);
+
+      if (existsCount === 0) {
+        ticket_code = baseCode;
+      } else {
+        ticket_code = `${baseCode}-${(existsCount + 1).toString().padStart(3, "0")}`;
+      }
     } else {
-      // For other types (like PACKAGING), keep the sequence to avoid duplicates
       const countRes = await client.query(
         "SELECT COUNT(*) FROM outsourcing_tickets WHERE ticket_code LIKE $1",
         [`${prefix}-${datePart}-%`]
       );
       const count = parseInt(countRes.rows[0].count) + 1;
-      ticket_code = `${prefix}-${datePart}-${count.toString().padStart(3, '0')}`;
+      ticket_code = `${prefix}-${datePart}-${count.toString().padStart(3, "0")}`;
     }
 
     const insertRes = await client.query(
@@ -357,28 +368,28 @@ export const createTicket = async (req, res) => {
 
     // Insert items
     if (items && items.length > 0) {
-        for (const item of items) {
-            await client.query(
-                `INSERT INTO outsourcing_ticket_items 
-                (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-                [
-                  newTicket.id, 
-                  item.order_id, 
-                  item.product_id, 
-                  item.order_quantity || 0, 
-                  item.processing_type || null, 
-                  item.quantity_out || 0, 
-                  item.gross_weight || null, 
-                  item.pallet_weight || null, 
-                  item.net_weight || null, 
-                  item.notes || null,
-                  item.packing_specification || null,
-                  item.package_count || null,
-                  item.unit_net_weight || null
-                ]
-            );
-        }
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO outsourcing_ticket_items 
+          (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          [
+            newTicket.id,
+            item.order_id,
+            item.product_id,
+            item.order_quantity || 0,
+            item.processing_type || null,
+            item.quantity_out || 0,
+            item.gross_weight || null,
+            item.pallet_weight || null,
+            item.net_weight || null,
+            item.notes || null,
+            item.packing_specification || null,
+            item.package_count || null,
+            item.unit_net_weight || null
+          ]
+        );
+      }
     }
 
     await client.query(
@@ -391,7 +402,7 @@ export const createTicket = async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Create Ticket Error:", error);
-    res.status(500).json({ message: "Error creating ticket" });
+    res.status(500).json({ message: "Error creating ticket", error: error.message });
   } finally {
     client.release();
   }
@@ -406,15 +417,12 @@ export const addReturnEntry = async (req, res) => {
     const { ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
     const created_by = req.user.id;
 
-    // Insert return entry
     const insertRes = await client.query(
       `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [ticket_item_id, quantity_returned, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
     );
 
-    // Update status of main ticket
-    // We get sum of all items out and sum of all items returned
     const checkRes = await client.query(
       `SELECT 
         (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
@@ -427,13 +435,13 @@ export const addReturnEntry = async (req, res) => {
 
     if (checkRes.rowCount > 0) {
       const { quantity_out, total_returned } = checkRes.rows[0];
-      let newStatus = 'PENDING';
+      let newStatus = "PENDING";
       if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
-        newStatus = 'COMPLETED';
+        newStatus = "COMPLETED";
       } else if (parseFloat(total_returned) > 0) {
-        newStatus = 'PARTIAL';
+        newStatus = "PARTIAL";
       }
-      
+
       await client.query(
         "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
         [newStatus, ticket_id, created_by]
@@ -464,7 +472,6 @@ export const updateReturnEntry = async (req, res) => {
     const { quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
     const modified_by = req.user.id;
 
-    // Get the current return entry to find the ticket_id
     const currentRes = await client.query(
       `SELECT r.*, i.ticket_id FROM outsourcing_returns r
        JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
@@ -478,7 +485,6 @@ export const updateReturnEntry = async (req, res) => {
 
     const ticket_id = currentRes.rows[0].ticket_id;
 
-    // Update return entry
     const updateRes = await client.query(
       `UPDATE outsourcing_returns 
        SET quantity_returned = $1, gross_weight = $2, pallet_weight = $3, net_weight = $4, missing_weight = $5, notes = $6, updated_at = CURRENT_TIMESTAMP, modified_by = $7
@@ -486,7 +492,6 @@ export const updateReturnEntry = async (req, res) => {
       [quantity_returned || null, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, modified_by, return_id]
     );
 
-    // Recalculate ticket status
     const checkRes = await client.query(
       `SELECT 
         (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
@@ -499,13 +504,13 @@ export const updateReturnEntry = async (req, res) => {
 
     if (checkRes.rowCount > 0) {
       const { quantity_out, total_returned } = checkRes.rows[0];
-      let newStatus = 'PENDING';
+      let newStatus = "PENDING";
       if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
-        newStatus = 'COMPLETED';
+        newStatus = "COMPLETED";
       } else if (parseFloat(total_returned) > 0) {
-        newStatus = 'PARTIAL';
+        newStatus = "PARTIAL";
       }
-      
+
       await client.query(
         "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
         [newStatus, ticket_id, modified_by]
@@ -535,7 +540,6 @@ export const deleteReturnEntry = async (req, res) => {
     const { return_id } = req.params;
     const deleted_by = req.user.id;
 
-    // Get the return entry and ticket_id before deleting
     const currentRes = await client.query(
       `SELECT r.*, i.ticket_id FROM outsourcing_returns r
        JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
@@ -549,13 +553,8 @@ export const deleteReturnEntry = async (req, res) => {
 
     const ticket_id = currentRes.rows[0].ticket_id;
 
-    // Delete the return entry
-    await client.query(
-      `DELETE FROM outsourcing_returns WHERE id = $1`,
-      [return_id]
-    );
+    await client.query(`DELETE FROM outsourcing_returns WHERE id = $1`, [return_id]);
 
-    // Recalculate ticket status
     const checkRes = await client.query(
       `SELECT 
         (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
@@ -568,13 +567,13 @@ export const deleteReturnEntry = async (req, res) => {
 
     if (checkRes.rowCount > 0) {
       const { quantity_out, total_returned } = checkRes.rows[0];
-      let newStatus = 'PENDING';
+      let newStatus = "PENDING";
       if (parseFloat(total_returned) >= parseFloat(quantity_out)) {
-        newStatus = 'COMPLETED';
+        newStatus = "COMPLETED";
       } else if (parseFloat(total_returned) > 0) {
-        newStatus = 'PARTIAL';
+        newStatus = "PARTIAL";
       }
-      
+
       await client.query(
         "UPDATE outsourcing_tickets SET status = $1, updated_at = CURRENT_TIMESTAMP, modified_by = $3 WHERE id = $2",
         [newStatus, ticket_id, deleted_by]
@@ -605,7 +604,6 @@ export const deleteTicket = async (req, res) => {
     const { id } = req.params;
     const user_id = req.user.id;
 
-    // Check if the ticket has returns
     const checkRes = await client.query(
       `SELECT t.status, 
         (SELECT COUNT(*) FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = t.id) as returns_count
@@ -622,7 +620,6 @@ export const deleteTicket = async (req, res) => {
       return res.status(400).json({ message: "Không thể xoá phiếu đã có hàng nhập về" });
     }
 
-    // Soft delete
     await client.query(
       "UPDATE outsourcing_tickets SET deleted_at = CURRENT_TIMESTAMP, modified_by = $1 WHERE id = $2",
       [user_id, id]
@@ -675,68 +672,64 @@ export const updateTicket = async (req, res) => {
     );
 
     if (Array.isArray(items) && items.length > 0) {
-    // Get existing items with their returns count
-    const existingItemsRes = await client.query(
-      `SELECT i.id, 
-        (SELECT COALESCE(SUM(quantity_returned), 0) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as returned_qty
-       FROM outsourcing_ticket_items i
-       WHERE i.ticket_id = $1`,
-      [id]
-    );
-    const existingItemMap = new Map();
-    existingItemsRes.rows.forEach(r => existingItemMap.set(r.id, parseFloat(r.returned_qty)));
+      const existingItemsRes = await client.query(
+        `SELECT i.id, 
+          (SELECT COALESCE(SUM(quantity_returned), 0) FROM outsourcing_returns r WHERE r.ticket_item_id = i.id) as returned_qty
+         FROM outsourcing_ticket_items i
+         WHERE i.ticket_id = $1`,
+        [id]
+      );
+      const existingItemMap = new Map();
+      existingItemsRes.rows.forEach(r => existingItemMap.set(r.id, parseFloat(r.returned_qty)));
 
-    const newProvidedItemIds = new Set(items.map(i => i.id).filter(Boolean));
+      const newProvidedItemIds = new Set(items.map(i => i.id).filter(Boolean));
 
-    // Delete items that are missing in the new payload, ONLY if returned_qty == 0
-    for (const [existingId, returnedQty] of existingItemMap.entries()) {
-      if (!newProvidedItemIds.has(existingId)) {
-        if (returnedQty > 0) {
-          throw new Error(`Không thể xoá dòng chi tiết (ID: ${existingId}) vì đã có ${returnedQty} hàng nhập về`);
+      for (const [existingId, returnedQty] of existingItemMap.entries()) {
+        if (!newProvidedItemIds.has(existingId)) {
+          if (returnedQty > 0) {
+            throw new Error(`Không thể xoá dòng chi tiết (ID: ${existingId}) vì đã có ${returnedQty} hàng nhập về`);
+          }
+          await client.query("DELETE FROM outsourcing_ticket_items WHERE id = $1", [existingId]);
         }
-        await client.query("DELETE FROM outsourcing_ticket_items WHERE id = $1", [existingId]);
+      }
+
+      for (const item of items) {
+        if (item.id && existingItemMap.has(item.id)) {
+          const returnedQty = existingItemMap.get(item.id);
+          const quantity_out = parseFloat(item.quantity_out || 0);
+          if (quantity_out < returnedQty) {
+            throw new Error(`Số lượng xuất không thể nhỏ hơn số lượng đã nhập về (${returnedQty})`);
+          }
+
+          await client.query(
+            `UPDATE outsourcing_ticket_items
+             SET order_id = $1, product_id = $2, order_quantity = $3, processing_type = $4, quantity_out = $5,
+                 gross_weight = $6, pallet_weight = $7, net_weight = $8, notes = $9, 
+                 packing_specification = $10, package_count = $11, unit_net_weight = $12
+             WHERE id = $13`,
+            [
+              item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, quantity_out,
+              item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
+              item.packing_specification || null, item.package_count || null, item.unit_net_weight || null,
+              item.id
+            ]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO outsourcing_ticket_items 
+             (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, 
+              gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            [
+              id, item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, item.quantity_out || 0,
+              item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
+              item.packing_specification || null, item.package_count || null, item.unit_net_weight || null
+            ]
+          );
+        }
       }
     }
 
-    // Insert or update items
-    for (const item of items) {
-      if (item.id && existingItemMap.has(item.id)) {
-        const returnedQty = existingItemMap.get(item.id);
-        const quantity_out = parseFloat(item.quantity_out || 0);
-        if (quantity_out < returnedQty) {
-          throw new Error(`Số lượng xuất không thể nhỏ hơn số lượng đã nhập về (${returnedQty})`);
-        }
-
-        await client.query(
-          `UPDATE outsourcing_ticket_items
-           SET order_id = $1, product_id = $2, order_quantity = $3, processing_type = $4, quantity_out = $5,
-               gross_weight = $6, pallet_weight = $7, net_weight = $8, notes = $9, 
-               packing_specification = $10, package_count = $11, unit_net_weight = $12
-           WHERE id = $13`,
-          [
-            item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, quantity_out,
-            item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
-            item.packing_specification || null, item.package_count || null, item.unit_net_weight || null,
-            item.id
-          ]
-        );
-      } else {
-        await client.query(
-          `INSERT INTO outsourcing_ticket_items 
-           (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, 
-            gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-          [
-            id, item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, item.quantity_out || 0,
-            item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
-            item.packing_specification || null, item.package_count || null, item.unit_net_weight || null
-          ]
-        );
-      }
-    }
-    }
-
-    // Re-evaluate total status when not manually set
     if (!status) {
       const checkStatusRes = await client.query(
         `SELECT 
@@ -750,11 +743,11 @@ export const updateTicket = async (req, res) => {
 
       if (checkStatusRes.rowCount > 0) {
         const { total_out, total_returned } = checkStatusRes.rows[0];
-        let newStatus = 'PENDING';
+        let newStatus = "PENDING";
         if (parseFloat(total_returned) >= parseFloat(total_out) && parseFloat(total_out) > 0) {
-          newStatus = 'COMPLETED';
+          newStatus = "COMPLETED";
         } else if (parseFloat(total_returned) > 0) {
-          newStatus = 'PARTIAL';
+          newStatus = "PARTIAL";
         }
 
         await client.query("UPDATE outsourcing_tickets SET status = $1 WHERE id = $2", [newStatus, id]);
