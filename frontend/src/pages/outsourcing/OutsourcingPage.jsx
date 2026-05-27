@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit } from "lucide-react";
+import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -630,16 +630,6 @@ function InboundTicketForm({ type }) {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [returnFormData, setReturnFormData] = useState({});
   const [loadingReturn, setLoadingReturn] = useState(false);
-  
-  // Edit/Delete history state
-  const [editingHistoryId, setEditingHistoryId] = useState(null);
-  const [editingHistoryData, setEditingHistoryData] = useState({});
-  const [showEditHistoryDialog, setShowEditHistoryDialog] = useState(false);
-  const [isSavingHistory, setIsSavingHistory] = useState(false);
-  
-  const [deleteHistoryId, setDeleteHistoryId] = useState(null);
-  const [showDeleteHistoryDialog, setShowDeleteHistoryDialog] = useState(false);
-  const [isDeletingHistory, setIsDeletingHistory] = useState(false);
 
   const handleSearch = async () => {
     if (!searchCode.trim()) return;
@@ -890,37 +880,7 @@ function InboundTicketForm({ type }) {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {history.map((h, i) => (
-                  <div key={h.id} className="flex flex-col p-4 bg-white border border-zinc-200 hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm relative">
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingHistoryId(h.id);
-                          setEditingHistoryData({ 
-                            quantity_returned: h.quantity_returned || "", 
-                            gross_weight: h.gross_weight || "",
-                            pallet_weight: h.pallet_weight || "",
-                            net_weight: h.net_weight || "",
-                            missing_weight: h.missing_weight || "",
-                            notes: h.notes || "" 
-                          });
-                          setShowEditHistoryDialog(true);
-                        }}
-                        className="p-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-indigo-600 transition-colors"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteHistoryId(h.id);
-                          setShowDeleteHistoryDialog(true);
-                        }}
-                        className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                  <div key={h.id} className="flex flex-col p-4 bg-white border border-zinc-200 hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-xs shrink-0 shadow-sm border border-emerald-200">
@@ -945,209 +905,6 @@ function InboundTicketForm({ type }) {
           </div>
         </div>
       )}
-
-      {/* Edit History Dialog */}
-      <Dialog open={showEditHistoryDialog} onOpenChange={setShowEditHistoryDialog}>
-        <DialogContent className="sm:max-w-2xl bg-white border border-zinc-200 rounded-2xl shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
-              Cập nhật thông tin lịch sử nhập hàng gia công
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">SL Nhập (cái) *</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0"
-                  value={editingHistoryData.quantity_returned || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({...prev, quantity_returned: e.target.value}))}
-                  className="h-11 font-medium"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Gross (KG)</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.gross_weight || ""}
-                  onChange={(e) => {
-                    const gross = parseFloat(e.target.value) || 0;
-                    const pallet = parseFloat(editingHistoryData.pallet_weight) || 0;
-                    setEditingHistoryData(prev => ({
-                      ...prev, 
-                      gross_weight: e.target.value,
-                      net_weight: (gross - pallet).toFixed(2)
-                    }));
-                  }}
-                  className="h-11 font-medium"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Pallet (KG)</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.pallet_weight || ""}
-                  onChange={(e) => {
-                    const pallet = parseFloat(e.target.value) || 0;
-                    const gross = parseFloat(editingHistoryData.gross_weight) || 0;
-                    setEditingHistoryData(prev => ({
-                      ...prev, 
-                      pallet_weight: e.target.value,
-                      net_weight: (gross - pallet).toFixed(2)
-                    }));
-                  }}
-                  className="h-11 font-medium"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Net (KG)</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.net_weight || ""}
-                  readOnly
-                  className="h-11 font-medium bg-zinc-100/50"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">KG Thiếu Thữa</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.missing_weight || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({...prev, missing_weight: e.target.value}))}
-                  className="h-11 font-medium"
-                />
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="text-sm font-bold text-zinc-700">Ghi chú</Label>
-              <textarea 
-                placeholder="Thêm ghi chú nếu cần..."
-                value={editingHistoryData.notes || ""}
-                onChange={(e) => setEditingHistoryData(prev => ({...prev, notes: e.target.value}))}
-                className="w-full h-20 p-3 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium resize-none"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowEditHistoryDialog(false)} 
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!editingHistoryId) return;
-                if (!editingHistoryData.quantity_returned) {
-                  toast.error("Vui lòng nhập số lượng");
-                  return;
-                }
-                
-                setIsSavingHistory(true);
-                try {
-                  await outsourcingService.updateReturn(editingHistoryId, {
-                    quantity_returned: parseFloat(editingHistoryData.quantity_returned),
-                    gross_weight: editingHistoryData.gross_weight ? parseFloat(editingHistoryData.gross_weight) : null,
-                    pallet_weight: editingHistoryData.pallet_weight ? parseFloat(editingHistoryData.pallet_weight) : null,
-                    net_weight: editingHistoryData.net_weight ? parseFloat(editingHistoryData.net_weight) : null,
-                    missing_weight: editingHistoryData.missing_weight ? parseFloat(editingHistoryData.missing_weight) : null,
-                    notes: editingHistoryData.notes || ""
-                  });
-                  
-                  // Refetch ticket data
-                  const res = await outsourcingService.getByCode(searchCode.trim());
-                  setHistory(res.history || []);
-                  
-                  toast.success("Cập nhật lịch sử nhập thành công!");
-                  setShowEditHistoryDialog(false);
-                  setEditingHistoryId(null);
-                  setEditingHistoryData({});
-                } catch (error) {
-                  toast.error(error?.response?.data?.message || "Lỗi khi cập nhật lịch sử");
-                } finally {
-                  setIsSavingHistory(false);
-                }
-              }}
-              disabled={isSavingHistory}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-            >
-              {isSavingHistory ? "Đang lưu..." : "Lưu thay đổi"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete History Dialog */}
-      <Dialog open={showDeleteHistoryDialog} onOpenChange={setShowDeleteHistoryDialog}>
-        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
-              Bạn có chắc chắn muốn xóa bản ghi lịch sử nhập này? Hành động này không thể hoàn tác.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 pt-6 border-t border-zinc-100">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteHistoryDialog(false)} 
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!deleteHistoryId) return;
-                
-                setIsDeletingHistory(true);
-                try {
-                  await outsourcingService.deleteReturn(deleteHistoryId);
-                  
-                  // Refetch ticket data
-                  const res = await outsourcingService.getByCode(searchCode.trim());
-                  setHistory(res.history || []);
-                  
-                  toast.success("Xóa lịch sử nhập thành công!");
-                  setShowDeleteHistoryDialog(false);
-                  setDeleteHistoryId(null);
-                } catch (error) {
-                  toast.error(error?.response?.data?.message || "Lỗi khi xóa lịch sử");
-                } finally {
-                  setIsDeletingHistory(false);
-                }
-              }}
-              disabled={isDeletingHistory}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold"
-            >
-              {isDeletingHistory ? "Đang xóa..." : "Xóa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
