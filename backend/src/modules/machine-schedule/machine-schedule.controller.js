@@ -17,7 +17,7 @@ export const getMachineScheduleCalendar = async (req, res) => {
       machines = [{ id: "unassigned", title: "CHƯA GÁN MÁY" }];
     } else {
       let machineQuery =
-        "SELECT id, COALESCE(code, name) as title FROM machines WHERE deleted_at IS NULL";
+        "SELECT id, COALESCE(code, name) as title, color FROM machines WHERE deleted_at IS NULL";
       const machineParams = [];
       if (factory_id && factory_id !== "all") {
         machineQuery += " AND factory_id = $1";

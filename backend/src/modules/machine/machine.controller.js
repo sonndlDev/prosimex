@@ -47,12 +47,12 @@ export const getMachines = async (req, res) => {
 
 export const createMachine = async (req, res) => {
   try {
-    const { code, name, factory_id, capacity_per_day, is_active, sort_order } = req.body;
+    const { code, name, factory_id, capacity_per_day, is_active, sort_order, type, color } = req.body;
     const userId = req.user?.id;
     const result = await pool.query(
-      `INSERT INTO machines (code, name, factory_id, capacity_per_day, is_active, sort_order, created_by, modified_by) 
-       VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $7, $7) RETURNING *`,
-      [code, name, factory_id, capacity_per_day, is_active, sort_order || 0, userId]
+      `INSERT INTO machines (code, name, factory_id, capacity_per_day, is_active, sort_order, created_by, modified_by, type, color) 
+       VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, $7, $7, $8, $9) RETURNING *`,
+      [code, name, factory_id, capacity_per_day, is_active, sort_order || 0, userId, type, color]
     );
     const newMachine = result.rows[0];
 
@@ -72,7 +72,7 @@ export const createMachine = async (req, res) => {
 export const updateMachine = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, name, factory_id, capacity_per_day, is_active, sort_order } = req.body;
+    const { code, name, factory_id, capacity_per_day, is_active, sort_order, type, color } = req.body;
     const userId = req.user?.id;
 
     console.log("UPDATE Machine Request:", { id, userId, body: req.body });
@@ -87,6 +87,8 @@ export const updateMachine = async (req, res) => {
       capacity_per_day !== undefined ? capacity_per_day : beforeRes.rows[0].capacity_per_day,
       is_active !== undefined ? is_active : beforeRes.rows[0].is_active,
       sort_order !== undefined ? sort_order : beforeRes.rows[0].sort_order,
+      type !== undefined ? type : beforeRes.rows[0].type,
+      color !== undefined ? color : beforeRes.rows[0].color,
       id, 
       userId
     ];
@@ -101,10 +103,12 @@ export const updateMachine = async (req, res) => {
            capacity_per_day = $4, 
            is_active = $5,
            sort_order = $6,
+           type = $7,
+           color = $8,
            updated_at = CURRENT_TIMESTAMP,
-           modified_by = $8, 
+           modified_by = $10, 
            modified_time = CURRENT_TIMESTAMP
-       WHERE id = $7 AND deleted_at IS NULL RETURNING *`,
+       WHERE id = $9 AND deleted_at IS NULL RETURNING *`,
       updateValues
     );
     if (result.rowCount === 0) return res.status(404).json({ message: 'Machine not found' });

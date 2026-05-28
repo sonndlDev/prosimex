@@ -296,17 +296,21 @@ export default function CustomSchedule({
                 </span>
               </div>
             ) : (
-              layouts.map((layout, i) => (
-                <div
-                  key={layout.resourceId}
-                  style={{ height: layout.height }}
-                  className={`px-4 flex items-center border-b border-zinc-300 border-r border-zinc-300 transition-all duration-300 ${i % 2 === 0 ? "bg-white" : "bg-zinc-50/30"}`}
-                >
-                  <span className="text-xs font-black text-zinc-800 truncate leading-tight uppercase tracking-tight">
-                    {layout.resource.title}
-                  </span>
-                </div>
-              ))
+              layouts.map((layout, i) => {
+                const bgColor = layout.resource.color ? layout.resource.color : (i % 2 === 0 ? "white" : "#f4f4f5");
+                const textColor = layout.resource.color ? "white" : "text-zinc-800";
+                return (
+                  <div
+                    key={layout.resourceId}
+                    style={{ height: layout.height, backgroundColor: bgColor }}
+                    className={`px-4 flex items-center border-b border-zinc-300 border-r border-zinc-300 transition-all duration-300`}
+                  >
+                    <span className={`text-xs font-black truncate leading-tight uppercase tracking-tight ${textColor}`}>
+                      {layout.resource.title}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -319,6 +323,22 @@ export default function CustomSchedule({
               height: totalHeight,
             }}
           >
+            {/* Machine Row Backgrounds */}
+            {layouts.map((layout) => {
+              if (!layout.resource.color) return null;
+              return (
+                <div
+                  key={`bg-${layout.resourceId}`}
+                  className="absolute left-0 right-0 border-b border-zinc-300/10"
+                  style={{
+                    top: layout.top,
+                    height: layout.height,
+                    backgroundColor: layout.resource.color,
+                  }}
+                />
+              );
+            })}
+
             {/* Cảnh báo đỏ: vượt công suất theo từng máy/ngày */}
             {layouts.map((layout) =>
               days.map((day, i) => {

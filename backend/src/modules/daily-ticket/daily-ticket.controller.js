@@ -5,7 +5,7 @@ const toIntOrNull = (v) => (v === null || v === undefined || v === "null" || v =
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
   try {
-    const { page = 1, limit = 10, startDate, endDate, search, status, is_manual, created_by } = req.query;
+    const { page = 1, limit = 10, startDate, endDate, search, status, is_manual, created_by, ticket_code, operation_name } = req.query;
     const offset = (page - 1) * limit;
 
     let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
@@ -32,6 +32,20 @@ export const getTickets = async (req, res) => {
       queryParams.push(parseInt(created_by, 10));
       whereClause += ` AND dt.created_by = $${queryParams.length}`;
     }
+    if (ticket_code) {
+      const match = ticket_code.match(/\d{8}(\d+)/);
+      if (match) {
+        queryParams.push(match[1]);
+        whereClause += ` AND CAST(dt.id AS TEXT) = $${queryParams.length}`;
+      } else {
+        queryParams.push(`%${ticket_code}%`);
+        whereClause += ` AND CAST(dt.id AS TEXT) ILIKE $${queryParams.length}`;
+      }
+    }
+    if (operation_name) {
+      queryParams.push(`%${operation_name}%`);
+      whereClause += ` AND (dti.operation_name ILIKE $${queryParams.length} OR op.name ILIKE $${queryParams.length})`;
+    }
     if (search) {
       queryParams.push(`%${search}%`);
       whereClause += ` AND (
@@ -50,6 +64,8 @@ export const getTickets = async (req, res) => {
        LEFT JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
        LEFT JOIN orders o ON dti.order_id = o.id
        LEFT JOIN products p ON dti.product_id = p.id
+       LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
+       LEFT JOIN operations op ON pgo.operation_id = op.id
        LEFT JOIN users cu ON dt.created_by = cu.id
        ${whereClause}`,
       queryParams
@@ -211,11 +227,11 @@ export const createTicket = async (req, res) => {
     const { ticket_date, items, is_manual } = req.body;
     const created_by = req.user.id;
 
-    const hasAutoApprove = req.user.role_name === 'ADMIN' || 
-    (req.user.permissions || []).includes('daily_tickets:auto_approve');
+    const hasAutoApprove = req.user.role_name === 'ADMIN' ||
+      (req.user.permissions || []).includes('daily_tickets:auto_approve');
     const ticketStatus = hasAutoApprove ? 'APPROVED' : 'PENDING_APPROVAL';
 
-     const ticketInsert = await client.query(
+    const ticketInsert = await client.query(
       `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by, status)
       VALUES ($1, $2, $3, $3, $4) RETURNING *`,
       [ticket_date, is_manual || false, created_by, ticketStatus]
@@ -553,13 +569,20 @@ export const getPlanVsActualReport = async (req, res) => {
     let whereFilters = ["1=1", "(o.id IS NULL OR o.deleted_at IS NULL)", "(p.id IS NULL OR p.deleted_at IS NULL)"];
     let queryParams = [];
 
+    // Support comma-separated IDs for multi-select filter (e.g. order_id=1,2,3)
     if (order_id) {
-      queryParams.push(order_id);
-      whereFilters.push(`base.order_id = $${queryParams.length}`);
+      const ids = String(order_id).split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      if (ids.length > 0) {
+        queryParams.push(ids);
+        whereFilters.push(`base.order_id = ANY($${queryParams.length}::int[])`);
+      }
     }
     if (product_id) {
-      queryParams.push(product_id);
-      whereFilters.push(`base.product_id = $${queryParams.length}`);
+      const ids = String(product_id).split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      if (ids.length > 0) {
+        queryParams.push(ids);
+        whereFilters.push(`base.product_id = ANY($${queryParams.length}::int[])`);
+      }
     }
     if (operation_id) {
       queryParams.push(operation_id);
@@ -806,7 +829,7 @@ export const getPlanVsActualReport = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Plan Vs Actual Report Error:", error);
-    res.status(500).json({ message: "Error retrieving report", error });
+    res.status(500).json({ message: "Error retrieving report", error: error.message, stack: error.stack });
   }
 };
 
@@ -936,7 +959,7 @@ export const manualOutputEntry = async (req, res) => {
     if (ticketStatus === 'PENDING_APPROVAL') {
       try {
         const message = `Tài khoản ${req.user.full_name || req.user.username} vừa tạo phiếu thủ công #${ticketId} cần phê duyệt!`;
-        
+
         // Save notification to DB for PLANNERs
         await pool.query(
           `INSERT INTO notifications (target_role, message, link) VALUES ($1, $2, $3)`,

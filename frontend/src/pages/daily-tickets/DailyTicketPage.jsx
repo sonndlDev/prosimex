@@ -59,6 +59,8 @@ export default function DailyTicketPage() {
     ticket_status: "ALL",
     created_by: "ALL",
     search: "",
+    ticket_code: "",
+    operation_name: "",
   };
 
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
@@ -433,6 +435,26 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, users = 
               className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
             />
           </div>
+        </div>
+
+        {/* Mã phiếu */}
+        <div className="w-full xl:w-[200px] shrink-0">
+          <Input
+            placeholder="Mã phiếu..."
+            value={tempFilters.ticket_code}
+            onChange={e => setTempFilters(prev => ({ ...prev, ticket_code: e.target.value }))}
+            className="h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+          />
+        </div>
+
+        {/* Tên công đoạn */}
+        <div className="w-full xl:w-[200px] shrink-0">
+          <Input
+            placeholder="Tên công đoạn..."
+            value={tempFilters.operation_name}
+            onChange={e => setTempFilters(prev => ({ ...prev, operation_name: e.target.value }))}
+            className="h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+          />
         </div>
 
         {/* Filters Grid */}

@@ -376,6 +376,10 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và Số lượng xuất" : "") + " cho tất cả các phần!");
       return;
     }
+    if (type !== 'PACKAGING' && !formData.expected_return_date) {
+      toast.error("Vui lòng nhập Ngày dự kiến về");
+      return;
+    }
 
     setLoading(true);
     setCreatedTicket(null);
@@ -427,7 +431,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày dự kiến về</Label>
+                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày dự kiến về <span className="text-red-500">*</span></Label>
                 <PremiumDatePicker
                   date={formData.expected_return_date}
                   onSelect={d => setFormData({ ...formData, expected_return_date: d })}

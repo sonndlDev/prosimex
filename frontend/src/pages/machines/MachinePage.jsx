@@ -33,7 +33,7 @@ export default function MachinePage() {
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState("");
 
-  const initialForm = { code: "", name: "", factory_id: "", capacity_per_day: "", is_active: true, sort_order: 0 };
+  const initialForm = { code: "", name: "", factory_id: "", capacity_per_day: "", is_active: true, sort_order: 0, type: "", color: "#4f46e5" };
   const { control, handleSubmit: rhfHandleSubmit, reset, setValue, watch } = useForm({ defaultValues: initialForm });
 
   const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: () => factoryService.getAll({ limit: 1000 }) });
@@ -60,6 +60,17 @@ export default function MachinePage() {
     { id: "sort_order", label: "Thứ tự sắp xếp", className: "w-16 text-center italic text-zinc-400" },
     { id: "code", label: "Mã máy" },
     { id: "name", label: "Tên máy", className: "font-bold text-indigo-600" },
+    { id: "type", label: "Loại máy" },
+    { 
+      id: "color", 
+      label: "Màu sắc",
+      format: (val) => val ? (
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border border-zinc-200" style={{ backgroundColor: val }}></div>
+          <span className="text-xs">{val}</span>
+        </div>
+      ) : null
+    },
     { id: "factory_name", label: "Nhà máy" },
     { id: "capacity_per_day", label: "C.Suất/Ngày" },
     {
@@ -79,7 +90,9 @@ export default function MachinePage() {
       factory_id: String(machine.factory_id),
       capacity_per_day: machine.capacity_per_day,
       is_active: machine.is_active,
-      sort_order: machine.sort_order || 0
+      sort_order: machine.sort_order || 0,
+      type: machine.type || "",
+      color: machine.color || "#4f46e5"
     } : initialForm);
     setOpenModal(true);
   };
@@ -246,6 +259,32 @@ export default function MachinePage() {
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase text-zinc-400 tracking-widest">Tên thiết bị <span className="text-red-500">*</span></Label>
                 <Controller name="name" control={control} render={({ field }) => <Input {...field} className="h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" placeholder="VD: Máy Tiện CNC Fanuc" required />} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase text-zinc-400 tracking-widest">Loại máy</Label>
+                  <Controller name="type" control={control} render={({ field }) => (
+                    <select {...field} className="h-11 w-full rounded-xl border-zinc-200 bg-white px-3 font-bold text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 border">
+                      <option value="">Chọn loại máy...</option>
+                      <option value="Tiện">Tiện</option>
+                      <option value="Phay">Phay</option>
+                      <option value="Cắt">Cắt</option>
+                      <option value="Đột dập">Đột dập</option>
+                      <option value="Hàn">Hàn</option>
+                      <option value="Đúc">Đúc</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                  )} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase text-zinc-400 tracking-widest">Màu sắc hiển thị</Label>
+                  <Controller name="color" control={control} render={({ field }) => (
+                    <div className="flex items-center gap-2 h-11">
+                      <Input {...field} type="color" className="h-11 w-11 p-1 rounded-xl border-zinc-200 cursor-pointer" />
+                      <Input {...field} className="h-11 flex-1 rounded-xl border-zinc-200 font-bold uppercase focus-visible:ring-indigo-500" placeholder="#000000" />
+                    </div>
+                  )} />
+                </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100">
                 <Controller name="is_active" control={control} render={({ field }) => (
