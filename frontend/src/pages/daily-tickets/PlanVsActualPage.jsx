@@ -944,7 +944,7 @@ export default function PlanVsActualPage() {
                         {row.dinh_muc || "—"}
                       </TableCell>
                       {/* Thực tế */}
-                      <TableCell className="sticky left-[750px] z-30 bg-emerald-50/30 group-hover:bg-emerald-50/50 border-r border-zinc-100 text-right text-xs font-black tabular-nums text-emerald-600 w-[70px] min-w-[70px] max-w-[70px]">
+                      <TableCell className="sticky left-[750px] z-30 bg-white group-hover:bg-emerald-50 border-r border-zinc-100 text-right text-xs font-black tabular-nums text-emerald-600 w-[70px] min-w-[70px] max-w-[70px]">
                         {row.totalActual.toLocaleString()}
                       </TableCell>
                       {/* Còn lại */}
