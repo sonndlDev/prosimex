@@ -86,42 +86,42 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-8 px-4 space-y-8">
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 900, margin: "0 auto" }}>
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-zinc-950">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[rgb(var(--c-ink))]">
           Hồ sơ cá nhân
         </h1>
-        <p className="text-zinc-500 mt-1">Quản lý thông tin tài khoản và bảo mật của bạn</p>
+        <p className="text-[rgb(var(--c-ink-3))] mt-1">Quản lý thông tin tài khoản và bảo mật của bạn</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Left side: Avatar & Summary */}
         <div className="md:col-span-4 space-y-6">
-          <Card className="overflow-hidden border-zinc-200 shadow-sm">
+          <Card className="overflow-hidden border-[rgb(var(--c-line-2))] shadow-sm">
             <CardContent className="pt-8 pb-6 text-center">
               <Avatar className="w-32 h-32 mx-auto mb-4 border-4 border-white shadow-lg">
                 <AvatarFallback className="bg-zinc-950 text-white text-4xl font-bold">
                   {user?.username?.[0]?.toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <h2 className="text-xl font-bold text-zinc-950">
+              <h2 className="text-xl font-bold text-[rgb(var(--c-ink))]">
                 {user?.full_name || user?.username}
               </h2>
-              <p className="text-sm text-zinc-500 font-medium">@{user?.username}</p>
+              <p className="text-sm text-[rgb(var(--c-ink-3))] font-medium">@{user?.username}</p>
 
               <div className="mt-8 space-y-4 px-2">
                 <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-zinc-500">
+                  <div className="flex items-center gap-2 text-[rgb(var(--c-ink-3))]">
                     <ShieldCheck className="w-4 h-4" />
                     <span>Vai trò:</span>
                   </div>
-                  <span className="font-bold text-zinc-950 px-2 py-0.5 bg-zinc-100 rounded text-xs">
+                  <span className="font-bold text-[rgb(var(--c-ink))] px-2 py-0.5 bg-[rgb(var(--c-s2))] rounded text-xs">
                     {user?.role}
                   </span>
                 </div>
-                <Separator className="bg-zinc-100" />
+                <Separator className="bg-[rgb(var(--c-s2))]" />
                 <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2 text-zinc-500">
+                  <div className="flex items-center gap-2 text-[rgb(var(--c-ink-3))]">
                     <Activity className="w-4 h-4" />
                     <span>Trạng thái:</span>
                   </div>
@@ -138,7 +138,7 @@ export default function ProfilePage() {
         {/* Right side: Forms */}
         <div className="md:col-span-8 space-y-8">
           {/* Basic Info Form */}
-          <Card className="border-zinc-200 shadow-sm">
+          <Card className="border-[rgb(var(--c-line-2))] shadow-sm">
             <CardHeader>
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-blue-50 rounded-lg">
@@ -151,11 +151,11 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleProfileFormSubmit(onProfileSubmit)} className="space-y-6">
+              <form onSubmit={handleProfileFormSubmit(onProfileSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div className="space-y-2">
                   <Label htmlFor="full_name">Họ và tên</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                     <Controller
                       name="full_name"
                       control={profileControl}
@@ -175,7 +175,7 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <Label htmlFor="phone">Số điện thoại</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                       <Controller
                         name="phone"
                         control={profileControl}
@@ -193,7 +193,7 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                       <Controller
                         name="email"
                         control={profileControl}
@@ -227,7 +227,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Security Form */}
-          <Card className="border-zinc-200 shadow-sm border-l-4 border-l-red-500">
+          <Card className="border-[rgb(var(--c-line-2))] shadow-sm border-l-4 border-l-red-500">
             <CardHeader>
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-red-50 rounded-lg">
@@ -240,12 +240,12 @@ export default function ProfilePage() {
               </div>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handlePasswordFormSubmit(onPasswordSubmit)} className="space-y-6">
+              <form onSubmit={handlePasswordFormSubmit(onPasswordSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="new_password">Mật khẩu mới</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                       <Controller
                         name="new_password"
                         control={passwordControl}
@@ -262,7 +262,7 @@ export default function ProfilePage() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <Label htmlFor="confirm_password">Xác nhận mật khẩu</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                       <Controller
                         name="confirm_password"
                         control={passwordControl}

@@ -59,7 +59,7 @@ function DriftCell({ snapshot, current, changed }) {
 
   if (!changed) {
 
-    return <span className="text-xs font-bold text-zinc-600">{snapshot || "—"}</span>;
+    return <span className="text-xs font-bold text-[rgb(var(--c-ink-2))]">{snapshot || "—"}</span>;
 
   }
 
@@ -216,7 +216,7 @@ export default function OrderProductSnapshotPage() {
 
           <p className="text-xs font-black text-indigo-700">{row.order_code}</p>
 
-          <p className="text-[10px] text-zinc-400 truncate">{row.order_name}</p>
+          <p className="text-[10px] text-[rgb(var(--c-ink-4))] truncate">{row.order_name}</p>
 
         </button>
 
@@ -240,7 +240,7 @@ export default function OrderProductSnapshotPage() {
 
       label: "Khách hàng",
 
-      format: (v) => <span className="text-xs font-medium text-zinc-600">{v || "—"}</span>,
+      format: (v) => <span className="text-xs font-medium text-[rgb(var(--c-ink-2))]">{v || "—"}</span>,
 
     },
 
@@ -324,7 +324,7 @@ export default function OrderProductSnapshotPage() {
 
         v ? (
 
-          <span className="text-[11px] font-bold text-zinc-500 tabular-nums">
+          <span className="text-[11px] font-bold text-[rgb(var(--c-ink-3))] tabular-nums">
 
             {DateTime.fromISO(v).toFormat("dd/MM/yyyy HH:mm")}
 
@@ -356,7 +356,7 @@ export default function OrderProductSnapshotPage() {
 
         ) : (
 
-          <Badge variant="outline" className="text-[10px] font-bold text-zinc-400">
+          <Badge variant="outline" className="text-[10px] font-bold text-[rgb(var(--c-ink-4))]">
 
             Khớp
 
@@ -372,7 +372,7 @@ export default function OrderProductSnapshotPage() {
 
       label: "ID master",
 
-      format: (v) => <span className="text-[10px] font-mono text-zinc-400">#{v}</span>,
+      format: (v) => <span className="text-[10px] font-mono text-[rgb(var(--c-ink-4))]">#{v}</span>,
 
     },
 
@@ -398,9 +398,9 @@ export default function OrderProductSnapshotPage() {
 
   return (
 
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-      <div className="flex items-start justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+      <div className="flex items-start justify-between flex-wrap gap-4">
 
         <div className="flex flex-col gap-1">
 
@@ -408,7 +408,7 @@ export default function OrderProductSnapshotPage() {
 
             <Camera className="w-6 h-6 text-indigo-600" />
 
-            <h2 className="text-2xl font-black text-zinc-950 tracking-tight">
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>
 
               Snapshot mã hàng theo đơn
 
@@ -416,7 +416,7 @@ export default function OrderProductSnapshotPage() {
 
           </div>
 
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest max-w-2xl">
+          <p className="text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest max-w-2xl">
 
             Dữ liệu mã hàng lưu khi tạo/cập nhật đơn — không đổi khi sửa danh mục gốc. Bấm mã đơn hoặc nút xem để mở chi tiết giống trang Đơn hàng.
 
@@ -428,11 +428,11 @@ export default function OrderProductSnapshotPage() {
 
 
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-4 flex flex-wrap items-end gap-4">
+      <div className="bg-white rounded-2xl border border-[rgb(var(--c-line-2))] shadow-sm p-4 flex flex-wrap items-end gap-4">
 
         <div className="space-y-1.5 min-w-[140px]">
 
-          <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">
 
             ID đơn hàng
 
@@ -460,7 +460,7 @@ export default function OrderProductSnapshotPage() {
 
         <div className="space-y-1.5 min-w-[160px]">
 
-          <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">
 
             Trạng thái đơn
 
@@ -522,7 +522,7 @@ export default function OrderProductSnapshotPage() {
 
           />
 
-          <Label htmlFor="drift-only" className="text-xs font-bold text-zinc-600 cursor-pointer">
+          <Label htmlFor="drift-only" className="text-xs font-bold text-[rgb(var(--c-ink-2))] cursor-pointer">
 
             Chỉ dòng lệch master
 
@@ -550,7 +550,7 @@ export default function OrderProductSnapshotPage() {
 
 
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
 
         <GenericTable
 
@@ -592,7 +592,7 @@ export default function OrderProductSnapshotPage() {
 
                   onClick={() => openOrderDetail(row.order_id)}
 
-                  className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100"
+                  className="p-2 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100"
 
                 >
 

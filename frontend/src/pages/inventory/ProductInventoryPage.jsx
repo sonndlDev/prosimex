@@ -248,10 +248,10 @@ export default function ProductInventoryPage() {
         {
             id: "operation_name",
             label: "Công đoạn",
-            className: "font-bold text-zinc-700",
+            className: "font-bold text-[rgb(var(--c-ink-2))]",
             format: (v, row) => (
                 <div className="flex flex-col gap-1">
-                    <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 border-none font-bold uppercase text-[9px] w-fit">{v}</Badge>
+                    <Badge variant="secondary" className="bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-2))] border-none font-bold uppercase text-[9px] w-fit">{v}</Badge>
                     <Badge className={cn(
                         "text-[8px] font-black uppercase px-2 py-0 h-4 border-none w-fit",
                         row.inventory_type === 'TP' ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"
@@ -267,7 +267,7 @@ export default function ProductInventoryPage() {
             className: "font-black text-right",
             format: (v) => <span className="text-blue-600">{Number(v).toLocaleString()}</span>
         },
-        { id: "note", label: "Ghi chú", className: "text-zinc-500 italic text-xs max-w-[200px] truncate" },
+        { id: "note", label: "Ghi chú", className: "text-[rgb(var(--c-ink-3))] italic text-xs max-w-[200px] truncate" },
         { id: "recorder_name", label: "Người nhập", className: "font-medium text-xs" },
         {
             id: "recorded_at",
@@ -310,14 +310,14 @@ export default function ProductInventoryPage() {
     return (
         <div className="flex flex-col gap-6 animate-in fade-in duration-500">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm transition-all duration-300">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-indigo-600 rounded-2xl text-white flex items-center justify-center shadow-lg shadow-indigo-200 ring-4 ring-indigo-50">
                         <Boxes className="h-6 w-6" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-zinc-950">Tồn kho BTP & TP</h1>
-                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Quản lý số lượng tồn kho theo sản phẩm</p>
+                        <h1 className="text-2xl font-black tracking-tight text-[rgb(var(--c-ink))]">Tồn kho BTP & TP</h1>
+                        <p className="text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest mt-0.5">Quản lý số lượng tồn kho theo sản phẩm</p>
                     </div>
                 </div>
 
@@ -333,9 +333,9 @@ export default function ProductInventoryPage() {
             <div className="grid grid-cols-1 gap-6">
                 {/* History Section - Full Width */}
                 <div className="flex flex-col gap-4">
-                    <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-[600px]">
-                        <CardHeader className="bg-zinc-50/50 border-b border-zinc-100 py-4 flex flex-row items-center justify-between">
-                            <CardTitle className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                    <Card className="border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden flex flex-col h-full min-h-[600px]">
+                        <CardHeader className="bg-[rgb(var(--c-s2))]/50 border-b border-[rgb(var(--c-line))] py-4 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm font-black uppercase tracking-widest text-[rgb(var(--c-ink-3))] flex items-center gap-2">
                                 <History className="w-4 h-4 text-indigo-600" />
                                 Lịch sử nhập tồn kho
                             </CardTitle>
@@ -368,7 +368,7 @@ export default function ProductInventoryPage() {
             {/* Modal Form */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
-                    <DialogHeader className="bg-zinc-50 border-b border-zinc-100 p-6">
+                    <DialogHeader className="bg-[rgb(var(--c-s2))] border-b border-[rgb(var(--c-line))] p-6">
                         <DialogTitle className="text-xl font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                             <div className="w-10 h-10 bg-indigo-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-indigo-100">
                                 <Plus className="w-5 h-5" />
@@ -380,13 +380,13 @@ export default function ProductInventoryPage() {
                     <div className="p-6 space-y-6">
                         {/* Product Selector */}
                         <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Mã hàng</Label>
+                            <Label className="text-xs font-black uppercase tracking-tighter text-[rgb(var(--c-ink-3))] pl-1">Mã hàng</Label>
                             <Popover open={isProductOpen} onOpenChange={setIsProductOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
                                         role="combobox"
-                                        className="w-full h-11 justify-between bg-zinc-50 border-zinc-200 hover:bg-white hover:border-indigo-300 transition-all text-zinc-900 font-bold"
+                                        className="w-full h-11 justify-between border-[rgb(var(--c-line-2))] hover:bg-white hover:border-indigo-300 transition-all text-[rgb(var(--c-ink))] font-bold"
                                     >
                                         <div className="flex items-center gap-2 truncate">
                                             <Package className="w-4 h-4 text-indigo-500 shrink-0" />
@@ -399,18 +399,18 @@ export default function ProductInventoryPage() {
                                     <Command className="w-full">
                                         <CommandInput placeholder="Tìm mã hàng..." className="h-11 border-none focus:ring-0" />
                                         <CommandList className="max-h-[300px]">
-                                            <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không tìm thấy mã hàng</CommandEmpty>
+                                            <CommandEmpty className="py-6 text-center text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Không tìm thấy mã hàng</CommandEmpty>
                                             <CommandGroup title="Danh sách mã hàng">
                                                 {products.map((p) => (
                                                     <CommandItem
                                                         key={p.id}
                                                         value={p.name}
                                                         onSelect={() => handleProductSelect(p)}
-                                                        className="flex items-center justify-between px-4 py-3 cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors border-b border-zinc-50 last:border-none"
+                                                        className="flex items-center justify-between px-4 py-3 cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors border-b border-zinc-50 last:border-none"
                                                     >
-                                                        <div className="flex flex-col">
+                                                        <div >
                                                             <span className="text-sm font-black">{p.name}</span>
-                                                            <span className="text-[10px] text-zinc-400 font-bold uppercase">{p.product_group_name}</span>
+                                                            <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-bold uppercase">{p.product_group_name}</span>
                                                         </div>
                                                         <Check className={cn("h-4 w-4 text-indigo-600", selectedProduct?.id === p.id ? "opacity-100" : "opacity-0")} />
                                                     </CommandItem>
@@ -426,10 +426,10 @@ export default function ProductInventoryPage() {
                         {selectedProduct && (
                             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Chọn công đoạn</Label>
-                                    <div className="flex flex-wrap gap-2 min-h-[44px] p-3 bg-zinc-50/50 border border-dashed border-zinc-200 rounded-2xl">
+                                    <Label className="text-xs font-black uppercase tracking-tighter text-[rgb(var(--c-ink-3))] pl-1">Chọn công đoạn</Label>
+                                    <div className="flex flex-wrap gap-2 min-h-[44px] p-3/50 border border-dashed border-[rgb(var(--c-line-2))] rounded-2xl">
                                         {isLoadingOps ? (
-                                            <span className="text-xs text-zinc-400 italic p-1">Đang tải danh sách công đoạn...</span>
+                                            <span className="text-xs text-[rgb(var(--c-ink-4))] italic p-1">Đang tải danh sách công đoạn...</span>
                                         ) : operations?.length > 0 ? (
                                             operations.map((op) => (
                                                 <Badge
@@ -439,7 +439,7 @@ export default function ProductInventoryPage() {
                                                         "cursor-pointer font-bold px-3 py-1.5 transition-all active:scale-95 text-[10px] uppercase tracking-tight",
                                                         selectedOps.find(o => o.id === op.id)
                                                             ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 border-none"
-                                                            : "bg-white text-zinc-500 hover:text-indigo-600 hover:border-indigo-300 border-zinc-200 shadow-sm"
+                                                            : "bg-white text-[rgb(var(--c-ink-3))] hover:text-indigo-600 hover:border-indigo-300 border-[rgb(var(--c-line-2))] shadow-sm"
                                                     )}
                                                     onClick={() => toggleOp(op)}
                                                 >
@@ -447,30 +447,30 @@ export default function ProductInventoryPage() {
                                                 </Badge>
                                             ))
                                         ) : (
-                                            <span className="text-xs text-zinc-400 italic p-1 text-center w-full">Sản phẩm này chưa có quy trình công đoạn</span>
+                                            <span className="text-xs text-[rgb(var(--c-ink-4))] italic p-1 text-center w-full">Sản phẩm này chưa có quy trình công đoạn</span>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Dynamic Inputs with ScrollArea */}
                                 {selectedOps.length > 0 && (
-                                    <ScrollArea className="h-[300px] pr-4 pt-4 border-t border-zinc-100 animate-in fade-in duration-300">
+                                    <ScrollArea className="h-[300px] pr-4 pt-4 border-t border-[rgb(var(--c-line))] animate-in fade-in duration-300">
                                         <div className="space-y-4 pb-4">
                                             {selectedOps.map((op) => (
-                                                <div key={op.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm relative group overflow-hidden transition-all hover:border-indigo-200">
+                                                <div key={op.id} className="p-4 border border-[rgb(var(--c-line-2))] rounded-2xl shadow-sm relative group overflow-hidden transition-all hover:border-indigo-200">
                                                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
                                                     <div className="flex justify-between items-center mb-3">
                                                         <div className="flex items-center gap-2">
                                                             <Badge className="bg-indigo-50 text-indigo-700 border-none font-black text-[10px] uppercase px-3 py-1">
                                                                 {op.operation_name}
                                                             </Badge>
-                                                            <div className="flex items-center bg-zinc-100 rounded-lg p-0.5 border border-zinc-200">
+                                                            <div className="flex items-center bg-[rgb(var(--c-s2))] rounded-lg p-0.5 border border-[rgb(var(--c-line-2))]">
                                                                 <button
                                                                     className={cn(
                                                                         "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
                                                                         formItems[op.id]?.inventory_type === 'BTP'
                                                                             ? "bg-white text-orange-600 shadow-sm"
-                                                                            : "text-zinc-400 hover:text-zinc-600"
+                                                                            : "text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                                                                     )}
                                                                     onClick={() => handleInputChange(op.id, 'inventory_type', 'BTP')}
                                                                 >
@@ -481,7 +481,7 @@ export default function ProductInventoryPage() {
                                                                         "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
                                                                         formItems[op.id]?.inventory_type === 'TP'
                                                                             ? "bg-white text-emerald-600 shadow-sm"
-                                                                            : "text-zinc-400 hover:text-zinc-600"
+                                                                            : "text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                                                                     )}
                                                                     onClick={() => handleInputChange(op.id, 'inventory_type', 'TP')}
                                                                 >
@@ -495,7 +495,7 @@ export default function ProductInventoryPage() {
                                                     </div>
                                                     <div className="grid grid-cols-3 gap-3">
                                                         <div className="col-span-1 space-y-1.5">
-                                                            <Label className="text-[10px] font-black uppercase text-zinc-400">Số lượng</Label>
+                                                            <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Số lượng</Label>
                                                             <Input
                                                                 type="number"
                                                                 placeholder="0"
@@ -505,7 +505,7 @@ export default function ProductInventoryPage() {
                                                             />
                                                         </div>
                                                         <div className="col-span-2 space-y-1.5">
-                                                            <Label className="text-[10px] font-black uppercase text-zinc-400">Ghi chú</Label>
+                                                            <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Ghi chú</Label>
                                                             <Input
                                                                 placeholder="Nhập ghi chú..."
                                                                 className="h-10 text-sm font-medium"
@@ -523,14 +523,14 @@ export default function ProductInventoryPage() {
                         )}
                     </div>
 
-                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                    <DialogFooter className="bg-[rgb(var(--c-s2))] border-t border-[rgb(var(--c-line))] p-6">
                         <Button
                             variant="ghost"
                             onClick={() => {
                                 setIsModalOpen(false);
                                 resetForm();
                             }}
-                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                            className="font-bold text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
                         >
                             Hủy
                         </Button>
@@ -550,7 +550,7 @@ export default function ProductInventoryPage() {
             {/* Edit Modal */}
             <Dialog open={!!editingRecord} onOpenChange={(open) => !open && setEditingRecord(null)}>
                 <DialogContent className="max-w-lg p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
-                    <DialogHeader className="bg-zinc-50 border-b border-zinc-100 p-6">
+                    <DialogHeader className="bg-[rgb(var(--c-s2))] border-b border-[rgb(var(--c-line))] p-6">
                         <DialogTitle className="text-lg font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                             <div className="w-10 h-10 bg-indigo-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-indigo-100">
                                 <Edit2 className="w-5 h-5" />
@@ -560,13 +560,13 @@ export default function ProductInventoryPage() {
                     </DialogHeader>
 
                     <div className="p-6 space-y-4">
-                        <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
-                            <p className="text-xs font-bold text-zinc-500 uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{editingRecord?.product_name}</span></p>
-                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{editingRecord?.operation_name}</span></p>
+                        <div className="bg-[rgb(var(--c-s2))] p-3 rounded-lg border border-[rgb(var(--c-line-2))]">
+                            <p className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{editingRecord?.product_name}</span></p>
+                            <p className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{editingRecord?.operation_name}</span></p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Số lượng</Label>
+                            <Label className="text-xs font-black uppercase tracking-tighter text-[rgb(var(--c-ink-3))] pl-1">Số lượng</Label>
                             <Input
                                 type="number"
                                 placeholder="0"
@@ -577,9 +577,9 @@ export default function ProductInventoryPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Loại tồn kho</Label>
+                            <Label className="text-xs font-black uppercase tracking-tighter text-[rgb(var(--c-ink-3))] pl-1">Loại tồn kho</Label>
                             <Select value={editFormData.inventory_type} onValueChange={(val) => setEditFormData({ ...editFormData, inventory_type: val })}>
-                                <SelectTrigger className="h-10 text-sm font-medium border-zinc-200 rounded-lg bg-zinc-50 hover:bg-white transition-all">
+                                <SelectTrigger className="h-10 text-sm font-medium border-[rgb(var(--c-line-2))] rounded-lg hover:bg-white transition-all">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -590,10 +590,10 @@ export default function ProductInventoryPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Ghi chú</Label>
+                            <Label className="text-xs font-black uppercase tracking-tighter text-[rgb(var(--c-ink-3))] pl-1">Ghi chú</Label>
                             <Textarea
                                 placeholder="Nhập ghi chú..."
-                                className="font-medium text-sm border-zinc-200 rounded-lg bg-zinc-50 hover:bg-white transition-all focus:ring-indigo-500"
+                                className="font-medium text-sm border-[rgb(var(--c-line-2))] rounded-lg hover:bg-white transition-all focus:ring-indigo-500"
                                 rows={3}
                                 value={editFormData.note}
                                 onChange={(e) => setEditFormData({ ...editFormData, note: e.target.value })}
@@ -601,11 +601,11 @@ export default function ProductInventoryPage() {
                         </div>
                     </div>
 
-                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                    <DialogFooter className="bg-[rgb(var(--c-s2))] border-t border-[rgb(var(--c-line))] p-6">
                         <Button
                             variant="ghost"
                             onClick={() => setEditingRecord(null)}
-                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                            className="font-bold text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
                         >
                             Hủy
                         </Button>
@@ -635,16 +635,16 @@ export default function ProductInventoryPage() {
                     </DialogHeader>
 
                     <div className="p-6">
-                        <p className="text-sm text-zinc-600 font-medium">
+                        <p className="text-sm text-[rgb(var(--c-ink-2))] font-medium">
                             Bạn chắc chắn muốn xóa bản ghi tồn kho này? Hành động này không thể hoàn tác.
                         </p>
                     </div>
 
-                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                    <DialogFooter className="bg-[rgb(var(--c-s2))] border-t border-[rgb(var(--c-line))] p-6">
                         <Button
                             variant="ghost"
                             onClick={() => setDeleteConfirmId(null)}
-                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                            className="font-bold text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
                         >
                             Hủy
                         </Button>
@@ -678,17 +678,17 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
     };
 
     return (
-        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+        <div className="sticky top-0 z-50 p-4 rounded-lg border">
             <form className="flex flex-col xl:flex-row items-center gap-4" onSubmit={handleSubmit}>
                 {/* Search */}
                 <div className="flex-1 w-full">
                     <div className="relative group">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] group-focus-within:text-indigo-500 transition-colors" />
                         <Input
                             placeholder="Tìm mã hàng, tên sản phẩm..."
                             value={tempFilters.search}
                             onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-                            className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
+                            className="pl-10 h-10 text-sm font-medium border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
                         />
                     </div>
                 </div>
@@ -700,9 +700,9 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
                         value={tempFilters.inventory_type}
                         onValueChange={val => setTempFilters(prev => ({ ...prev, inventory_type: val }))}
                     >
-                        <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
+                        <SelectTrigger className="h-10 text-[11px] font-bold border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white transition-all shadow-sm">
                             <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Loại:</span>
+                                <span className="text-[rgb(var(--c-ink-4))] whitespace-nowrap uppercase tracking-tighter">Loại:</span>
                                 <SelectValue placeholder="Tất cả" />
                             </div>
                         </SelectTrigger>
@@ -730,7 +730,7 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
                                     type="button"
                                     variant="outline"
                                     onClick={handleClear}
-                                    className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                                    className="w-10 h-10 p-0 border-[rgb(var(--c-line-2))]/80 text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all shadow-sm"
                                 >
                                     <RotateCcw className="w-4 h-4" />
                                 </Button>

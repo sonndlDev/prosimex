@@ -54,8 +54,8 @@ export default function WorkerPage() {
     {
       id: "is_active", label: "Trạng thái",
       format: (val) => val
-        ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50">Hoạt động</Badge>
-        : <Badge variant="secondary" className="text-zinc-400">Tạm dừng</Badge>
+        ? <span className="status status-run">Hoạt động</span>
+        : <span className="status status-idle">Tạm dừng</span>
     },
     getAuditColumn(),
   ];
@@ -71,20 +71,16 @@ export default function WorkerPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Công nhân</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 15, fontWeight: 600, color: 'rgb(var(--c-ink))', letterSpacing: '-0.01em' }}>Quản lý Công nhân</h1>
+          <p style={{ fontSize: 11, color: 'rgb(var(--c-ink-4))', marginTop: 2 }}>Danh sách nhân sự phục vụ sản xuất và kế hoạch</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => handleOpenModal()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
-            <Plus className="w-4 h-4" /> Thêm công nhân
-          </Button>
-        </div>
+        <Button onClick={() => handleOpenModal()}><Plus className="w-3.5 h-3.5" /> Thêm công nhân</Button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           columns={columns}
           data={workers}
@@ -106,7 +102,7 @@ export default function WorkerPage() {
         <DialogContent className="sm:max-w-md">
           <form onSubmit={rhfHandleSubmit(onSubmit)}>
             <DialogHeader>
-              <DialogTitle className="text-xl font-extrabold">{selectedWorker ? "Cập nhật Công nhân" : "Thêm Công nhân mới"}</DialogTitle>
+              <DialogTitle style={{ fontSize: 14, fontWeight: 600, color: "rgb(var(--c-ink))" }}>{selectedWorker ? "Cập nhật Công nhân" : "Thêm Công nhân mới"}</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="space-y-2">

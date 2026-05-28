@@ -57,25 +57,25 @@ import {
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, color = "zinc", icon: Icon, trend }) {
   const colorMap = {
-    zinc: { bg: "bg-zinc-50", text: "text-zinc-900", icon: "text-zinc-400", border: "border-zinc-200" },
+    zinc: { bg: "bg-[rgb(var(--c-s2))]", text: "text-[rgb(var(--c-ink))]", icon: "text-[rgb(var(--c-ink-4))]", border: "border-[rgb(var(--c-line-2))]" },
     indigo: { bg: "bg-indigo-50", text: "text-indigo-700", icon: "text-indigo-500", border: "border-indigo-200" },
     emerald: { bg: "bg-emerald-50", text: "text-emerald-700", icon: "text-emerald-500", border: "border-emerald-200" },
-    rose: { bg: "bg-rose-50", text: "text-rose-700", icon: "text-rose-500", border: "border-rose-200" },
+    rose: { bg: "bg-red-50", text: "text-rose-700", icon: "text-red-500", border: "border-red-200" },
     amber: { bg: "bg-amber-50", text: "text-amber-700", icon: "text-amber-500", border: "border-amber-200" },
   };
   const c = colorMap[color] || colorMap.zinc;
   return (
-    <div className={cn("flex items-center gap-4 p-4 rounded-2xl border bg-white shadow-sm transition-all hover:shadow-md", c.border)}>
+    <div className={cn("kpi-card flex items-center gap-4", c.border)}>
       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", c.bg)}>
         <Icon className={cn("w-6 h-6", c.icon)} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{label}</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[rgb(var(--c-ink-4))]">{label}</p>
         <p className={cn("text-2xl font-black tabular-nums leading-tight", c.text)}>{value}</p>
-        {sub && <p className="text-[10px] text-zinc-400 font-medium mt-0.5">{sub}</p>}
+        {sub && <p className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium mt-0.5">{sub}</p>}
       </div>
       {trend !== undefined && (
-        <div className={cn("text-xs font-black flex items-center gap-1", trend >= 0 ? "text-emerald-600" : "text-rose-500")}>
+        <div className={cn("text-xs font-black flex items-center gap-1", trend >= 0 ? "text-emerald-600" : "text-red-500")}>
           {trend >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
           {Math.abs(trend).toFixed(0)}%
         </div>
@@ -91,10 +91,10 @@ function ProgressBar({ pct }) {
     clamped >= 100 ? "bg-emerald-500" :
       clamped >= 70 ? "bg-indigo-500" :
         clamped >= 30 ? "bg-amber-500" :
-          "bg-rose-500";
+          "bg-red-500";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-[rgb(var(--c-s2))] rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500", color)}
           style={{ width: `${clamped}%` }}
@@ -102,7 +102,7 @@ function ProgressBar({ pct }) {
       </div>
       <span className={cn(
         "text-[10px] font-black tabular-nums w-8 text-right",
-        clamped >= 100 ? "text-emerald-600" : clamped >= 70 ? "text-indigo-600" : clamped >= 30 ? "text-amber-600" : "text-rose-500"
+        clamped >= 100 ? "text-emerald-600" : clamped >= 70 ? "text-indigo-600" : clamped >= 30 ? "text-amber-600" : "text-red-500"
       )}>
         {clamped.toFixed(0)}%
       </span>
@@ -123,7 +123,7 @@ function StatusBadge({ pct }) {
     </Badge>
   );
   return (
-    <Badge className="bg-zinc-50 text-zinc-500 border border-zinc-200 font-bold text-[10px] h-5 px-2 gap-1">
+    <Badge className="bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-3))] border border-[rgb(var(--c-line-2))] font-bold text-[10px] h-5 px-2 gap-1">
       <AlertCircle className="w-3 h-3" /> Chưa bắt đầu
     </Badge>
   );
@@ -156,17 +156,17 @@ const FilterBar = memo(({ onSearch, onReset, orders, operations }) => {
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-zinc-200/60 shadow-sm p-4 sticky top-0 z-50">
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-[rgb(var(--c-line-2))]/60 shadow-sm p-4 sticky top-0 z-50">
       <form onSubmit={handleSubmit} className="flex flex-col xl:flex-row items-center gap-4">
         {/* Search Input */}
         <div className="w-full xl:w-[350px] shrink-0">
           <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] group-focus-within:text-indigo-500 transition-colors" />
             <Input
               placeholder="Tìm mã PO, đơn hàng, mã hàng..."
               value={f.search}
               onChange={e => setF(p => ({ ...p, search: e.target.value }))}
-              className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+              className="pl-10 h-10 text-sm font-medium border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
             />
           </div>
         </div>
@@ -176,8 +176,8 @@ const FilterBar = memo(({ onSearch, onReset, orders, operations }) => {
 
 
           {/* Khoảng ngày */}
-          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
+          <div className="flex items-center gap-1/50 border border-[rgb(var(--c-line-2))]/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+            <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
             <Input
               type="date"
               value={f.startDate}
@@ -209,7 +209,7 @@ const FilterBar = memo(({ onSearch, onReset, orders, operations }) => {
                   type="button"
                   variant="outline"
                   onClick={handleReset}
-                  className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all"
+                  className="w-10 h-10 p-0 border-[rgb(var(--c-line-2))]/80 text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>
@@ -236,13 +236,13 @@ function Pagination({ page, totalPages, total, limit, onPageChange, onPageSizeCh
   const to = Math.min(page * limit, total);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-100">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[rgb(var(--c-line))]">
       <div className="flex items-center gap-3">
-        <p className="text-[11px] text-zinc-400 font-medium">
-          Hiển thị <span className="font-black text-zinc-700">{from}-{to}</span> / <span className="font-black text-zinc-700">{total.toLocaleString()}</span> kế hoạch
+        <p className="text-[11px] text-[rgb(var(--c-ink-4))] font-medium">
+          Hiển thị <span className="font-black text-[rgb(var(--c-ink-2))]">{from}-{to}</span> / <span className="font-black text-[rgb(var(--c-ink-2))]">{total.toLocaleString()}</span> kế hoạch
         </p>
         <Select value={String(limit)} onValueChange={v => { onPageSizeChange(Number(v)); onPageChange(1); }}>
-          <SelectTrigger className="h-7 w-[80px] text-[11px] font-bold border-zinc-200 rounded-lg">
+          <SelectTrigger className="h-7 w-[80px] text-[11px] font-bold border-[rgb(var(--c-line-2))] rounded-lg">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -257,21 +257,21 @@ function Pagination({ page, totalPages, total, limit, onPageChange, onPageSizeCh
         <button
           onClick={() => onPageChange(1)}
           disabled={page === 1}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronsLeft className="w-4 h-4" />
         </button>
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
 
         {pages.map((p, i) =>
           p === "..." ? (
-            <span key={`dot-${i}`} className="px-2 text-zinc-400 text-xs font-bold">...</span>
+            <span key={`dot-${i}`} className="px-2 text-[rgb(var(--c-ink-4))] text-xs font-bold">...</span>
           ) : (
             <button
               key={p}
@@ -280,7 +280,7 @@ function Pagination({ page, totalPages, total, limit, onPageChange, onPageSizeCh
                 "w-8 h-8 rounded-lg text-xs font-black transition-all",
                 p === page
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                  : "text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700"
+                  : "text-[rgb(var(--c-ink-2))] hover:bg-indigo-50 hover:text-indigo-700"
               )}
             >
               {p}
@@ -291,14 +291,14 @@ function Pagination({ page, totalPages, total, limit, onPageChange, onPageSizeCh
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronsRight className="w-4 h-4" />
         </button>
@@ -331,7 +331,7 @@ export default function PlanVsActualPage() {
   const SortableHead = ({ field, label, className, ...props }) => (
     <TableHead
       {...props}
-      className={cn("cursor-pointer hover:bg-zinc-100 transition-colors", className)}
+      className={cn("cursor-pointer hover:bg-[rgb(var(--c-s2))] transition-colors", className)}
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center">
@@ -438,19 +438,19 @@ export default function PlanVsActualPage() {
   return (
     <div className="space-y-5">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgb(var(--c-blue) / 0.12)' }}>
             <BarChart3 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Báo Cáo Kế Hoạch vs Thực Tế</h2>
-            <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Báo Cáo Kế Hoạch vs Thực Tế</h2>
+            <p className="text-[11px] font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest mt-0.5">
               So sánh sản lượng kế hoạch và thực tế theo từng kế hoạch sản xuất
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+        <div className="flex items-center gap-2 text-[10px] text-[rgb(var(--c-ink-4))] font-bold uppercase tracking-widest">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           Cập nhật: {DateTime.now().toFormat("dd/MM/yyyy HH:mm")}
         </div>
@@ -483,12 +483,12 @@ export default function PlanVsActualPage() {
       )}
 
       {/* ── Table card ── */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         {/* Table header info */}
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="px-6 py-4 border-b border-[rgb(var(--c-line))] flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
-            <span className="text-sm font-black text-zinc-900 uppercase tracking-tight">Danh sách kế hoạch sản xuất</span>
+            <span className="text-sm font-black text-[rgb(var(--c-ink))] uppercase tracking-tight">Danh sách kế hoạch sản xuất</span>
             {total > 0 && (
               <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-black text-[10px] h-5 px-2">
                 {total.toLocaleString()} kế hoạch
@@ -510,7 +510,7 @@ export default function PlanVsActualPage() {
             ))}
             <div className="flex items-center justify-center gap-3 pt-4">
               <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-              <p className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Đang tải dữ liệu...</p>
+              <p className="text-[11px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Đang tải dữ liệu...</p>
             </div>
           </div>
         )}
@@ -522,19 +522,19 @@ export default function PlanVsActualPage() {
               <AlertCircle className="w-7 h-7 text-red-500" />
             </div>
             <p className="font-black text-zinc-800">Lỗi tải báo cáo</p>
-            <p className="text-sm text-zinc-400">{error.message}</p>
+            <p className="text-sm text-[rgb(var(--c-ink-4))]">{error.message}</p>
           </div>
         )}
 
         {/* Empty */}
         {!isLoading && !error && rows.length === 0 && (
           <div className="p-16 flex flex-col items-center gap-4 text-center">
-            <div className="w-20 h-20 rounded-3xl bg-zinc-50 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-3xl flex items-center justify-center">
               <BarChart3 className="w-10 h-10 text-zinc-300" />
             </div>
             <div>
-              <p className="font-black text-zinc-500 text-sm">Không có dữ liệu</p>
-              <p className="text-xs text-zinc-400 mt-1">Hãy thử thay đổi bộ lọc hoặc thêm kế hoạch sản xuất</p>
+              <p className="font-black text-[rgb(var(--c-ink-3))] text-sm">Không có dữ liệu</p>
+              <p className="text-xs text-[rgb(var(--c-ink-4))] mt-1">Hãy thử thay đổi bộ lọc hoặc thêm kế hoạch sản xuất</p>
             </div>
           </div>
         )}
@@ -545,57 +545,57 @@ export default function PlanVsActualPage() {
             <div className="w-full overflow-auto max-h-[calc(100vh-380px)]">
               <table className="w-full caption-bottom text-sm border-separate border-spacing-0">
                 <TableHeader className="sticky top-0 z-50">
-                  <TableRow className="bg-zinc-50 hover:bg-zinc-50 border-b-2 border-zinc-200">
+                  <TableRow className="bg-[rgb(var(--c-s2))] hover:bg-[rgb(var(--c-s2))] border-b-2 border-[rgb(var(--c-line-2))]">
                     {/* Fixed info columns */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-0 z-40 border-r border-[rgb(var(--c-line-2))] w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))]"
                     >STT</TableHead>
                     <SortableHead
                       rowSpan={2}
                       field="sequence_order"
                       label="TT"
-                      className="sticky left-[50px] z-40 bg-zinc-50 border-r border-zinc-200 w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-[50px] z-40 border-r border-[rgb(var(--c-line-2))] w-[50px] min-w-[50px] max-w-[50px] text-center font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))]"
                     />
                     <SortableHead
                       rowSpan={2}
                       field="product_name"
                       label="Mã hàng"
-                      className="sticky left-[100px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky left-[100px] z-40 border-r border-[rgb(var(--c-line-2))] w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))]"
                     />
 
                     {/* Sticky info columns */}
-                    <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="sticky left-[280px] z-40 bg-zinc-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <TableHead rowSpan={2} className="sticky left-[460px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Nhóm SP</TableHead>
-                    <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="sticky left-[600px] z-40 bg-zinc-50 border-r border-zinc-200 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <TableHead rowSpan={2} className="sticky left-[740px] z-40 bg-zinc-50 border-r border-zinc-200 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] w-[110px] min-w-[110px] max-w-[110px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap italic">Máy</TableHead>
-                    <SortableHead rowSpan={2} field="plan_quantity" label="SL Đơn" className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap">Tồn kho</TableHead>
-                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap">Cần SX</TableHead>
-                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Định mức</TableHead>
+                    <SortableHead rowSpan={2} field="order_code" label="Đơn hàng" className="sticky left-[280px] z-40 border-r border-[rgb(var(--c-line-2))] w-[180px] min-w-[180px] max-w-[180px] font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[460px] z-40 border-r border-[rgb(var(--c-line-2))] w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap">Nhóm SP</TableHead>
+                    <SortableHead rowSpan={2} field="operation_name" label="Công đoạn" className="sticky left-[600px] z-40 border-r border-[rgb(var(--c-line-2))] w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="sticky left-[740px] z-40 border-r border-[rgb(var(--c-line-2))] shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] w-[110px] min-w-[110px] max-w-[110px] font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap italic">Máy</TableHead>
+                    <SortableHead rowSpan={2} field="plan_quantity" label="SL Đơn" className="text-right font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-[rgb(var(--c-ink-4))] whitespace-nowrap">Tồn kho</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-red-500 whitespace-nowrap">Cần SX</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap">Định mức</TableHead>
                     <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-emerald-600 whitespace-nowrap min-w-[80px]">Thực tế</TableHead>
-                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-rose-600 whitespace-nowrap">Còn lại</TableHead>
+                    <TableHead rowSpan={2} className="text-right font-black text-[9px] uppercase text-red-500 whitespace-nowrap">Còn lại</TableHead>
                     <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap min-w-[130px]">Tiến độ %</TableHead>
-                    <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap">Trạng thái</TableHead>
-                    <SortableHead rowSpan={2} field="planned_start_date" label="Bắt đầu KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
-                    <SortableHead rowSpan={2} field="planned_end_date" label="Kết thúc KH" className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap" />
+                    <TableHead rowSpan={2} className="font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap">Trạng thái</TableHead>
+                    <SortableHead rowSpan={2} field="planned_start_date" label="Bắt đầu KH" className="text-center font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap" />
+                    <SortableHead rowSpan={2} field="planned_end_date" label="Kết thúc KH" className="text-center font-black text-[9px] uppercase text-[rgb(var(--c-ink-3))] whitespace-nowrap" />
 
                     {/* Date columns */}
                     {dateColumns.map(date => (
                       <TableHead
                         key={date.key}
                         colSpan={2}
-                        className="bg-indigo-50/40 text-indigo-700 text-center font-black text-[9px] border-l border-zinc-200 py-2 whitespace-nowrap"
+                        className="bg-indigo-50/40 text-indigo-700 text-center font-black text-[9px] border-l border-[rgb(var(--c-line-2))] py-2 whitespace-nowrap"
                       >
                         {date.label}
                       </TableHead>
                     ))}
                   </TableRow>
-                  <TableRow className="hover:bg-zinc-50 bg-zinc-50">
+                  <TableRow className="hover:bg-[rgb(var(--c-s2))]">
                     {dateColumns.map(date => (
                       <React.Fragment key={`sub-${date.key}`}>
-                        <TableHead className="text-[8px] font-black uppercase text-amber-600 border-l border-zinc-200 bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap">KH</TableHead>
-                        <TableHead className="text-[8px] font-black uppercase text-zinc-400 border-l border-zinc-100 text-center h-7 px-1 whitespace-nowrap">TT</TableHead>
+                        <TableHead className="text-[8px] font-black uppercase text-amber-600 border-l border-[rgb(var(--c-line-2))] bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap">KH</TableHead>
+                        <TableHead className="text-[8px] font-black uppercase text-[rgb(var(--c-ink-4))] border-l border-[rgb(var(--c-line))] text-center h-7 px-1 whitespace-nowrap">TT</TableHead>
                       </React.Fragment>
                     ))}
                   </TableRow>
@@ -605,18 +605,18 @@ export default function PlanVsActualPage() {
                   {rows.map((row, idx) => (
                     <TableRow
                       key={row.pp_id || `${row.order_id}-${row.product_id}-${row.product_group_operation_id}`}
-                      className="group hover:bg-indigo-50/20 transition-colors border-b border-zinc-100"
+                      className="group hover:bg-indigo-50/20 transition-colors border-b border-[rgb(var(--c-line))]"
                     >
                       {/* STT */}
-                      <TableCell className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-100 tabular-nums w-[50px] min-w-[50px] max-w-[50px]">
+                      <TableCell className="sticky left-0 z-30 group-hover:bg-indigo-50 font-black text-[10px] text-[rgb(var(--c-ink-4))] text-center border-r border-[rgb(var(--c-line))] tabular-nums w-[50px] min-w-[50px] max-w-[50px]">
                         {(page - 1) * limit + idx + 1}
                       </TableCell>
                       {/* Thứ tự */}
-                      <TableCell className="sticky left-[50px] z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-100 w-[50px] min-w-[50px] max-w-[50px]">
+                      <TableCell className="sticky left-[50px] z-30 group-hover:bg-indigo-50 text-center font-black text-xs text-[rgb(var(--c-ink-2))] border-r border-[rgb(var(--c-line))] w-[50px] min-w-[50px] max-w-[50px]">
                         {row.sequence_order || "—"}
                       </TableCell>
                       {/* Mã hàng */}
-                      <TableCell className="sticky left-[100px] z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-100 uppercase tracking-tight w-[180px] min-w-[180px] max-w-[180px] truncate">
+                      <TableCell className="sticky left-[100px] z-30 group-hover:bg-indigo-50 font-black text-xs text-[rgb(var(--c-ink))] border-r border-[rgb(var(--c-line))] uppercase tracking-tight w-[180px] min-w-[180px] max-w-[180px] truncate">
                         <div className="flex flex-col gap-1">
                           <div className="max-w-[170px] truncate" title={row.product_name}>{row.product_name || "—"}</div>
                           {(!row.pp_id) ? (
@@ -632,44 +632,44 @@ export default function PlanVsActualPage() {
                       </TableCell>
 
                       {/* Đơn hàng */}
-                      <TableCell className="sticky left-[280px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 w-[180px] min-w-[180px] max-w-[180px] overflow-hidden">
+                      <TableCell className="sticky left-[280px] z-20 group-hover:bg-indigo-50 border-r border-[rgb(var(--c-line-2))] w-[180px] min-w-[180px] max-w-[180px] overflow-hidden">
                         <div className="flex flex-col w-full">
                           <span className="text-[11px] font-black text-indigo-700 truncate block w-full">{row.order_code || row.order_name || "—"}</span>
                           {row.po_customer && (
-                            <span className="text-[10px] text-zinc-400 font-medium truncate block w-full" title={row.po_customer}>{row.po_customer}</span>
+                            <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium truncate block w-full" title={row.po_customer}>{row.po_customer}</span>
                           )}
                         </div>
                       </TableCell>
 
                       {/* Nhóm SP */}
-                      <TableCell className="sticky left-[460px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] text-zinc-500 font-bold w-[140px] min-w-[140px] max-w-[140px] truncate">
+                      <TableCell className="sticky left-[460px] z-20 group-hover:bg-indigo-50 border-r border-[rgb(var(--c-line))] text-[11px] text-[rgb(var(--c-ink-3))] font-bold w-[140px] min-w-[140px] max-w-[140px] truncate">
                         {row.product_group_name || "—"}
                       </TableCell>
 
                       {/* Công đoạn */}
-                      <TableCell className="sticky left-[600px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 text-[11px] font-black text-zinc-800 whitespace-nowrap w-[140px] min-w-[140px] max-w-[140px] truncate">
+                      <TableCell className="sticky left-[600px] z-20 group-hover:bg-indigo-50 border-r border-[rgb(var(--c-line))] text-[11px] font-black text-zinc-800 whitespace-nowrap w-[140px] min-w-[140px] max-w-[140px] truncate">
                         {row.operation_name || "—"}
                       </TableCell>
 
                       {/* Máy */}
-                      <TableCell className="sticky left-[740px] z-20 bg-white group-hover:bg-indigo-50 border-r border-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)] text-[11px] text-zinc-400 font-bold italic whitespace-nowrap w-[110px] min-w-[110px] max-w-[110px] truncate">
+                      <TableCell className="sticky left-[740px] z-20 group-hover:bg-indigo-50 border-r border-[rgb(var(--c-line))] shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)] text-[11px] text-[rgb(var(--c-ink-4))] font-bold italic whitespace-nowrap w-[110px] min-w-[110px] max-w-[110px] truncate">
                         {row.machine_name || "—"}
                       </TableCell>
 
                       {/* SL Đơn */}
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-700">
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-[rgb(var(--c-ink-2))]">
                         {row.planQty.toLocaleString()}
                       </TableCell>
                       {/* Tồn kho */}
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-400">
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-[rgb(var(--c-ink-4))]">
                         {row.inventory.toLocaleString()}
                       </TableCell>
                       {/* Cần SX */}
-                      <TableCell className="text-right text-xs font-black tabular-nums text-rose-500">
+                      <TableCell className="text-right text-xs font-black tabular-nums text-red-500">
                         {row.qtyToProduce.toLocaleString()}
                       </TableCell>
                       {/* Định mức */}
-                      <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-500">
+                      <TableCell className="text-right text-xs font-bold tabular-nums text-[rgb(var(--c-ink-3))]">
                         {row.dinh_muc || "—"}
                       </TableCell>
                       {/* Thực tế */}
@@ -679,7 +679,7 @@ export default function PlanVsActualPage() {
                       {/* Còn lại */}
                       <TableCell className={cn(
                         "text-right text-xs font-black tabular-nums",
-                        row.remaining > 0 ? "text-rose-600" : "text-emerald-600"
+                        row.remaining > 0 ? "text-red-500" : "text-emerald-600"
                       )}>
                         {row.remaining.toLocaleString()}
                       </TableCell>
@@ -692,11 +692,11 @@ export default function PlanVsActualPage() {
                         <StatusBadge pct={row.percentage} />
                       </TableCell>
                       {/* Bắt đầu KH */}
-                      <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
+                      <TableCell className="text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))] whitespace-nowrap tabular-nums">
                         {row.planned_start_date ? DateTime.fromISO(row.planned_start_date).toFormat("dd/MM") : "—"}
                       </TableCell>
                       {/* Kết thúc KH */}
-                      <TableCell className="text-center text-[10px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">
+                      <TableCell className="text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))] whitespace-nowrap tabular-nums">
                         {row.planned_end_date ? DateTime.fromISO(row.planned_end_date).toFormat("dd/MM") : "—"}
                       </TableCell>
 
@@ -707,14 +707,14 @@ export default function PlanVsActualPage() {
                         return (
                           <React.Fragment key={`data-${row.pp_id || row.order_id}-${date.key}`}>
                             <TableCell className={cn(
-                              "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
+                              "text-right text-[11px] font-black border-l border-[rgb(var(--c-line))] tabular-nums px-2",
                               pQty > 0 ? "text-amber-600 bg-amber-50/20" : "text-zinc-200"
                             )}>
                               {pQty > 0 ? pQty.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "—"}
                             </TableCell>
                             <TableCell className={cn(
-                              "text-right text-[11px] font-black border-l border-zinc-100 tabular-nums px-2",
-                              aQty > 0 ? "text-zinc-900" : "text-zinc-200"
+                              "text-right text-[11px] font-black border-l border-[rgb(var(--c-line))] tabular-nums px-2",
+                              aQty > 0 ? "text-[rgb(var(--c-ink))]" : "text-zinc-200"
                             )}>
                               {aQty > 0 ? aQty.toLocaleString() : "—"}
                             </TableCell>

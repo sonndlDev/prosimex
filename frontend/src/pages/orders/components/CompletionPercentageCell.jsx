@@ -11,13 +11,13 @@ export default function CompletionPercentageCell({ orderId, onClick }) {
   });
 
   if (isLoading) {
-    return <Loader2 className="w-4 h-4 animate-spin text-zinc-400 mx-auto" />;
+    return <Loader2 className="w-4 h-4 animate-spin text-[rgb(var(--c-ink-4))] mx-auto" />;
   }
 
   const rows = response?.data || [];
   
   if (rows.length === 0) {
-    return <span className="text-zinc-400 font-medium">-</span>;
+    return <span className="text-[rgb(var(--c-ink-4))] font-medium">-</span>;
   }
 
   // Calculate overall completion
@@ -42,7 +42,7 @@ export default function CompletionPercentageCell({ orderId, onClick }) {
             onClick();
         }}
     >
-      <Badge variant={overallPercentage >= 100 ? "success" : overallPercentage > 0 ? "warning" : "outline"} className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100">
+      <Badge variant={overallPercentage >= 100 ? "success" : overallPercentage > 0 ? "warning" : "outline"} className="font-black tabular-nums border-[rgb(var(--c-line-2))] shadow-sm cursor-pointer hover:bg-[rgb(var(--c-s2))]">
         {overallPercentage.toFixed(0)}%
       </Badge>
     </div>

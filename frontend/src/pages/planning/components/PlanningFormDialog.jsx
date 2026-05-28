@@ -659,17 +659,17 @@ const PlanningFormDialog = React.memo(
 
     return (
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 !flex flex-col !overflow-hidden border-zinc-200">
-          <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200">
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 !flex flex-col !overflow-hidden border-[rgb(var(--c-line-2))]">
+          <DialogHeader className="px-6 py-4 border-b border-[rgb(var(--c-line-2))]">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-md shadow-indigo-100">
                 <Settings className="h-5 w-5" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-black text-zinc-950 leading-tight">
+                <DialogTitle className="text-xl font-black text-[rgb(var(--c-ink))] leading-tight">
                   {editingPlan ? "Chỉnh sửa kế hoạch" : "Lập kế hoạch sản xuất"}
                 </DialogTitle>
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">
+                <p className="text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">
                   {editingPlan
                     ? `Mã kế hoạch: #${editingPlan.id}`
                     : "Khởi tạo tiến độ sản xuất mới"}
@@ -678,7 +678,7 @@ const PlanningFormDialog = React.memo(
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto bg-white/50">
+          <div className="flex-1 overflow-auto/50">
             <div className="p-6 space-y-8">
               {/* Tabs for Mode selection */}
               {/* <Tabs
@@ -693,12 +693,12 @@ const PlanningFormDialog = React.memo(
                 }}
                 className="w-full"
               >
-                <TabsList className="flex w-full p-1 bg-zinc-200/50 rounded-xl h-12 shadow-inner border border-zinc-200/50">
+                <TabsList className="flex w-full p-1 bg-[rgb(var(--c-s3))]/50 rounded-xl h-12 shadow-inner border border-[rgb(var(--c-line-2))]/50">
                   <TabsTrigger
                     value="single"
                     className={cn(
                       "flex-1 rounded-lg font-bold transition-all h-full",
-                      !isFullOrderMode ? "bg-white text-indigo-600 shadow-md" : "text-zinc-500 hover:text-zinc-700"
+                      !isFullOrderMode ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]" : "text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
                     )}
                   >
                     Tạo theo từng mã hàng
@@ -707,7 +707,7 @@ const PlanningFormDialog = React.memo(
                     value="full"
                     className={cn(
                       "flex-1 rounded-lg font-bold transition-all h-full",
-                      isFullOrderMode ? "bg-white text-indigo-600 shadow-md" : "text-zinc-500 hover:text-zinc-700"
+                      isFullOrderMode ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]" : "text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
                     )}
                   >
                     Tạo theo đơn chung (Case 2)
@@ -718,7 +718,7 @@ const PlanningFormDialog = React.memo(
               {/* Steps 1-3: Linear Workflow Layout */}
               <div className="relative space-y-8">
                 {/* Visual Connection Line (Desktop only) */}
-                <div className="hidden lg:block absolute top-[62px] left-0 right-0 h-px bg-gradient-to-r from-transparent via-zinc-200 to-transparent z-0" />
+                <div className="hidden" />
 
                 <div
                   className={cn(
@@ -734,7 +734,7 @@ const PlanningFormDialog = React.memo(
                       <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">
                         1
                       </div>
-                      <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                      <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-tighter">
                         Đơn hàng mục tiêu
                       </Label>
                     </div>
@@ -749,13 +749,13 @@ const PlanningFormDialog = React.memo(
                               role="combobox"
                               disabled={!!editingPlan}
                               className={cn(
-                                "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                "w-full h-[52px] justify-between/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                 "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
                               )}
                             >
                               <div className="flex items-center gap-3 truncate">
                                 <div className="p-2 bg-indigo-50 rounded-lg shrink-0">
-                                  <Package className="h-4 w-4 text-indigo-600" />
+                                  <Package className="h-3.5 w-3.5" />
                                 </div>
                                 <span className="truncate leading-tight">
                                   {orders?.find(
@@ -763,7 +763,7 @@ const PlanningFormDialog = React.memo(
                                   )?.name || "Chọn đơn hàng..."}
                                 </span>
                               </div>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                              <ChevronsUpDown  />
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent
@@ -778,7 +778,7 @@ const PlanningFormDialog = React.memo(
                               <CommandList className="max-h-[300px] p-1">
                                 <CommandEmpty className="py-8 text-center">
                                   <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2 opacity-50" />
-                                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                  <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                                     Không có dữ liệu
                                   </p>
                                 </CommandEmpty>
@@ -802,13 +802,13 @@ const PlanningFormDialog = React.memo(
                                         setValue("inventory", 0);
                                         replaceDays([]);
                                       }}
-                                      className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                      className="flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                     >
                                       <div className="flex flex-col gap-0.5">
                                         <span className="text-xs font-bold">
                                           {o.name}
                                         </span>
-                                        <span className="text-[10px] text-zinc-400 font-medium">
+                                        <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                                           SL: {o.quantity} SP • PO:{" "}
                                           {o.po_customer}
                                         </span>
@@ -838,7 +838,7 @@ const PlanningFormDialog = React.memo(
                       <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">
                         2
                       </div>
-                      <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                      <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-tighter">
                         {isFullOrderMode ? "Chế độ sản xuất" : "Mã sản phẩm"}
                       </Label>
                     </div>
@@ -857,10 +857,10 @@ const PlanningFormDialog = React.memo(
                                 !selectedOrderId
                               }
                               className={cn(
-                                "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                "w-full h-[52px] justify-between/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                 "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
                                 isFullOrderMode &&
-                                  "opacity-80 bg-zinc-50 border-zinc-200",
+                                  "opacity-80 border-[rgb(var(--c-line-2))]",
                               )}
                             >
                               <div className="flex items-center gap-3 truncate">
@@ -868,7 +868,7 @@ const PlanningFormDialog = React.memo(
                                   className={cn(
                                     "p-2 rounded-lg shrink-0",
                                     isFullOrderMode
-                                      ? "bg-zinc-200"
+                                      ? "bg-[rgb(var(--c-s3))]"
                                       : "bg-blue-50",
                                   )}
                                 >
@@ -876,7 +876,7 @@ const PlanningFormDialog = React.memo(
                                     className={cn(
                                       "h-4 w-4",
                                       isFullOrderMode
-                                        ? "text-zinc-500"
+                                        ? "text-[rgb(var(--c-ink-3))]"
                                         : "text-blue-600",
                                     )}
                                   />
@@ -890,7 +890,7 @@ const PlanningFormDialog = React.memo(
                                       )?.name || "Chọn mã sản phẩm"}
                                 </span>
                               </div>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                              <ChevronsUpDown  />
                             </Button>
                           </PopoverTrigger>
                           {!isFullOrderMode && (
@@ -904,7 +904,7 @@ const PlanningFormDialog = React.memo(
                                   className="h-11"
                                 />
                                 <CommandList className="max-h-[300px] p-1">
-                                  <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                  <CommandEmpty className="py-8 text-center text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                                     Không có dữ liệu
                                   </CommandEmpty>
                                   <CommandGroup>
@@ -934,8 +934,8 @@ const PlanningFormDialog = React.memo(
                                           className={cn(
                                             "flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors mb-1 last:mb-0",
                                             isAllPlanned
-                                              ? "opacity-50 cursor-not-allowed pointer-events-none bg-zinc-50"
-                                              : "cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700",
+                                              ? "opacity-50 cursor-not-allowed pointer-events-none"
+                                              : "cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))]",
                                           )}
                                         >
                                           <div className="flex flex-col gap-0.5">
@@ -949,7 +949,7 @@ const PlanningFormDialog = React.memo(
                                                 </span>
                                               )}
                                             </div>
-                                            <span className="text-[10px] text-zinc-400 font-medium">
+                                            <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                                               {parseFloat(
                                                 p.quantity,
                                               ).toLocaleString()}{" "}
@@ -986,7 +986,7 @@ const PlanningFormDialog = React.memo(
                           <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">
                             3
                           </div>
-                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                          <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-tighter">
                             Công đoạn SX <span className="text-red-500">*</span>
                           </Label>
                         </div>
@@ -1005,7 +1005,7 @@ const PlanningFormDialog = React.memo(
                                     loadingOps
                                   }
                                   className={cn(
-                                    "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                    "w-full h-[52px] justify-between/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                     "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
                                     !field.value && "opacity-90",
                                   )}
@@ -1024,7 +1024,7 @@ const PlanningFormDialog = React.memo(
                                           : "Chưa chọn mã")}
                                     </span>
                                   </div>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                  <ChevronsUpDown  />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -1037,7 +1037,7 @@ const PlanningFormDialog = React.memo(
                                     className="h-11"
                                   />
                                   <CommandList className="max-h-[300px] p-1">
-                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                    <CommandEmpty className="py-8 text-center text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                                       Không có dữ liệu
                                     </CommandEmpty>
                                     <CommandGroup>
@@ -1062,8 +1062,8 @@ const PlanningFormDialog = React.memo(
                                           className={cn(
                                             "flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors mb-1 last:mb-0",
                                             op.is_planned
-                                              ? "opacity-50 cursor-not-allowed pointer-events-none bg-zinc-50"
-                                              : "cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700",
+                                              ? "opacity-50 cursor-not-allowed pointer-events-none"
+                                              : "cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))]",
                                           )}
                                         >
                                           <div className="flex flex-col gap-0.5">
@@ -1078,7 +1078,7 @@ const PlanningFormDialog = React.memo(
                                                 </span>
                                               )}
                                             </div>
-                                            <span className="text-[10px] text-zinc-400 font-medium">
+                                            <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                                               Đồ gá: {op.fixture || "N/A"} •
                                               Định mức: {op.dinh_muc || 0} SP/H
                                             </span>
@@ -1109,7 +1109,7 @@ const PlanningFormDialog = React.memo(
                           <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">
                             3b
                           </div>
-                          <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                          <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-tighter">
                             Máy sản xuất
                           </Label>
                           {selectedMachineIds.length > 0 && (
@@ -1152,10 +1152,10 @@ const PlanningFormDialog = React.memo(
                                     role="combobox"
                                     disabled={isOutsourced || !selectedOp}
                                     className={cn(
-                                      "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                      "w-full h-[52px] justify-between/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                       "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
                                       (isOutsourced || !selectedOp) &&
-                                        "opacity-80 bg-zinc-50 border-zinc-200",
+                                        "opacity-80 border-[rgb(var(--c-line-2))]",
                                     )}
                                   >
                                     <div className="flex items-center gap-3 truncate">
@@ -1183,7 +1183,7 @@ const PlanningFormDialog = React.memo(
                                               .join(", ")}
                                       </span>
                                     </div>
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                    <ChevronsUpDown  />
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent
@@ -1196,7 +1196,7 @@ const PlanningFormDialog = React.memo(
                                       className="h-11"
                                     />
                                     <CommandList className="max-h-[300px] p-1">
-                                      <CommandEmpty className="py-8 text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                                      <CommandEmpty className="py-8 text-center text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                                         Không có máy
                                       </CommandEmpty>
                                       <CommandGroup>
@@ -1222,14 +1222,14 @@ const PlanningFormDialog = React.memo(
                                                   <span className="text-xs font-bold">
                                                     {m.code || m.name}
                                                   </span>
-                                                  <span className="text-[10px] text-zinc-400 font-medium">
+                                                  <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                                                     Công nghệ:{" "}
                                                     {m.type || "Tiện/Phay"}
                                                   </span>
                                                 </div>
                                               </div>
                                               {isChecked && (
-                                                <Check className="h-4 w-4 text-indigo-600" />
+                                                <Check className="h-3.5 w-3.5" />
                                               )}
                                             </CommandItem>
                                           );
@@ -1252,7 +1252,7 @@ const PlanningFormDialog = React.memo(
                         <div className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-100">
                           3
                         </div>
-                        <Label className="text-[10px] font-black uppercase text-zinc-400 tracking-tighter">
+                        <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-tighter">
                           Máy sản xuất chung
                         </Label>
                         {selectedMachineIds.length > 0 && (
@@ -1282,7 +1282,7 @@ const PlanningFormDialog = React.memo(
                                   role="combobox"
                                   disabled={isOutsourced}
                                   className={cn(
-                                    "w-full h-[52px] justify-between bg-white border-zinc-200/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
+                                    "w-full h-[52px] justify-between/80 rounded-xl font-bold shadow-sm transition-all text-xs px-4",
                                     "hover:border-indigo-300 hover:shadow-indigo-50/50 hover:bg-white group-hover:-translate-y-0.5",
                                   )}
                                 >
@@ -1309,7 +1309,7 @@ const PlanningFormDialog = React.memo(
                                             .join(", ")}
                                     </span>
                                   </div>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                                  <ChevronsUpDown  />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -1346,13 +1346,13 @@ const PlanningFormDialog = React.memo(
                                                 <span className="text-xs font-bold">
                                                   {m.code || m.name}
                                                 </span>
-                                                <span className="text-[10px] text-zinc-400 font-medium">
+                                                <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                                                   Máy sản xuất xưởng
                                                 </span>
                                               </div>
                                             </div>
                                             {isChecked && (
-                                              <Check className="h-4 w-4 text-indigo-600" />
+                                              <Check className="h-3.5 w-3.5" />
                                             )}
                                           </CommandItem>
                                         );
@@ -1378,21 +1378,21 @@ const PlanningFormDialog = React.memo(
                       "w-full p-4 rounded-xl border flex items-center justify-between transition-all group relative overflow-hidden",
                       isOutsourced
                         ? "bg-red-50 border-red-200 shadow-lg shadow-red-100/50"
-                        : "bg-zinc-50 border-zinc-200 hover:border-indigo-200 hover:bg-white"
+                        : "bg-[rgb(var(--c-s2))] border-[rgb(var(--c-line-2))] hover:border-indigo-200 hover:bg-white"
                     )}
                   >
                     <div className="flex items-center gap-4 relative z-10">
                       <div className={cn(
                         "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                        isOutsourced ? "bg-red-600 text-white animate-pulse" : "bg-zinc-200 text-zinc-500 group-hover:bg-indigo-600 group-hover:text-white"
+                        isOutsourced ? "bg-red-600 text-white animate-pulse" : "bg-[rgb(var(--c-s3))] text-[rgb(var(--c-ink-3))] group-hover:bg-indigo-600 group-hover:text-white"
                       )}>
                         <Truck className="h-5 w-5" />
                       </div>
                       <div className="text-left">
-                        <p className={cn("text-xs font-black uppercase tracking-widest", isOutsourced ? "text-red-700" : "text-zinc-500 group-hover:text-indigo-600")}>
+                        <p className={cn("text-xs font-black uppercase tracking-widest", isOutsourced ? "text-red-700" : "text-[rgb(var(--c-ink-3))] group-hover:text-indigo-600")}>
                           Ghi chú gia công ngoài (Outsourcing)
                         </p>
-                        <p className="text-[11px] font-medium text-zinc-400">
+                        <p className="text-[11px] font-medium text-[rgb(var(--c-ink-4))]">
                           {isOutsourced ? "Đang chọn chế độ gia công tại đơn vị ngoài" : "Nhấp vào để bật chế độ lập kế hoạch ra bên ngoài"}
                         </p>
                       </div>
@@ -1402,7 +1402,7 @@ const PlanningFormDialog = React.memo(
                       isOutsourced ? "bg-red-600" : "bg-zinc-300"
                     )}>
                       <div className={cn(
-                        "w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all duration-300 shadow-sm",
+                        "w-4 h-4 rounded-full absolute top-0.5 transition-all duration-300 shadow-sm",
                         isOutsourced ? "right-0.5" : "left-0.5"
                       )} />
                     </div>
@@ -1411,7 +1411,7 @@ const PlanningFormDialog = React.memo(
               </div>
               {/* Factory / Outsourcing */}
               {(selectedOpId || isFullOrderMode) && (
-                <div className="flex flex-col md:flex-row gap-6 p-4 bg-zinc-50 rounded-2xl border border-zinc-100 md:items-center">
+                <div className="flex flex-col md:flex-row gap-6 p-4 rounded-2xl border border-[rgb(var(--c-line))] md:items-center">
                   {/* <div className="flex items-center gap-3 min-w-[200px]">
                     <Switch
                       id="outsourced"
@@ -1421,14 +1421,14 @@ const PlanningFormDialog = React.memo(
                         if (!val) setValue("selectedFactoryId", "");
                       }}
                     />
-                    <Label htmlFor="outsourced" className="font-black text-sm text-zinc-950 cursor-pointer uppercase tracking-tighter">
+                    <Label htmlFor="outsourced" className="font-black text-sm text-[rgb(var(--c-ink))] cursor-pointer uppercase tracking-tighter">
                       Gia công ngoài
                     </Label>
                   </div> */}
 
                   {isOutsourced && (
                     <div className="flex-1 flex flex-col md:flex-row gap-4 md:items-center">
-                      <Label className="text-xs font-bold text-zinc-400 whitespace-nowrap">
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-4))] whitespace-nowrap">
                         CHỌN ĐƠN VỊ <span className="text-red-500">*</span>:
                       </Label>
                       <Controller
@@ -1440,7 +1440,7 @@ const PlanningFormDialog = React.memo(
                               <Button
                                 variant="outline"
                                 role="combobox"
-                                className="h-10 bg-white border-zinc-200 min-w-[240px] justify-between font-bold"
+                                className="h-10 min-w-[240px] justify-between font-bold"
                               >
                                 {factories?.find(
                                   (f) => String(f.id) === String(field.value),
@@ -1468,7 +1468,7 @@ const PlanningFormDialog = React.memo(
                                           onSelect={() =>
                                             field.onChange(String(f.id))
                                           }
-                                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                         >
                                           <span className="text-xs font-bold">
                                             {f.name}
@@ -1511,7 +1511,7 @@ const PlanningFormDialog = React.memo(
 
               {/* Summary Area for Single Item Mode */}
               {selectedOrderId && !isFullOrderMode && selectedOpId && (
-                <Card className="border-zinc-200 bg-white shadow-md overflow-hidden border-l-4 border-l-emerald-500">
+                <Card className="border-[rgb(var(--c-line-2))] shadow-md overflow-hidden border-l-4 border-l-emerald-500">
                   <CardContent className="p-6">
                     {isInventoryCovered && (
                       <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start gap-3">
@@ -1535,17 +1535,17 @@ const PlanningFormDialog = React.memo(
                     )}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8 group">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest flex items-center gap-1">
                           <Package className="w-3 h-3 text-emerald-500" /> TỔNG
                           SL ĐƠN/MÃ
                         </span>
-                        <div className="text-2xl font-black text-zinc-950 tabular-nums">
+                        <div className="text-2xl font-black text-[rgb(var(--c-ink))] tabular-nums">
                           {totalOrderQty.toLocaleString("en-US")}
                         </div>
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest flex items-center gap-1">
                           <Clock className="w-3 h-3 text-blue-500" /> ĐỊNH MỨC
                           (SP/8H)
                         </span>
@@ -1572,12 +1572,12 @@ const PlanningFormDialog = React.memo(
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest flex items-center gap-1">
                           <Cpu className="w-3 h-3 text-emerald-500" /> MÁY PHỤ
                           TRÁCH
                         </span>
                         <div
-                          className={`text-lg font-black mt-0.5 ${selectedMachineIds.length > 0 ? "text-zinc-950" : "text-zinc-300"}`}
+                          className={`text-lg font-black mt-0.5 ${selectedMachineIds.length > 0 ? "text-[rgb(var(--c-ink))]" : "text-zinc-300"}`}
                         >
                           {selectedMachineIds.length > 0
                             ? selectedMachineIds
@@ -1593,21 +1593,21 @@ const PlanningFormDialog = React.memo(
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1">
+                        <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest flex items-center gap-1">
                           <Info className="w-3 h-3 text-indigo-500" /> CÁC CÔNG
                           ĐOẠN
                         </span>
-                        <div className="text-xs font-bold text-zinc-500 mt-1">
+                        <div className="text-xs font-bold text-[rgb(var(--c-ink-3))] mt-1">
                           {operations?.length || 0} công đoạn đã định nghĩa
                         </div>
                       </div>
                     </div>
 
-                    <Separator className="bg-zinc-100 mb-6" />
+                    <Separator className="bg-[rgb(var(--c-s2))] mb-6" />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
                       <div className="space-y-2">
-                        <Label className="text-xs font-black uppercase text-zinc-500">
+                        <Label className="text-xs font-black uppercase text-[rgb(var(--c-ink-3))]">
                           Tồn kho đầu kỳ
                         </Label>
                         <Controller
@@ -1615,7 +1615,7 @@ const PlanningFormDialog = React.memo(
                           control={control}
                           render={({ field }) => (
                             <div className="relative">
-                              <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                              <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                               <Input
                                 {...field}
                                 value={field.value || ""}
@@ -1625,7 +1625,7 @@ const PlanningFormDialog = React.memo(
                                     parseFloat(e.target.value) || 0,
                                   )
                                 }
-                                className="pl-10 h-11 bg-zinc-50/50 border-zinc-200 font-bold tabular-nums"
+                                className="pl-10 h-11/50 border-[rgb(var(--c-line-2))] font-bold tabular-nums"
                               />
                             </div>
                           )}
@@ -1656,25 +1656,25 @@ const PlanningFormDialog = React.memo(
 
               {/* Case 2 View: Product Table */}
               {isFullOrderMode && selectedOrderId && (
-                <Card className="border-zinc-200 bg-zinc-50/50 shadow-inner">
+                <Card className="border-[rgb(var(--c-line-2))]/50 shadow-inner">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Package className="w-4 h-4 text-indigo-600" />
-                        <span className="text-xs font-black text-zinc-950 uppercase tracking-widest">
+                        <span className="text-xs font-black text-[rgb(var(--c-ink))] uppercase tracking-widest">
                           Cấu hình mã hàng (Case 2)
                         </span>
                       </div>
                       <Badge
                         variant="outline"
-                        className="font-black bg-white border-zinc-200"
+                        className="font-black"
                       >
                         Total {case2Fields.length} Items
                       </Badge>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
-                      <div className="grid grid-cols-[50px_1fr_120px_100px_130px_130px] gap-2 px-4 py-2 bg-zinc-50 border-b border-zinc-200 text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
+                    <div className="bg-white rounded-xl border border-[rgb(var(--c-line-2))] overflow-hidden shadow-sm">
+                      <div className="grid grid-cols-[50px_1fr_120px_100px_130px_130px] gap-2 px-4 py-2 border-b border-[rgb(var(--c-line-2))] text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">
                         <div className="text-center">ON</div>
                         <div>Tên sản phẩm</div>
                         <div className="text-right">Số lượng</div>
@@ -1686,7 +1686,7 @@ const PlanningFormDialog = React.memo(
                         {case2Fields.map((field, idx) => (
                           <div
                             key={field.id}
-                            className="grid grid-cols-[50px_1fr_120px_100px_130px_130px] gap-2 px-4 py-2.5 items-center border-b border-zinc-100 hover:bg-zinc-50 transition-colors last:border-0 group"
+                            className="grid grid-cols-[50px_1fr_120px_100px_130px_130px] gap-2 px-4 py-2.5 items-center border-b border-[rgb(var(--c-line))] hover:bg-[rgb(var(--c-s2))] transition-colors last:border-0 group"
                           >
                             <div className="flex justify-center">
                               <Checkbox
@@ -1700,11 +1700,11 @@ const PlanningFormDialog = React.memo(
                               />
                             </div>
                             <div
-                              className={`text-xs font-bold truncate ${!field.isSelected ? "opacity-40" : "text-zinc-900"}`}
+                              className={`text-xs font-bold truncate ${!field.isSelected ? "opacity-40" : "text-[rgb(var(--c-ink))]"}`}
                             >
                               {field.name}
                             </div>
-                            <div className="text-xs font-black text-right tabular-nums text-zinc-500">
+                            <div className="text-xs font-black text-right tabular-nums text-[rgb(var(--c-ink-3))]">
                               {field.quantity.toLocaleString()}
                             </div>
                             <div className="flex justify-center">
@@ -1743,7 +1743,7 @@ const PlanningFormDialog = React.memo(
                     </div>
 
                     <div className="mt-4 flex justify-between items-center px-2">
-                      <span className="text-xs font-black text-zinc-400 uppercase">
+                      <span className="text-xs font-black text-[rgb(var(--c-ink-4))] uppercase">
                         Tổng số lượng chọn:
                       </span>
                       <div className="text-xl font-black text-indigo-600">
@@ -1760,17 +1760,17 @@ const PlanningFormDialog = React.memo(
 
               {/* Schedule / Time Section */}
               {selectedOrderId && (selectedOpId || isFullOrderMode) && (
-                <div className="space-y-6">
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-indigo-600" />
-                    <span className="text-xs font-black text-zinc-950 uppercase tracking-widest">
+                    <span className="text-xs font-black text-[rgb(var(--c-ink))] uppercase tracking-widest">
                       Thời gian & Lịch biểu
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase text-zinc-400">
+                      <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">
                         {isFullOrderMode ? "Ngày bắt đầu (A)" : "Ngày bắt đầu"}
                       </Label>
                       <PremiumDatePicker
@@ -1781,7 +1781,7 @@ const PlanningFormDialog = React.memo(
 
                     {(!selectedOp || isFullOrderMode) && (
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-black uppercase text-zinc-400">
+                        <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">
                           {isFullOrderMode
                             ? "Ngày kết thúc (B)"
                             : "Ngày kết thúc (để tính ĐM)"}
@@ -1796,7 +1796,7 @@ const PlanningFormDialog = React.memo(
 
                   {/* Daily List */}
                   {!isFullOrderMode && (
-                    <Card className="border-zinc-200 bg-zinc-50 overflow-hidden">
+                    <Card className="border-[rgb(var(--c-line-2))] overflow-hidden">
                       {hasCapacityConflict && (
                         <div className="px-4 py-2.5 bg-red-50 border-b border-red-100 flex items-start gap-2">
                           <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -1808,8 +1808,8 @@ const PlanningFormDialog = React.memo(
                           </p>
                         </div>
                       )}
-                      <div className="px-4 py-3 bg-white border-b border-zinc-100 flex justify-between items-center">
-                        <span className="text-xs font-black uppercase text-zinc-950 tracking-tight">
+                      <div className="px-4 py-3 border-b border-[rgb(var(--c-line))] flex justify-between items-center">
+                        <span className="text-xs font-black uppercase text-[rgb(var(--c-ink))] tracking-tight">
                           Danh sách ngày sản xuất
                         </span>
                         <Button
@@ -1817,7 +1817,7 @@ const PlanningFormDialog = React.memo(
                           variant="outline"
                           size="sm"
                           onClick={handleAddDay}
-                          className="h-8 gap-1.5 border-zinc-200 text-xs font-bold hover:bg-zinc-100"
+                          className="h-8 gap-1.5 border-[rgb(var(--c-line-2))] text-xs font-bold hover:bg-[rgb(var(--c-s2))]"
                         >
                           <Plus className="w-3.5 h-3.5" /> Thêm ngày
                         </Button>
@@ -1848,7 +1848,7 @@ const PlanningFormDialog = React.memo(
 
                       <div className="divide-y divide-zinc-200/50 max-h-72 overflow-y-auto">
                         {plannedDays.length === 0 ? (
-                          <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
+                          <div className="py-12 flex flex-col items-center justify-center text-[rgb(var(--c-ink-4))]">
                             <AlertCircle className="w-8 h-8 mb-2 opacity-20" />
                             <p className="text-xs font-bold">
                               Chưa có ngày nào được xác định
@@ -1869,7 +1869,7 @@ const PlanningFormDialog = React.memo(
                                   "items-center gap-2 px-4 py-3 group transition-colors",
                                   isSunday
                                     ? "bg-zinc-300/90 hover:bg-zinc-400/60"
-                                    : "bg-white hover:bg-zinc-50/50",
+                                    : "bg-white hover:bg-[rgb(var(--c-s2))]/50",
                                   hasMultiMachines ? "grid" : "flex gap-4",
                                 )}
                                 style={
@@ -1892,7 +1892,7 @@ const PlanningFormDialog = React.memo(
                                       "text-[9px] font-black uppercase tracking-widest px-1",
                                       isSunday
                                         ? "text-red-600"
-                                        : "text-zinc-400",
+                                        : "text-[rgb(var(--c-ink-4))]",
                                     )}
                                   >
                                     {dayName}
@@ -1969,10 +1969,10 @@ const PlanningFormDialog = React.memo(
                                                 replaceDays(newDays);
                                               }}
                                               className={cn(
-                                                "w-16 shadow-none hover:bg-zinc-100 transition-colors font-black text-center",
+                                                "w-16 shadow-none hover:bg-[rgb(var(--c-s2))] transition-colors font-black text-center",
                                                 over
                                                   ? "border-red-400 bg-red-50 text-red-700 ring-1 ring-red-300"
-                                                  : "border-zinc-100 text-indigo-600",
+                                                  : "border-[rgb(var(--c-line))] text-indigo-600",
                                               )}
                                             />
                                             {over && (
@@ -2018,10 +2018,10 @@ const PlanningFormDialog = React.memo(
                                                 handleDayChange(idx, val)
                                               }
                                               className={cn(
-                                                "w-20 shadow-none hover:bg-zinc-100 transition-colors font-black",
+                                                "w-20 shadow-none hover:bg-[rgb(var(--c-s2))] transition-colors font-black",
                                                 over
                                                   ? "border-red-400 bg-red-50 text-red-700 ring-1 ring-red-300"
-                                                  : "border-zinc-100 text-indigo-600",
+                                                  : "border-[rgb(var(--c-line))] text-indigo-600",
                                               )}
                                             />
                                             {over && (
@@ -2077,7 +2077,7 @@ const PlanningFormDialog = React.memo(
                                     />
                                     <Label
                                       htmlFor={`ot-${idx}`}
-                                      className="text-[10px] font-black uppercase cursor-pointer text-zinc-500"
+                                      className="text-[10px] font-black uppercase cursor-pointer text-[rgb(var(--c-ink-3))]"
                                     >
                                       Tăng ca
                                     </Label>
@@ -2146,11 +2146,11 @@ const PlanningFormDialog = React.memo(
             </div>
           </div>
 
-          <div className="mt-auto px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex flex-row items-center justify-end gap-3">
+          <div className="mt-auto px-6 py-4 border-t border-[rgb(var(--c-line-2))] flex flex-row items-center justify-end gap-3">
             <Button
               variant="ghost"
               onClick={onClose}
-              className="font-bold text-zinc-500 hover:text-zinc-950 px-8"
+              className="font-bold text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink))] px-8"
             >
               Hủy bỏ
             </Button>

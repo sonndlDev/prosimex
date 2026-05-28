@@ -69,7 +69,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                 const required = Number(row.required_quantity) || 0;
 
                 // if (ops.length === 0 && plating === 0 && packaging === 0) {
-                //     return <div className="mt-2"><span className="text-zinc-400 italic text-[11px]">Chưa có dữ liệu</span></div>;
+                //     return <div className="mt-2"><span className="text-[rgb(var(--c-ink-4))] italic text-[11px]">Chưa có dữ liệu</span></div>;
                 // }
 
                 if (ops.length === 0) {
@@ -80,17 +80,17 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                         : diff.toLocaleString();
                     const remainingClass = diff < 0
                         ? 'text-emerald-500'
-                        : diff === 0 ? 'text-zinc-300' : 'text-rose-500';
+                        : diff === 0 ? 'text-zinc-300' : 'text-red-500';
 
                     return (
-                        <div className="flex flex-col text-[11px] text-zinc-600 mt-1 w-full min-w-[320px]">
-                            <div className="flex items-center pb-1.5 mb-1 border-b border-zinc-200 font-black text-[9px] uppercase tracking-widest text-zinc-400 px-1">
+                        <div className="flex flex-col text-[11px] text-[rgb(var(--c-ink-2))] mt-1 w-full min-w-[320px]">
+                            <div className="flex items-center pb-1.5 mb-1 border-b border-[rgb(var(--c-line-2))] font-black text-[9px] uppercase tracking-widest text-[rgb(var(--c-ink-4))] px-1">
                                 <span className="flex-1">Công đoạn</span>
                                 <span className="w-20 text-right">Thực tế</span>
-                                <span className="w-20 text-right text-rose-500">Còn thiếu</span>
+                                <span className="w-20 text-right text-red-500">Còn thiếu</span>
                             </div>
                             <div className="flex items-center py-1.5 px-1.5 rounded-md">
-                                <span className="font-semibold text-zinc-400 italic flex-1">Không có công đoạn</span>
+                                <span className="font-semibold text-[rgb(var(--c-ink-4))] italic flex-1">Không có công đoạn</span>
                                 <span className={`w-20 text-right font-black tabular-nums ${originalSx > 0 ? 'text-indigo-600' : 'text-zinc-300'}`}>
                                     {originalSx.toLocaleString()}
                                 </span>
@@ -103,22 +103,22 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                 }
 
                 return (
-                    <div className="flex flex-col text-[11px] text-zinc-600 mt-1 w-full min-w-[320px]">
-                        <div className="flex items-center pb-1.5 mb-1 border-b border-zinc-200 font-black text-[9px] uppercase tracking-widest text-zinc-400 px-1">
+                    <div className="flex flex-col text-[11px] text-[rgb(var(--c-ink-2))] mt-1 w-full min-w-[320px]">
+                        <div className="flex items-center pb-1.5 mb-1 border-b border-[rgb(var(--c-line-2))] font-black text-[9px] uppercase tracking-widest text-[rgb(var(--c-ink-4))] px-1">
                             <span className="flex-1">Công đoạn</span>
                             <span className="w-20 text-right">Thực tế</span>
-                            <span className="w-20 text-right text-rose-500">Còn thiếu</span>
+                            <span className="w-20 text-right text-red-500">Còn thiếu</span>
                         </div>
                         {ops.map((op, i) => {
                             const actual = Number(op.actual_quantity) || 0;
                             const remaining = required - actual;
                     const remainingClass = remaining < 0
                         ? 'text-emerald-500'
-                        : remaining === 0 ? 'text-zinc-300' : 'text-rose-500';
+                        : remaining === 0 ? 'text-zinc-300' : 'text-red-500';
 
                             return (
                                 <div key={i} className="flex items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
-                                    <span className="font-semibold text-zinc-700 truncate pr-4 flex-1">{op.operation_name}</span>
+                                    <span className="font-semibold text-[rgb(var(--c-ink-2))] truncate pr-4 flex-1">{op.operation_name}</span>
                                     <span className={`w-20 text-right font-black tabular-nums ${actual > 0 ? 'text-indigo-600' : 'text-zinc-300'}`}>
                                         {actual.toLocaleString()}
                                     </span>
@@ -130,16 +130,16 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                         })}
                         {/* {plating > 0 && (
                             <div className="flex items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
-                                <span className="font-semibold text-zinc-700 truncate pr-4 flex-1">Mạ (Gia công)</span>
+                                <span className="font-semibold text-[rgb(var(--c-ink-2))] truncate pr-4 flex-1">Mạ (Gia công)</span>
                                 <span className="w-20 text-right font-black text-indigo-600 tabular-nums">{plating.toLocaleString()}</span>
-                                <span className="w-20 text-right font-black tabular-nums text-rose-500">{Math.max(0, required - plating).toLocaleString()}</span>
+                                <span className="w-20 text-right font-black tabular-nums text-red-500">{Math.max(0, required - plating).toLocaleString()}</span>
                             </div>
                         )}
                         {packaging > 0 && (
                             <div className="flex items-center py-1.5 border-b border-zinc-50 last:border-0 hover:bg-indigo-50/50 px-1.5 rounded-md transition-colors">
-                                <span className="font-semibold text-zinc-700 truncate pr-4 flex-1">Đóng gói (Gia công)</span>
+                                <span className="font-semibold text-[rgb(var(--c-ink-2))] truncate pr-4 flex-1">Đóng gói (Gia công)</span>
                                 <span className="w-20 text-right font-black text-indigo-600 tabular-nums">{packaging.toLocaleString()}</span>
-                                <span className="w-20 text-right font-black tabular-nums text-rose-500">{Math.max(0, required - packaging).toLocaleString()}</span>
+                                <span className="w-20 text-right font-black tabular-nums text-red-500">{Math.max(0, required - packaging).toLocaleString()}</span>
                             </div>
                         )} */}
                     </div>
@@ -150,22 +150,22 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl bg-zinc-50">
-                <DialogHeader className="p-6 bg-white border-b border-zinc-100 flex flex-row items-center justify-between space-y-0">
+            <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl">
+                <DialogHeader className="p-6 border-b border-[rgb(var(--c-line))] flex flex-row items-center justify-between space-y-0">
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                         <div className="w-10 h-10 bg-rose-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-rose-100">
                             <PackageMinus className="w-5 h-5" />
                         </div>
                         <div>
                             <span>Báo cáo số lượng còn thiếu</span>
-                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Mã PO: {poCode}</p>
+                            <p className="text-[10px] font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest mt-0.5">Mã PO: {poCode}</p>
                         </div>
                     </DialogTitle>
                 </DialogHeader>
 
                 <div className="p-6 space-y-6">
                     {isLoading ? (
-                        <div className="h-[400px] flex flex-col items-center justify-center gap-3 text-zinc-400">
+                        <div className="h-[400px] flex flex-col items-center justify-center gap-3 text-[rgb(var(--c-ink-4))]">
                             <Loader2 className="w-8 h-8 animate-spin" />
                             <p className="text-xs font-bold uppercase tracking-widest">Đang tải dữ liệu...</p>
                         </div>
@@ -173,38 +173,38 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                         <>
                             {/* Summary Cards */}
                             <div className="grid grid-cols-3 gap-4">
-                                <Card className="border-none shadow-sm bg-white overflow-hidden relative group">
+                                <Card className="border-none shadow-sm overflow-hidden relative group">
                                     <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
                                     <CardContent className="p-5 flex items-center gap-4 relative z-10">
                                         <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
                                             <ShoppingCart className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Order</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Tổng Order</p>
                                             <h3 className="text-2xl font-black text-indigo-950 tabular-nums">{totals.required.toLocaleString()}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="border-none shadow-sm bg-white overflow-hidden relative group">
+                                <Card className="border-none shadow-sm overflow-hidden relative group">
                                     <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
                                     <CardContent className="p-5 flex items-center gap-4 relative z-10">
                                         <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                                             <CheckCircle2 className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Đã hoàn thành</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Đã hoàn thành</p>
                                             <h3 className="text-2xl font-black text-emerald-950 tabular-nums">{totals.total_sx?.toLocaleString()}</h3>
                                         </div>
                                     </CardContent>
                                 </Card>
-                                <Card className="border-none shadow-sm bg-white overflow-hidden relative group">
-                                    <div className="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
+                                <Card className="border-none shadow-sm overflow-hidden relative group">
+                                    <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
                                     <CardContent className="p-5 flex items-center gap-4 relative z-10">
-                                        <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                                        <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
                                             <PackageMinus className="w-6 h-6" />
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng còn lại</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Tổng còn lại</p>
                                             <h3 className="text-2xl font-black text-rose-950 tabular-nums">{totalRemaining.toLocaleString()}</h3>
                                         </div>
                                     </CardContent>
@@ -212,9 +212,9 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                             </div>
 
                             {/* Details Table */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">
-                                <div className="px-5 py-4 border-b border-zinc-50 bg-zinc-50/30">
-                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-zinc-500">Chi tiết số lượng còn thiếu từng mã hàng</h4>
+                            <div className="bg-white rounded-2xl shadow-sm border border-[rgb(var(--c-line))] overflow-hidden">
+                                <div className="px-5 py-4 border-b border-zinc-50/30">
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-3))]">Chi tiết số lượng còn thiếu từng mã hàng</h4>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <GenericTable

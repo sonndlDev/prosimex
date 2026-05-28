@@ -55,7 +55,7 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
         <DialogContent className="max-w-md p-10 flex flex-col items-center justify-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-          <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">Đang tải bản in...</p>
+          <p className="text-sm font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Đang tải bản in...</p>
         </DialogContent>
       </Dialog>
     );
@@ -67,8 +67,8 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-7xl max-h-[85vh] p-0 !flex flex-col !overflow-hidden bg-zinc-100 border-zinc-200 gap-0">
-        <div className="flex-1 overflow-auto bg-zinc-500/10 p-4 md:p-8">
+      <DialogContent className="max-w-7xl max-h-[85vh] p-0 !flex flex-col !overflow-hidden bg-[rgb(var(--c-s2))] border-[rgb(var(--c-line-2))] gap-0">
+        <div className="flex-1 overflow-auto0/10 p-4 md:p-8">
           <div className="flex justify-start min-w-max">
             {/* Printable Area */}
             <div
@@ -98,29 +98,29 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                   </tr>
                   {/* Row 2 */}
                   <tr>
-                    <td className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50">NGÀY SẢN XUẤT:</td>
+                    <td className="border border-black p-2 text-left font-bold text-xs uppercase/50">NGÀY SẢN XUẤT:</td>
                     <td className="border border-black p-2 text-center font-black text-base">{ticketDate}</td>
-                    <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase bg-zinc-50/50">CA SX: ....................</td>
-                    <td className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50">MÃ SỐ CN:</td>
-                    <td colSpan={2} className="border border-black p-2 text-center text-[10px] leading-tight text-zinc-400">Mã số phiếu: {ticketCode}</td>
+                    <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase/50">CA SX: ....................</td>
+                    <td className="border border-black p-2 text-left font-bold text-xs uppercase/50">MÃ SỐ CN:</td>
+                    <td colSpan={2} className="border border-black p-2 text-center text-[10px] leading-tight text-[rgb(var(--c-ink-4))]">Mã số phiếu: {ticketCode}</td>
                   </tr>
                   {/* Row 3 */}
                   <tr>
-                    <td className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50">MÁY MÓC / LINE:</td>
+                    <td className="border border-black p-2 text-left font-bold text-xs uppercase/50">MÁY MÓC / LINE:</td>
                     <td className="border border-black p-2 text-center font-black text-base italic">{firstMachine}</td>
-                    <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase bg-zinc-50/50">SỐ THẺ: ....................</td>
-                    <td colSpan={2} className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50 italic border-r-0">HỌ VÀ TÊN: ...........................................</td>
+                    <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase/50">SỐ THẺ: ....................</td>
+                    <td colSpan={2} className="border border-black p-2 text-left font-bold text-xs uppercase/50 italic border-r-0">HỌ VÀ TÊN: ...........................................</td>
                     <td className="border border-black p-2 text-center border-l-0"></td>
                   </tr>
                   {/* Headers */}
-                  <tr className="bg-zinc-100 font-bold text-[11px] uppercase tracking-tighter">
+                  <tr className="bg-[rgb(var(--c-s2))] font-bold text-[11px] uppercase tracking-tighter">
                     <td className="border border-black p-3 text-center">KHÁCH HÀNG</td>
                     <td className="border border-black p-3 text-center">ĐƠN HÀNG (PO)</td>
                     <td className="border border-black p-3 text-center">NHÓM MÃ</td>
                     <td className="border border-black p-3 text-center">MÃ HÀNG CHI TIẾT</td>
                     <td className="border border-black p-3 text-center">CÔNG ĐOẠN</td>
                     <td className="border border-black p-3 text-center">SẢN LƯỢNG<br />KẾ HOẠCH</td>
-                    <td className="border border-black p-3 text-center bg-zinc-200">KẾT QUẢ<br />THỰC TẾ</td>
+                    <td className="border border-black p-3 text-center bg-[rgb(var(--c-s3))]">KẾT QUẢ<br />THỰC TẾ</td>
                   </tr>
                   {/* Items */}
                   {ticket?.items?.map((item, index) => (
@@ -133,20 +133,20 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                       <td className="border border-black p-2 text-center font-bold text-xl tabular-nums">
                         {parseFloat(item.planned_quantity).toLocaleString()}
                       </td>
-                      <td className="border border-black p-2 text-center bg-zinc-50/20"></td>
+                      <td className="border border-black p-2 text-center/20"></td>
                     </tr>
                   ))}
                   {/* Ghi chú */}
                   <tr>
                     <td colSpan={7} className="border border-black p-2 text-left h-24 align-top">
-                      <span className="font-bold text-[10px] uppercase tracking-widest text-zinc-400">GHI CHÚ SẢN XUẤT:</span>
+                      <span className="font-bold text-[10px] uppercase tracking-widest text-[rgb(var(--c-ink-4))]">GHI CHÚ SẢN XUẤT:</span>
                     </td>
                   </tr>
                   {/* Ký tên section */}
                   <tr>
-                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">CÔNG NHÂN KÝ TÊN</td>
-                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">QC KIỂM TRA</td>
-                    <td colSpan={3} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">QUẢN LÝ XÁC NHẬN</td>
+                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase h-32 align-top">CÔNG NHÂN KÝ TÊN</td>
+                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase h-32 align-top">QC KIỂM TRA</td>
+                    <td colSpan={3} className="border border-black p-4 text-center font-bold text-[11px] uppercase h-32 align-top">QUẢN LÝ XÁC NHẬN</td>
                   </tr>
                 </tbody>
               </table>
@@ -156,7 +156,7 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
 
         {/* Footer actions */}
         <div className="mt-auto px-6 pt-4 pb-8 bg-zinc-950 border-t border-zinc-800 flex flex-row items-center justify-between relative z-10">
-          <Button variant="ghost" onClick={onClose} className="text-zinc-400 hover:text-white hover:bg-white/10 font-bold px-6">
+          <Button variant="ghost" onClick={onClose} className="text-[rgb(var(--c-ink-4))] hover:text-white hover:bg-white/10 font-bold px-6">
             <ArrowLeft className="mr-2 h-4 w-4" /> Trở về
           </Button>
           <Button

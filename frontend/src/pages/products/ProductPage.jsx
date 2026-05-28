@@ -75,8 +75,8 @@ export default function ProductPage() {
     {
       id: "is_active", label: "Trạng thái",
       format: (val) => val
-        ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50">Hoạt động</Badge>
-        : <Badge variant="secondary" className="text-zinc-400">Ngừng HĐ</Badge>
+        ? <Badge className="status status-run">Hoạt động</Badge>
+        : <Badge className="status status-idle">Ngừng HĐ</Badge>
     },
     getAuditColumn(),
   ];
@@ -98,12 +98,12 @@ export default function ProductPage() {
   const handleBulkDelete = (ids) => openDelete(ids);
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Page Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Mã hàng</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh mục sản phẩm theo nhóm mã hàng</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Quản lý Mã hàng</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Danh mục sản phẩm theo nhóm mã hàng</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Factory Filter */}
@@ -112,27 +112,27 @@ export default function ProductPage() {
               <Button
                 variant="outline"
                 role="combobox"
-                className="h-11 px-4 gap-2 font-bold text-xs border-zinc-200 bg-white hover:bg-zinc-50 rounded-xl min-w-[160px] justify-between"
+                className="w-48 justify-between"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <Factory className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <Factory  />
                   <span className="truncate">
                     {filterFactoryId === "" ? "Tất cả nhà máy" : factories?.find(f => String(f.id) === String(filterFactoryId))?.name}
                   </span>
                 </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                <ChevronsUpDown  />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="end">
               <Command className="w-full">
                 <CommandInput placeholder="Tìm nhà máy..." className="h-10" />
-                <CommandList className="max-h-64 p-1">
-                  <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                <CommandList >
+                  <CommandEmpty >Không thấy</CommandEmpty>
                   <CommandGroup>
                     <CommandItem
                       value="all"
                       onSelect={() => setFilterFactoryId("")}
-                      className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
+                      
                     >
                       Tất cả nhà máy
                       <Check className={cn("h-4 w-4 text-indigo-600", filterFactoryId === "" ? "opacity-100" : "opacity-0")} />
@@ -142,7 +142,7 @@ export default function ProductPage() {
                         key={f.id}
                         value={f.name}
                         onSelect={() => setFilterFactoryId(String(f.id))}
-                        className="flex items-center justify-between px-3 py-2 cursor-pointer font-bold text-xs"
+                        
                       >
                         {f.name}
                         <Check className={cn("h-4 w-4 text-indigo-600", String(filterFactoryId) === String(f.id) ? "opacity-100" : "opacity-0")} />
@@ -157,7 +157,7 @@ export default function ProductPage() {
           {hasPermission("products:create") && (
             <Button
               onClick={() => handleOpen()}
-              className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl"
+              
             >
               <Plus className="w-4 h-4" /> Thêm mã hàng
             </Button>
@@ -166,7 +166,7 @@ export default function ProductPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           data={products}
           columns={columns}
@@ -187,10 +187,10 @@ export default function ProductPage() {
 
       {/* Create / Edit Modal */}
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="sm:max-w-[500px] p-0 border-zinc-200">
-          <form onSubmit={rhfHandleSubmit(onSubmit)} className="flex flex-col">
-            <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-200">
-              <DialogTitle className="text-xl font-black text-zinc-950 uppercase tracking-tight">
+        <DialogContent className="sm:max-w-lg">
+          <form onSubmit={rhfHandleSubmit(onSubmit)} >
+            <DialogHeader className="px-6 py-4 border-b border-[rgb(var(--c-line-2))]">
+              <DialogTitle className="text-xl font-black text-[rgb(var(--c-ink))] uppercase tracking-tight">
                 {selectedProduct ? "Chỉnh sửa mã hàng" : "Thêm mã hàng mới"}
               </DialogTitle>
             </DialogHeader>
@@ -205,8 +205,8 @@ export default function ProductPage() {
                         variant="outline"
                         role="combobox"
                         className={cn(
-                          "w-full justify-between bg-white border-zinc-200 font-semibold",
-                          !field.value && "text-zinc-500"
+                          "w-full justify-between font-semibold",
+                          !field.value && "text-[rgb(var(--c-ink-3))]"
                         )}
                       >
                         {field.value
@@ -221,7 +221,7 @@ export default function ProductPage() {
                         <CommandList className="max-h-64 overflow-y-auto p-1">
                           <CommandEmpty className="py-6 text-center">
                             <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không tìm thấy nhóm nào</p>
+                            <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Không tìm thấy nhóm nào</p>
                           </CommandEmpty>
                           <CommandGroup>
                             {productGroups?.map((g) => (
@@ -229,10 +229,10 @@ export default function ProductPage() {
                                 key={g.id}
                                 value={g.name}
                                 onSelect={() => field.onChange(String(g.id))}
-                                className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                               >
                                 <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                                  <div className="w-6 h-6 rounded bg-[rgb(var(--c-s2))] flex items-center justify-center text-[10px] font-bold text-[rgb(var(--c-ink-3))]">
                                     {g.name.substring(0, 1)}
                                   </div>
                                   <span className="text-xs font-bold">{g.name}</span>
@@ -253,8 +253,8 @@ export default function ProductPage() {
                 )} />
 
                 {selectedGroupId && (
-                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100 space-y-2">
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <div className="bg-[rgb(var(--c-s2))] rounded-xl p-3 border border-[rgb(var(--c-line))] space-y-2">
+                    <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest flex items-center gap-1.5">
                       <Package className="w-3 h-3" /> Danh sách mã trong nhóm này
                     </p>
                     <div className="flex flex-wrap gap-1.5 overflow-y-auto max-h-32 p-1">
@@ -262,12 +262,12 @@ export default function ProductPage() {
                         products
                           ?.filter(p => String(p.product_group_id) === String(selectedGroupId))
                           .map(p => (
-                            <Badge key={p.id} variant="secondary" className="bg-white border-zinc-200 font-bold text-[10px] shadow-sm">
+                            <Badge key={p.id} variant="secondary" className="bg-white border-[rgb(var(--c-line-2))] font-bold text-[10px] shadow-sm">
                               {p.name}
                             </Badge>
                           ))
                       ) : (
-                        <p className="text-[10px] italic text-zinc-400">Chưa có mã hàng nào trong nhóm này.</p>
+                        <p className="text-[10px] italic text-[rgb(var(--c-ink-4))]">Chưa có mã hàng nào trong nhóm này.</p>
                       )}
                     </div>
                   </div>
@@ -288,7 +288,7 @@ export default function ProductPage() {
                 )} />
               </div>
             </div>
-            <DialogFooter className="p-6 border-t border-zinc-100 bg-zinc-50/50">
+            <DialogFooter className="p-6 border-t border-[rgb(var(--c-line))]/50">
               <Button type="button" variant="outline" onClick={handleClose}>Hủy</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>Lưu</Button>
             </DialogFooter>

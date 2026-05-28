@@ -65,22 +65,22 @@ export default function CustomerPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-           <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Khách hàng</h2>
-           <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách đối tác và khách hàng</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+           <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Quản lý Khách hàng</h2>
+           <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Danh sách đối tác và khách hàng</p>
         </div>
         <div className="flex items-center gap-3">
           {hasPermission("customers:create") && (
-            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Button onClick={() => handleOpen()} >
               <Plus className="w-4 h-4" /> Thêm khách hàng
             </Button>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
       <GenericTable
         data={customers} columns={columns} isLoading={isLoading} error={error}
         onEdit={hasPermission("customers:update") ? handleOpen : undefined}
@@ -115,7 +115,7 @@ export default function CustomerPage() {
                 <Label>Thông tin liên hệ</Label>
                 <Controller name="contact_info" control={control} render={({ field }) => (
                   <textarea {...field} rows={3} placeholder="SĐT, email, địa chỉ..."
-                    className="w-full rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none" />
+                    className="w-full rounded-md border border-[rgb(var(--c-line-2))] bg-transparent px-3 py-2 text-sm placeholder:text-[rgb(var(--c-ink-4))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none" />
                 )} />
               </div>
             </div>

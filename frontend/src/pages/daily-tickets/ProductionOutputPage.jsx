@@ -69,7 +69,7 @@ function Combobox({
           variant="outline"
           role="combobox"
           disabled={disabled}
-          className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+          className="w-full h-9 justify-between text-xs font-bold"
         >
           <div className="flex items-center gap-1.5 truncate">
             {Icon && <Icon className="h-3 w-3 text-indigo-500 shrink-0" />}
@@ -88,7 +88,7 @@ function Combobox({
         <Command>
           <CommandInput placeholder={`Tìm ${placeholder.toLowerCase()}...`} />
           <CommandList className="max-h-[300px] p-1">
-            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">
+            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))]">
               Không thấy
             </CommandEmpty>
             <CommandGroup>
@@ -107,20 +107,20 @@ function Combobox({
                     className={cn(
                       "px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1 flex items-center justify-between",
                       isItemDisabled &&
-                        "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50",
+                        "opacity-50 pointer-events-none cursor-not-allowed",
                     )}
                   >
                     <div className="flex flex-col text-left">
                       <span
                         className={cn(
                           "text-xs font-bold",
-                          isItemDisabled && "text-zinc-400 line-through",
+                          isItemDisabled && "text-[rgb(var(--c-ink-4))] line-through",
                         )}
                       >
                         {o.name}
                       </span>
                       {o.subLabel && (
-                        <span className="text-[10px] text-zinc-400 font-medium">
+                        <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
                           {o.subLabel}
                         </span>
                       )}
@@ -410,7 +410,7 @@ function ManualRow({
           <Input
             {...field}
             placeholder="Ghi chú..."
-            className="h-9 text-xs border-zinc-300"
+            className="h-9 text-xs border-[rgb(var(--c-line-3))]"
           />
         )}
       />
@@ -739,23 +739,23 @@ export default function ProductionOutputPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Toaster position="top-right" richColors />
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>
             Nhập Sản Lượng
           </h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>
             Kết quả kiểm tra và báo cáo sản xuất hàng ngày
           </p>
         </div>
         {/* Modern Tab Bar - Segmented UI */}
         <div
           className={cn(
-            "relative h-11 w-full max-w-[360px] p-1 bg-zinc-100/80 border border-zinc-200/50 rounded-full flex items-center cursor-pointer select-none transition-all duration-300",
+            "relative h-11 w-full max-w-[360px] p-1 bg-[rgb(var(--c-s2))]/80 border border-[rgb(var(--c-line-2))]/50 rounded-full flex items-center cursor-pointer select-none transition-all duration-300",
           )}
           onClick={() => {
             const newVal = !isManualMode;
@@ -768,7 +768,7 @@ export default function ProductionOutputPage() {
           {/* Active Tab Background Pill */}
           <div
             className={cn(
-              "absolute h-9 w-[calc(50%-4px)] bg-white rounded-full shadow-sm border border-zinc-200/50 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) z-0",
+              "absolute h-9 w-[calc(50%-4px)] rounded-full shadow-sm border border-[rgb(var(--c-line-2))]/50 transition-all duration-500 cubic-bezier(0.16, 1, 0.3, 1) z-0",
               isManualMode ? "translate-x-[calc(100%+4px)]" : "translate-x-0",
             )}
           />
@@ -779,7 +779,7 @@ export default function ProductionOutputPage() {
               "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
               !isManualMode
                 ? "text-indigo-600 font-bold"
-                : "text-zinc-500 font-medium",
+                : "text-[rgb(var(--c-ink-3))] font-medium",
             )}
           >
             <ClipboardList className="w-4 h-4" />
@@ -794,7 +794,7 @@ export default function ProductionOutputPage() {
               "relative flex-1 flex items-center justify-center gap-2 z-10 transition-all duration-300",
               isManualMode
                 ? "text-indigo-600 font-bold"
-                : "text-zinc-500 font-medium",
+                : "text-[rgb(var(--c-ink-3))] font-medium",
             )}
           >
             <Pencil className="w-4 h-4" />
@@ -858,16 +858,16 @@ export default function ProductionOutputPage() {
             DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd") ===
               searchDate && (
               <Card className="overflow-hidden">
-                <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
+                <div className="p-6 border-b border-[rgb(var(--c-line-2))]/50 flex justify-between items-center">
                   <div>
-                    <h3 className="font-bold text-lg text-zinc-950">
+                    <h3 className="font-bold text-lg text-[rgb(var(--c-ink))]">
                       Phiếu Sản Xuất{" "}
                       {DateTime.fromISO(ticket.ticket_date).toFormat(
                         "yyyyMMdd",
                       )}
                       {ticket.id}
                     </h3>
-                    <p className="text-sm text-zinc-500 font-medium">
+                    <p className="text-sm text-[rgb(var(--c-ink-3))] font-medium">
                       Người lập: {ticket.creator_name}
                     </p>
                   </div>
@@ -889,7 +889,7 @@ export default function ProductionOutputPage() {
 
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+                    <TableRow className="bg-[rgb(var(--c-s2))] hover:bg-[rgb(var(--c-s2))]">
                       <TableHead className="w-[80px]">STT</TableHead>
                       <TableHead>Đơn hàng</TableHead>
                       <TableHead>Mã hàng</TableHead>
@@ -904,15 +904,15 @@ export default function ProductionOutputPage() {
                   <TableBody>
                     {ticketFields.map((field, index) => (
                       <TableRow key={field.id} className="cursor-default">
-                        <TableCell className="font-medium text-zinc-500">
+                        <TableCell className="font-medium text-[rgb(var(--c-ink-3))]">
                           {index + 1}
                         </TableCell>
                         <TableCell>{field.order_code || "N/A"}</TableCell>
                         <TableCell>{field.product_name || "N/A"}</TableCell>
-                        <TableCell className="font-semibold text-zinc-700">
+                        <TableCell className="font-semibold text-[rgb(var(--c-ink-2))]">
                           {field.operation_name}
                         </TableCell>
-                        <TableCell className="text-right font-bold text-zinc-900">
+                        <TableCell className="text-right font-bold text-[rgb(var(--c-ink))]">
                           {field.planned_quantity}
                         </TableCell>
                         <TableCell className="text-right">
@@ -927,7 +927,7 @@ export default function ProductionOutputPage() {
                                   (isCompleted && user?.role !== "ADMIN") ||
                                   updateMutation.isPending
                                 }
-                                className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
+                                className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-[rgb(var(--c-line-3))]" : ""}`}
                                 min={0}
                               />
                             )}
@@ -945,7 +945,7 @@ export default function ProductionOutputPage() {
                                   (isCompleted && user?.role !== "ADMIN") ||
                                   updateMutation.isPending
                                 }
-                                className="text-xs h-9 border-zinc-300"
+                                className="text-xs h-9 border-[rgb(var(--c-line-3))]"
                               />
                             )}
                           />
@@ -956,7 +956,7 @@ export default function ProductionOutputPage() {
                       <TableRow>
                         <TableCell
                           colSpan={7}
-                          className="h-24 text-center text-zinc-500 font-medium"
+                          className="h-24 text-center text-[rgb(var(--c-ink-3))] font-medium"
                         >
                           Không có sản phẩm nào
                         </TableCell>
@@ -965,7 +965,7 @@ export default function ProductionOutputPage() {
                   </TableBody>
                 </Table>
 
-                <CardFooter className="p-6 bg-zinc-50/50 border-t border-zinc-200 justify-end">
+                <CardFooter className="p-6/50 border-t border-[rgb(var(--c-line-2))] justify-end">
                   <Button
                     size="lg"
                     onClick={ticketHandleSubmit(onTicketSubmit)}
@@ -992,7 +992,7 @@ export default function ProductionOutputPage() {
           <div className="p-6 border-b border-indigo-100 bg-indigo-50/40">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <div className="flex items-center gap-2">
-                <Pencil className="h-4 w-4 text-indigo-600" />
+                <Pencil className="h-3.5 w-3.5" />
                 <h3 className="font-black text-indigo-900 text-sm uppercase tracking-wider">
                   Nhập sản lượng từ đơn hàng / mã hàng
                 </h3>
@@ -1016,10 +1016,10 @@ export default function ProductionOutputPage() {
             </div>
           </div>
 
-          {/* <div className="p-6 space-y-4 border-b border-indigo-100 bg-white/60">
+          {/* <div className="p-6 space-y-4 border-b border-indigo-100/60">
             <div className="flex flex-col md:flex-row gap-3 md:items-end">
               <div className="flex-1 space-y-1">
-                <Label className="text-xs font-bold text-zinc-500">Tìm mã phiếu thủ công</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Tìm mã phiếu thủ công</Label>
                 <Input
                   placeholder="VD: 20260522U5#123"
                   value={manualSearchCode}
@@ -1054,10 +1054,10 @@ export default function ProductionOutputPage() {
               </div>
             )}
 
-            <div className="rounded-xl border border-zinc-200 overflow-hidden">
+            <div className="rounded-xl border border-[rgb(var(--c-line-2))] overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-zinc-50">
+                  <TableRow className="bg-[rgb(var(--c-s2))]">
                     <TableHead>Mã phiếu</TableHead>
                     <TableHead>Người nhập</TableHead>
                     <TableHead className="text-right">SL TT</TableHead>
@@ -1067,9 +1067,9 @@ export default function ProductionOutputPage() {
                 </TableHeader>
                 <TableBody>
                   {manualTicketsLoading ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-zinc-400">Đang tải...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-[rgb(var(--c-ink-4))]">Đang tải...</TableCell></TableRow>
                   ) : manualTickets.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-zinc-400">Chưa có phiếu thủ công trong ngày này</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-6 text-[rgb(var(--c-ink-4))]">Chưa có phiếu thủ công trong ngày này</TableCell></TableRow>
                   ) : manualTickets.map((t) => (
                     <TableRow key={t.id} className={editingManualTicket?.id === t.id ? "bg-indigo-50" : ""}>
                       <TableCell className="font-mono text-xs font-bold text-indigo-700">
@@ -1095,25 +1095,25 @@ export default function ProductionOutputPage() {
           <div className="p-6 space-y-3">
             {/* Column headers */}
             <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 px-0 mb-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">
                 Đơn hàng
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">
                 Mã hàng
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">
                 Công đoạn
               </p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center font-black">
                 Còn thiếu
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))] text-right">
                 SL Kế Hoạch
               </p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">
                 SL Thực Tế
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">
                 Ghi chú
               </p>
               <div />
@@ -1136,7 +1136,7 @@ export default function ProductionOutputPage() {
                 />
               ))}
               {manualFields.length === 0 && (
-                <div className="h-20 flex items-center justify-center text-zinc-400 text-sm font-medium border-2 border-dashed border-zinc-200 rounded-xl">
+                <div className="h-20 flex items-center justify-center text-[rgb(var(--c-ink-4))] text-sm font-medium border-2 border-dashed border-[rgb(var(--c-line-2))] rounded-xl">
                   Chưa có dòng nào — nhấn "+ Thêm dòng" để bắt đầu
                 </div>
               )}
@@ -1164,7 +1164,7 @@ export default function ProductionOutputPage() {
           </div>
 
           <CardFooter className="p-6 bg-indigo-50/30 border-t border-indigo-100 justify-between items-center">
-            <p className="text-xs text-zinc-500 font-medium">
+            <p className="text-xs text-[rgb(var(--c-ink-3))] font-medium">
               Phiếu của{" "}
               <span className="font-black text-indigo-700">
                 {user?.username}

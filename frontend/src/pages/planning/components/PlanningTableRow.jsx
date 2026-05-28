@@ -48,7 +48,7 @@ const PlanningTableRow = React.memo(
     const isOrange = idx % 2 === 0;
 
     return (
-      <tr className="hover:bg-zinc-50 border-b border-zinc-200 transition-colors even:bg-zinc-50/30">
+      <tr className="hover:bg-[rgb(var(--c-s2))] border-b border-[rgb(var(--c-line-2))] transition-colors even:bg-[rgb(var(--c-s2))]/30">
         <ExcelDataCell>{idx + 1}</ExcelDataCell>
         <ExcelDataCell className="font-medium">{plan.product_name}</ExcelDataCell>
         <ExcelDataCell
@@ -79,11 +79,11 @@ const PlanningTableRow = React.memo(
         <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">
           x
         </ExcelDataCell>
-        <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">
+        <ExcelDataCell className="text-[rgb(var(--c-ink-3))] font-mono text-[10px]">
           {DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}
         </ExcelDataCell>
 
-        <ExcelDataCell className="text-zinc-500 font-mono text-[10px] cursor-help p-0">
+        <ExcelDataCell className="text-[rgb(var(--c-ink-3))] font-mono text-[10px] cursor-help p-0">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger render={<div className="w-full h-full flex items-center justify-center">{DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")}</div>} />
@@ -157,7 +157,7 @@ const PlanningTableRow = React.memo(
                 <div className="flex flex-col items-center justify-center h-full">
                   <span
                     onClick={() => onInlineOTToggle(plan, date.key)}
-                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${editDayData?.is_overtime ? "text-red-500" : "text-zinc-400"
+                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${editDayData?.is_overtime ? "text-red-500" : "text-[rgb(var(--c-ink-4))]"
                       } hover:text-red-600 mb-0.5`}
                   >
                     {editDayData?.is_overtime ? "TĂNG CA" : "chuẩn"}
@@ -187,8 +187,8 @@ const PlanningTableRow = React.memo(
         })}
 
         {/* Action buttons (sticky right) */}
-        <ExcelDataCell className="sticky right-0 z-10 bg-white border-l border-zinc-300 shadow-[-4px_0_8px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center justify-center gap-1 bg-white p-1">
+        <ExcelDataCell className="sticky right-0 z-10 border-l border-[rgb(var(--c-line-3))] shadow-[-4px_0_8px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center justify-center gap-1 p-1">
             {isInlineEditing ? (
               <>
                 <Button

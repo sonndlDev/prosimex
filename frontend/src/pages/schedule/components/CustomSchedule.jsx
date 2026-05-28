@@ -190,18 +190,18 @@ export default function CustomSchedule({
   }, [sortedResources, events, start]);
 
   return (
-    <div className="h-full w-full border border-zinc-300 rounded-xl overflow-auto bg-zinc-50/20 shadow-sm relative scrollbar-thin scrollbar-thumb-zinc-200">
+    <div className="h-full w-full border border-[rgb(var(--c-line-3))] rounded-xl overflow-auto/20 shadow-sm relative scrollbar-thin scrollbar-thumb-zinc-200">
       {/* The absolute container that actually defines the scrollable size */}
       <div
         style={{
           width: RESOURCE_WIDTH + totalGridWidth,
           height: HEADER_HEIGHT + totalHeight,
         }}
-        className="relative bg-white"
+        className="relative"
       >
         {/* 1. Header (Sticky Top) */}
         <div
-          className="sticky top-0 z-40 bg-zinc-50 flex border-b border-zinc-300"
+          className="sticky top-0 z-40 flex border-b border-[rgb(var(--c-line-3))]"
           style={{
             height: HEADER_HEIGHT,
             width: RESOURCE_WIDTH + totalGridWidth,
@@ -209,22 +209,22 @@ export default function CustomSchedule({
         >
           {/* Top-Left Corner (Sticky Top and Left) */}
           <div
-            className="sticky left-0 z-50 bg-zinc-50 border-r border-zinc-300 h-full flex items-center justify-center p-4"
+            className="sticky left-0 z-50 border-r border-[rgb(var(--c-line-3))] h-full flex items-center justify-center p-4"
             style={{ width: RESOURCE_WIDTH }}
           >
-            <span className="font-black text-[10px] text-zinc-400 uppercase tracking-widest text-center">
+            <span className="font-black text-[10px] text-[rgb(var(--c-ink-4))] uppercase tracking-widest text-center">
               MÁY MÓC
             </span>
           </div>
 
           {/* Day Headers */}
-          <div className="flex bg-zinc-100/50">
+          <div className="flex bg-[rgb(var(--c-s2))]/50">
             {days.map((day, i) => (
               <div
                 key={i}
                 style={{ width: COLUMN_WIDTH }}
                 className={cn(
-                  "h-full border-r border-zinc-300 flex flex-col items-center justify-end pb-2 transition-colors",
+                  "h-full border-r border-[rgb(var(--c-line-3))] flex flex-col items-center justify-end pb-2 transition-colors",
                   isSunday(day)
                     ? "bg-zinc-400 text-red-50"
                     : day.hasSame(DateTime.now(), "day")
@@ -251,7 +251,7 @@ export default function CustomSchedule({
                       "text-[6px] font-black uppercase tracking-tighter mt-0.5",
                       isSunday(day)
                         ? "text-red-200 opacity-70"
-                        : "text-zinc-400",
+                        : "text-[rgb(var(--c-ink-4))]",
                     )}
                   >
                     MÁY
@@ -260,7 +260,7 @@ export default function CustomSchedule({
                 <span
                   className={cn(
                     "text-[8px] font-black uppercase",
-                    isSunday(day) ? "text-red-100 opacity-80" : "text-zinc-500",
+                    isSunday(day) ? "text-red-100 opacity-80" : "text-[rgb(var(--c-ink-3))]",
                   )}
                 >
                   {getVnDayName(day)}
@@ -272,7 +272,7 @@ export default function CustomSchedule({
                       ? "text-red-50"
                       : day.hasSame(DateTime.now(), "day")
                         ? "text-blue-600"
-                        : "text-zinc-900",
+                        : "text-[rgb(var(--c-ink))]",
                   )}
                 >
                   {day.day}
@@ -286,12 +286,12 @@ export default function CustomSchedule({
         <div className="relative">
           {/* Sticky Resource Labels Column */}
           <div
-            className="sticky left-0 z-30 bg-white shadow-[4px_0_8px_rgba(0,0,0,0.02)]"
+            className="sticky left-0 z-30 shadow-[4px_0_8px_rgba(0,0,0,0.02)]"
             style={{ width: RESOURCE_WIDTH }}
           >
             {layouts.length === 0 ? (
               <div className="p-8 text-center" style={{ height: 100 }}>
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                <span className="text-[10px] font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                   Không có dữ liệu
                 </span>
               </div>
@@ -300,7 +300,7 @@ export default function CustomSchedule({
                 <div
                   key={layout.resourceId}
                   style={{ height: layout.height }}
-                  className={`px-4 flex items-center border-b border-zinc-300 border-r border-zinc-300 transition-all duration-300 ${i % 2 === 0 ? "bg-white" : "bg-zinc-50/30"}`}
+                  className={`px-4 flex items-center border-b border-[rgb(var(--c-line-3))] border-r border-[rgb(var(--c-line-3))] transition-all duration-300 ${i % 2 === 0 ? "bg-white" : "bg-[rgb(var(--c-s2))]/30"}`}
                 >
                   <span className="text-xs font-black text-zinc-800 truncate leading-tight uppercase tracking-tight">
                     {layout.resource.title}
@@ -350,7 +350,7 @@ export default function CustomSchedule({
                 key={i}
                 style={{ left: i * COLUMN_WIDTH, width: COLUMN_WIDTH }}
                 className={cn(
-                  "absolute top-0 bottom-0 border-r border-zinc-300",
+                  "absolute top-0 bottom-0 border-r border-[rgb(var(--c-line-3))]",
                   isSunday(day) ? "bg-zinc-400" : "transparent",
                 )}
               />
@@ -539,7 +539,7 @@ export default function CustomSchedule({
                         </button>
                       )}
                       {hoveredEvent.stopped_at && (
-                        <div className="w-full bg-zinc-800 text-zinc-400 py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 border border-zinc-700">
+                        <div className="w-full bg-zinc-800 text-[rgb(var(--c-ink-4))] py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 border border-zinc-700">
                           <SquareStop className="w-3 h-3" />
                           ĐÃ DỪNG TỪ{" "}
                           {DateTime.fromISO(hoveredEvent.stopped_at).toFormat(

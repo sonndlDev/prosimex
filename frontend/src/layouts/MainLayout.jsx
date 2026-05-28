@@ -1,334 +1,438 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import AccessDeniedBanner from "../components/AccessDeniedBanner";
 import NotificationDropdown from "../components/NotificationDropdown";
+import CommandPalette from "../components/CommandPalette";
 import { useLocation, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 import {
-  LayoutDashboard, Factory, Settings, CalendarDays, Users, LogOut,
-  Package, Tag, Store, ShoppingCart, GanttChartSquare, Wrench,
-  Clock, ClipboardList, ClipboardCheck, Menu, ChevronLeft, ChevronRight,
-  Hammer, UserCircle, Warehouse, Calendar, Layers,
-  BarChart2, FileSpreadsheet, CheckSquare, Camera
+  LayoutDashboard, Activity, ShoppingCart, CalendarDays, GanttChartSquare,
+  ClipboardList, CheckSquare, ClipboardCheck, Package,
+  Users, Wrench, Warehouse, Layers, Store,
+  Tag, Factory, Settings, BarChart2, TrendingUp, FileSpreadsheet,
+  Clock, Shield, LogOut, Menu, ChevronLeft, ChevronRight,
+  Hammer, Search, Bell, Zap, Command
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { canShowMenu } from "../constants/permissions";
 
-const menuItems = [
-  { type: "subheader", text: "Sản xuất" },
-  { text: "Bảng điều khiển", icon: LayoutDashboard, path: "/", permission: "dashboard" },
-  { text: "Đơn hàng", icon: ShoppingCart, path: "/orders", permission: "orders" },
-  { text: "Lập kế hoạch", icon: CalendarDays, path: "/planning", permission: "planning" },
-  { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
-  { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
-  { text: "Duyệt phiếu SX", icon: CheckSquare, path: "/daily-tickets/approval", permission: "daily_tickets" },
-  { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
-  { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
-  { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
-  { text: "Tồn kho BTP & TP", icon: Layers, path: "/product-inventory", permission: "product_inventory" },
-  { text: "Báo cáo KH vs TT", icon: BarChart2, path: "/plan-vs-actual", permission: "plan_vs_actual" },
-
-  { type: "subheader", text: "Dữ liệu gốc" },
-  { text: "Khách hàng", icon: Store, path: "/customers", permission: "customers" },
-  { text: "Nhà cung cấp", icon: Store, path: "/suppliers", permission: "suppliers" },
-  { text: "Nhà máy", icon: Factory, path: "/factories", permission: "factories" },
-  { text: "Máy móc", icon: Wrench, path: "/machines", permission: "machines" },
-  { text: "Nhóm mã hàng", icon: Tag, path: "/product-groups", permission: "product_groups" },
-  { text: "Mã hàng", icon: Package, path: "/products", permission: "products" },
-  { text: "Công đoạn", icon: Settings, path: "/operations", permission: "operations" },
-  { text: "Import Excel", icon: FileSpreadsheet, path: "/import", permission: "import_excel" },
-  { type: "subheader", text: "Hệ thống" },
-  { text: "Chấm công", icon: Clock, path: "/attendance", permission: "attendance" },
-  { text: "Quản lý chấm công", icon: Clock, path: "/attendance/management", permission: "attendance_management" },
-  { text: "Quản lý công nhân", icon: Users, path: "/workers", permission: "workers" },
-  { text: "Người dùng & Quyền", icon: Users, path: "/users", permission: "users" },
-  { text: "Snapshot", icon: Camera, path: "/orders/product-snapshots", permission: "orders" },
-
-  { text: "Cài đặt hệ thống", icon: Settings, path: "/settings", permission: "settings" },
+// ── Navigation Architecture ────────────────────────────────
+const NAV = [
+  {
+    group: "OPERATIONS",
+    items: [
+      { text: "Tổng quan",          icon: LayoutDashboard, path: "/",                        permission: "dashboard" },
+      { text: "Giám sát realtime",  icon: Activity,        path: "/monitor",                 permission: "dashboard" },
+      { text: "Đơn hàng SX",        icon: ShoppingCart,    path: "/orders",                  permission: "orders" },
+      { text: "Lập kế hoạch",       icon: CalendarDays,    path: "/planning",                permission: "planning" },
+      { text: "Timeline",           icon: GanttChartSquare,path: "/schedule",                permission: "schedule" },
+      { text: "Phiếu SX hàng ngày", icon: ClipboardList,   path: "/daily-tickets",           permission: "daily_tickets" },
+      { text: "Duyệt phiếu SX",     icon: CheckSquare,     path: "/daily-tickets/approval",  permission: "daily_tickets" },
+      { text: "Nhập sản lượng",     icon: ClipboardCheck,  path: "/production-output",       permission: "production_output" },
+      { text: "Phiếu gia công",     icon: Package,         path: "/outsourcing",             permission: "outsourcing" },
+    ],
+  },
+  {
+    group: "RESOURCES",
+    items: [
+      { text: "Công nhân",          icon: Users,           path: "/workers",                 permission: "workers" },
+      { text: "Máy móc",            icon: Wrench,          path: "/machines",                permission: "machines" },
+      { text: "Thông tin Kho",      icon: Warehouse,       path: "/warehouse",               permission: "warehouse" },
+      { text: "Tồn kho BTP & TP",   icon: Layers,          path: "/product-inventory",       permission: "product_inventory" },
+      { text: "Nhà cung cấp",       icon: Store,           path: "/suppliers",               permission: "suppliers" },
+    ],
+  },
+  {
+    group: "MASTER DATA",
+    items: [
+      { text: "Mã hàng",            icon: Tag,             path: "/products",                permission: "products" },
+      { text: "Nhóm mã hàng",       icon: Package,         path: "/product-groups",          permission: "product_groups" },
+      { text: "Công đoạn",          icon: Settings,        path: "/operations",              permission: "operations" },
+      { text: "Nhà máy",            icon: Factory,         path: "/factories",               permission: "factories" },
+      { text: "Khách hàng",         icon: Store,           path: "/customers",               permission: "customers" },
+      { text: "Import Excel",       icon: FileSpreadsheet, path: "/import",                  permission: "import_excel" },
+    ],
+  },
+  {
+    group: "ANALYTICS",
+    items: [
+      { text: "KH vs Thực tế",      icon: BarChart2,       path: "/plan-vs-actual",          permission: "plan_vs_actual" },
+      { text: "Snapshot đơn hàng",  icon: TrendingUp,      path: "/orders/product-snapshots",permission: "orders" },
+    ],
+  },
+  {
+    group: "SYSTEM",
+    items: [
+      { text: "Chấm công",          icon: Clock,           path: "/attendance",              permission: "attendance" },
+      { text: "QL Chấm công",       icon: Clock,           path: "/attendance/management",   permission: "attendance_management" },
+      { text: "Người dùng & Quyền", icon: Shield,          path: "/users",                   permission: "users" },
+    ],
+  },
 ];
 
-function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, handleLogout }) {
+// ── Sidebar Content ────────────────────────────────────────
+function SidebarContent({ collapsed, user, navigate, location, logout, allowedPaths, onOpenCmd }) {
   return (
-    <div className="h-full flex flex-col glass-sidebar transition-all duration-300">
-      {/* Logo */}
-      <div className={cn("flex items-center gap-3 p-4 h-[72px] border-b border-slate-200/50 relative overflow-hidden", isCollapsed ? "justify-center" : "")}>
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50 pointer-events-none"></div>
-        <div className="w-9 h-9 bg-gradient-to-br from-primary to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20 relative z-10">
-          <Hammer className="w-5 h-5 text-white" />
+    <div className="sidebar h-full flex flex-col" style={{ width: '100%' }}>
+
+      {/* Brand */}
+      <div
+        className="flex items-center gap-2.5 flex-shrink-0"
+        style={{
+          height: 52,
+          padding: collapsed ? '0 12px' : '0 16px',
+          borderBottom: '1px solid rgb(var(--c-line))',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+        }}
+      >
+        <div style={{
+          width: 26, height: 26, borderRadius: 6,
+          background: 'rgb(var(--c-blue))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Hammer style={{ width: 13, height: 13, color: '#fff' }} strokeWidth={2.5} />
         </div>
-        {!isCollapsed && (
-          <span className="font-extrabold text-slate-800 tracking-tight text-xl leading-none relative z-10 font-['Outfit']">
-            PROSIMEX
-          </span>
+        {!collapsed && (
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'rgb(var(--c-ink))', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              Prosimex
+            </div>
+            <div style={{ fontSize: 9, color: 'rgb(var(--c-ink-4))', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              MES Platform
+            </div>
+          </div>
         )}
       </div>
 
+      {/* Command palette trigger */}
+      {!collapsed && (
+        <div style={{ padding: '8px 8px 4px' }}>
+          <button
+            onClick={onOpenCmd}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+              height: 30, padding: '0 10px', borderRadius: 6,
+              background: 'rgb(var(--c-s2))', border: '1px solid rgb(var(--c-line-2))',
+              color: 'rgb(var(--c-ink-4))', fontSize: 12, cursor: 'pointer',
+              transition: 'all 0.1s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgb(var(--c-line-3))'; e.currentTarget.style.color = 'rgb(var(--c-ink-3))'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgb(var(--c-line-2))'; e.currentTarget.style.color = 'rgb(var(--c-ink-4))'; }}
+          >
+            <Search style={{ width: 12, height: 12 }} />
+            <span style={{ flex: 1, textAlign: 'left' }}>Tìm kiếm...</span>
+            <span className="kbd">⌘K</span>
+          </button>
+        </div>
+      )}
+      {collapsed && (
+        <div style={{ padding: '8px 8px 4px' }}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onOpenCmd}
+                style={{
+                  width: '100%', height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 6, background: 'rgb(var(--c-s2))', border: '1px solid rgb(var(--c-line-2))',
+                  color: 'rgb(var(--c-ink-4))', cursor: 'pointer', transition: 'all 0.1s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgb(var(--c-blue))'; e.currentTarget.style.color = 'rgb(var(--c-blue))'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgb(var(--c-line-2))'; e.currentTarget.style.color = 'rgb(var(--c-ink-4))'; }}
+              >
+                <Search style={{ width: 12, height: 12 }} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Tìm kiếm (⌘K)</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       {/* Nav */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {allowedMenus.map((item, index) => {
-          if (item.type === "subheader") {
-            return !isCollapsed ? (
-              <p key={index} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 px-2 pt-4 pb-1">
-                {item.text}
-              </p>
-            ) : (
-              <Separator key={index} className="my-2" />
-            );
-          }
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
-          const btn = (
-            <div
-              role="button"
-              tabIndex={0}
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-300 relative group overflow-hidden cursor-pointer outline-none",
-                isActive
-                  ? "bg-primary text-white shadow-md shadow-primary/20"
-                  : "text-slate-600 hover:bg-primary/10 hover:text-primary",
-                isCollapsed ? "justify-center" : ""
-              )}
-            >
-              {isActive && !isCollapsed && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-md"></span>
-              )}
-              <Icon className={cn("w-5 h-5 flex-shrink-0 transition-transform duration-300", !isActive && "group-hover:scale-110")} />
-              {!isCollapsed && <span className="transition-transform duration-300 group-hover:translate-x-1">{item.text}</span>}
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '4px 8px' }}>
+        {NAV.map((section) => {
+          const visibleItems = section.items.filter(i => allowedPaths.has(i.path));
+          if (!visibleItems.length) return null;
+          return (
+            <div key={section.group}>
+              {!collapsed && <div className="nav-group-label">{section.group}</div>}
+              {collapsed && <div style={{ height: 1, background: 'rgb(var(--c-line))', margin: '8px 4px' }} />}
+              {visibleItems.map((item) => {
+                const isActive = location.pathname === item.path;
+                const Icon = item.icon;
+                const btn = (
+                  <button
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    className={cn("nav-item", isActive && "active")}
+                    style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '7px' : '6px 10px' }}
+                  >
+                    <Icon style={{ width: 14, height: 14, flexShrink: 0 }} strokeWidth={isActive ? 2.2 : 1.8} />
+                    {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.text}</span>}
+                  </button>
+                );
+                if (collapsed) {
+                  return (
+                    <Tooltip key={item.path}>
+                      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+                      <TooltipContent side="right">{item.text}</TooltipContent>
+                    </Tooltip>
+                  );
+                }
+                return btn;
+              })}
             </div>
           );
-          if (isCollapsed) {
-            return (
-              <Tooltip key={item.path}>
-                <TooltipTrigger className="block w-full">{btn}</TooltipTrigger>
-                <TooltipContent side="right"><p>{item.text}</p></TooltipContent>
-              </Tooltip>
-            );
-          }
-          return btn;
         })}
-      </div>
+      </nav>
 
-      {/* User info */}
-      <div className="p-4 border-t border-slate-200/50 bg-slate-50/30">
-        <div
+      {/* User footer */}
+      <div style={{ borderTop: '1px solid rgb(var(--c-line))', padding: '8px', flexShrink: 0 }}>
+        <button
           onClick={() => navigate("/profile")}
-          className={cn(
-            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-white hover:shadow-sm transition-all duration-300 border border-transparent hover:border-slate-200/60",
-            isCollapsed ? "justify-center" : ""
-          )}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+            padding: collapsed ? '7px' : '7px 8px',
+            borderRadius: 6, cursor: 'pointer', background: 'none', border: 'none',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            transition: 'background 0.1s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgb(var(--c-s2))'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          className="group"
         >
-          <Avatar className="w-9 h-9 flex-shrink-0 bg-gradient-to-tr from-primary to-indigo-400 shadow-sm">
-            <AvatarFallback className="bg-transparent text-white text-sm font-bold">
+          <div style={{
+            width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+            background: 'rgb(var(--c-blue) / 0.15)',
+            border: '1px solid rgb(var(--c-blue) / 0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'rgb(var(--c-blue))' }}>
               {user?.username?.[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-800 truncate">{user?.full_name || user?.username}</p>
-              <Badge variant="secondary" className="bg-white text-primary border-primary/20 text-[10px] h-4.5 px-2 font-semibold mt-0.5 shadow-sm">
-                {user?.role}
-              </Badge>
-            </div>
-          )}
-          {!isCollapsed && (
-            <Tooltip>
-              <TooltipTrigger>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => { e.stopPropagation(); handleLogout(); }}
-                  className="p-1.5 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer outline-none"
-                >
-                  <LogOut className="w-4 h-4" />
+            </span>
+          </div>
+          {!collapsed && (
+            <>
+              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'rgb(var(--c-ink))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user?.full_name || user?.username}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent><p>Đăng xuất</p></TooltipContent>
-            </Tooltip>
+                <div style={{ fontSize: 10, color: 'rgb(var(--c-ink-4))' }}>{user?.role}</div>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); logout(); }}
+                style={{ padding: 4, borderRadius: 4, color: 'rgb(var(--c-ink-4))', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgb(var(--c-crit))'; e.currentTarget.style.background = 'rgb(var(--c-crit-bg))'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgb(var(--c-ink-4))'; e.currentTarget.style.background = 'none'; }}
+                className="opacity-0 group-hover:opacity-100"
+              >
+                <LogOut style={{ width: 12, height: 12 }} />
+              </button>
+            </>
           )}
-        </div>
+        </button>
       </div>
     </div>
   );
 }
 
+// ── Live Clock ─────────────────────────────────────────────
 function LiveClock() {
   const [now, setNow] = useState(DateTime.now());
-
-  React.useEffect(() => {
-    const timer = setInterval(() => setNow(DateTime.now()), 1000);
-    return () => clearInterval(timer);
+  useEffect(() => {
+    const t = setInterval(() => setNow(DateTime.now()), 1000);
+    return () => clearInterval(t);
   }, []);
-
   return (
-    <div className="flex items-center gap-3 px-4 py-1.5 bg-slate-900/5 rounded-2xl border border-slate-200/50 shadow-sm backdrop-blur-sm group hover:bg-slate-900 transition-all duration-500 cursor-default">
-      <div className="flex flex-col items-end leading-tight">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-500 transition-colors">
-          {now.setLocale('vi-VN').toFormat('cccc')}
-        </span>
-        <span className="text-[13px] font-black text-slate-700 group-hover:text-white transition-colors tabular-nums">
-          {now.setLocale('vi-VN').toFormat('dd/MM/yyyy')}
-        </span>
-      </div>
-      <div className="w-px h-6 bg-slate-200 group-hover:bg-slate-700 transition-colors"></div>
-      <div className="flex items-center gap-1.5">
-        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-        <span className="text-xl font-black text-slate-900 group-hover:text-emerald-400 transition-all duration-500 tabular-nums font-mono tracking-tighter">
-          {now.toFormat('HH:mm:ss')}
-        </span>
-      </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span className="live-dot" />
+      <span style={{ fontSize: 11, color: 'rgb(var(--c-ink-3))', fontVariantNumeric: 'tabular-nums' }}>
+        {now.setLocale('vi-VN').toFormat('dd/MM/yyyy')}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'rgb(var(--c-ink-2))', fontFamily: 'JetBrains Mono, monospace', fontVariantNumeric: 'tabular-nums' }}>
+        {now.toFormat('HH:mm:ss')}
+      </span>
     </div>
   );
 }
 
+// ── Main Layout ────────────────────────────────────────────
 export default function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  React.useEffect(() => {
+  // Global ⌘K shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen(v => !v);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Socket.io for realtime notifications
+  useEffect(() => {
     if (!user) return;
     const token = localStorage.getItem('token');
-    // We assume VITE_API_URL points to the backend (e.g. http://localhost:3000)
-    const socket = io(import.meta.env.VITE_API_URL, {
-      auth: { token }
-    });
-
+    const socket = io(import.meta.env.VITE_API_URL, { auth: { token } });
     socket.on('new_pending_ticket', (data) => {
       toast.info(data.message, {
         duration: 8000,
-        action: {
-          label: "Xem ngay",
-          onClick: () => navigate("/daily-tickets/approval")
-        }
+        action: { label: "Xem ngay", onClick: () => navigate("/daily-tickets/approval") },
       });
-      // Làm mới danh sách phiếu và danh sách thông báo
       queryClient.invalidateQueries(["daily-tickets"]);
       queryClient.invalidateQueries(["notifications"]);
     });
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, [user, navigate, queryClient]);
 
-  const handleLogout = () => { logout(); navigate("/login"); };
+  const handleLogout = useCallback(() => { logout(); navigate("/login"); }, [logout, navigate]);
 
-  const allowedMenus = menuItems.filter((item, index) => {
-    if (item.type === "subheader") {
-      const nextItems = menuItems.slice(index + 1);
-      const firstSubheader = nextItems.findIndex((i) => i.type === "subheader");
-      const itemsInSection = firstSubheader === -1 ? nextItems : nextItems.slice(0, firstSubheader);
-      return itemsInSection.some((i) => canShowMenu(user, i.menuPermission || i.permission));
-    }
-    return canShowMenu(user, item.menuPermission || item.permission);
-  });
+  const allowedPaths = new Set(
+    NAV.flatMap(s => s.items).filter(i => canShowMenu(user, i.permission)).map(i => i.path)
+  );
 
-  const sidebarWidth = isCollapsed ? 72 : 260;
-  const currentPage = allowedMenus.find((m) => m.path === location.pathname);
+  // Build flat nav list for command palette
+  const allNavItems = NAV.flatMap(s =>
+    s.items.filter(i => allowedPaths.has(i.path)).map(i => ({ ...i, group: s.group }))
+  );
+
+  const currentItem = NAV.flatMap(s => s.items).find(i => i.path === location.pathname);
+  const sidebarW = collapsed ? 50 : 220;
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] font-['Inter',sans-serif] selection:bg-primary/20 selection:text-primary">
+    <div style={{ display: 'flex', height: '100vh', background: 'rgb(var(--c-bg))', overflow: 'hidden', color: 'rgb(var(--c-ink))' }}>
+
+      {/* Command Palette */}
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        items={allNavItems}
+        onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
+      />
+
       {/* Desktop Sidebar */}
       <aside
-        className="hidden sm:flex flex-col flex-shrink-0 transition-all duration-200 ease-in-out"
-        style={{ width: sidebarWidth }}
+        className="hidden sm:flex flex-col flex-shrink-0"
+        style={{ width: sidebarW, transition: 'width 0.18s ease', overflow: 'hidden' }}
       >
         <SidebarContent
-          isCollapsed={isCollapsed}
-          user={user}
-          allowedMenus={allowedMenus}
-          navigate={navigate}
-          location={location}
-          handleLogout={handleLogout}
+          collapsed={collapsed} user={user}
+          navigate={navigate} location={location}
+          logout={handleLogout} allowedPaths={allowedPaths}
+          onOpenCmd={() => setCmdOpen(true)}
         />
       </aside>
 
       {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="p-0 w-[260px]">
+        <SheetContent side="left" style={{ padding: 0, width: 220, background: 'rgb(var(--c-bg))', border: 'none' }}>
           <SidebarContent
-            isCollapsed={false}
-            user={user}
-            allowedMenus={allowedMenus}
-            navigate={(path) => { navigate(path); setMobileOpen(false); }}
-            location={location}
-            handleLogout={handleLogout}
+            collapsed={false} user={user}
+            navigate={p => { navigate(p); setMobileOpen(false); }}
+            location={location} logout={handleLogout} allowedPaths={allowedPaths}
+            onOpenCmd={() => { setMobileOpen(false); setCmdOpen(true); }}
           />
         </SheetContent>
       </Sheet>
 
       {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Top bar */}
-        <header className="h-[72px] glass-panel border-b border-slate-200/50 flex items-center justify-between px-6 gap-4 sticky top-0 z-20 transition-all duration-300">
-          <div className="flex items-center gap-4">
-            {/* Mobile hamburger */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+
+        {/* Topbar */}
+        <header
+          className="topbar"
+          style={{ height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', gap: 12, position: 'sticky', top: 0, zIndex: 30 }}
+        >
+          {/* Left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Mobile menu */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="sm:hidden p-2.5 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-colors"
+              className="sm:hidden"
+              style={{ padding: 6, borderRadius: 5, color: 'rgb(var(--c-ink-3))', background: 'none', border: 'none', cursor: 'pointer' }}
             >
-              <Menu className="w-5 h-5" />
+              <Menu style={{ width: 15, height: 15 }} />
             </button>
-            {/* Desktop collapse */}
+
+            {/* Collapse toggle */}
             <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden sm:flex p-2.5 rounded-xl text-slate-500 hover:bg-primary/10 hover:text-primary transition-all duration-300"
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden sm:flex"
+              style={{ padding: 6, borderRadius: 5, color: 'rgb(var(--c-ink-3))', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.1s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgb(var(--c-s2))'; e.currentTarget.style.color = 'rgb(var(--c-ink-2))'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgb(var(--c-ink-3))'; }}
             >
-              {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              {collapsed ? <ChevronRight style={{ width: 14, height: 14 }} /> : <ChevronLeft style={{ width: 14, height: 14 }} />}
             </button>
-            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
-            <h1 className="font-bold text-slate-800 text-lg tracking-tight font-['Outfit'] truncate max-w-[200px]">
-              {currentPage?.text || "Hệ thống điều hành"}
-            </h1>
+
+            <div style={{ width: 1, height: 14, background: 'rgb(var(--c-line-2))' }} className="hidden sm:block" />
+
+            {/* Breadcrumb */}
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgb(var(--c-ink-2))' }}>
+              {currentItem?.text || "Hệ thống điều hành"}
+            </span>
           </div>
 
+          {/* Right */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Global search */}
+            <button
+              onClick={() => setCmdOpen(true)}
+              className="global-search hidden md:flex"
+            >
+              <Search style={{ width: 13, height: 13 }} />
+              <span style={{ fontSize: 12 }}>Tìm kiếm...</span>
+              <span className="kbd" style={{ marginLeft: 'auto' }}>⌘K</span>
+            </button>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden md:block">
-              <LiveClock />
-            </div>
-            {/* Notification Bell */}
+            <div style={{ width: 1, height: 14, background: 'rgb(var(--c-line-2))' }} className="hidden md:block" />
+
+            {/* Live clock */}
+            <LiveClock />
+
+            <div style={{ width: 1, height: 14, background: 'rgb(var(--c-line-2))' }} />
+
+            {/* Notifications */}
             <NotificationDropdown />
-            <div className="w-px h-6 bg-slate-200" />
+
+            {/* Logout */}
             <Tooltip>
-              <TooltipTrigger>
-                <div
-                  role="button"
-                  tabIndex={0}
+              <TooltipTrigger asChild>
+                <button
                   onClick={handleLogout}
-                  className="p-2 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer outline-none"
+                  style={{ padding: 6, borderRadius: 5, color: 'rgb(var(--c-ink-3))', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.1s' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'rgb(var(--c-crit))'; e.currentTarget.style.background = 'rgb(var(--c-crit-bg))'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'rgb(var(--c-ink-3))'; e.currentTarget.style.background = 'none'; }}
                 >
-                  <LogOut className="w-4 h-4" />
-                </div>
+                  <LogOut style={{ width: 14, height: 14 }} />
+                </button>
               </TooltipTrigger>
-              <TooltipContent><p>Đăng xuất</p></TooltipContent>
+              <TooltipContent>Đăng xuất</TooltipContent>
             </Tooltip>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.015] pointer-events-none mix-blend-overlay"></div>
-          <div className="relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <main style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+          <div className="page-enter">
             <Outlet />
           </div>
         </main>
       </div>
 
-      {/* Global 403 permission denied banner */}
       <AccessDeniedBanner />
     </div>
   );

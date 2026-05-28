@@ -585,7 +585,7 @@ export default function PlanningPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <p className="text-zinc-500 font-medium animate-pulse">
+        <p className="text-[rgb(var(--c-ink-3))] font-medium animate-pulse">
           Đang tải kế hoạch sản xuất...
         </p>
       </div>
@@ -603,14 +603,14 @@ export default function PlanningPage() {
   }
 
   return (
-    <div className="px-2 py-4 space-y-6">
-      {/* Title & Actions Row */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex-1 shrink-0 min-w-0">
-          <h1 className="text-2xl font-black text-zinc-950 tracking-tight uppercase">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Title & Actions Row */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex-1 shrink-0 min-w-0">
+            <h1 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>
             Kế hoạch sản xuất
           </h1>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>
             Quản lý và điều phối các công đoạn sản xuất tại xưởng
           </p>
         </div>
@@ -730,7 +730,7 @@ export default function PlanningPage() {
               }
             }}
             variant="outline"
-            className="h-11 px-5 border-zinc-200 text-zinc-700 hover:text-indigo-600 hover:border-indigo-200 shadow-sm rounded-xl font-bold transition-all text-xs tracking-wider uppercase"
+            className="h-11 px-5 border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:text-indigo-600 hover:border-indigo-200 shadow-sm rounded-xl font-bold transition-all text-xs tracking-wider uppercase"
           >
             Xuất Excel
           </Button>
@@ -748,14 +748,14 @@ export default function PlanningPage() {
       </div>
 
       {/* Filters Bar Row */}
-      <div className="bg-white/80 backdrop-blur-md border border-zinc-200 shadow-sm p-4 rounded-2xl flex flex-wrap items-center gap-3">
+      <div className="p-4 rounded-lg border flex flex-wrap items-center gap-3">
         {/* Product Filter */}
         <Popover open={openProductFilter} onOpenChange={setOpenProductFilter}>
           <PopoverTrigger
             render={
               <Button
                 variant="outline"
-                className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all"
+                className="h-10 gap-2 font-bold px-4 hover:bg-white shadow-sm border-[rgb(var(--c-line-2))] rounded-xl text-xs text-[rgb(var(--c-ink-2))] transition-all"
               >
                 <Filter className="w-3.5 h-3.5 text-indigo-600" />
                 {selectedProductIds.length > 0
@@ -774,7 +774,7 @@ export default function PlanningPage() {
               <CommandList className="max-h-[300px] p-1">
                 <CommandEmpty className="py-6 text-center">
                   <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                     Không thấy mã hàng
                   </p>
                 </CommandEmpty>
@@ -783,11 +783,11 @@ export default function PlanningPage() {
                     <CommandItem
                       key={p.id}
                       onSelect={() => toggleProductSelection(p.id)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                     >
                       <div
                         className={cn(
-                          "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
+                          "w-4 h-4 border border-[rgb(var(--c-line-3))] rounded flex items-center justify-center transition-colors",
                           selectedProductIds.includes(p.id)
                             ? "bg-indigo-600 border-indigo-600"
                             : "bg-white",
@@ -805,7 +805,7 @@ export default function PlanningPage() {
                 </CommandGroup>
               </CommandList>
               {selectedProductIds.length > 0 && (
-                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                <div className="p-2 border-t border-[rgb(var(--c-line))] flex justify-between/50">
                   <Button
                     variant="ghost"
                     size="xs"
@@ -833,7 +833,7 @@ export default function PlanningPage() {
             render={
               <Button
                 variant="outline"
-                className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all"
+                className="h-10 gap-2 font-bold px-4 hover:bg-white shadow-sm border-[rgb(var(--c-line-2))] rounded-xl text-xs text-[rgb(var(--c-ink-2))] transition-all"
               >
                 <Filter className="w-3.5 h-3.5 text-indigo-600" />
                 {selectedMachineIds.length > 0
@@ -852,7 +852,7 @@ export default function PlanningPage() {
               <CommandList className="max-h-[300px] p-1">
                 <CommandEmpty className="py-6 text-center">
                   <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                     Không thấy máy
                   </p>
                 </CommandEmpty>
@@ -862,11 +862,11 @@ export default function PlanningPage() {
                       key={m.id}
                       value={`${m.code || ""} ${m.name || ""}`}
                       onSelect={() => toggleMachineSelection(m.id)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                     >
                       <div
                         className={cn(
-                          "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors shrink-0",
+                          "w-4 h-4 border border-[rgb(var(--c-line-3))] rounded flex items-center justify-center transition-colors shrink-0",
                           selectedMachineIds.some(
                             (mid) => String(mid) === String(m.id),
                           )
@@ -888,8 +888,8 @@ export default function PlanningPage() {
                           className={cn(
                             "text-[10px] leading-tight break-all",
                             m.code
-                              ? "text-zinc-500 font-medium"
-                              : "font-bold text-xs text-zinc-900",
+                              ? "text-[rgb(var(--c-ink-3))] font-medium"
+                              : "font-bold text-xs text-[rgb(var(--c-ink))]",
                           )}
                         >
                           {m.name}
@@ -900,7 +900,7 @@ export default function PlanningPage() {
                 </CommandGroup>
               </CommandList>
               {selectedMachineIds.length > 0 && (
-                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                <div className="p-2 border-t border-[rgb(var(--c-line))] flex justify-between/50">
                   <Button
                     variant="ghost"
                     size="xs"
@@ -928,7 +928,7 @@ export default function PlanningPage() {
             render={
               <Button
                 variant="outline"
-                className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all"
+                className="h-10 gap-2 font-bold px-4 hover:bg-white shadow-sm border-[rgb(var(--c-line-2))] rounded-xl text-xs text-[rgb(var(--c-ink-2))] transition-all"
               >
                 <Filter className="w-3.5 h-3.5 text-indigo-600" />
                 {selectedOrderIds.length > 0
@@ -947,7 +947,7 @@ export default function PlanningPage() {
               <CommandList className="max-h-[300px] p-1">
                 <CommandEmpty className="py-6 text-center">
                   <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                  <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                     Không thấy đơn hàng
                   </p>
                 </CommandEmpty>
@@ -956,11 +956,11 @@ export default function PlanningPage() {
                     <CommandItem
                       key={order.id}
                       onSelect={() => toggleOrderSelection(order.id)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                     >
                       <div
                         className={cn(
-                          "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors",
+                          "w-4 h-4 border border-[rgb(var(--c-line-3))] rounded flex items-center justify-center transition-colors",
                           selectedOrderIds.includes(order.id)
                             ? "bg-indigo-600 border-indigo-600"
                             : "bg-white",
@@ -978,7 +978,7 @@ export default function PlanningPage() {
                 </CommandGroup>
               </CommandList>
               {selectedOrderIds.length > 0 && (
-                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                <div className="p-2 border-t border-[rgb(var(--c-line))] flex justify-between/50">
                   <Button
                     variant="ghost"
                     size="xs"
@@ -1004,16 +1004,16 @@ export default function PlanningPage() {
           variant="outline"
           onClick={() => setShowPastDays(!showPastDays)}
           className={cn(
-            "h-10 gap-2 font-bold px-4 bg-zinc-50 border-zinc-200 transition-all rounded-xl text-xs",
+            "h-10 gap-2 font-bold px-4 border-[rgb(var(--c-line-2))] transition-all rounded-xl text-xs",
             showPastDays
               ? "text-indigo-600 border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/50"
-              : "text-zinc-600 hover:bg-white",
+              : "text-[rgb(var(--c-ink-2))] hover:bg-white",
           )}
         >
           {showPastDays ? (
             <Eye className="w-4 h-4 text-indigo-600" />
           ) : (
-            <EyeOff className="w-4 h-4 text-zinc-400" />
+            <EyeOff className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
           )}
           {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
         </Button>
@@ -1042,14 +1042,14 @@ export default function PlanningPage() {
         selectedProductIds.length > 0 ||
         selectedMachineIds.length > 0) && (
         <div className="flex flex-wrap gap-2 items-center px-1">
-          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
+          <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest mr-1">
             ĐANG LỌC:
           </span>
           {selectedOrdersDisplay.slice(0, 5).map((o) => (
             <Badge
               key={o.id}
               variant="secondary"
-              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold"
             >
               Đơn: {o.name.substring(0, 20)}
               {o.name.length > 20 ? "..." : ""}
@@ -1064,7 +1064,7 @@ export default function PlanningPage() {
           {selectedOrderIds.length > 5 && (
             <Badge
               variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
+              className="h-6 text-[10px] font-bold border-dashed"
             >
               +{selectedOrderIds.length - 5} đơn hàng khác
             </Badge>
@@ -1074,7 +1074,7 @@ export default function PlanningPage() {
             <Badge
               key={p.id}
               variant="secondary"
-              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold"
             >
               Mã: {p.name.substring(0, 20)}
               {p.name.length > 20 ? "..." : ""}
@@ -1089,7 +1089,7 @@ export default function PlanningPage() {
           {selectedProductIds.length > 5 && (
             <Badge
               variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
+              className="h-6 text-[10px] font-bold border-dashed"
             >
               +{selectedProductIds.length - 5} mã hàng khác
             </Badge>
@@ -1101,7 +1101,7 @@ export default function PlanningPage() {
               <Badge
                 key={m.id}
                 variant="secondary"
-                className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+                className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold"
               >
                 Máy: {machineLabel.substring(0, 28)}
                 {machineLabel.length > 28 ? "..." : ""}
@@ -1117,7 +1117,7 @@ export default function PlanningPage() {
           {selectedMachineIds.length > 5 && (
             <Badge
               variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
+              className="h-6 text-[10px] font-bold border-dashed"
             >
               +{selectedMachineIds.length - 5} máy khác
             </Badge>
@@ -1126,11 +1126,11 @@ export default function PlanningPage() {
       )}
 
       {/* Main Table */}
-      <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
+      <Card className="border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden">
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
           <table className="w-full border-collapse border-spacing-0">
             <thead className="sticky top-0 z-20 shadow-sm">
-              <tr className="bg-zinc-100">
+              <tr className="bg-[rgb(var(--c-s2))]">
                 <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tên mã hàng</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Nhóm mã</ExcelHeaderCell>
@@ -1157,13 +1157,13 @@ export default function PlanningPage() {
                 )}
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky right-0 z-30 bg-zinc-100 border-l border-zinc-300"
+                  className="sticky right-0 z-30 bg-[rgb(var(--c-s2))] border-l border-[rgb(var(--c-line-3))]"
                 >
                   Hành động
                 </ExcelHeaderCell>
               </tr>
               {dateColumns.length > 0 && (
-                <tr className="bg-zinc-50">
+                <tr className="bg-[rgb(var(--c-s2))]">
                   {dateColumns.map((date) => {
                     const dt = DateTime.fromISO(date.key);
                     const isSunday = dt.weekday === 7;
@@ -1176,7 +1176,7 @@ export default function PlanningPage() {
                           "text-[9px] min-w-[54px] p-1 h-auto py-2",
                           isSunday
                             ? "bg-zinc-400 text-red-50"
-                            : "bg-sky-50/50 text-zinc-600",
+                            : "bg-sky-50/50 text-[rgb(var(--c-ink-2))]",
                         )}
                       >
                         <div className="flex flex-col items-center gap-1.5">
@@ -1247,7 +1247,7 @@ export default function PlanningPage() {
                 <tr>
                   <td
                     colSpan={17 + dateColumns.length}
-                    className="py-20 text-center text-zinc-400 bg-white"
+                    className="py-20 text-center text-[rgb(var(--c-ink-4))]"
                   >
                     {isLoading ? (
                       <div className="flex items-center justify-center gap-2 italic">
@@ -1265,15 +1265,15 @@ export default function PlanningPage() {
         </div>
 
         {/* Custom Pagination */}
-        <div className="px-6 py-3 bg-white border-t border-zinc-200 flex items-center justify-between">
+        <div className="px-6 py-3 border-t border-[rgb(var(--c-line-2))] flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <p className="text-xs font-bold text-zinc-500">
+            <p className="text-xs font-bold text-[rgb(var(--c-ink-3))]">
               Tổng cộng:{" "}
-              <span className="text-zinc-950 font-black">{totalCount}</span> kế
+              <span className="text-[rgb(var(--c-ink))] font-black">{totalCount}</span> kế
               hoạch
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">
+              <span className="text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">
                 Hiển thị
               </span>
               <select
@@ -1282,7 +1282,7 @@ export default function PlanningPage() {
                   setRowsPerPage(parseInt(e.target.value));
                   setPage(0);
                 }}
-                className="text-xs font-bold bg-zinc-50 border border-zinc-200 rounded px-1.5 py-1 focus:ring-0 focus:border-zinc-300"
+                className="text-xs font-bold border border-[rgb(var(--c-line-2))] rounded px-1.5 py-1 focus:ring-0 focus:border-[rgb(var(--c-line-3))]"
               >
                 {[5, 10, 25, 50].map((s) => (
                   <option key={s} value={s}>
@@ -1294,15 +1294,15 @@ export default function PlanningPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-zinc-500">
-              Trang <span className="text-zinc-950">{page + 1}</span> /{" "}
+            <span className="text-xs font-bold text-[rgb(var(--c-ink-3))]">
+              Trang <span className="text-[rgb(var(--c-ink))]">{page + 1}</span> /{" "}
               {totalPages || 1}
             </span>
             <div className="flex gap-1">
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 border-zinc-200"
+                className="h-8 w-8 border-[rgb(var(--c-line-2))]"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -1311,7 +1311,7 @@ export default function PlanningPage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 border-zinc-200"
+                className="h-8 w-8 border-[rgb(var(--c-line-2))]"
                 disabled={page >= totalPages - 1}
                 onClick={() => setPage((p) => p + 1)}
               >

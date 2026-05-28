@@ -158,7 +158,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
               variant="outline"
               role="combobox"
               disabled={isCompleted}
-              className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+              className="w-full h-9 justify-between text-xs font-bold"
             >
               <div className="flex items-center gap-1.5 truncate">
                 <ShoppingCart className="h-3 w-3 text-indigo-500 shrink-0" />
@@ -173,7 +173,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
             <Command className="w-full">
               <CommandInput placeholder="Tìm đơn hàng..." />
               <CommandList className="max-h-[300px] p-1">
-                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))]">Không thấy</CommandEmpty>
                 <CommandGroup>
                   {uniqueOrders.map(o => (
                     <CommandItem
@@ -206,7 +206,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
               variant="outline"
               role="combobox"
               disabled={!selectedOrderId || isCompleted}
-              className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+              className="w-full h-9 justify-between text-xs font-bold"
             >
               <div className="flex items-center gap-1.5 truncate">
                 <Package className="h-3 w-3 text-indigo-500 shrink-0" />
@@ -221,7 +221,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
             <Command className="w-full">
               <CommandInput placeholder="Tìm mã hàng..." />
               <CommandList className="max-h-[300px] p-1">
-                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))]">Không thấy</CommandEmpty>
                 <CommandGroup>
                   {availableProducts.map(p => (
                     <CommandItem
@@ -253,7 +253,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
               variant="outline"
               role="combobox"
               disabled={!selectedProductId || isCompleted}
-              className="w-full h-9 justify-between text-xs font-bold bg-white border-zinc-200"
+              className="w-full h-9 justify-between text-xs font-bold"
             >
               <div className="flex items-center gap-1.5 truncate">
                 <Settings className="h-3 w-3 text-indigo-500 shrink-0" />
@@ -268,7 +268,7 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
             <Command className="w-full">
               <CommandInput placeholder="Tìm công đoạn..." />
               <CommandList className="max-h-[300px] p-1">
-                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400">Không thấy</CommandEmpty>
+                <CommandEmpty className="py-6 text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))]">Không thấy</CommandEmpty>
                 <CommandGroup>
                   {availableOperations.map(op => (
                     <CommandItem
@@ -391,7 +391,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           <div className="flex gap-10">
             {/* Date */}
             <div className="w-52 space-y-1.5">
-              <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Ngày sản xuất</Label>
+              <Label className="text-xs font-bold uppercase text-[rgb(var(--c-ink-4))] tracking-widest">Ngày sản xuất</Label>
               <Controller name="ticket_date" control={control} render={({ field }) => (
                 <PremiumDatePicker
                   date={field.value}
@@ -404,8 +404,8 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
             {/* Machine (Read only or info) */}
             {ticket?.machine_name && (
               <div className="flex-1 space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Máy / Chuyền</Label>
-                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-black text-indigo-600 shadow-sm">
+                <Label className="text-xs font-bold uppercase text-[rgb(var(--c-ink-4))] tracking-widest">Máy / Chuyền</Label>
+                <div className="h-10 flex items-center px-4 border border-[rgb(var(--c-line-2))] rounded-xl font-black text-indigo-600 shadow-sm">
                   {ticket.machine_name}
                 </div>
               </div>
@@ -414,9 +414,9 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
             {/* Creator Info */}
             {ticket?.creator_name && (
               <div className="flex-1 space-y-1.5">
-                <Label className="text-xs font-bold uppercase text-zinc-400 tracking-widest">Người tạo phiếu</Label>
-                <div className="h-10 flex items-center px-4 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-zinc-600 gap-2 shadow-sm">
-                  <User className="w-4 h-4 text-zinc-400" />
+                <Label className="text-xs font-bold uppercase text-[rgb(var(--c-ink-4))] tracking-widest">Người tạo phiếu</Label>
+                <div className="h-10 flex items-center px-4 border border-[rgb(var(--c-line-2))] rounded-xl font-bold text-[rgb(var(--c-ink-2))] gap-2 shadow-sm">
+                  <User className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                   {ticket.creator_name}
                 </div>
               </div>
@@ -427,13 +427,13 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
 
           {/* Items header */}
           <div>
-            <p className="text-sm font-bold text-zinc-950 mb-3">Danh sách công việc dự kiến:</p>
+            <p className="text-sm font-bold text-[rgb(var(--c-ink))] mb-3">Danh sách công việc dự kiến:</p>
             <div className="grid grid-cols-[1.2fr_1.2fr_1fr_100px_1fr_36px] gap-2 px-0 mb-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Sản phẩm</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-center">SL Kế hoạch</p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">Đơn hàng</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">Sản phẩm</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">Công đoạn</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))] text-center">SL Kế hoạch</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--c-ink-4))]">Ghi chú</p>
               <div />
             </div>
             <div className="space-y-2">

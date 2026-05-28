@@ -100,20 +100,20 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
         <div className="flex-1 overflow-y-auto space-y-6 py-4">
           <div className="flex gap-8 px-1">
             <div className="space-y-1">
-              <Label className="text-zinc-500 text-xs">Ngày SX</Label>
+              <Label className="text-[rgb(var(--c-ink-3))] text-xs">Ngày SX</Label>
               <p className="font-bold">
                 {ticket ? DateTime.fromISO(ticket.ticket_date).toFormat("dd/MM/yyyy") : "-"}
               </p>
             </div>
             <div className="space-y-1">
-              <Label className="text-zinc-500 text-xs">Người lập</Label>
+              <Label className="text-[rgb(var(--c-ink-3))] text-xs">Người lập</Label>
               <p className="font-bold">{ticket?.created_by_name || "-"}</p>
             </div>
           </div>
 
-          <div className="rounded-md border border-zinc-200 overflow-hidden">
+          <div className="rounded-md border border-[rgb(var(--c-line-2))] overflow-hidden">
             <Table>
-              <TableHeader className="bg-zinc-50">
+              <TableHeader className="bg-[rgb(var(--c-s2))]">
                 <TableRow>
                   <TableHead className="font-bold">Đơn hàng</TableHead>
                   <TableHead className="font-bold">Mã hàng</TableHead>
@@ -126,7 +126,7 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      <div className="flex items-center justify-center gap-2 text-zinc-500">
+                      <div className="flex items-center justify-center gap-2 text-[rgb(var(--c-ink-3))]">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         Đang tải dữ liệu...
                       </div>
@@ -161,7 +161,7 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
+                    <TableCell colSpan={5} className="h-24 text-center text-[rgb(var(--c-ink-3))]">
                       Không có dữ liệu công việc.
                     </TableCell>
                   </TableRow>

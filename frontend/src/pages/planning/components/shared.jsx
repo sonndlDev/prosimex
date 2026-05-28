@@ -166,7 +166,7 @@ export const ExcelHeaderCell = React.memo(
       colSpan={colSpan}
       rowSpan={rowSpan}
       style={style}
-      className={`border border-zinc-300 bg-zinc-100 text-zinc-600 font-black text-[10px] sm:text-[11px] p-2 uppercase tracking-wider whitespace-nowrap text-center align-middle ${className}`}
+      className={`border border-[rgb(var(--c-line-3))] bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-2))] font-black text-[10px] sm:text-[11px] p-2 uppercase tracking-wider whitespace-nowrap text-center align-middle ${className}`}
     >
       {children}
     </th>
@@ -178,7 +178,7 @@ export const ExcelDataCell = React.memo(
   ({ children, className = "", style = {} }) => (
     <td
       style={style}
-      className={`border border-zinc-200 p-2 text-xs sm:text-sm text-zinc-900 whitespace-nowrap h-12 text-center align-middle ${className}`}
+      className={`border border-[rgb(var(--c-line-2))] p-2 text-xs sm:text-sm text-[rgb(var(--c-ink))] whitespace-nowrap h-12 text-center align-middle ${className}`}
     >
       {children}
     </td>

@@ -128,7 +128,7 @@ export default function ProductGroupPage() {
       format: (v, row) => (
         <button
           onClick={() => { setSelectedGroup(row); setManageOpsModal(true); }}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))] hover:border-[rgb(var(--c-line-3))] transition-colors"
         >
           <Settings className="w-3 h-3" /> Quy trình
         </button>
@@ -163,9 +163,9 @@ export default function ProductGroupPage() {
   const watchMachineIds = watchOp("machine_ids");
 
   return (
-    <div className="space-y-4 p-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-black text-zinc-950 uppercase tracking-tight">Nhóm sản phẩm</h1>
+        <h1 className="text-3xl font-black text-[rgb(var(--c-ink))] uppercase tracking-tight">Nhóm sản phẩm</h1>
         {hasPermission("product_groups:create") && (
           <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
             <Plus className="w-4 h-4" /> Thêm nhóm
@@ -173,7 +173,7 @@ export default function ProductGroupPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           data={productGroups}
           columns={columns}
@@ -214,14 +214,14 @@ export default function ProductGroupPage() {
 
       {/* Operations Routing Dialog */}
       <Dialog open={manageOpsModal} onOpenChange={(v) => { if (!v) setManageOpsModal(false); }}>
-        <DialogContent className="sm:max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden border-zinc-200">
-          <DialogHeader className="px-6 py-4 border-b border-zinc-100 bg-white shrink-0">
+        <DialogContent className="sm:max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden border-[rgb(var(--c-line-2))]">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle className="text-xl font-black tracking-tight">
               Quy trình sản xuất: <span className="text-indigo-600">{selectedGroup?.name}</span>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/30">
+          <div className="flex-1 overflow-y-auto p-6/30">
             <DraggableSequenceTable
               data={groupOperations} machinesList={machinesList} isLoading={opsLoading}
               onDelete={hasPermission("product_groups:delete") ? (id) => removeOpMutation.mutate(id) : undefined}
@@ -230,24 +230,24 @@ export default function ProductGroupPage() {
             />
           </div>
 
-          <div className="shrink-0 border-t border-zinc-100 bg-white p-6 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
+          <div className="shrink-0 border-t p-6 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
             <div className="flex items-center gap-2 mb-4">
               <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
               <p className="text-[11px] font-black uppercase tracking-widest text-indigo-600">Thêm bước mới vào quy trình</p>
             </div>
 
-            <form onSubmit={handleOpFormSubmit(onAddOp)} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
+            <form onSubmit={handleOpFormSubmit(onAddOp)} className="bg-white border border-[rgb(var(--c-line-2))] rounded-2xl p-4 shadow-sm">
               <div className="flex flex-wrap lg:flex-nowrap gap-4 items-end">
                 <div className="space-y-1.5 shrink-0">
-                  <Label className="text-[10px] font-black uppercase text-zinc-400">Thứ tự</Label>
+                  <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Thứ tự</Label>
                   <Controller name="sequence_order" control={opControl} render={({ field }) => (
-                    <Input {...field} className="w-20 h-10 font-bold bg-zinc-50 border-zinc-200" placeholder={String(nextSequenceOrder)} />
+                    <Input {...field} className="w-20 h-10 font-bold border-[rgb(var(--c-line-2))]" placeholder={String(nextSequenceOrder)} />
                   )} />
                 </div>
 
                 <div className="space-y-1.5 flex-1 min-w-[200px]">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px] font-black uppercase text-zinc-400">Công đoạn <span className="text-red-500">*</span></Label>
+                    <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Công đoạn <span className="text-red-500">*</span></Label>
                     <button
                       type="button"
                       onClick={() => setQuickCreateOpModal(true)}
@@ -264,28 +264,28 @@ export default function ProductGroupPage() {
                           variant="outline"
                           role="combobox"
                           className={cn(
-                            "w-full h-10 justify-between bg-zinc-50 border-zinc-200 text-xs font-bold",
-                            !field.value && "text-zinc-400 font-medium"
+                            "w-full h-10 justify-between border-[rgb(var(--c-line-2))] text-xs font-bold",
+                            !field.value && "text-[rgb(var(--c-ink-4))] font-medium"
                           )}
                         >
                           <span className="truncate">
                             {field.value ? operationsList?.find(o => String(o.id) === String(field.value))?.name : "Chọn công đoạn..."}
                           </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                          <ChevronsUpDown  />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
                         <Command className="w-full">
                           <CommandInput placeholder="Tìm nhanh công đoạn..." />
-                          <CommandList className="max-h-64 p-1">
-                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
+                          <CommandList >
+                            <CommandEmpty >Không có dữ liệu</CommandEmpty>
                             <CommandGroup>
                               {operationsList?.map((o) => (
                                 <CommandItem
                                   key={o.id}
                                   value={o.name}
                                   onSelect={() => field.onChange(String(o.id))}
-                                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                 >
                                   <span className="text-xs font-bold">{o.name}</span>
                                   <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
@@ -300,11 +300,11 @@ export default function ProductGroupPage() {
                 </div>
 
                 <div className="space-y-1.5 flex-1 min-w-[200px]">
-                  <Label className="text-[10px] font-black uppercase text-zinc-400">Máy sản xuất (nhiều máy)</Label>
+                  <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Máy sản xuất (nhiều máy)</Label>
                   <Controller name="machine_ids" control={opControl} render={({ field }) => (
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full min-h-10 h-auto py-2 justify-between bg-zinc-50 border-zinc-200 text-xs font-bold text-left">
+                        <Button variant="outline" className="w-full min-h-10 h-auto py-2 justify-between border-[rgb(var(--c-line-2))] text-xs font-bold text-left">
                           <div className="flex flex-wrap gap-1 pr-2">
                             {field.value?.length > 0 ? (
                               field.value.map(id => {
@@ -316,7 +316,7 @@ export default function ProductGroupPage() {
                                 );
                               })
                             ) : (
-                              <span className="text-zinc-400 font-medium italic">Tất cả máy / Chưa gán</span>
+                              <span className="text-[rgb(var(--c-ink-4))] font-medium italic">Tất cả máy / Chưa gán</span>
                             )}
                           </div>
                           <Cpu className="h-3 w-3 opacity-50 shrink-0" />
@@ -326,7 +326,7 @@ export default function ProductGroupPage() {
                         <Command className="w-full">
                           <CommandInput placeholder="Tìm máy..." />
                           <CommandList className="max-h-64 overflow-y-auto p-1">
-                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không có máy</CommandEmpty>
+                            <CommandEmpty >Không có máy</CommandEmpty>
                             <CommandGroup>
                               {machinesList?.map((m) => (
                                 <CommandItem
@@ -341,9 +341,9 @@ export default function ProductGroupPage() {
                                   className="flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1 last:mb-0 group"
                                 >
                                   <Checkbox id={`new-m-${m.id}`} checked={field.value?.includes(String(m.id))} className="pointer-events-none" />
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-zinc-700">{m.name}</span>
-                                    <span className="text-[9px] text-zinc-400 font-medium uppercase tracking-tighter">Máy sản xuất h.lượng</span>
+                                  <div >
+                                    <span className="text-xs font-bold text-[rgb(var(--c-ink-2))]">{m.name}</span>
+                                    <span className="text-[9px] text-[rgb(var(--c-ink-4))] font-medium uppercase tracking-tighter">Máy sản xuất h.lượng</span>
                                   </div>
                                 </CommandItem>
                               ))}
@@ -356,9 +356,9 @@ export default function ProductGroupPage() {
                 </div>
 
                 <div className="space-y-1.5 shrink-0">
-                  <Label className="text-[10px] font-black uppercase text-zinc-400">Định mức</Label>
+                  <Label className="text-[10px] font-black uppercase text-[rgb(var(--c-ink-4))]">Định mức</Label>
                   <Controller name="dinh_muc" control={opControl} render={({ field }) => (
-                    <Input {...field} type="number" step="1" className="w-24 h-10 font-bold bg-zinc-50 border-zinc-200" />
+                    <Input {...field} type="number" step="1" className="w-24 h-10 font-bold border-[rgb(var(--c-line-2))]" />
                   )} />
                 </div>
 
@@ -367,7 +367,7 @@ export default function ProductGroupPage() {
                     type="button"
                     variant="ghost"
                     onClick={() => setManageOpsModal(false)}
-                    className="h-10 px-6 font-bold text-zinc-400 hover:text-zinc-600 uppercase text-[10px] tracking-widest"
+                    className="h-10 px-6 font-bold text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))] uppercase text-[10px] tracking-widest"
                   >
                     Đóng
                   </Button>
@@ -408,16 +408,16 @@ export default function ProductGroupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Mô tả <span className="text-zinc-400 text-xs font-normal">(tuỳ chọn)</span></Label>
+              <Label>Mô tả <span className="text-[rgb(var(--c-ink-4))] text-xs font-normal">(tuỳ chọn)</span></Label>
               <textarea
                 value={quickOpDesc}
                 onChange={(e) => setQuickOpDesc(e.target.value)}
                 rows={2}
                 placeholder="Mô tả ngắn về công đoạn..."
-                className="w-full rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none"
+                className="w-full rounded-md border border-[rgb(var(--c-line-2))] bg-transparent px-3 py-2 text-sm placeholder:text-[rgb(var(--c-ink-4))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none"
               />
             </div>
-            <p className="text-[10px] text-zinc-400 font-medium">
+            <p className="text-[10px] text-[rgb(var(--c-ink-4))] font-medium">
               Hệ thống sẽ kiểm tra nếu công đoạn đã tồn tại và thông báo lỗi.
             </p>
           </div>

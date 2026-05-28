@@ -173,11 +173,11 @@ export default function ImportExcelPage() {
   const totalPages = historyRes?.totalPages || 1;
 
   return (
-    <div className=" mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ── */}
-      <div className="bg-white rounded-[32px] border border-zinc-200 shadow-sm p-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/40 to-transparent pointer-events-none" />
+      <div className="bg-white rounded-[32px] border border-[rgb(var(--c-line-2))] shadow-sm p-8 relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" />
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
           <FileSpreadsheet className="w-48 h-48" />
         </div>
@@ -187,33 +187,33 @@ export default function ImportExcelPage() {
               <Database className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-zinc-950 tracking-tight leading-none">Import Dữ Liệu Gốc</h2>
+              <h2 className="text-2xl font-black text-[rgb(var(--c-ink))] tracking-tight leading-none">Import Dữ Liệu Gốc</h2>
             </div>
           </div>
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" className="h-11 rounded-2xl border-zinc-200 text-zinc-600 font-bold px-6 gap-2 hover:bg-zinc-50 transition-all">
-                <History className="w-4 h-4 text-zinc-400" />
+              <Button variant="outline" className="h-11 rounded-2xl border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] font-bold px-6 gap-2 hover:bg-[rgb(var(--c-s2))] transition-all">
+                <History className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                 Lịch sử Import
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[80vw] h-[80vh] p-0 rounded-[32px] border-none overflow-hidden bg-white shadow-2xl flex flex-col">
-              <DialogHeader className="p-6 bg-zinc-50 border-b border-zinc-100 flex-shrink-0">
+            <DialogContent className="sm:max-w-[80vw] h-[80vh] p-0 rounded-[32px] border-none overflow-hidden shadow-2xl flex flex-col">
+              <DialogHeader className="p-6 flex-shrink-0">
                 <div className="flex items-center gap-4">
                   {selectedHistoryLog && (
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedHistoryLog(null)} className="h-8 w-8 shrink-0 hover:bg-zinc-200 rounded-xl">
+                    <Button variant="ghost" size="icon" onClick={() => setSelectedHistoryLog(null)} className="h-8 w-8 shrink-0 hover:bg-[rgb(var(--c-s3))] rounded-xl">
                       <ArrowRight className="w-4 h-4 rotate-180" />
                     </Button>
                   )}
-                  <DialogTitle className="text-lg font-black text-zinc-900 flex items-center gap-2">
+                  <DialogTitle className="text-lg font-black text-[rgb(var(--c-ink))] flex items-center gap-2">
                     <History className="w-5 h-5 text-emerald-600" />
                     {selectedHistoryLog ? `Dữ liệu lịch sử: ${format(new Date(selectedHistoryLog.created_at), "dd/MM/yyyy HH:mm")}` : 'Lịch Sử Import Dữ Liệu Gốc'}
                   </DialogTitle>
                 </div>
                 {!selectedHistoryLog && (
                   <div className="mt-4 relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] group-hover:text-emerald-500 transition-colors" />
                     <input 
                       type="text"
                       placeholder="Tìm kiếm theo tên người import..."
@@ -222,9 +222,9 @@ export default function ImportExcelPage() {
                         setHistorySearch(e.target.value);
                         setHistoryPage(1);
                       }}
-                      className="w-full h-11 pl-11 pr-4 bg-white border border-zinc-200 rounded-2xl text-sm font-medium
+                      className="w-full h-11 pl-11 pr-4 border border-[rgb(var(--c-line-2))] rounded-2xl text-sm font-medium
                                  focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
-                                 placeholder:text-zinc-400 transition-all"
+                                 placeholder:text-[rgb(var(--c-ink-4))] transition-all"
                     />
                   </div>
                 )}
@@ -234,9 +234,9 @@ export default function ImportExcelPage() {
                 {selectedHistoryLog ? (
                   <div className="flex-1 overflow-y-auto w-full">
                     <div className="p-6">
-                      <div className="rounded-2xl border border-zinc-200/60 overflow-hidden bg-white">
+                      <div className="rounded-2xl border border-[rgb(var(--c-line-2))]/60 overflow-hidden">
                         <table className="w-full text-sm text-left">
-                          <thead className="text-[10px] uppercase font-black text-zinc-500 bg-zinc-50/80 border-b border-zinc-200/60">
+                          <thead className="text-[10px] uppercase font-black text-[rgb(var(--c-ink-3))]/80 border-b border-[rgb(var(--c-line-2))]/60">
                             <tr>
                               {PREVIEW_COLS.map(c => (
                                 <th key={c.key} className="px-4 py-3">{c.header}</th>
@@ -247,7 +247,7 @@ export default function ImportExcelPage() {
                             {(selectedHistoryLog.after_data?.rows || []).map((r, i) => (
                               <tr key={i} className="hover:bg-emerald-50/30 transition-colors">
                                 {PREVIEW_COLS.map(c => (
-                                  <td key={c.key} className="px-4 py-2 font-medium text-zinc-700 whitespace-nowrap">
+                                  <td key={c.key} className="px-4 py-2 font-medium text-[rgb(var(--c-ink-2))] whitespace-nowrap">
                                     {r[c.key] || "-"}
                                   </td>
                                 ))}
@@ -255,7 +255,7 @@ export default function ImportExcelPage() {
                             ))}
                             {(!selectedHistoryLog.after_data?.rows || selectedHistoryLog.after_data?.rows.length === 0) && (
                               <tr>
-                                <td colSpan={PREVIEW_COLS.length} className="px-4 py-8 text-center text-zinc-400 font-medium">
+                                <td colSpan={PREVIEW_COLS.length} className="px-4 py-8 text-center text-[rgb(var(--c-ink-4))] font-medium">
                                   Hệ thống cũ không lưu lại data chi tiết cho lượt import này.
                                 </td>
                               </tr>
@@ -272,14 +272,14 @@ export default function ImportExcelPage() {
                         {historyLoading ? (
                           <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-zinc-300" /></div>
                         ) : !historyData || historyData.length === 0 ? (
-                          <div className="py-8 text-center text-zinc-500 font-medium">Chưa có lịch sử import nào.</div>
+                          <div className="py-8 text-center text-[rgb(var(--c-ink-3))] font-medium">Chưa có lịch sử import nào.</div>
                         ) : (
                           historyData.map((log) => {
                             const summaryData = log.after_data?.summary || log.after_data || {};
                             return (
                               <div key={log.id} 
                                  onClick={() => setSelectedHistoryLog(log)}
-                                 className="bg-white border text-left border-zinc-200 rounded-2xl p-4 flex flex-col gap-2 hover:border-emerald-400 transition-colors cursor-pointer group shadow-sm hover:shadow-md">
+                                 className="bg-white border text-left border-[rgb(var(--c-line-2))] rounded-2xl p-4 flex flex-col gap-2 hover:border-emerald-400 transition-colors cursor-pointer group shadow-sm hover:shadow-md">
                                 <div className="flex justify-between items-start">
                                   <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -287,7 +287,7 @@ export default function ImportExcelPage() {
                                     </div>
                                     <div>
                                       <p className="text-sm font-black text-zinc-800">{log.full_name || log.username}</p>
-                                      <p className="text-[10px] uppercase font-bold text-zinc-400 flex items-center gap-1">
+                                      <p className="text-[10px] uppercase font-bold text-[rgb(var(--c-ink-4))] flex items-center gap-1">
                                         <CalendarDays className="w-3 h-3" />
                                         {format(new Date(log.created_at), "dd/MM/yyyy HH:mm")}
                                       </p>
@@ -302,7 +302,7 @@ export default function ImportExcelPage() {
                                           e.stopPropagation();
                                           handleDownloadHistory(log);
                                         }}
-                                        className="h-8 w-8 rounded-xl text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                        className="h-8 w-8 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                                       >
                                         <Download className="w-4 h-4" />
                                       </Button>
@@ -311,10 +311,10 @@ export default function ImportExcelPage() {
                                   </div>
                                 </div>
                                 
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-3 border-t border-dashed border-zinc-100/60 group-hover:border-emerald-100 transition-colors">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 pt-3 border-t border-dashed border-[rgb(var(--c-line))]/60 group-hover:border-emerald-100 transition-colors">
                                   {['products', 'product_groups', 'operations', 'customers'].map((k) => (
-                                    <div key={k} className="bg-zinc-50 group-hover:bg-emerald-50/50 rounded-xl p-2 text-center transition-colors">
-                                      <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{k === 'products' ? 'Mã' : k === 'product_groups' ? 'Nhóm' : k === 'operations' ? 'C.Đoạn' : 'KH'}</p>
+                                    <div key={k} className="bg-[rgb(var(--c-s2))] group-hover:bg-emerald-50/50 rounded-xl p-2 text-center transition-colors">
+                                      <p className="text-[9px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">{k === 'products' ? 'Mã' : k === 'product_groups' ? 'Nhóm' : k === 'operations' ? 'C.Đoạn' : 'KH'}</p>
                                       <p className="text-sm font-black text-zinc-800 mt-1">
                                         <span className="text-emerald-600">+{summaryData[k]?.created || 0}</span>
                                         <span className="text-zinc-300 mx-1">/</span>
@@ -330,9 +330,9 @@ export default function ImportExcelPage() {
                       </div>
                     </div>
                     {historyRes?.total > 0 && (
-                      <div className="p-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
+                      <div className="p-4 flex items-center justify-between shrink-0">
                         <div className="flex flex-col gap-0.5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">
                              Trang {historyPage} / {totalPages}
                           </p>
                           <p className="text-[9px] font-bold text-zinc-300">
@@ -345,7 +345,7 @@ export default function ImportExcelPage() {
                             size="icon" 
                             disabled={historyPage <= 1 || historyLoading}
                             onClick={() => setHistoryPage(p => p - 1)}
-                            className="h-8 w-8 rounded-xl border-zinc-200"
+                            className="h-8 w-8 rounded-xl border-[rgb(var(--c-line-2))]"
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </Button>
@@ -354,7 +354,7 @@ export default function ImportExcelPage() {
                             size="icon" 
                             disabled={historyPage >= totalPages || historyLoading}
                             onClick={() => setHistoryPage(p => p + 1)}
-                            className="h-8 w-8 rounded-xl border-zinc-200"
+                            className="h-8 w-8 rounded-xl border-[rgb(var(--c-line-2))]"
                           >
                             <ChevronRight className="w-4 h-4" />
                           </Button>
@@ -374,13 +374,13 @@ export default function ImportExcelPage() {
 
         {/* Upload Panel */}
         <div className="lg:col-span-4">
-          <Card className="border-none py-0 shadow-xl shadow-zinc-200/40 rounded-[28px] overflow-hidden bg-white">
+          <Card className="border-none py-0 shadow-xl shadow-zinc-200/40 rounded-[28px] overflow-hidden">
             <CardContent className="p-0">
               <div className="p-7 bg-zinc-950 text-white">
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-widest">Tải file lên</h3>
-                    <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+                    <p className="text-[rgb(var(--c-ink-4))] text-[10px] font-bold uppercase tracking-widest mt-1">
                       Định dạng .xlsx · .xls
                     </p>
                   </div>
@@ -405,29 +405,29 @@ export default function ImportExcelPage() {
                       onChange={handleFileChange}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className="border-2 border-dashed border-zinc-200 rounded-3xl p-10 text-center
+                    <div className="border-2 border-dashed border-[rgb(var(--c-line-2))] rounded-3xl p-10 text-center
                                     transition-all group-hover:border-emerald-400 group-hover:bg-emerald-50/20
                                     flex flex-col items-center gap-3">
-                      <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center
-                                      border border-zinc-100 group-hover:scale-110 group-hover:border-emerald-200
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center
+                                      border border-[rgb(var(--c-line))] group-hover:scale-110 group-hover:border-emerald-200
                                       group-hover:bg-emerald-50 transition-all duration-500">
                         <Upload className="w-7 h-7 text-zinc-300 group-hover:text-emerald-500 transition-colors" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-zinc-700">Chọn hoặc kéo-thả file</p>
-                        <p className="text-[10px] font-bold text-zinc-400 mt-0.5">.xlsx · .xls</p>
+                        <p className="text-sm font-black text-[rgb(var(--c-ink-2))]">Chọn hoặc kéo-thả file</p>
+                        <p className="text-[10px] font-bold text-[rgb(var(--c-ink-4))] mt-0.5">.xlsx · .xls</p>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4 animate-in zoom-in-95 duration-300">
                     <div className="bg-emerald-50/60 rounded-2xl border border-emerald-100 p-4 flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-emerald-100">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border border-emerald-100">
                         <FileText className="w-5 h-5 text-emerald-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-black text-zinc-900 truncate">{file.name}</p>
-                        <p className="text-[10px] font-bold text-zinc-400">
+                        <p className="text-xs font-black text-[rgb(var(--c-ink))] truncate">{file.name}</p>
+                        <p className="text-[10px] font-bold text-[rgb(var(--c-ink-4))]">
                           {(file.size / 1024).toFixed(1)} KB &nbsp;·&nbsp; {previewData.length} dòng
                         </p>
                       </div>
@@ -475,13 +475,13 @@ export default function ImportExcelPage() {
 
                 {/* Column mapping help */}
                 <div className="space-y-2">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Cột Excel tương ứng</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Cột Excel tương ứng</p>
                   {COLUMNS.map(col => (
                     <div key={col.key} className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-zinc-500 bg-zinc-50 px-2 py-0.5 rounded-md border border-zinc-100 shrink-0 w-28 truncate">
+                      <span className="text-[10px] font-black text-[rgb(var(--c-ink-3))] px-2 py-0.5 rounded-md border border-[rgb(var(--c-line))] shrink-0 w-28 truncate">
                         {col.labels[0]}
                       </span>
-                      <span className="text-[10px] text-zinc-400">→</span>
+                      <span className="text-[10px] text-[rgb(var(--c-ink-4))]">→</span>
                       <span className="text-[10px] font-bold text-indigo-600">{PREVIEW_COLS.find(p => p.key === col.key)?.header}</span>
                     </div>
                   ))}
@@ -493,18 +493,18 @@ export default function ImportExcelPage() {
 
         {/* Preview / Result Panel */}
         <div className="lg:col-span-8">
-          <Card className="border-none shadow-xl shadow-zinc-200/40 rounded-[28px] overflow-hidden bg-white min-h-[520px] flex flex-col">
+          <Card className="border-none shadow-xl shadow-zinc-200/40 rounded-[28px] overflow-hidden min-h-[520px] flex flex-col">
 
             {/* ── Sau khi import: Hiển thị kết quả ── */}
             {summary ? (
               <>
-                <div className="p-7 border-b border-zinc-100 flex items-center justify-between">
+                <div className="p-7 border-b border-[rgb(var(--c-line))] flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-100">
                       <CheckCircle2 className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-zinc-950 uppercase tracking-tight">Kết quả Import</h3>
+                      <h3 style={{ fontSize: 14, fontWeight: 600, color: "rgb(var(--c-ink))" }}>Kết quả Import</h3>
                       <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mt-0.5">
                         Hoàn thành · Dữ liệu đã được cập nhật
                       </p>
@@ -512,7 +512,7 @@ export default function ImportExcelPage() {
                   </div>
                   <button
                     onClick={() => setSummary(null)}
-                    className="text-[10px] font-black text-zinc-400 hover:text-zinc-700 uppercase tracking-widest"
+                    className="text-[10px] font-black text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))] uppercase tracking-widest"
                   >
                     Đóng
                   </button>
@@ -534,23 +534,23 @@ export default function ImportExcelPage() {
                           <p className="text-3xl font-black text-amber-600 tabular-nums">{totalUpdated}</p>
                           <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 mt-1">Cập nhật</p>
                         </div>
-                        <div className="bg-zinc-50 rounded-2xl border border-zinc-100 p-4 text-center">
-                          <p className="text-3xl font-black text-zinc-500 tabular-nums">{totalExisting}</p>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mt-1">Đã tồn tại</p>
+                        <div className="bg-[rgb(var(--c-s2))] rounded-2xl border border-[rgb(var(--c-line))] p-4 text-center">
+                          <p className="text-3xl font-black text-[rgb(var(--c-ink-3))] tabular-nums">{totalExisting}</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))] mt-1">Đã tồn tại</p>
                         </div>
                       </div>
                     );
                   })()}
 
                   {/* Chi tiết từng loại */}
-                  <div className="rounded-2xl border border-zinc-100 overflow-hidden">
+                  <div className="rounded-2xl border border-[rgb(var(--c-line))] overflow-hidden">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-zinc-50 border-b border-zinc-100">
-                          <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-zinc-400">Loại dữ liệu</th>
+                        <tr >
+                          <th className="px-6 py-4 text-left text-[9px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Loại dữ liệu</th>
                           <th className="px-6 py-4 text-center text-[9px] font-black uppercase tracking-widest text-emerald-500">Tạo mới</th>
                           <th className="px-6 py-4 text-center text-[9px] font-black uppercase tracking-widest text-amber-500">Cập nhật</th>
-                          <th className="px-6 py-4 text-center text-[9px] font-black uppercase tracking-widest text-zinc-400">Đã có sẵn</th>
+                          <th className="px-6 py-4 text-center text-[9px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Đã có sẵn</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-50">
@@ -564,11 +564,11 @@ export default function ImportExcelPage() {
                           }[key] || { label: key, icon: "•" };
                           const hasActivity = val.created > 0 || val.updated > 0;
                           return (
-                            <tr key={key} className={cn("transition-colors", hasActivity ? "bg-white" : "bg-zinc-50/30")}>
+                            <tr key={key} className={cn("transition-colors", hasActivity ? "bg-white" : "bg-[rgb(var(--c-s2))]/30")}>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2.5">
                                   <span className="text-base">{cfg.icon}</span>
-                                  <span className="text-sm font-black text-zinc-900">{cfg.label}</span>
+                                  <span className="text-sm font-black text-[rgb(var(--c-ink))]">{cfg.label}</span>
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-center">
@@ -585,7 +585,7 @@ export default function ImportExcelPage() {
                               </td>
                               <td className="px-6 py-4 text-center">
                                 {val.existing > 0
-                                  ? <span className="text-sm font-bold text-zinc-400 tabular-nums">{val.existing}</span>
+                                  ? <span className="text-sm font-bold text-[rgb(var(--c-ink-4))] tabular-nums">{val.existing}</span>
                                   : <span className="text-zinc-300 text-sm font-bold">—</span>
                                 }
                               </td>
@@ -599,7 +599,7 @@ export default function ImportExcelPage() {
                   <div className="flex justify-end">
                     <button
                       onClick={() => { setSummary(null); setFile(null); setPreview([]); }}
-                      className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-indigo-600 transition-colors flex items-center gap-1.5"
+                      className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))] hover:text-indigo-600 transition-colors flex items-center gap-1.5"
                     >
                       <Upload className="w-3 h-3" /> Import file khác
                     </button>
@@ -608,10 +608,10 @@ export default function ImportExcelPage() {
               </>
             ) : (
               <>
-                <div className="p-7 border-b border-zinc-100 flex items-center justify-between">
+                <div className="p-7 border-b border-[rgb(var(--c-line))] flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-black text-zinc-950 uppercase tracking-tight">Xem trước dữ liệu</h3>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: "rgb(var(--c-ink))" }}>Xem trước dữ liệu</h3>
+                    <p className="text-[10px] font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest mt-0.5">
                       {previewData.length > 0
                         ? `${previewData.length} dòng sẵn sàng để import`
                         : "Chọn file Excel để xem trước"}
@@ -629,16 +629,16 @@ export default function ImportExcelPage() {
                   {isParsing ? (
                     <div className="h-full flex flex-col items-center justify-center py-20 gap-4">
                       <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Đang đọc file Excel...</p>
+                      <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-[0.3em]">Đang đọc file Excel...</p>
                     </div>
                   ) : previewData.length > 0 ? (
                     <>
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-zinc-50 border-b border-zinc-100">
-                            <th className="px-5 py-4 text-[9px] font-black uppercase text-zinc-400 tracking-widest w-10">#</th>
+                          <tr >
+                            <th className="px-5 py-4 text-[9px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-widest w-10">#</th>
                             {PREVIEW_COLS.map(col => (
-                              <th key={col.key} className="px-5 py-4 text-[9px] font-black uppercase text-zinc-400 tracking-widest">
+                              <th key={col.key} className="px-5 py-4 text-[9px] font-black uppercase text-[rgb(var(--c-ink-4))] tracking-widest">
                                 {col.header}
                               </th>
                             ))}
@@ -646,15 +646,15 @@ export default function ImportExcelPage() {
                         </thead>
                         <tbody className="divide-y divide-zinc-50">
                           {previewData.slice(0, 25).map((row, i) => (
-                            <tr key={i} className="hover:bg-zinc-50/60 transition-colors">
+                            <tr key={i} className="hover:bg-[rgb(var(--c-s2))]/60 transition-colors">
                               <td className="px-5 py-3.5 text-[10px] font-bold text-zinc-300 tabular-nums">{i + 1}</td>
                               {PREVIEW_COLS.map((col) => (
                                 <td key={col.key} className={cn(
                                   "px-5 py-3.5 text-xs",
                                   col.key === "product_group" ? "font-black text-indigo-700" :
                                     col.key === "dinh_muc" ? "font-black text-emerald-600 tabular-nums" :
-                                      col.key === "customer" ? "font-bold text-zinc-700" :
-                                        "font-medium text-zinc-600"
+                                      col.key === "customer" ? "font-bold text-[rgb(var(--c-ink-2))]" :
+                                        "font-medium text-[rgb(var(--c-ink-2))]"
                                 )}>
                                   {row[col.key] ?? <span className="text-zinc-200">—</span>}
                                 </td>
@@ -664,8 +664,8 @@ export default function ImportExcelPage() {
                         </tbody>
                       </table>
                       {previewData.length > 25 && (
-                        <div className="p-5 bg-zinc-50/50 text-center border-t border-zinc-50">
-                          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                        <div className="p-5/50 text-center border-t border-zinc-50">
+                          <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                             Và {previewData.length - 25} dòng khác...
                           </p>
                         </div>
@@ -673,11 +673,11 @@ export default function ImportExcelPage() {
                     </>
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center py-32 text-center space-y-4">
-                      <div className="w-20 h-20 bg-zinc-50 rounded-[24px] flex items-center justify-center border-2 border-dashed border-zinc-100">
+                      <div className="w-20 h-20 rounded-[24px] flex items-center justify-center border-2 border-dashed border-[rgb(var(--c-line))]">
                         <FileSpreadsheet className="w-10 h-10 text-zinc-200" />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-zinc-400 uppercase tracking-widest">Chưa có dữ liệu</p>
+                        <p className="text-sm font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Chưa có dữ liệu</p>
                         <p className="text-[10px] font-bold text-zinc-300 mt-1 uppercase tracking-tighter">
                           Tải file Excel lên để xem trước
                         </p>

@@ -185,13 +185,13 @@ export default function ApprovalTicketPage() {
     {
       id: "id",
       label: "Mã số phiếu",
-      className: "font-bold text-zinc-950",
+      className: "font-bold text-[rgb(var(--c-ink))]",
       format: (val, row) => `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${row.master_id}`
     },
     {
       id: "ticket_date",
       label: "Ngày",
-      className: "font-semibold text-zinc-700 whitespace-nowrap",
+      className: "font-semibold text-[rgb(var(--c-ink-2))] whitespace-nowrap",
       format: (val) => DateTime.fromISO(val).toFormat("dd/MM")
     },
     {
@@ -202,12 +202,12 @@ export default function ApprovalTicketPage() {
     {
       id: "order_name",
       label: "Đơn hàng",
-      className: "font-bold text-zinc-950 max-w-[150px] truncate",
+      className: "font-bold text-[rgb(var(--c-ink))] max-w-[150px] truncate",
     },
     {
       id: "po_customer",
       label: "PO",
-      className: "text-zinc-500 max-w-[100px] truncate",
+      className: "text-[rgb(var(--c-ink-3))] max-w-[100px] truncate",
     },
     {
       id: "product_name",
@@ -217,7 +217,7 @@ export default function ApprovalTicketPage() {
     {
       id: "planned_quantity",
       label: "Tổng SL KH",
-      className: "text-right font-bold text-zinc-900",
+      className: "text-right font-bold text-[rgb(var(--c-ink))]",
       format: (val) => parseFloat(val) || 0
     },
     {
@@ -235,7 +235,7 @@ export default function ApprovalTicketPage() {
     {
       id: "notes",
       label: "Ghi chú",
-      className: "text-zinc-500 italic text-xs max-w-[100px] truncate",
+      className: "text-[rgb(var(--c-ink-3))] italic text-xs max-w-[100px] truncate",
     },
     {
       id: "ticket_status",
@@ -274,16 +274,16 @@ export default function ApprovalTicketPage() {
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Duyệt Phiếu Sản Xuất</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý và phê duyệt các phiếu tạo thủ công</p>
+      <div className="flex items-center justify-between flex-wrap gap-4 flex-shrink-0">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Duyệt Phiếu Sản Xuất</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Quản lý và phê duyệt các phiếu tạo thủ công</p>
         </div>
         <div className="flex items-center gap-3">
           <Button
             onClick={handleExportExcel}
             variant="outline"
-            className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+            className="h-11 px-6 "
           >
             <Download className="w-4 h-4" />
             Xuất Excel {selectedIds.length > 0 && `(${selectedIds.length})`}
@@ -300,7 +300,7 @@ export default function ApprovalTicketPage() {
       </div>
 
       {/* Table with GenericTable */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-white rounded-2xl border border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
         <GenericTable
           data={tickets}
           columns={columns}
@@ -336,7 +336,7 @@ export default function ApprovalTicketPage() {
                   <Tooltip>
                     <TooltipTrigger
                       onClick={() => handleReject(item.master_id)}
-                      className="p-2 rounded-xl text-rose-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-rose-100"
+                      className="p-2 rounded-xl text-rose-400 hover:text-red-500 hover:bg-red-50 hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-rose-100"
                     >
                       <X className="w-4 h-4" />
                     </TooltipTrigger>
@@ -349,7 +349,7 @@ export default function ApprovalTicketPage() {
                 <Tooltip>
                   <TooltipTrigger
                     onClick={() => { setSelectedTicketId(item.master_id); setIsPrintOpen(true); }}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
+                    className="p-2 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-violet-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-violet-100"
                   >
                     <Printer className="w-4 h-4" />
                   </TooltipTrigger>
@@ -362,7 +362,7 @@ export default function ApprovalTicketPage() {
                   <Tooltip>
                     <TooltipTrigger
                       onClick={() => handleApprove(item.master_id)}
-                      className="p-2 rounded-xl text-zinc-400 hover:text-orange-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-orange-100"
+                      className="p-2 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-orange-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-orange-100"
                     >
                       <Check className="w-4 h-4" />
                     </TooltipTrigger>
@@ -375,7 +375,7 @@ export default function ApprovalTicketPage() {
                 <Tooltip>
                   <TooltipTrigger
                     onClick={() => { setSelectedTicketId(item.master_id); setIsFormOpen(true); }}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
+                    className="p-2 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-blue-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-blue-100"
                   >
                     <PencilLine className="w-4 h-4" />
                   </TooltipTrigger>
@@ -420,7 +420,7 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+    <div className="sticky top-0 z-50 p-4 rounded-lg border">
       <form
         className="flex flex-col xl:flex-row items-center gap-4"
         onSubmit={handleSubmit}
@@ -428,12 +428,12 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
         {/* Search Input */}
         <div className="w-full xl:w-[320px] shrink-0">
           <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] group-focus-within:text-indigo-500 transition-colors" />
             <Input
               placeholder="Mã đơn, mã SP, định mức..."
               value={tempFilters.search}
               onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+              className="pl-10 h-10 text-sm font-medium border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
             />
           </div>
         </div>
@@ -444,8 +444,8 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
 
 
           {/* Khoảng ngày */}
-          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
+          <div className="flex items-center gap-1/50 border border-[rgb(var(--c-line-2))]/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+            <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
             <Input
               type="date"
               value={tempFilters.startDate}
@@ -478,7 +478,7 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
                   type="button"
                   variant="outline"
                   onClick={handleClear}
-                  className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all"
+                  className="w-10 h-10 p-0 border-[rgb(var(--c-line-2))]/80 text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>

@@ -45,24 +45,24 @@ export default function OutsourcingPage() {
   const { hasPermission } = useAuth();
 
   return (
-    <div className="space-y-6  mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Gia công ngoài</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý xuất/nhập hàng gia công (Xi mạ & Đóng gói)</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Gia công ngoài</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Quản lý xuất/nhập hàng gia công (Xi mạ & Đóng gói)</p>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col gap-6">
         <div className="flex justify-start">
-          <TabsList className="flex flex-row h-12 bg-zinc-100 p-1 border border-zinc-200 shadow-inner rounded-full w-full max-w-lg">
+          <TabsList className="flex flex-row h-12 bg-[rgb(var(--c-s2))] p-1 border border-[rgb(var(--c-line-2))] shadow-inner rounded-full w-full max-w-lg">
             <TabsTrigger
               value="plating"
               className={cn(
                 "flex-1 h-full font-black text-xs rounded-full transition-all duration-300 group gap-2",
                 activeTab === "plating"
-                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50"
-                  : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700"
+                  ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]"
+                  : "text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
               )}
             >
               <PaintBucket className={cn("w-4 h-4 transition-transform duration-300", activeTab === "plating" ? "scale-110" : "opacity-60")} />
@@ -73,8 +73,8 @@ export default function OutsourcingPage() {
               className={cn(
                 "flex-1 h-full font-black text-xs rounded-full transition-all duration-300 group gap-2",
                 activeTab === "packaging"
-                  ? "bg-white text-indigo-600 shadow-lg shadow-indigo-100/50"
-                  : "text-zinc-500 hover:bg-white/50 hover:text-zinc-700"
+                  ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]"
+                  : "text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink-2))]"
               )}
             >
               <Package className={cn("w-4 h-4 transition-transform duration-300", activeTab === "packaging" ? "scale-110" : "opacity-60")} />
@@ -122,18 +122,18 @@ function OutsourcingContent({ type }) {
   };
 
   return (
-    <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white rounded-2xl">
-      <CardHeader className="p-0 border-b border-zinc-100 bg-white">
+    <Card >
+      <CardHeader >
         <div className="px-6 pt-6">
           <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-            <TabsList className="flex w-full bg-zinc-100 p-1 rounded-full border border-zinc-200 max-w-md h-10 shadow-inner">
+            <TabsList className="flex w-full bg-[rgb(var(--c-s2))] p-1 rounded-full border border-[rgb(var(--c-line-2))] max-w-md h-10 shadow-inner">
               <TabsTrigger
                 value="history"
                 className={cn(
                   "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
                   subTab === "history"
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-zinc-400 hover:text-zinc-600"
+                    ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]"
+                    : "text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                 )}
               >
                 Danh sách
@@ -143,8 +143,8 @@ function OutsourcingContent({ type }) {
                 className={cn(
                   "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
                   subTab === "out"
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-zinc-400 hover:text-zinc-600"
+                    ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]"
+                    : "text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                 )}
               >
                 {type === 'PACKAGING' ? 'SL Đóng gói' : 'Phiếu ĐI'}
@@ -155,8 +155,8 @@ function OutsourcingContent({ type }) {
                   className={cn(
                     "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
                     subTab === "in"
-                      ? "bg-white text-indigo-600 shadow-md"
-                      : "text-zinc-400 hover:text-zinc-600"
+                      ? "bg-[rgb(var(--c-s4))] text-[rgb(var(--c-blue))]"
+                      : "text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))]"
                   )}
                 >
                   Phiếu VỀ
@@ -186,12 +186,12 @@ function SupplierSelect({ value, onChange, suppliers }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
-            !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
+            "w-full justify-between",
+            !value ? "text-[rgb(var(--c-ink-3))] font-medium" : "text-[rgb(var(--c-ink))] font-bold"
           )}
         >
           <div className="flex items-center gap-2 truncate">
-            <Building2 className={cn("h-4 w-4 shrink-0", value ? "text-blue-600" : "text-zinc-400")} />
+            <Building2 className={cn("h-4 w-4 shrink-0", value ? "text-blue-600" : "text-[rgb(var(--c-ink-4))]")} />
             <span className="truncate">
               {value && selected ? selected.name : "Chọn nhà cung cấp"}
             </span>
@@ -199,22 +199,22 @@ function SupplierSelect({ value, onChange, suppliers }) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-zinc-200 rounded-xl" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-[rgb(var(--c-line-2))] rounded-xl" align="start">
         <Command className="w-full">
           <CommandInput placeholder="Tìm nhà cung cấp..." />
-          <CommandList className="max-h-64 p-1">
-            <CommandEmpty className="py-4 text-center text-xs font-bold text-zinc-400">Không tìm thấy NCC</CommandEmpty>
+          <CommandList >
+            <CommandEmpty className="py-4 text-center text-xs font-bold text-[rgb(var(--c-ink-4))]">Không tìm thấy NCC</CommandEmpty>
             <CommandGroup>
               {suppliers.map((s) => (
                 <CommandItem
                   key={s.id}
                   value={`${s.code} ${s.name}`}
                   onSelect={() => onChange(String(s.id))}
-                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-blue-50 aria-selected:text-blue-700 mb-1"
+                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] mb-1"
                 >
-                  <div className="flex flex-col">
+                  <div >
                     <span className="text-xs font-black text-blue-600">{s.code}</span>
-                    <span className="text-sm font-semibold text-zinc-700 truncate">{s.name}</span>
+                    <span className="text-sm font-semibold text-[rgb(var(--c-ink-2))] truncate">{s.name}</span>
                   </div>
                   <Check className={cn("ml-auto h-4 w-4 text-blue-600", String(value) === String(s.id) ? "opacity-100" : "opacity-0")} />
                 </CommandItem>
@@ -237,12 +237,12 @@ function OrderSelect({ value, onChange, orders }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
-            !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
+            "w-full justify-between",
+            !value ? "text-[rgb(var(--c-ink-3))] font-medium" : "text-[rgb(var(--c-ink))] font-bold"
           )}
         >
           <div className="flex items-center gap-2 truncate">
-            <ShoppingCart className={cn("h-4 w-4 shrink-0", value ? "text-blue-600" : "text-zinc-400")} />
+            <ShoppingCart className={cn("h-4 w-4 shrink-0", value ? "text-blue-600" : "text-[rgb(var(--c-ink-4))]")} />
             <span className="truncate">
               {value && selectedOrder ? (selectedOrder.order_code ? `${selectedOrder.order_code} - ${selectedOrder.name}` : selectedOrder.name) : "Chọn ĐH"}
             </span>
@@ -250,22 +250,22 @@ function OrderSelect({ value, onChange, orders }) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-zinc-200 rounded-xl" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-[rgb(var(--c-line-2))] rounded-xl" align="start">
         <Command className="w-full">
           <CommandInput placeholder="Tìm mã PC hoặc tên..." />
-          <CommandList className="max-h-64 p-1">
-            <CommandEmpty className="py-4 text-center text-xs font-bold text-zinc-400">Không tìm thấy đơn hàng</CommandEmpty>
+          <CommandList >
+            <CommandEmpty className="py-4 text-center text-xs font-bold text-[rgb(var(--c-ink-4))]">Không tìm thấy đơn hàng</CommandEmpty>
             <CommandGroup>
               {orders.map((o) => (
                 <CommandItem
                   key={o.id}
                   value={`${o.order_code || ''} ${o.name || ''}`.trim()}
                   onSelect={() => onChange(String(o.id))}
-                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-blue-50 aria-selected:text-blue-700 mb-1"
+                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] mb-1"
                 >
-                  <div className="flex flex-col">
+                  <div >
                     {o.order_code && <span className="text-xs font-black text-blue-600">{o.order_code}</span>}
-                    <span className="text-sm font-semibold text-zinc-700 truncate">{o.name}</span>
+                    <span className="text-sm font-semibold text-[rgb(var(--c-ink-2))] truncate">{o.name}</span>
                   </div>
                   <Check className={cn("ml-auto h-4 w-4 text-blue-600", String(value) === String(o.id) ? "opacity-100" : "opacity-0")} />
                 </CommandItem>
@@ -288,12 +288,12 @@ function ProductSelect({ value, onChange, products }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
-            !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
+            "w-full justify-between",
+            !value ? "text-[rgb(var(--c-ink-3))] font-medium" : "text-[rgb(var(--c-ink))] font-bold"
           )}
         >
           <div className="flex items-center gap-2 truncate">
-            <Package className={cn("h-4 w-4 shrink-0", value ? "text-indigo-600" : "text-zinc-400")} />
+            <Package className={cn("h-4 w-4 shrink-0", value ? "text-indigo-600" : "text-[rgb(var(--c-ink-4))]")} />
             <span className="truncate">
               {value && selectedProduct ? selectedProduct.name : "Chọn MH"}
             </span>
@@ -301,18 +301,18 @@ function ProductSelect({ value, onChange, products }) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-zinc-200 rounded-xl" align="start">
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border-[rgb(var(--c-line-2))] rounded-xl" align="start">
         <Command className="w-full">
           <CommandInput placeholder="Tìm mã hàng..." />
-          <CommandList className="max-h-64 p-1">
-            <CommandEmpty className="py-4 text-center text-xs font-bold text-zinc-400">Không tìm thấy mã hàng</CommandEmpty>
+          <CommandList >
+            <CommandEmpty className="py-4 text-center text-xs font-bold text-[rgb(var(--c-ink-4))]">Không tìm thấy mã hàng</CommandEmpty>
             <CommandGroup>
               {products.map((p) => (
                 <CommandItem
                   key={p.id}
                   value={p.name}
                   onSelect={() => onChange(String(p.id))}
-                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 mb-1"
+                  className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] mb-1"
                 >
                   <span className="text-sm font-bold truncate">{p.name}</span>
                   <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(value) === String(p.id) ? "opacity-100" : "opacity-0")} />
@@ -405,11 +405,11 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 pb-6 border-b border-zinc-100">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 pb-6 border-b border-[rgb(var(--c-line))]">
           {type !== 'PACKAGING' && (
             <>
               <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Nhà cung cấp <span className="text-red-500">*</span></Label>
+                <Label className="text-xs font-black text-[rgb(var(--c-ink-3))] uppercase tracking-widest">Nhà cung cấp <span className="text-red-500">*</span></Label>
                 <SupplierSelect
                   value={formData.supplier_id}
                   onChange={v => setFormData(f => ({ ...f, supplier_id: v }))}
@@ -418,7 +418,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày xuất đi</Label>
+                <Label className="text-xs font-black text-[rgb(var(--c-ink-3))] uppercase tracking-widest">Ngày xuất đi</Label>
                 <PremiumDatePicker
                   date={formData.dispatch_date}
                   onSelect={d => setFormData({ ...formData, dispatch_date: d })}
@@ -427,7 +427,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày dự kiến về</Label>
+                <Label className="text-xs font-black text-[rgb(var(--c-ink-3))] uppercase tracking-widest">Ngày dự kiến về</Label>
                 <PremiumDatePicker
                   date={formData.expected_return_date}
                   onSelect={d => setFormData({ ...formData, expected_return_date: d })}
@@ -451,17 +451,17 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           </div>
 
           {items.map((item, index) => (
-            <div key={item.id} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl group">
+            <div key={item.id} className="relative p-5/80 border border-[rgb(var(--c-line-2))] rounded-2xl group">
               {items.length > 1 && (
-                <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors">
+                <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-[rgb(var(--c-ink-4))] hover:text-red-500 transition-colors">
                   <Trash2 className="w-5 h-5" />
                 </button>
               )}
-              <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">Phần {index + 1}</h4>
+              <h4 className="text-xs font-bold text-[rgb(var(--c-ink-3))] mb-4 uppercase tracking-widest">Phần {index + 1}</h4>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="space-y-1.5 lg:col-span-1">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
+                  <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Đơn hàng *</Label>
                   <OrderSelect
                     value={item.order_id}
                     onChange={v => {
@@ -479,7 +479,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                   />
                 </div>
                 <div className="space-y-1.5 lg:col-span-1">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
+                  <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Mã hàng *</Label>
                   <ProductSelect
                     value={item.product_id}
                     onChange={v => {
@@ -498,15 +498,15 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                  <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
+                  <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">SL Order</Label>
+                  <Input type="number" placeholder="0" className="h-11 font-medium" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
                 </div>
                 {type === 'PACKAGING' && (
-                  <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
+                  <div className="space-y-1.5 bg-[rgb(var(--c-s2))]/30 p-2 rounded-lg border border-[rgb(var(--c-line-2))]/50">
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Quy cách đóng thùng</Label>
                     <Input
                       placeholder="VD: 24 cái/thùng"
-                      className="h-9 font-bold bg-white text-zinc-900 border-zinc-200"
+                      className="h-9 font-bold text-[rgb(var(--c-ink))] border-[rgb(var(--c-line-2))]"
                       value={item.packing_specification || ""}
                       onChange={e => handleItemChange(item.id, 'packing_specification', e.target.value)}
                     />
@@ -514,9 +514,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                 )}
                 {type !== 'PACKAGING' && (
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Loại hình</Label>
                     <select
-                      className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      className="h-11 font-medium w-full rounded-md border border-[rgb(var(--c-line-2))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       value={item.processing_type}
                       onChange={e => handleItemChange(item.id, 'processing_type', e.target.value)}
                     >
@@ -546,30 +546,30 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               </div>
 
               {type !== 'PACKAGING' && (
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-[rgb(var(--c-line-2))]/60">
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Kiện hàng</Label>
                     <Input type="number" placeholder="0" className="h-10 border-indigo-100" value={item.package_count} onChange={e => handleItemChange(item.id, 'package_count', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Gross Weight (KG)</Label>
                     <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Pallet Weight (KG)</Label>
                     <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL Tịnh (kg/cái)</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">KL Tịnh (kg/cái)</Label>
                     <Input type="number" step="0.01" placeholder="0.00" className="h-10 border-amber-100" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, 'unit_net_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Ghi chú</Label>
                     <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} />
                   </div>
                   <div className="space-y-1.5 md:col-span-1">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
-                    <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
+                    <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Net Weight (KG)</Label>
+                    <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-[rgb(var(--c-s2))]/50 font-bold" readOnly value={item.net_weight} />
                   </div>
                 </div>
               )}
@@ -577,7 +577,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           ))}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-zinc-100 flex justify-end">
+        <div className="mt-8 pt-6 border-t border-[rgb(var(--c-line))] flex justify-end">
           <Button
             type="submit"
             disabled={loading}
@@ -590,7 +590,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       </form>
 
       {createdTicket && (
-        <div className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl relative overflow-hidden shadow-sm animate-in zoom-in-95 duration-300">
+        <div className="card p-4 relative overflow-hidden">
           <div className="absolute top-0 w-2 h-full left-0 bg-emerald-500"></div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -598,9 +598,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
             </div>
             <h3 className="font-bold text-emerald-900 text-lg">{type === 'PACKAGING' ? 'Ghi nhận SL đóng gói thành công!' : 'Tạo phiếu thành công!'}</h3>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-xl border border-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl border border-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] gap-4">
             <div>
-              <p className="text-[10px] font-black tracking-widest text-zinc-400 uppercase mb-1 flex items-center gap-1.5">
+              <p className="text-[10px] font-black tracking-widest text-[rgb(var(--c-ink-4))] uppercase mb-1 flex items-center gap-1.5">
                 <Hash className="w-3 h-3" /> Mã Phiếu
               </p>
               <p className="text-3xl font-black text-slate-800 font-['Outfit'] tracking-tight">{createdTicket.ticket_code}</p>
@@ -698,7 +698,7 @@ function InboundTicketForm({ type }) {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="max-w-xl mx-auto space-y-3 bg-zinc-50 p-6 md:p-8 rounded-2xl border border-zinc-200 shadow-sm">
+      <div className="max-w-xl mx-auto space-y-3 p-6 md:p-8 rounded-2xl border border-[rgb(var(--c-line-2))] shadow-sm">
         <Label className="text-sm font-black text-slate-700 uppercase tracking-widest block text-center mb-4">TRA CỨU PHIẾU ĐI</Label>
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
@@ -706,7 +706,7 @@ function InboundTicketForm({ type }) {
             value={searchCode}
             onChange={e => setSearchCode(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            className="h-12 text-base bg-white border-zinc-300 font-['Outfit'] font-bold text-center sm:text-left focus-visible:ring-indigo-500"
+            className="h-12 text-base border-[rgb(var(--c-line-3))] font-['Outfit'] font-bold text-center sm:text-left focus-visible:ring-indigo-500"
           />
           <Button
             onClick={handleSearch}
@@ -722,7 +722,7 @@ function InboundTicketForm({ type }) {
       {ticketData && (
         <div className="flex flex-col gap-10 animate-in slide-in-from-bottom-4 duration-500 pt-4">
           {/* Main Info & Items */}
-          <div className="space-y-6">
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-3">
                 Thông tin chung
@@ -730,27 +730,27 @@ function InboundTicketForm({ type }) {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 text-sm bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 text-sm card p-4">
               <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nhà cung cấp</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Nhà cung cấp</p>
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-zinc-400" />
+                  <Building2 className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                   <p className="font-bold text-slate-800">{ticketData.supplier || "—"}</p>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Thời gian</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Thời gian</p>
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-zinc-400" />
+                  <Calendar className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                   <p className="font-bold text-slate-800">
                     {ticketData.dispatch_date && DateTime.fromISO(ticketData.dispatch_date).toFormat('dd/MM/yyyy')}
-                    <span className="text-zinc-400 mx-1">→</span>
+                    <span className="text-[rgb(var(--c-ink-4))] mx-1">→</span>
                     {ticketData.expected_return_date && DateTime.fromISO(ticketData.expected_return_date).toFormat('dd/MM/yyyy')}
                   </p>
                 </div>
               </div>
               <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tình trạng tổng</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Tình trạng tổng</p>
                 <div className="flex items-center">
                   <span className={cn(
                     "px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-widest",
@@ -762,15 +762,15 @@ function InboundTicketForm({ type }) {
                   </span>
                 </div>
               </div>
-              <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-4 mt-2 border-t border-zinc-100">
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-4 mt-2 border-t border-[rgb(var(--c-line))]">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Xuất đi</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Tổng Xuất đi</p>
                     <p className="font-black text-2xl text-slate-800 tabular-nums">{ticketData.quantity_out}</p>
                   </div>
-                  <div className="h-10 w-px bg-zinc-200"></div>
+                  <div className="h-10 w-px bg-[rgb(var(--c-s3))]"></div>
                   <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Đã Về</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">Tổng Đã Về</p>
                     <p className="font-black text-2xl text-indigo-600 tabular-nums">{ticketData.total_returned}</p>
                   </div>
                 </div>
@@ -779,26 +779,26 @@ function InboundTicketForm({ type }) {
 
             <div className="space-y-4">
               <h4 className="font-bold text-slate-800 uppercase tracking-widest text-sm flex items-center gap-2">
-                <Settings className="w-4 h-4 text-zinc-400" />
+                <Settings className="w-4 h-4 text-[rgb(var(--c-ink-4))]" />
                 Các phần cần nhập về
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {ticketData.items && ticketData.items.map((item, idx) => {
                   const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
                   return (
-                    <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                    <div key={item.id} className="p-4 border border-[rgb(var(--c-line-2))] rounded-2xl shadow-sm space-y-4">
                       <div className="flex justify-between items-start">
                         <div className="space-y-1">
-                          <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx + 1}</span>
-                          <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
+                          <span className="text-[10px] font-black bg-[rgb(var(--c-s2))] px-2 py-0.5 rounded text-[rgb(var(--c-ink-2))]">Phần {idx + 1}</span>
+                          <p className="font-bold text-slate-800">{item.product_name} <span className="text-[rgb(var(--c-ink-4))] mx-1">•</span> {item.order_name || item.order_code}</p>
                           <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
+                            {item.processing_type && <p className="text-xs font-semibold text-[rgb(var(--c-ink-3))]">Gia công: {item.processing_type}</p>}
                             {item.package_count && <p className="text-xs font-semibold text-blue-600">Kiện hàng: {item.package_count}</p>}
                             {item.unit_net_weight && <p className="text-xs font-semibold text-amber-600">KL Tịnh: {item.unit_net_weight} kg/cái</p>}
                           </div>
                         </div>
                         <div className="text-right space-y-0.5 whitespace-nowrap">
-                          <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
+                          <p className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
                           <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
                         </div>
                       </div>
@@ -838,7 +838,7 @@ function InboundTicketForm({ type }) {
                             placeholder="Net (KG)"
                             readOnly
                             value={returnFormData[item.id]?.net_weight || ""}
-                            className="text-sm font-bold bg-zinc-100"
+                            className="text-sm font-bold bg-[rgb(var(--c-s2))]"
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
@@ -875,22 +875,22 @@ function InboundTicketForm({ type }) {
           </div>
 
           {/* History Section Below */}
-          <div className="space-y-4 pt-6 border-t border-zinc-100">
+          <div className="space-y-4 pt-6 border-t border-[rgb(var(--c-line))]">
             <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-2">
               Lịch sử nhập
-              <span className="bg-zinc-100 text-zinc-600 text-xs px-2 py-0.5 rounded-full">{history.length}</span>
+              <span className="bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-2))] text-xs px-2 py-0.5 rounded-full">{history.length}</span>
             </h3>
 
             {history.length === 0 ? (
-              <div className="bg-white border border-zinc-200 rounded-2xl p-16 flex flex-col items-center justify-center text-center shadow-sm">
+              <div className="bg-white border border-[rgb(var(--c-line-2))] rounded-2xl p-16 flex flex-col items-center justify-center text-center shadow-sm">
                 <AlertCircle className="w-10 h-10 text-zinc-300 mb-3" />
-                <p className="text-zinc-500 font-medium text-sm">Chưa có bản ghi nào</p>
-                <p className="text-zinc-400 text-xs mt-1 max-w-[200px]">Bạn hãy nhập số lượng để ghi nhận lịch sử.</p>
+                <p className="text-[rgb(var(--c-ink-3))] font-medium text-sm">Chưa có bản ghi nào</p>
+                <p className="text-[rgb(var(--c-ink-4))] text-xs mt-1 max-w-[200px]">Bạn hãy nhập số lượng để ghi nhận lịch sử.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {history.map((h, i) => (
-                  <div key={h.id} className="flex flex-col p-4 bg-white border border-zinc-200 hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm relative">
+                  <div key={h.id} className="flex flex-col p-4 border border-[rgb(var(--c-line-2))] hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm relative">
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => {
@@ -928,13 +928,13 @@ function InboundTicketForm({ type }) {
                         </div>
                         <div>
                           <p className="font-black text-lg text-emerald-600 tracking-tight leading-none mb-1">+{h.quantity_returned}</p>
-                          <p className="text-xs font-bold text-zinc-700 truncate max-w-[150px]">{h.product_name}</p>
+                          <p className="text-xs font-bold text-[rgb(var(--c-ink-2))] truncate max-w-[150px]">{h.product_name}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex justify-between items-end mt-2 pt-2 border-t border-zinc-100/50">
-                      <p className="text-[10px] font-bold text-zinc-400">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM HH:mm')}</p>
-                      <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">
+                    <div className="flex justify-between items-end mt-2 pt-2 border-t border-[rgb(var(--c-line))]/50">
+                      <p className="text-[10px] font-bold text-[rgb(var(--c-ink-4))]">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM HH:mm')}</p>
+                      <span className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] bg-[rgb(var(--c-s2))] px-2 py-0.5 rounded">
                         {h.created_by_username || "Hệ thống"}
                       </span>
                     </div>
@@ -948,10 +948,10 @@ function InboundTicketForm({ type }) {
 
       {/* Edit History Dialog */}
       <Dialog open={showEditHistoryDialog} onOpenChange={setShowEditHistoryDialog}>
-        <DialogContent className="sm:max-w-2xl bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="sm:max-w-2xl border border-[rgb(var(--c-line-2))] rounded-2xl shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+            <DialogDescription className="text-sm font-medium text-[rgb(var(--c-ink-2))] mt-2">
               Cập nhật thông tin lịch sử nhập hàng gia công
             </DialogDescription>
           </DialogHeader>
@@ -959,7 +959,7 @@ function InboundTicketForm({ type }) {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">SL Nhập (cái) *</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))] uppercase">SL Nhập (cái) *</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -972,7 +972,7 @@ function InboundTicketForm({ type }) {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Gross (KG)</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))] uppercase">Gross (KG)</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -993,7 +993,7 @@ function InboundTicketForm({ type }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Pallet (KG)</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))] uppercase">Pallet (KG)</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -1014,7 +1014,7 @@ function InboundTicketForm({ type }) {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Net (KG)</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))] uppercase">Net (KG)</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -1022,12 +1022,12 @@ function InboundTicketForm({ type }) {
                   placeholder="0.00"
                   value={editingHistoryData.net_weight || ""}
                   readOnly
-                  className="h-11 font-medium bg-zinc-100/50"
+                  className="h-11 font-medium bg-[rgb(var(--c-s2))]/50"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">KG Thiếu Thữa</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))] uppercase">KG Thiếu Thữa</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -1041,21 +1041,21 @@ function InboundTicketForm({ type }) {
             </div>
             
             <div className="space-y-2">
-              <Label className="text-sm font-bold text-zinc-700">Ghi chú</Label>
+              <Label className="text-sm font-bold text-[rgb(var(--c-ink-2))]">Ghi chú</Label>
               <textarea 
                 placeholder="Thêm ghi chú nếu cần..."
                 value={editingHistoryData.notes || ""}
                 onChange={(e) => setEditingHistoryData(prev => ({...prev, notes: e.target.value}))}
-                className="w-full h-20 p-3 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium resize-none"
+                className="w-full h-20 p-3 border border-[rgb(var(--c-line-2))] rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium resize-none"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
+          <DialogFooter className="gap-2 pt-4 border-t border-[rgb(var(--c-line))]">
             <Button 
               variant="outline" 
               onClick={() => setShowEditHistoryDialog(false)} 
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
+              className="border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))] font-bold"
             >
               Hủy
             </Button>
@@ -1103,19 +1103,19 @@ function InboundTicketForm({ type }) {
 
       {/* Delete History Dialog */}
       <Dialog open={showDeleteHistoryDialog} onOpenChange={setShowDeleteHistoryDialog}>
-        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="bg-white border border-[rgb(var(--c-line-2))] rounded-2xl shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+            <DialogDescription className="text-sm font-medium text-[rgb(var(--c-ink-2))] mt-2">
               Bạn có chắc chắn muốn xóa bản ghi lịch sử nhập này? Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-2 pt-6 border-t border-zinc-100">
+          <DialogFooter className="gap-2 pt-6 border-t border-[rgb(var(--c-line))]">
             <Button 
               variant="outline" 
               onClick={() => setShowDeleteHistoryDialog(false)} 
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
+              className="border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))] font-bold"
             >
               Hủy
             </Button>
@@ -1312,21 +1312,21 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-white border border-zinc-200 rounded-2xl shadow-xl">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto border border-[rgb(var(--c-line-2))] rounded-2xl shadow-xl">
         <DialogHeader>
           <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa phiếu gia công</DialogTitle>
-          <DialogDescription className="text-xs font-medium text-zinc-500">
+          <DialogDescription className="text-xs font-medium text-[rgb(var(--c-ink-3))]">
             {ticketCode ? `Cập nhật thông tin phiếu: ${ticketCode}` : "Đang tải..."}
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
-          <p className="py-8 text-center text-sm font-medium text-zinc-500">Đang tải dữ liệu phiếu...</p>
+          <p className="py-8 text-center text-sm font-medium text-[rgb(var(--c-ink-3))]">Đang tải dữ liệu phiếu...</p>
         ) : ticket && (
           <div className="space-y-6 py-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">Loại</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Loại</Label>
                 <Select value={ticket.type} onValueChange={v => setTicket({ ...ticket, type: v })}>
                   <SelectTrigger className="h-11 font-bold">
                     <SelectValue />
@@ -1338,7 +1338,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-500 uppercase">Trạng thái</Label>
+                <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Trạng thái</Label>
                 <Select value={ticket.status || "PENDING"} onValueChange={v => setTicket({ ...ticket, status: v })}>
                   <SelectTrigger className="h-11 font-bold">
                     <SelectValue />
@@ -1355,7 +1355,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
             {ticketType !== "PACKAGING" && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-zinc-500 uppercase">Nhà cung cấp</Label>
+                  <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Nhà cung cấp</Label>
                   <SupplierSelect
                     value={ticket.supplier_id}
                     onChange={v => setTicket({ ...ticket, supplier_id: v })}
@@ -1363,7 +1363,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày xuất đi</Label>
+                  <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Ngày xuất đi</Label>
                   <PremiumDatePicker
                     date={ticket.dispatch_date}
                     onSelect={d => setTicket({ ...ticket, dispatch_date: d })}
@@ -1371,7 +1371,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-zinc-500 uppercase">Ngày dự kiến về</Label>
+                  <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] uppercase">Ngày dự kiến về</Label>
                   <PremiumDatePicker
                     date={ticket.expected_return_date}
                     onSelect={d => setTicket({ ...ticket, expected_return_date: d })}
@@ -1381,7 +1381,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
               </div>
             )}
 
-            <div className="space-y-4 pt-2 border-t border-zinc-100">
+            <div className="space-y-4 pt-2 border-t border-[rgb(var(--c-line))]">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                   <Package className="w-5 h-5 text-indigo-600" />
@@ -1394,17 +1394,17 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
               </div>
 
               {items.map((item, index) => (
-                <div key={item.localKey} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl">
+                <div key={item.localKey} className="relative p-5/80 border border-[rgb(var(--c-line-2))] rounded-2xl">
                   {items.length > 1 && (
                     <button
                       type="button"
                       onClick={() => removeItem(item.localKey)}
-                      className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors"
+                      className="absolute top-4 right-4 text-[rgb(var(--c-ink-4))] hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
-                  <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">
+                  <h4 className="text-xs font-bold text-[rgb(var(--c-ink-3))] mb-4 uppercase tracking-widest">
                     Phần {index + 1}
                     {item.total_returned > 0 && (
                       <span className="ml-2 text-amber-600 normal-case">(đã nhập về: {item.total_returned})</span>
@@ -1412,7 +1412,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="space-y-1.5 lg:col-span-1">
-                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
+                      <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Đơn hàng *</Label>
                       <OrderSelect
                         value={item.order_id}
                         onChange={v => {
@@ -1429,7 +1429,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                       />
                     </div>
                     <div className="space-y-1.5 lg:col-span-1">
-                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
+                      <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Mã hàng *</Label>
                       <ProductSelect
                         value={item.product_id}
                         onChange={v => {
@@ -1446,15 +1446,15 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                      <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.localKey, "order_quantity", e.target.value)} />
+                      <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">SL Order</Label>
+                      <Input type="number" placeholder="0" className="h-11 font-medium" value={item.order_quantity} onChange={e => handleItemChange(item.localKey, "order_quantity", e.target.value)} />
                     </div>
                     {ticketType === "PACKAGING" && (
-                      <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
+                      <div className="space-y-1.5 bg-[rgb(var(--c-s2))]/30 p-2 rounded-lg border border-[rgb(var(--c-line-2))]/50">
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Quy cách đóng thùng</Label>
                         <Input
                           placeholder="VD: 24 cái/thùng"
-                          className="h-9 font-bold bg-white"
+                          className="h-9 font-bold"
                           value={item.packing_specification || ""}
                           onChange={e => handleItemChange(item.localKey, "packing_specification", e.target.value)}
                         />
@@ -1462,9 +1462,9 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                     )}
                     {ticketType !== "PACKAGING" && (
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Loại hình</Label>
                         <select
-                          className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          className="h-11 font-medium w-full rounded-md border border-[rgb(var(--c-line-2))] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           value={item.processing_type}
                           onChange={e => handleItemChange(item.localKey, "processing_type", e.target.value)}
                         >
@@ -1494,30 +1494,30 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                   </div>
 
                   {ticketType !== "PACKAGING" && (
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-[rgb(var(--c-line-2))]/60">
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Kiện hàng</Label>
                         <Input type="number" placeholder="0" className="h-10" value={item.package_count} onChange={e => handleItemChange(item.localKey, "package_count", e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Gross Weight (KG)</Label>
                         <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.localKey, "gross_weight", e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Pallet Weight (KG)</Label>
                         <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.localKey, "pallet_weight", e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL Tịnh (kg/cái)</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">KL Tịnh (kg/cái)</Label>
                         <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.unit_net_weight} onChange={e => handleItemChange(item.localKey, "unit_net_weight", e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Ghi chú</Label>
                         <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.localKey, "notes", e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
-                        <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
+                        <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase">Net Weight (KG)</Label>
+                        <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-[rgb(var(--c-s2))]/50 font-bold" readOnly value={item.net_weight} />
                       </div>
                     </div>
                   )}
@@ -1527,8 +1527,8 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
           </div>
         )}
 
-        <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold">
+        <DialogFooter className="gap-2 pt-4 border-t border-[rgb(var(--c-line))]">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))] font-bold">
             Hủy
           </Button>
           <Button
@@ -1769,7 +1769,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
     {
       id: "order_code",
       label: "Gồm Đơn hàng",
-      className: "font-bold text-zinc-700 max-w-[150px] truncate",
+      className: "font-bold text-[rgb(var(--c-ink-2))] max-w-[150px] truncate",
       format: (val) => val || "—"
     },
     {
@@ -1802,7 +1802,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
       format: (val) => {
         if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
         if (val === 'PARTIAL') return <Badge className="bg-amber-50 text-amber-700 border-amber-200">Một phần</Badge>;
-        return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Đang chờ</Badge>;
+        return <Badge variant="secondary" className="bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-3))]">Đang chờ</Badge>;
       }
     },
     getAuditColumn()
@@ -1810,14 +1810,14 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
 
   if (type === 'PACKAGING') {
     columns = [
-      { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-zinc-700 max-w-[150px] truncate", format: (val) => val || "—" },
+      { id: "order_code", label: "Gồm Đơn hàng", className: "font-bold text-[rgb(var(--c-ink-2))] max-w-[150px] truncate", format: (val) => val || "—" },
       { id: "product_name", label: "Gồm Mã hàng", className: "font-medium max-w-[150px] truncate", format: (val) => val || "—" },
-      { id: "packing_specification", label: "Quy cách", className: "italic text-[11px] text-zinc-500 max-w-[120px] truncate", format: (val) => val || "—" },
+      { id: "packing_specification", label: "Quy cách", className: "italic text-[11px] text-[rgb(var(--c-ink-3))] max-w-[120px] truncate", format: (val) => val || "—" },
       { id: "quantity_out", label: "Đã đóng gói", className: "font-black text-blue-600 tabular-nums text-right", format: (val) => parseFloat(val).toLocaleString() },
       {
         id: "status", label: "Trạng thái", format: (val) => {
           if (val === 'COMPLETED') return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Hoàn thành</Badge>;
-          return <Badge variant="secondary" className="bg-zinc-100 text-zinc-500">Hoàn thành</Badge>;
+          return <Badge variant="secondary" className="bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-3))]">Hoàn thành</Badge>;
         }
       },
       getAuditColumn()
@@ -1826,13 +1826,13 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row items-center gap-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+      <div className="flex flex-col md:flex-row items-center gap-3 p-4 rounded-xl border border-[rgb(var(--c-line-2))]">
         <div className="flex-1 w-full md:w-auto">
-          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo ĐH</Label>
+          <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase block mb-1.5">Lọc theo ĐH</Label>
           <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
         </div>
         <div className="flex-1 w-full md:w-auto">
-          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo MH</Label>
+          <Label className="text-[10px] font-bold text-[rgb(var(--c-ink-3))] uppercase block mb-1.5">Lọc theo MH</Label>
           <ProductSelect value={filterProductId} onChange={setFilterProductId} products={filterOrderId ? (orders.find(o => String(o.id) === String(filterOrderId))?.products || []) : products} />
         </div>
         <div className="flex items-end h-full">
@@ -1872,15 +1872,15 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="bg-white border border-[rgb(var(--c-line-2))] rounded-2xl shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa phiếu gia công</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+            <DialogDescription className="text-sm font-medium text-[rgb(var(--c-ink-2))] mt-2">
               Bạn có chắc chắn muốn xóa phiếu này? Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 pt-6">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold rounded-lg">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))] font-bold rounded-lg">
               Hủy
             </Button>
             <Button

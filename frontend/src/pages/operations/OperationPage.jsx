@@ -143,13 +143,13 @@ export default function OperationPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>
             Quản lý Công đoạn
           </h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>
             Danh sách công đoạn tiêu chuẩn
           </p>
         </div>
@@ -161,7 +161,7 @@ export default function OperationPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-48 h-11 bg-zinc-50 border-zinc-200 focus:ring-0 focus:ring-offset-0 rounded-xl text-sm font-medium">
+            <SelectTrigger className="w-48">
               <SelectValue placeholder="Tất cả nhóm mã hàng" />
             </SelectTrigger>
             <SelectContent className="max-h-64">
@@ -178,7 +178,7 @@ export default function OperationPage() {
           {hasPermission("operations:create") && (
             <Button
               onClick={() => handleOpen()}
-              className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl"
+              
             >
               <Plus className="w-4 h-4" /> Thêm công đoạn
             </Button>
@@ -186,7 +186,7 @@ export default function OperationPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           data={operations}
           columns={columns}
@@ -241,7 +241,7 @@ export default function OperationPage() {
                       {...field}
                       rows={3}
                       placeholder="Mô tả ngắn về công đoạn..."
-                      className="w-full rounded-md border border-zinc-200 bg-transparent px-3 py-2 text-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none"
+                      className="w-full rounded-md border border-[rgb(var(--c-line-2))] bg-transparent px-3 py-2 text-sm placeholder:text-[rgb(var(--c-ink-4))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 resize-none"
                     />
                   )}
                 />

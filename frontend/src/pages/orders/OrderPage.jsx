@@ -259,7 +259,7 @@ function OrderPageCore({
   {
     id: "po_auto_code",
     label: "PO Hệ thống",
-    className: "min-w-[150px] w-[150px] max-w-[150px] font-semibold text-zinc-900 bg-white",
+    className: "min-w-[150px] w-[150px] max-w-[150px] font-semibold text-[rgb(var(--c-ink))]",
     isSticky: true,
     stickyLeft: "100px",
     width: "150px",
@@ -269,7 +269,7 @@ function OrderPageCore({
   {
     id: "report_action",
     label: "Báo cáo",
-    className: "min-w-[80px] w-[80px] max-w-[80px] text-center bg-white font-bold text-red",
+    className: "min-w-[80px] w-[80px] max-w-[80px] text-center font-bold text-red",
     isSticky: true,
     stickyLeft: "250px",
     width: "80px",
@@ -283,7 +283,7 @@ function OrderPageCore({
                 setSummaryOrderId(row.id);
                 setOpenSummaryDialog(true);
               }}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+              className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
             >
               <LayoutDashboard className="w-4 h-4" />
             </TooltipTrigger>
@@ -302,7 +302,7 @@ function OrderPageCore({
                 setRemainingQuantityOrderId(row.id);
                 setOpenRemainingQuantity(true);
               }}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+              className="p-1.5 rounded-lg text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:bg-red-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
             >
               <Layers className="w-4 h-4" />
             </TooltipTrigger>
@@ -319,7 +319,7 @@ function OrderPageCore({
   {
     id: "po_customer",
     label: "PO KH",
-    className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600 bg-white",
+    className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600",
     isSticky: true,
     stickyLeft: "330px",
     width: "120px",
@@ -347,7 +347,7 @@ function OrderPageCore({
   {
     id: "name",
     label: "Tên đơn hàng",
-    className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900 bg-white",
+    className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-[rgb(var(--c-ink))]",
     isSticky: true,
     stickyLeft: "450px",
     width: "250px"
@@ -356,7 +356,7 @@ function OrderPageCore({
   {
     id: "customer_name",
     label: "Tên khách",
-    className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate bg-white",
+    className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate",
     isSticky: true,
     stickyLeft: "700px",
     width: "150px"
@@ -365,7 +365,7 @@ function OrderPageCore({
   {
     id: "person_in_charge",
     label: "Người phụ trách",
-    className: "min-w-[150px] w-[150px] max-w-[150px] truncate bg-white",
+    className: "min-w-[150px] w-[150px] max-w-[150px] truncate",
     isSticky: true,
     stickyLeft: "850px",
     width: "150px"
@@ -374,7 +374,7 @@ function OrderPageCore({
   {
     id: "received_date",
     label: "Ngày nhận đơn",
-    className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white",
+    className: "min-w-[110px] w-[110px] max-w-[110px] text-center",
     isSticky: true,
     stickyLeft: "1000px",
     isLastSticky: true,
@@ -487,7 +487,7 @@ function OrderPageCore({
               ? "warning"
               : "outline"
           }
-          className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100"
+          className="font-black tabular-nums border-[rgb(var(--c-line-2))] shadow-sm cursor-pointer hover:bg-[rgb(var(--c-s2))]"
         >
           {(row.completion_percentage || 0)}%
         </Badge>
@@ -840,17 +840,17 @@ function OrderPageCore({
 
   const pageContent = !isEmbed ? (
     <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Đơn hàng</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Danh sách thông tin đơn hàng</p>
+      <div className="flex items-center justify-between flex-wrap gap-4 flex-shrink-0">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Quản lý Đơn hàng</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Danh sách thông tin đơn hàng</p>
         </div>
         <div className="flex items-center gap-3">
           {/* <Button
             type="button"
             variant="outline"
             onClick={() => navigate("/orders/product-snapshots")}
-            className="h-11 px-6 border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl font-bold gap-2"
+            className=""
           >
             <Camera className="w-4 h-4" />
             Snapshot mã hàng
@@ -858,13 +858,13 @@ function OrderPageCore({
           <Button
             onClick={handleExportExcel}
             variant="outline"
-            className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+            className="h-11 px-6 "
           >
             <Download className="w-4 h-4" />
             Xuất Excel
           </Button>
           {hasPermission("orders:create") && (
-            <Button onClick={() => handleOpen()} className="h-11 px-6 gap-2 font-black uppercase text-xs tracking-widest bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-xl">
+            <Button onClick={() => handleOpen()} >
               <Plus className="w-4 h-4" /> Thêm đơn hàng
             </Button>
           )}
@@ -881,7 +881,7 @@ function OrderPageCore({
         />
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-white rounded-2xl border border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
         <GenericTable
           data={orders}
           columns={columns}
@@ -905,15 +905,15 @@ function OrderPageCore({
 
   const orderFormDialog = (
       <Dialog open={dialogOpen} onOpenChange={(v) => !v && closeDialog()}>
-        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-zinc-200 shadow-2xl ">
+        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[95vh] flex flex-col p-0 border-[rgb(var(--c-line-2))] shadow-2xl ">
           <form
             onSubmit={rhfHandleSubmit(onSubmit)}
-            className="flex flex-col h-full bg-zinc-50/50"
+            className="flex flex-col h-full/50"
           >
-            <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200 shadow-sm z-10 sticky top-0">
+            <DialogHeader className="px-6 py-4 border-b border-[rgb(var(--c-line-2))] shadow-sm z-10 sticky top-0">
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-4">
-                  <DialogTitle className="text-xl font-black tracking-tighter text-zinc-950 uppercase">
+                  <DialogTitle className="text-xl font-black tracking-tighter text-[rgb(var(--c-ink))] uppercase">
                     {activeOrder ? `Chỉnh sửa đơn hàng` : "Tạo đơn hàng mới"}
                   </DialogTitle>
                   {activeOrder && (
@@ -930,7 +930,7 @@ function OrderPageCore({
                     type="button"
                     variant="ghost"
                     onClick={closeDialog}
-                    className="font-bold text-zinc-500 hover:text-zinc-950 px-6"
+                    className="font-bold text-[rgb(var(--c-ink-3))] hover:text-[rgb(var(--c-ink))] px-6"
                   >
                     Hủy bỏ
                   </Button>
@@ -954,12 +954,12 @@ function OrderPageCore({
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* 1. Full-Width Name field at the top */}
-              <Card className="border-zinc-200 shadow-sm overflow-hidden border-t-4 border-t-blue-600">
+              <Card className="border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden border-t-4 border-t-blue-600">
                 <CardContent className="p-6">
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2 mb-1">
                       <FileText className="w-4 h-4 text-blue-600" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">THÔNG TIN CHUNG</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">THÔNG TIN CHUNG</Label>
                     </div>
                     <Controller
                       name="name"
@@ -970,7 +970,7 @@ function OrderPageCore({
                           <Input
                             {...field}
                             id="name"
-                            className="bg-white text-lg font-bold border-zinc-200 focus-visible:ring-blue-600 h-12 px-4 shadow-sm"
+                            className="bg-white text-lg font-bold border-[rgb(var(--c-line-2))] focus-visible:ring-blue-600 h-12 px-4 shadow-sm"
                             placeholder="VD: Đơn hàng gia công khuôn mẫu ABC"
                           />
                         </div>
@@ -982,11 +982,11 @@ function OrderPageCore({
 
               {/* 2. Details in 2 columns */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-zinc-200 shadow-sm bg-white">
+                <Card className="border-[rgb(var(--c-line-2))] shadow-sm">
                   <CardContent className="p-6 space-y-5">
                     <div className="flex items-center gap-2">
                       <User className="w-4 h-4 text-blue-600" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">KHÁCH HÀNG & PO</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">KHÁCH HÀNG & PO</Label>
                     </div>
 
                     <div className="grid gap-5">
@@ -1002,8 +1002,8 @@ function OrderPageCore({
                                   variant="outline"
                                   role="combobox"
                                   className={cn(
-                                    "w-full h-10 justify-between bg-white border-zinc-200 font-bold",
-                                    !field.value && "text-zinc-400 font-medium"
+                                    "w-full h-10 justify-between font-bold",
+                                    !field.value && "text-[rgb(var(--c-ink-4))] font-medium"
                                   )}
                                 >
                                   <div className="flex items-center gap-2 truncate">
@@ -1018,15 +1018,15 @@ function OrderPageCore({
                               <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
                                 <Command className="w-full">
                                   <CommandInput placeholder="Tìm khách hàng..." />
-                                  <CommandList className="max-h-64 p-1">
-                                    <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                  <CommandList >
+                                    <CommandEmpty >Không thấy</CommandEmpty>
                                     <CommandGroup>
                                       {customers?.map((c) => (
                                         <CommandItem
                                           key={c.id}
                                           value={c.name}
                                           onSelect={() => field.onChange(String(c.id))}
-                                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                         >
                                           <span className="text-xs font-bold">{c.name}</span>
                                           <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(c.id) ? "opacity-100" : "opacity-0")} />
@@ -1050,7 +1050,7 @@ function OrderPageCore({
                             render={({ field }) => (
                               <Input
                                 {...field}
-                                className="bg-white border-zinc-200 h-10"
+                                className="bg-white border-[rgb(var(--c-line-2))] h-10"
                                 placeholder="Mã PO từ KH"
                               />
                             )}
@@ -1064,7 +1064,7 @@ function OrderPageCore({
                             render={({ field }) => (
                               <Input
                                 {...field}
-                                className="bg-white border-zinc-200 h-10"
+                                className="bg-white border-[rgb(var(--c-line-2))] h-10"
                                 placeholder="Có thể nhập tay hoặc để trống"
                               />
                             )}
@@ -1075,11 +1075,11 @@ function OrderPageCore({
                   </CardContent>
                 </Card>
 
-                <Card className="border-zinc-200 shadow-sm bg-white">
+                <Card className="border-[rgb(var(--c-line-2))] shadow-sm">
                   <CardContent className="p-6 space-y-5">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-blue-600" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">CHI TIẾT SẢN XUẤT</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">CHI TIẾT SẢN XUẤT</Label>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1104,10 +1104,10 @@ function OrderPageCore({
                           control={control}
                           render={({ field }) => (
                             <div className="relative">
-                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] pointer-events-none" />
                               <Input
                                 {...field}
-                                className="pl-10 bg-white border-zinc-200 h-10"
+                                className="pl-10 h-10"
                                 placeholder="Tên nhân viên"
                               />
                             </div>
@@ -1121,10 +1121,10 @@ function OrderPageCore({
                           control={control}
                           render={({ field }) => (
                             <div className="relative">
-                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] pointer-events-none" />
                               <Input
                                 {...field}
-                                className="pl-10 bg-white border-zinc-200 h-10"
+                                className="pl-10 h-10"
                                 placeholder="Ghi chú địa điểm"
                               />
                             </div>
@@ -1142,10 +1142,10 @@ function OrderPageCore({
                                 value={String(field.value || "")}
                                 onValueChange={field.onChange}
                               >
-                                <SelectTrigger className="bg-white border-zinc-200 h-10 uppercase font-bold text-[10px] rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                                <SelectTrigger className="bg-white border-[rgb(var(--c-line-2))] h-10 uppercase font-bold text-[10px] rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
+                                <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1/95 backdrop-blur-sm z-[200]">
                                   {["DRAFT", "PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"].map((s) => (
                                     <SelectItem key={s} value={s} className="uppercase font-bold text-[10px] rounded-lg py-2.5 px-3 focus:bg-indigo-50 focus:text-indigo-700 transition-colors cursor-pointer mb-0.5 last:mb-0">
                                       {s}
@@ -1156,7 +1156,7 @@ function OrderPageCore({
                             )}
                           />
                         ) : (
-                          <div className="bg-zinc-100/80 border border-zinc-200 rounded-xl h-10 flex items-center px-3 font-bold text-zinc-500 text-[10px] uppercase">
+                          <div className="bg-[rgb(var(--c-s2))]/80 border border-[rgb(var(--c-line-2))] rounded-xl h-10 flex items-center px-3 font-bold text-[rgb(var(--c-ink-3))] text-[10px] uppercase">
                             DRAFT
                           </div>
                         )}
@@ -1171,7 +1171,7 @@ function OrderPageCore({
                         render={({ field }) => (
                           <Textarea
                             {...field}
-                            className="bg-white border-zinc-200 min-h-[80px] resize-none"
+                            className="bg-white border-[rgb(var(--c-line-2))] min-h-[80px] resize-none"
                             placeholder="Thông tin bổ sung..."
                           />
                         )}
@@ -1183,13 +1183,13 @@ function OrderPageCore({
 
               {/* Tiến độ và Xác nhận (chỉ hiển thị khi Update theo yêu cầu) */}
               {activeOrder && (
-                <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
+                <Card className="border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden">
                   <CardContent className="p-6 space-y-5">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-600" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">TIẾN ĐỘ & XÁC NHẬN</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">TIẾN ĐỘ & XÁC NHẬN</Label>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-zinc-100 pb-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b border-[rgb(var(--c-line))] pb-5">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold">Ngày bắt đầu sản xuất</Label>
                         <Controller
@@ -1243,7 +1243,7 @@ function OrderPageCore({
                                 type="button"
                                 variant="outline"
                                 onClick={() => field.onChange([...(field.value || []), ""])}
-                                className="w-full h-10 border-dashed border-zinc-200 text-zinc-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
+                                className="w-full h-10 border-dashed border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-4))] hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
                               >
                                 <Plus className="w-3.5 h-3.5 mr-2" /> Thêm ngày xuất
                               </Button>
@@ -1290,7 +1290,7 @@ function OrderPageCore({
                                 type="button"
                                 variant="outline"
                                 onClick={() => field.onChange([...(field.value || []), ""])}
-                                className="w-full h-10 border-dashed border-zinc-200 text-zinc-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
+                                className="w-full h-10 border-dashed border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-4))] hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50/30 font-bold transition-all text-[11px] uppercase tracking-wider"
                               >
                                 <Plus className="w-3.5 h-3.5 mr-2" /> Thêm ngày xuất
                               </Button>
@@ -1301,7 +1301,7 @@ function OrderPageCore({
                     </div>
 
                     {/* XNK Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-zinc-100 pb-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b border-[rgb(var(--c-line))] pb-5">
                       {/* <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -1348,13 +1348,13 @@ function OrderPageCore({
                             value={String(field.value || "")}
                             onValueChange={field.onChange}
                           >
-                            <SelectTrigger className="w-full h-12 bg-white border-zinc-200 rounded-xl font-bold text-[11px] shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all px-4">
+                            <SelectTrigger className="w-full h-12 rounded-xl font-bold text-[11px] shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all px-4">
                               <div className="flex items-center gap-3 truncate">
                                 <MessageSquare className={cn("h-4 w-4 shrink-0", field.value ? "text-indigo-600" : "text-zinc-300")} />
                                 <SelectValue placeholder="Chọn kết quả xác nhận..." />
                               </div>
                             </SelectTrigger>
-                            <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
+                            <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1/95 backdrop-blur-sm z-[200]">
                               {[
                                 "Khách chưa phản hồi",
                                 "Chưa báo khách",
@@ -1375,30 +1375,30 @@ function OrderPageCore({
                         )}
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-zinc-100 pt-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-[rgb(var(--c-line))] pt-5">
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-zinc-500">Loại pallet, kích thước, tải trọng</Label>
+                        <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Loại pallet, kích thước, tải trọng</Label>
                         <Controller
                           name="pallet_info"
                           control={control}
                           render={({ field }) => (
                             <Input
                               {...field}
-                              className="bg-white border-zinc-200 h-10"
+                              className="bg-white border-[rgb(var(--c-line-2))] h-10"
                               placeholder="VD: Pallet gỗ, 1100x1100, 1000kg..."
                             />
                           )}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-bold text-zinc-500">Tình trạng phụ kiện</Label>
+                        <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Tình trạng phụ kiện</Label>
                         <Controller
                           name="accessory_status"
                           control={control}
                           render={({ field }) => (
                             <Input
                               {...field}
-                              className="bg-white border-zinc-200 h-10"
+                              className="bg-white border-[rgb(var(--c-line-2))] h-10"
                               placeholder="VD: Đầy đủ, thiếu ốc vít..."
                             />
                           )}
@@ -1410,12 +1410,12 @@ function OrderPageCore({
               )}
 
               {/* 3. Product Selection */}
-              <Card className="border-zinc-200 shadow-sm bg-white overflow-hidden">
+              <Card className="border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="px-6 py-4 bg-zinc-50 border-b border-zinc-200">
+                  <div className="px-6 py-4 border-b border-[rgb(var(--c-line-2))]">
                     <div className="flex items-center gap-2">
                       <Package className="w-4 h-4 text-blue-600" />
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">DANH MỤC MÃ HÀNG & SỐ LƯỢNG</Label>
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))]">DANH MỤC MÃ HÀNG & SỐ LƯỢNG</Label>
                     </div>
                   </div>
 
@@ -1430,17 +1430,17 @@ function OrderPageCore({
                       </div>
                     )}
                     {fields.length === 0 ? (
-                      <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
+                      <div className="py-12 flex flex-col items-center justify-center border-2 border-dashed border-[rgb(var(--c-line))] rounded-xl/50">
                         <AlertCircle className="w-8 h-8 text-zinc-300 mb-2" />
-                        <p className="text-sm font-medium text-zinc-400">Chưa có mã hàng nào được thêm.</p>
+                        <p className="text-sm font-medium text-[rgb(var(--c-ink-4))]">Chưa có mã hàng nào được thêm.</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <div className={cn(PRODUCT_ITEMS_GRID, "px-2 mb-2")}>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-center">STT</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider min-w-0">Nhóm mã</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider min-w-0">Mã hàng</span>
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider text-right min-w-0">Số lượng</span>
+                          <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-wider text-center">STT</span>
+                          <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-wider min-w-0">Nhóm mã</span>
+                          <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-wider min-w-0">Mã hàng</span>
+                          <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-wider text-right min-w-0">Số lượng</span>
                           <div className="w-9 shrink-0" aria-hidden />
                         </div>
                         {(() => {
@@ -1463,7 +1463,7 @@ function OrderPageCore({
                                 key={field.id}
                                 className={cn(
                                   PRODUCT_ITEMS_GRID,
-                                  "p-2 rounded-lg border border-zinc-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
+                                  "p-2 rounded-lg border border-[rgb(var(--c-line))] hover:border-blue-200 hover:bg-blue-50/20 transition-all duration-200 group"
                                 )}
                               >
                                 <span className="text-sm font-black text-zinc-300 group-hover:text-blue-600 transition-colors text-center tabular-nums">
@@ -1471,7 +1471,7 @@ function OrderPageCore({
                                 </span>
 
                                 {isProductsLocked ? (
-                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-700 truncate">
+                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-[rgb(var(--c-line-2))] text-xs font-bold text-[rgb(var(--c-ink-2))] truncate">
                                     {snapshotGroupName || "—"}
                                   </div>
                                 ) : (
@@ -1486,8 +1486,8 @@ function OrderPageCore({
                                           variant="outline"
                                           role="combobox"
                                           className={cn(
-                                            "bg-white h-10 border-zinc-200 text-[11px] font-bold justify-between w-full min-w-0 px-3",
-                                            !f.value && "text-zinc-500 font-medium"
+                                            "bg-white h-10 border-[rgb(var(--c-line-2))] text-[11px] font-bold justify-between w-full min-w-0 px-3",
+                                            !f.value && "text-[rgb(var(--c-ink-3))] font-medium"
                                           )}
                                         >
                                           <span className="truncate min-w-0">
@@ -1502,7 +1502,7 @@ function OrderPageCore({
                                         <Command className="w-full">
                                           <CommandInput placeholder="Tìm nhóm mã hàng..." />
                                           <CommandList className="max-h-[250px] p-1">
-                                            <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhóm nào</CommandEmpty>
+                                            <CommandEmpty >Không thấy nhóm nào</CommandEmpty>
                                             <CommandGroup>
                                               {productGroups.map((g) => (
                                                 <CommandItem
@@ -1512,10 +1512,10 @@ function OrderPageCore({
                                                     f.onChange(String(g.id));
                                                     setValue(`product_items.${index}.product_id`, "");
                                                   }}
-                                                  className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                  className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                                 >
                                                   <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500 group-aria-selected:bg-indigo-100 group-aria-selected:text-indigo-600">
+                                                    <div className="w-6 h-6 rounded bg-[rgb(var(--c-s2))] flex items-center justify-center text-[10px] font-bold text-[rgb(var(--c-ink-3))] group-aria-selected:bg-indigo-100 group-aria-selected:text-indigo-600">
                                                       {g.name.substring(0, 1)}
                                                     </div>
                                                     <span className="text-xs font-bold">{g.name}</span>
@@ -1539,7 +1539,7 @@ function OrderPageCore({
                                 )}
 
                                 {isProductsLocked ? (
-                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-700 truncate">
+                                  <div className="min-w-0 h-10 flex items-center px-3 rounded-md border border-[rgb(var(--c-line-2))] text-xs font-bold text-[rgb(var(--c-ink-2))] truncate">
                                     {snapshotProductName || "—"}
                                   </div>
                                 ) : (
@@ -1563,8 +1563,8 @@ function OrderPageCore({
                                             role="combobox"
                                             disabled={!currentGroupId}
                                             className={cn(
-                                              "w-full min-w-0 h-10 justify-between bg-white border-zinc-200 text-xs font-bold",
-                                              !f.value && "text-zinc-400 font-medium"
+                                              "w-full min-w-0 h-10 justify-between text-xs font-bold",
+                                              !f.value && "text-[rgb(var(--c-ink-4))] font-medium"
                                             )}
                                           >
                                             <span className="truncate min-w-0">
@@ -1576,15 +1576,15 @@ function OrderPageCore({
                                         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
                                           <Command className="w-full">
                                             <CommandInput placeholder="Tìm mã hàng..." />
-                                            <CommandList className="max-h-64 p-1">
-                                              <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy</CommandEmpty>
+                                            <CommandList >
+                                              <CommandEmpty >Không thấy</CommandEmpty>
                                               <CommandGroup>
                                                 {filteredProducts.map((p) => (
                                                   <CommandItem
                                                     key={p.id}
                                                     value={p.name}
                                                     onSelect={() => f.onChange(String(p.id))}
-                                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                                                    className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                                                   >
                                                     <span className="text-xs font-bold">{p.name}</span>
                                                     <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(f.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
@@ -1610,7 +1610,7 @@ function OrderPageCore({
                                         {...f}
                                         type="number"
                                         disabled={isProductsLocked}
-                                        className="w-full h-10 text-right font-black tabular-nums border-zinc-200 focus-visible:ring-blue-600 bg-white disabled:bg-zinc-50"
+                                        className="w-full h-10 text-right font-black tabular-nums border-[rgb(var(--c-line-2))] focus-visible:ring-blue-600 disabled:bg-[rgb(var(--c-s2))]"
                                         placeholder="0"
                                       />
                                     </div>
@@ -1647,7 +1647,7 @@ function OrderPageCore({
                         type="button"
                         variant="outline"
                         onClick={() => append({ product_group_id: "", product_id: "", quantity: "" })}
-                        className="flex-1 py-6 border-dashed border-zinc-200 hover:border-blue-300 hover:bg-blue-50/30 text-zinc-400 hover:text-blue-600 font-bold transition-all gap-2"
+                        className="flex-1 py-6 border-dashed border-[rgb(var(--c-line-2))] hover:border-blue-300 hover:bg-blue-50/30 text-[rgb(var(--c-ink-4))] hover:text-blue-600 font-bold transition-all gap-2"
                       >
                         <Plus className="w-4 h-4" /> Thêm mã hàng mới
                       </Button>
@@ -1655,7 +1655,7 @@ function OrderPageCore({
                         type="button"
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
-                        className="py-6 px-6 border-dashed border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50/30 text-zinc-400 hover:text-emerald-600 font-bold transition-all gap-2"
+                        className="py-6 px-6 border-dashed border-[rgb(var(--c-line-2))] hover:border-emerald-300 hover:bg-emerald-50/30 text-[rgb(var(--c-ink-4))] hover:text-emerald-600 font-bold transition-all gap-2"
                       >
                         <Upload className="w-4 h-4" /> Import Excel
                       </Button>
@@ -1663,7 +1663,7 @@ function OrderPageCore({
                         type="button"
                         variant="ghost"
                         onClick={handleDownloadTemplate}
-                        className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-blue-600 transition-all gap-2"
+                        className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-[rgb(var(--c-ink-4))] hover:text-blue-600 transition-all gap-2"
                       >
                         <Download className="w-3 h-3" /> Tải file mẫu
                       </Button>
@@ -1680,7 +1680,7 @@ function OrderPageCore({
 
   const importErrorsDialog = (
       <Dialog open={showImportErrors} onOpenChange={setShowImportErrors}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-6 bg-red-50 border-b border-red-100">
             <DialogTitle className="text-red-700 font-black flex items-center gap-2 uppercase text-sm tracking-tight">
               <AlertCircle className="w-5 h-5" /> Kết quả Import (Có lỗi)
@@ -1690,20 +1690,20 @@ function OrderPageCore({
             <ScrollArea className="max-h-[300px] p-6">
               <div className="space-y-3">
                 {importErrors.map((err, i) => (
-                  <div key={i} className="flex gap-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100 group hover:bg-white hover:border-red-200 transition-all">
+                  <div key={i} className="flex gap-3 p-3 rounded-xl border border-[rgb(var(--c-line))] group hover:bg-white hover:border-red-200 transition-all">
                     <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-red-600 font-black text-xs shrink-0">
                       {err.row}
                     </div>
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-zinc-700">Dòng {err.row}</p>
-                      <p className="text-[11px] font-medium text-zinc-500 mt-0.5">{err.reason}</p>
+                      <p className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Dòng {err.row}</p>
+                      <p className="text-[11px] font-medium text-[rgb(var(--c-ink-3))] mt-0.5">{err.reason}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </ScrollArea>
           </div>
-          <DialogFooter className="p-4 bg-zinc-50 border-t border-zinc-100">
+          <DialogFooter className="p-4">
             <Button onClick={() => setShowImportErrors(false)} className="w-full font-bold bg-zinc-900 text-white rounded-xl h-11">
               Đã hiểu
             </Button>
@@ -1787,7 +1787,7 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+    <div className="sticky top-0 z-50 p-4 rounded-lg border">
       <form
         className="flex flex-col xl:flex-row items-center gap-4"
         onSubmit={handleSubmit}
@@ -1795,12 +1795,12 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
         {/* Search Input - Tăng độ rộng để dễ nhìn */}
         <div className="w-full xl:w-[350px] shrink-0">
           <div className="relative group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[rgb(var(--c-ink-4))] group-focus-within:text-indigo-500 transition-colors" />
             <Input
               placeholder="Mã đơn, PO, tên đơn..."
               value={tempFilters.search}
               onChange={e => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="pl-10 h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
+              className="pl-10 h-10 text-sm font-medium border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30"
             />
           </div>
         </div>
@@ -1813,10 +1813,10 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
               <Button
                 variant="outline"
                 role="combobox"
-                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+                className="w-full h-10 justify-between/50 border-[rgb(var(--c-line-2))]/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
               >
                 <div className="flex items-center gap-2 truncate">
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Khách:</span>
+                  <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">Khách:</span>
                   <span className="truncate text-[11px]">
                     {tempFilters.customer_id === 'ALL' || !tempFilters.customer_id
                       ? "Tất cả"
@@ -1830,12 +1830,12 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
               <Command className="w-full">
                 <CommandInput placeholder="Tìm khách hàng..." />
                 <CommandList className="max-h-[300px] p-1">
-                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy khách hàng</CommandEmpty>
+                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Không thấy khách hàng</CommandEmpty>
                   <CommandGroup>
                     <CommandItem
                       value="ALL"
                       onSelect={() => setTempFilters(prev => ({ ...prev, customer_id: 'ALL' }))}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-0.5"
                     >
                       <span className="text-[11px] font-bold">Tất cả khách hàng</span>
                       <Check className={cn("h-4 w-4 text-indigo-600", (tempFilters.customer_id === 'ALL' || !tempFilters.customer_id) ? "opacity-100" : "opacity-0")} />
@@ -1845,7 +1845,7 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
                         key={c.id}
                         value={c.name}
                         onSelect={() => setTempFilters(prev => ({ ...prev, customer_id: String(c.id) }))}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-0.5"
                       >
                         <span className="text-[11px] font-bold">{c.name}</span>
                         <Check className={cn("h-4 w-4 text-indigo-600", String(tempFilters.customer_id) === String(c.id) ? "opacity-100" : "opacity-0")} />
@@ -1860,19 +1860,19 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
           {/* Person In Charge (NV) */}
           <div className="relative group">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">NPT:</span>
+              <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">NPT:</span>
             </div>
             <Input
               placeholder="Tên nhân viên..."
               value={tempFilters.person_in_charge}
               onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))}
-              className="pl-10 h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
+              className="pl-10 h-10 text-[11px] font-bold border-[rgb(var(--c-line-2))]/80 rounded-xl/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
             />
           </div>
 
           {/* Date Picker Range - Tối ưu padding và font để không bị vỡ */}
-          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
+          <div className="flex items-center gap-1/50 border border-[rgb(var(--c-line-2))]/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+            <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
             <Input
               type="date"
               value={tempFilters.startDate}
@@ -1905,7 +1905,7 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
                   type="button"
                   variant="outline"
                   onClick={handleClear}
-                  className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                  className="w-10 h-10 p-0 border-[rgb(var(--c-line-2))]/80 text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all shadow-sm"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </Button>

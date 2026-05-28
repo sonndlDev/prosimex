@@ -91,12 +91,12 @@ export default function AttendanceManagementPage() {
       label: "Ngày",
       format: (val) => DateTime.fromISO(val).toFormat('dd/MM/yyyy')
     },
-    { id: "username", label: "Nhân viên", className: "font-bold text-zinc-950" },
+    { id: "username", label: "Nhân viên", className: "font-bold text-[rgb(var(--c-ink))]" },
     {
       id: "check_in_time",
       label: "Vào lúc",
       format: (val) => (
-        <Badge variant="outline" className="font-mono bg-zinc-50 border-zinc-200">
+        <Badge variant="outline" className="font-mono border-[rgb(var(--c-line-2))]">
           {DateTime.fromISO(val).toFormat('HH:mm')}
         </Badge>
       )
@@ -122,22 +122,22 @@ export default function AttendanceManagementPage() {
     {
       id: "note",
       label: "Ghi chú",
-      className: "max-w-[200px] truncate text-zinc-500 text-sm italic",
+      className: "max-w-[200px] truncate text-[rgb(var(--c-ink-3))] text-sm italic",
       format: (val) => val || <span className="text-zinc-300 not-italic">Không có ghi chú</span>
     },
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản lý Chấm công</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Lịch sử ra vào của nhân viên</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Quản lý Chấm công</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Lịch sử ra vào của nhân viên</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-zinc-200/60 shadow-sm sticky top-0 z-50">
+      <div className="sticky top-0 z-50 p-4 rounded-lg border">
         <div className="flex flex-col xl:flex-row items-center gap-4">
           {/* Employee Picker */}
           <div className="w-full xl:w-[320px] shrink-0">
@@ -146,10 +146,10 @@ export default function AttendanceManagementPage() {
                 <Button
                   variant="outline"
                   role="combobox"
-                  className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+                  className="w-full h-10 justify-between/50 border-[rgb(var(--c-line-2))]/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
                 >
                   <div className="flex items-center gap-2 truncate">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">NV:</span>
+                    <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-tighter">NV:</span>
                     <span className="truncate text-xs">
                       {!filters.targetUserId || filters.targetUserId === 'ALL_USERS'
                         ? "Tất cả nhân viên"
@@ -163,13 +163,13 @@ export default function AttendanceManagementPage() {
                 <Command className="w-full">
                   <CommandInput placeholder="Tìm nhân viên..." />
                   <CommandList className="max-h-[300px] p-1">
-                    <CommandEmpty className="py-6 text-center text-xs font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhân viên</CommandEmpty>
+                    <CommandEmpty className="py-6 text-center text-xs font-bold text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Không thấy nhân viên</CommandEmpty>
                     <CommandGroup>
                       {/* ... Items ... */}
                       <CommandItem
                         value="ALL_USERS"
                         onSelect={() => handleFilterChange('targetUserId', 'ALL_USERS')}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                       >
                         <span className="text-xs font-bold">Tất cả nhân viên</span>
                         <Check className={cn("h-4 w-4 text-indigo-600", filters.targetUserId === 'ALL_USERS' ? "opacity-100" : "opacity-0")} />
@@ -179,7 +179,7 @@ export default function AttendanceManagementPage() {
                           key={user.id}
                           value={user.username}
                           onSelect={() => handleFilterChange('targetUserId', String(user.id))}
-                          className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                          className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-[rgb(var(--c-blue)/0.1)] aria-selected:text-[rgb(var(--c-blue))] transition-colors mb-1 last:mb-0"
                         >
                           <span className="text-xs font-bold">{user.username}</span>
                           <Check className={cn("h-4 w-4 text-indigo-600", String(filters.targetUserId) === String(user.id) ? "opacity-100" : "opacity-0")} />
@@ -194,8 +194,8 @@ export default function AttendanceManagementPage() {
 
           {/* Date Picker Range */}
           <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Từ:</span>
+            <div className="flex items-center gap-1/50 border border-[rgb(var(--c-line-2))]/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+              <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase whitespace-nowrap tracking-tighter">Từ:</span>
               <Input
                 type="date"
                 value={filters.startDate}
@@ -203,8 +203,8 @@ export default function AttendanceManagementPage() {
                 className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
               />
             </div>
-            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Đến:</span>
+            <div className="flex items-center gap-1/50 border border-[rgb(var(--c-line-2))]/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+              <span className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase whitespace-nowrap tracking-tighter">Đến:</span>
               <Input
                 type="date"
                 value={filters.endDate}
@@ -221,7 +221,7 @@ export default function AttendanceManagementPage() {
                   <Button
                     variant="outline"
                     onClick={resetFilters}
-                    className="w-10 h-10 p-0 border-zinc-200/80 text-zinc-400 hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl bg-white transition-all shadow-sm"
+                    className="w-10 h-10 p-0 border-[rgb(var(--c-line-2))]/80 text-[rgb(var(--c-ink-4))] hover:text-red-500 hover:border-red-100 hover:bg-red-50 rounded-xl transition-all shadow-sm"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </Button>
@@ -241,7 +241,7 @@ export default function AttendanceManagementPage() {
       </div>
 
       {/* Logs Table with GenericTable */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           data={logs}
           columns={columns}

@@ -65,10 +65,10 @@ export default function WarehousePage() {
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Thông tin Kho</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Quản lý nhập liệu kho cho thông tin đơn hàng</p>
+      <div className="flex items-center justify-between flex-wrap gap-4 flex-shrink-0">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Thông tin Kho</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Quản lý nhập liệu kho cho thông tin đơn hàng</p>
         </div>
       </div>
 
@@ -81,7 +81,7 @@ export default function WarehousePage() {
         />
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
+      <div className="bg-white rounded-2xl border border-[rgb(var(--c-line-2))] shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
         <GenericTable
           data={orders}
           columns={columns}
@@ -105,7 +105,7 @@ export default function WarehousePage() {
                       setWarehouseOrder(row);
                       setOpenWarehouseDialog(true);
                     }}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
+                    className="p-2 rounded-xl text-[rgb(var(--c-ink-4))] hover:text-indigo-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-indigo-100"
                   >
                     <Pencil className="w-4 h-4" />
                   </TooltipTrigger>
@@ -133,17 +133,17 @@ const WarehouseFilterBar = memo(({ value, onChange, onSearch, onReset }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+    <div className="card p-4">
       <form className="flex flex-wrap gap-4 items-end" onSubmit={handleSubmit}>
         <div className="flex flex-col gap-1.5 flex-1 min-w-[300px]">
-          <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
+          <label className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest pl-1">Tìm kiếm chi tiết</label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[rgb(var(--c-ink-4))]" />
             <Input
               placeholder="Mã đơn hàng, tên khách hàng..."
               value={value}
               onChange={e => onChange(e.target.value)}
-              className="pl-9 h-9 text-xs font-bold border-zinc-200 rounded-xl"
+              className="pl-9 h-9 text-xs font-bold border-[rgb(var(--c-line-2))] rounded-xl"
             />
           </div>
         </div>
@@ -161,7 +161,7 @@ const WarehouseFilterBar = memo(({ value, onChange, onSearch, onReset }) => {
             variant="ghost"
             size="sm"
             onClick={onReset}
-            className="h-9 px-4 text-zinc-400 hover:text-red-500 font-bold gap-2 rounded-xl"
+            className="h-9 px-4 text-[rgb(var(--c-ink-4))] hover:text-red-500 font-bold gap-2 rounded-xl"
           >
             <X className="w-4 h-4" /> Reset
           </Button>

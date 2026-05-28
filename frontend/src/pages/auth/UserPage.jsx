@@ -107,7 +107,7 @@ export default function UserPage() {
     {
       id: "is_active", label: "Trạng thái",
       format: (val) => val
-        ? <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 px-3 py-1 rounded-full">Hoạt động</Badge>
+        ? <Badge className="status status-run">Hoạt động</Badge>
         : <Badge variant="destructive" className="px-3 py-1 rounded-full">Tạm ngừng</Badge>
     },
   ];
@@ -162,14 +162,14 @@ export default function UserPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="flex flex-col">
-          <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Quản trị Hệ thống</h2>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Phân quyền & Kiểm soát truy cập người dùng</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex justify-between items-center flex-wrap gap-4">
+        <div >
+          <h2 style={{ fontSize: 15, fontWeight: 600, color: "rgb(var(--c-ink))", letterSpacing: "-0.01em" }}>Quản trị Hệ thống</h2>
+          <p style={{ fontSize: 11, color: "rgb(var(--c-ink-4))", marginTop: 2 }}>Phân quyền & Kiểm soát truy cập người dùng</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => { setOpenRoleModal(true); if (roles?.length && !selectedRole) selectRoleForEdit(roles[0]); }} className="h-11 rounded-xl border-zinc-200 hover:bg-zinc-50 font-bold gap-2">
+          <Button variant="outline" onClick={() => { setOpenRoleModal(true); if (roles?.length && !selectedRole) selectRoleForEdit(roles[0]); }} className="h-11 rounded-xl border-[rgb(var(--c-line-2))] hover:bg-[rgb(var(--c-s2))] font-bold gap-2">
             <Shield className="w-4 h-4 text-indigo-500" /> Vai trò (Roles)
           </Button>
           {hasPermission("users:create") && (
@@ -180,7 +180,7 @@ export default function UserPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="table-container">
         <GenericTable
           data={users}
           columns={columns}
@@ -201,55 +201,55 @@ export default function UserPage() {
 
       {/* Create/Edit User Dialog */}
       <Dialog open={openModal} onOpenChange={(v) => !v && handleClose()}>
-        <DialogContent className="max-w-[1000px] p-0 overflow-hidden border-zinc-200 rounded-2xl gap-0">
-          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100">
-            <DialogTitle className="text-lg font-black text-zinc-950 uppercase tracking-tight">
+        <DialogContent className="max-w-[1000px] p-0 overflow-hidden border-[rgb(var(--c-line-2))] rounded-2xl gap-0">
+          <DialogHeader >
+            <DialogTitle style={{ fontSize: 14, fontWeight: 600, color: "rgb(var(--c-ink))" }}>
               {selectedUser ? "Chỉnh sửa tài khoản" : "Tạo tài khoản mới"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={rhfHandleSubmit(onSubmit)}>
             <div className="p-0 flex flex-col md:flex-row h-[600px]">
               {/* Left Column: Information */}
-              <div className="w-full md:w-[400px] flex-shrink-0 p-6 space-y-6 overflow-y-auto border-r border-zinc-100 bg-white">
+              <div className="w-full md:w-[400px] flex-shrink-0 p-6 space-y-6 overflow-y-auto border-r">
                 <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Thông tin cá nhân</p>
                   <div className="space-y-2 group">
-                    <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">Họ và tên hiển thị</Label>
+                    <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] group-hover:text-indigo-600">Họ và tên hiển thị</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
-                      <Controller name="full_name" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" placeholder="VD: Nguyễn Văn A" />} />
+                      <Controller name="full_name" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-[rgb(var(--c-line-2))] font-bold focus-visible:ring-indigo-500" placeholder="VD: Nguyễn Văn A" />} />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold text-zinc-500">Số điện thoại</Label>
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Số điện thoại</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
-                        <Controller name="phone" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" />} />
+                        <Controller name="phone" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-[rgb(var(--c-line-2))] font-bold focus-visible:ring-indigo-500" />} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold text-zinc-500">Địa chỉ Email</Label>
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Địa chỉ Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
-                        <Controller name="email" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500" type="email" autoComplete="none" />} />
+                        <Controller name="email" control={control} render={({ field }) => <Input {...field} className="pl-10 h-11 rounded-xl border-[rgb(var(--c-line-2))] font-bold focus-visible:ring-indigo-500" type="email" autoComplete="none" />} />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <Separator className="bg-zinc-50" />
+                <Separator className="bg-[rgb(var(--c-s2))]" />
 
                 <div className="space-y-4">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Xác thực hệ thống</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2 group">
-                      <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">Tên truy cập <span className="text-red-500">*</span></Label>
-                      <Controller name="username" control={control} render={({ field }) => <Input {...field} required disabled={!!selectedUser} className="h-11 rounded-xl border-zinc-200 font-bold disabled:opacity-50" />} />
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] group-hover:text-indigo-600">Tên truy cập <span className="text-red-500">*</span></Label>
+                      <Controller name="username" control={control} render={({ field }) => <Input {...field} required disabled={!!selectedUser} className="h-11 rounded-xl border-[rgb(var(--c-line-2))] font-bold disabled:opacity-50" />} />
                     </div>
                     <div className="space-y-2 group">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-bold text-zinc-500 group-hover:text-indigo-600">
+                        <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))] group-hover:text-indigo-600">
                           {selectedUser ? "Mật khẩu hệ thống" : "Mật khẩu"} {!selectedUser && <span className="text-red-500">*</span>}
                         </Label>
                         {selectedUser && (
@@ -258,7 +258,7 @@ export default function UserPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsChangingPassword(!isChangingPassword)}
-                            className={cn("h-6 px-2 text-[10px] font-black uppercase tracking-tighter rounded-md transition-all", isChangingPassword ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200")}
+                            className={cn("h-6 px-2 text-[10px] font-black uppercase tracking-tighter rounded-md transition-all", isChangingPassword ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-[rgb(var(--c-s2))] text-[rgb(var(--c-ink-4))] hover:bg-[rgb(var(--c-s3))]")}
                           >
                             {isChangingPassword ? "Đang đổi" : "Đổi mật khẩu?"}
                           </Button>
@@ -275,7 +275,7 @@ export default function UserPage() {
                               type="password"
                               disabled={selectedUser && !isChangingPassword}
                               required={!selectedUser}
-                              className={cn("pl-10 h-11 rounded-xl border-zinc-200 font-bold focus-visible:ring-indigo-500 transition-all", selectedUser && !isChangingPassword && "opacity-30 bg-zinc-50 select-none cursor-not-allowed")}
+                              className={cn("pl-10 h-11 rounded-xl border-[rgb(var(--c-line-2))] font-bold focus-visible:ring-indigo-500 transition-all", selectedUser && !isChangingPassword && "opacity-30 select-none cursor-not-allowed")}
                               autoComplete="new-password"
                               placeholder={selectedUser && !isChangingPassword ? "••••••••••••" : "Nhập mật khẩu mới..."}
                             />
@@ -287,20 +287,20 @@ export default function UserPage() {
 
                   <div className="grid grid-cols-2 gap-4 pt-2">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold text-zinc-500">Vai trò chính <span className="text-red-500">*</span></Label>
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Vai trò chính <span className="text-red-500">*</span></Label>
                       <Controller name="role_name" control={control} render={({ field }) => (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full h-11 justify-between text-xs font-bold border-zinc-200 rounded-xl hover:border-indigo-300 bg-white">
+                            <Button variant="outline" className="w-full h-11 justify-between text-xs font-bold border-[rgb(var(--c-line-2))] rounded-xl hover:border-indigo-300">
                               {field.value || "Chọn vai trò..."}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                              <ChevronsUpDown  />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-zinc-100 overflow-hidden" align="start">
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-[rgb(var(--c-line))] overflow-hidden" align="start">
                             <Command>
                               <CommandInput placeholder="Tìm vai trò..." />
                               <CommandList>
-                                <CommandEmpty className="py-4 text-center text-xs text-zinc-400 font-bold">Không thấy</CommandEmpty>
+                                <CommandEmpty className="py-4 text-center text-xs text-[rgb(var(--c-ink-4))] font-bold">Không thấy</CommandEmpty>
                                 <CommandGroup>
                                   {roles?.map(r => (
                                     <CommandItem
@@ -321,23 +321,23 @@ export default function UserPage() {
                       )} />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold text-zinc-500">Gán vào xưởng</Label>
+                      <Label className="text-xs font-bold text-[rgb(var(--c-ink-3))]">Gán vào xưởng</Label>
                       <Controller name="factory_id" control={control} render={({ field }) => (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Button variant="outline" disabled={watchRoleName === "ADMIN"} className="w-full h-11 justify-between text-xs font-bold border-zinc-200 rounded-xl hover:border-indigo-300 bg-white disabled:bg-zinc-50">
+                            <Button variant="outline" disabled={watchRoleName === "ADMIN"} className="w-full h-11 justify-between text-xs font-bold border-[rgb(var(--c-line-2))] rounded-xl hover:border-indigo-300 disabled:bg-[rgb(var(--c-s2))]">
                               <div className="flex items-center gap-2 overflow-hidden truncate">
                                 <Home className="h-4 w-4 text-zinc-300" />
                                 {factories?.find(f => String(f.id) === String(field.value))?.name || "Tất cả / Quản trị"}
                               </div>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
+                              <ChevronsUpDown  />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-zinc-100 overflow-hidden" align="start">
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl rounded-xl border-[rgb(var(--c-line))] overflow-hidden" align="start">
                             <Command>
                               <CommandInput placeholder="Tìm xưởng..." />
                               <CommandList>
-                                <CommandEmpty className="py-4 text-center text-xs text-zinc-400 font-bold">Không thấy</CommandEmpty>
+                                <CommandEmpty className="py-4 text-center text-xs text-[rgb(var(--c-ink-4))] font-bold">Không thấy</CommandEmpty>
                                 <CommandGroup>
                                   <CommandItem value="" onSelect={() => field.onChange("")} className="px-3 py-2 font-bold text-xs">Phạm vi công ty</CommandItem>
                                   {factories?.filter(f => f.is_active).map(f => (
@@ -360,22 +360,22 @@ export default function UserPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 transition-all hover:bg-zinc-100/50">
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-[rgb(var(--c-line))] transition-all hover:bg-[rgb(var(--c-s2))]/50">
                     <Controller name="is_active" control={control} render={({ field }) => (
                       <input type="checkbox" id="user_active" className="w-5 h-5 rounded accent-indigo-600 cursor-pointer" checked={field.value} onChange={e => field.onChange(e.target.checked)} />
                     )} />
-                    <Label htmlFor="user_active" className="text-[11px] font-black uppercase text-zinc-600 cursor-pointer">Tài khoản này đang được phép truy cập hệ thống</Label>
+                    <Label htmlFor="user_active" className="text-[11px] font-black uppercase text-[rgb(var(--c-ink-2))] cursor-pointer">Tài khoản này đang được phép truy cập hệ thống</Label>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Permissions */}
-              <div className="w-full md:w-[600px] bg-zinc-50 p-6 overflow-y-auto space-y-6">
+              <div className="w-full md:w-[600px] p-6 overflow-y-auto space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quyền bổ sung (user)</p>
-                  <Badge variant="outline" className="text-[10px] border-zinc-200 text-zinc-400 bg-white">Cộng thêm quyền vai trò</Badge>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[rgb(var(--c-ink-4))]">Quyền bổ sung (user)</p>
+                  <Badge variant="outline" className="text-[10px] border-[rgb(var(--c-line-2))] text-[rgb(var(--c-ink-4))]">Cộng thêm quyền vai trò</Badge>
                 </div>
-                <div className="space-y-6">
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {PERMISSION_GROUPS.map(group => (
                     <div key={group.groupLabel} className="space-y-2">
                       <p className="text-[11px] font-bold text-indigo-700 tracking-wide">{group.groupLabel}</p>
@@ -386,12 +386,12 @@ export default function UserPage() {
                           return (
                             <div key={p.key} className={cn(
                               "flex flex-col gap-2 p-3 rounded-xl border transition-all",
-                              hasAny ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" : "bg-transparent border-zinc-100 hover:border-zinc-200"
+                              hasAny ? "bg-white border-indigo-200 shadow-sm shadow-indigo-50/50" : "bg-transparent border-[rgb(var(--c-line))] hover:border-[rgb(var(--c-line-2))]"
                             )}>
                               <div className="flex items-center justify-between mb-1">
                                 <span className={cn(
                                   "text-xs font-bold transition-colors",
-                                  hasAny ? "text-indigo-900" : "text-zinc-600"
+                                  hasAny ? "text-indigo-900" : "text-[rgb(var(--c-ink-2))]"
                                 )}>
                                   {p.label} ({p.key})
                                 </span>
@@ -419,7 +419,7 @@ export default function UserPage() {
                                         "text-[11px] font-bold transition-colors",
                                         isChecked
                                           ? (isMenuAction ? "text-amber-800" : "text-indigo-700")
-                                          : "text-zinc-500 group-hover:text-zinc-900"
+                                          : "text-[rgb(var(--c-ink-3))] group-hover:text-[rgb(var(--c-ink))]"
                                       )}>
                                         {ACTION_LABELS[action]}
                                       </span>
@@ -442,8 +442,8 @@ export default function UserPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter className="px-6 py-4 bg-zinc-50 border-t border-zinc-100">
-              <Button type="button" variant="ghost" onClick={handleClose} className="rounded-xl font-bold">Hủy bỏ</Button>
+            <DialogFooter className="px-6 py-4">
+              <Button type="button" variant="ghost" onClick={handleClose}>Hủy bỏ</Button>
               <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="rounded-xl px-10 bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-100">
                 {selectedUser ? "Cập nhật tài khoản" : "Khởi tạo tài khoản"}
               </Button>
@@ -454,20 +454,20 @@ export default function UserPage() {
 
       {/* Role Management Dialog */}
       <Dialog open={openRoleModal} onOpenChange={(v) => { setOpenRoleModal(v); if (!v) setSelectedRole(null); }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden border-zinc-200 rounded-2xl flex flex-col">
-          <DialogHeader className="px-6 py-4 bg-zinc-50 border-b border-zinc-100 shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-lg font-black text-zinc-950 uppercase tracking-tight">
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden border-[rgb(var(--c-line-2))] rounded-2xl flex flex-col">
+          <DialogHeader className="px-6 py-4 shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-lg font-black text-[rgb(var(--c-ink))] uppercase tracking-tight">
               <Shield className="w-5 h-5 text-indigo-600" /> Vai trò & Quyền mặc định
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
-            <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-zinc-100 p-4 space-y-4 shrink-0 overflow-y-auto">
+            <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-[rgb(var(--c-line))] p-4 space-y-4 shrink-0 overflow-y-auto">
               <div className="flex gap-2">
                 <Input
                   placeholder="VD: QUẢN LÝ XƯỞNG..."
                   value={newRoleName}
                   onChange={e => setNewRoleName(e.target.value.toUpperCase())}
-                  className="h-10 rounded-xl border-zinc-200 font-bold text-xs"
+                  className="h-10 rounded-xl border-[rgb(var(--c-line-2))] font-bold text-xs"
                 />
                 <Button
                   onClick={() => newRoleName.trim() && createRoleMutation.mutate({ name: newRoleName.trim() })}
@@ -487,12 +487,12 @@ export default function UserPage() {
                       "w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all",
                       selectedRole?.id === role.id
                         ? "border-indigo-200 bg-indigo-50"
-                        : "border-transparent hover:border-zinc-100 hover:bg-zinc-50"
+                        : "border-transparent hover:border-[rgb(var(--c-line))] hover:bg-[rgb(var(--c-s2))]"
                     )}
                   >
                     <div>
-                      <span className="font-black text-sm text-zinc-950 block">{role.name}</span>
-                      <span className="text-[10px] text-zinc-400 font-bold">
+                      <span className="font-black text-sm text-[rgb(var(--c-ink))] block">{role.name}</span>
+                      <span className="text-[10px] text-[rgb(var(--c-ink-4))] font-bold">
                         {(role.permissions || []).length} quyền
                       </span>
                     </div>
@@ -513,15 +513,15 @@ export default function UserPage() {
                 ))}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 bg-zinc-50/50">
+            <div className="flex-1 overflow-y-auto p-6/50">
               {!selectedRole ? (
-                <p className="text-sm font-bold text-zinc-400 text-center py-12">Chọn một vai trò bên trái để gán quyền mặc định</p>
+                <p className="text-sm font-bold text-[rgb(var(--c-ink-4))] text-center py-12">Chọn một vai trò bên trái để gán quyền mặc định</p>
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-black text-zinc-900">{selectedRole.name}</p>
-                      <p className="text-[10px] text-zinc-500 font-bold mt-1">
+                      <p className="text-sm font-black text-[rgb(var(--c-ink))]">{selectedRole.name}</p>
+                      <p className="text-[10px] text-[rgb(var(--c-ink-3))] font-bold mt-1">
                         Quyền vai trò được cộng với quyền riêng của từng user. User cần đăng nhập lại sau khi lưu.
                       </p>
                     </div>
@@ -539,8 +539,8 @@ export default function UserPage() {
                         <p className="text-[11px] font-bold text-indigo-700">{group.groupLabel}</p>
                         <div className="grid gap-2">
                           {group.items.map(p => (
-                            <div key={p.key} className="p-3 rounded-xl border border-zinc-100 bg-white">
-                              <p className="text-xs font-bold text-zinc-700 mb-2">{p.label}</p>
+                            <div key={p.key} className="p-3 rounded-xl border">
+                              <p className="text-xs font-bold text-[rgb(var(--c-ink-2))] mb-2">{p.label}</p>
                               <div className="flex flex-wrap gap-3">
                                 {p.actions.map(action => {
                                   const permKey = `${p.key}:${action}`;
@@ -562,7 +562,7 @@ export default function UserPage() {
                                       />
                                       <span className={cn(
                                         "text-[11px] font-bold",
-                                        isChecked && isMenuAction ? "text-amber-800" : "text-zinc-600"
+                                        isChecked && isMenuAction ? "text-amber-800" : "text-[rgb(var(--c-ink-2))]"
                                       )}>{ACTION_LABELS[action]}</span>
                                     </label>
                                   );
@@ -578,8 +578,8 @@ export default function UserPage() {
               )}
             </div>
           </div>
-          <DialogFooter className="px-6 py-3 bg-zinc-50 border-t border-zinc-100 shrink-0">
-            <p className="text-[10px] text-zinc-400 font-bold w-full text-center">
+          <DialogFooter className="px-6 py-3 shrink-0">
+            <p className="text-[10px] text-[rgb(var(--c-ink-4))] font-bold w-full text-center">
               Tick <strong>Hiện menu</strong> để hiện sidebar; tick <strong>Xem</strong> để truy cập trang/API.
             </p>
           </DialogFooter>

@@ -67,12 +67,12 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
               <div className="bg-indigo-100 p-2 rounded-full">
                 <Warehouse className="w-5 h-5 text-indigo-600" />
               </div>
-              <DialogTitle className="text-xl font-bold tracking-tight text-zinc-900">
+              <DialogTitle className="text-xl font-bold tracking-tight text-[rgb(var(--c-ink))]">
                 Nhập thông tin Kho
               </DialogTitle>
             </div>
             {order && (
-              <p className="text-sm font-medium text-zinc-500 mt-1">
+              <p className="text-sm font-medium text-[rgb(var(--c-ink-3))] mt-1">
                 Đơn hàng: <span className="text-blue-600 font-bold">{order.order_code}</span>
               </p>
             )}
@@ -80,7 +80,7 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
 
           <div className="space-y-4 py-2">
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Ngày NL về xưởng (Dự kiến)</Label>
+              <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Ngày NL về xưởng (Dự kiến)</Label>
               <Controller
                 name="expected_material_date"
                 control={control}
@@ -95,7 +95,7 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
             </div>
 
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Ngày báo XNK</Label>
+              <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Ngày báo XNK</Label>
               <Controller
                 name="actual_material_date"
                 control={control}
@@ -110,40 +110,40 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
             </div>
 
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Net W</Label>
+              <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Net W</Label>
               <Controller
                 name="net_weight_text"
                 control={control}
                 render={({ field }) => (
-                  <Input {...field} placeholder="VD: 50kg, 2 tấn..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                  <Input {...field} placeholder="VD: 50kg, 2 tấn..." className="border-[rgb(var(--c-line-3))] focus-visible:ring-indigo-500" />
                 )}
               />
             </div>
 
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Số kiện</Label>
+              <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Số kiện</Label>
               <Controller
                 name="package_count_text"
                 control={control}
                 render={({ field }) => (
-                  <Input {...field} placeholder="VD: 10 kiện, 5 thùng..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                  <Input {...field} placeholder="VD: 10 kiện, 5 thùng..." className="border-[rgb(var(--c-line-3))] focus-visible:ring-indigo-500" />
                 )}
               />
             </div>
 
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Khối lượng cont / lẻ</Label>
+              <Label className="text-xs font-bold text-[rgb(var(--c-ink-2))]">Khối lượng cont / lẻ</Label>
               <Controller
                 name="container_volume_text"
                 control={control}
                 render={({ field }) => (
-                  <Input {...field} placeholder="VD: 20ft, 40 LCL..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                  <Input {...field} placeholder="VD: 20ft, 40 LCL..." className="border-[rgb(var(--c-line-3))] focus-visible:ring-indigo-500" />
                 )}
               />
             </div>
           </div>
 
-          <DialogFooter className="mt-6 border-t border-zinc-100 pt-4">
+          <DialogFooter className="mt-6 border-t border-[rgb(var(--c-line))] pt-4">
             <Button
               type="button"
               variant="outline"

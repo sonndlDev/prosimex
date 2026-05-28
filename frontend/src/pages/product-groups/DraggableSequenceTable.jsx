@@ -73,7 +73,7 @@ export default function DraggableSequenceTable({
     return (
       <div className="flex flex-col items-center justify-center p-20 gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-        <p className="text-xs font-black text-zinc-400 uppercase tracking-widest">Đang tải cấu hình...</p>
+        <p className="text-xs font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Đang tải cấu hình...</p>
       </div>
     );
   }
@@ -111,25 +111,25 @@ export default function DraggableSequenceTable({
   };
 
   return (
-    <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white rounded-2xl">
+    <Card >
       <DragDropContext onDragEnd={handleDragEnd}>
         <Table>
-          <TableHeader className="bg-zinc-50/50">
+          <TableHeader className="bg-[rgb(var(--c-s2))]/50">
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-[50px]"></TableHead>
-              <TableHead className="w-[80px] text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              <TableHead className="w-[80px] text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                 <div className="flex items-center gap-1.5"><Hash className="w-3 h-3" /> STT</div>
               </TableHead>
-              <TableHead className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              <TableHead className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                 <div className="flex items-center gap-1.5"><Settings2 className="w-3 h-3" /> Công đoạn</div>
               </TableHead>
-              <TableHead className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              <TableHead className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                 <div className="flex items-center gap-1.5"><Cpu className="w-3 h-3" /> Máy phụ trách</div>
               </TableHead>
-              <TableHead className="text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+              <TableHead className="text-right text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">
                 <div className="flex items-center justify-end gap-1.5"><Activity className="w-3 h-3" /> Định mức (sp/8h)</div>
               </TableHead>
-              <TableHead className="w-[140px] text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Thao tác</TableHead>
+              <TableHead className="w-[140px] text-center text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <Droppable droppableId="sequences">
@@ -137,7 +137,7 @@ export default function DraggableSequenceTable({
               <TableBody {...provided.droppableProps} ref={provided.innerRef}>
                 {data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-zinc-400 font-bold uppercase text-xs tracking-widest opacity-30">Chưa có công đoạn nào</TableCell>
+                    <TableCell colSpan={6} className="h-32 text-center text-[rgb(var(--c-ink-4))] font-bold uppercase text-xs tracking-widest opacity-30">Chưa có công đoạn nào</TableCell>
                   </TableRow>
                 ) : (
                   data.map((row, index) => (
@@ -150,14 +150,14 @@ export default function DraggableSequenceTable({
                         <TableRow
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`group transition-all duration-200 ${snapshot.isDragging ? "bg-white shadow-2xl scale-[1.01] z-50 border-y-indigo-200" : "bg-white"} hover:bg-zinc-50/50`}
+                          className={`group transition-all duration-200 ${snapshot.isDragging ? "bg-white shadow-2xl scale-[1.01] z-50 border-y-indigo-200" : "bg-white"} hover:bg-[rgb(var(--c-s2))]/50`}
                           style={{
                             ...provided.draggableProps.style,
                             display: snapshot.isDragging ? "table" : "table-row",
                           }}
                         >
                           <TableCell {...provided.dragHandleProps} className="w-[50px] text-center">
-                            <GripVertical className="h-4 w-4 text-zinc-300 group-hover:text-zinc-500 transition-colors mx-auto cursor-grab active:cursor-grabbing" />
+                            <GripVertical className="h-4 w-4 text-zinc-300 group-hover:text-[rgb(var(--c-ink-3))] transition-colors mx-auto cursor-grab active:cursor-grabbing" />
                           </TableCell>
                           <TableCell className="w-[80px]">
                             {editingId === row.id ? (
@@ -168,12 +168,12 @@ export default function DraggableSequenceTable({
                                   <Input
                                     {...field}
                                     type="number"
-                                    className="h-9 w-16 font-black text-indigo-600 bg-white border-zinc-200"
+                                    className="h-9 w-16 font-black text-indigo-600"
                                   />
                                 )}
                               />
                             ) : (
-                              <span className="font-black text-zinc-950 tabular-nums">
+                              <span className="font-black text-[rgb(var(--c-ink))] tabular-nums">
                                 {row.sequence_order}
                               </span>
                             )}
@@ -182,7 +182,7 @@ export default function DraggableSequenceTable({
                           {editingId === row.id ? (
                             <>
                               <TableCell>
-                                <span className="text-sm font-black text-zinc-950 uppercase tracking-tight">{row.operation_name}</span>
+                                <span className="text-sm font-black text-[rgb(var(--c-ink))] uppercase tracking-tight">{row.operation_name}</span>
                               </TableCell>
                               <TableCell>
                                 <Controller
@@ -191,7 +191,7 @@ export default function DraggableSequenceTable({
                                   render={({ field }) => (
                                     <Popover>
                                       <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm" className="min-h-9 h-auto py-2 w-full justify-between bg-white border-zinc-200 text-[10px] font-bold text-left">
+                                        <Button variant="outline" size="sm" className="min-h-9 h-auto py-2 w-full justify-between text-[10px] font-bold text-left">
                                           <div className="flex flex-wrap gap-1 pr-1">
                                             {field.value?.length > 0 ? (
                                               field.value.map(id => {
@@ -203,7 +203,7 @@ export default function DraggableSequenceTable({
                                                 );
                                               })
                                             ) : (
-                                              <span className="text-zinc-400">Chọn máy...</span>
+                                              <span className="text-[rgb(var(--c-ink-4))]">Chọn máy...</span>
                                             )}
                                           </div>
                                           <Cpu className="h-3 w-3 opacity-50 shrink-0" />
@@ -215,7 +215,7 @@ export default function DraggableSequenceTable({
                                             <CommandList className="max-h-64 overflow-y-auto p-1">
                                               <CommandEmpty className="py-6 text-center">
                                                 <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
-                                                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Không tìm thấy máy</p>
+                                                <p className="text-[10px] font-black text-[rgb(var(--c-ink-4))] uppercase tracking-widest">Không tìm thấy máy</p>
                                               </CommandEmpty>
                                               <CommandGroup>
                                                 {machinesList?.map((m) => (
@@ -235,11 +235,11 @@ export default function DraggableSequenceTable({
                                                       checked={field.value?.includes(String(m.id))}
                                                       className="pointer-events-none"
                                                     />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-zinc-700">
+                                                    <div >
+                                                        <span className="text-xs font-bold text-[rgb(var(--c-ink-2))]">
                                                             {m.name}
                                                         </span>
-                                                        <span className="text-[9px] text-zinc-400 font-medium uppercase tracking-tighter">Máy sản xuất</span>
+                                                        <span className="text-[9px] text-[rgb(var(--c-ink-4))] font-medium uppercase tracking-tighter">Máy sản xuất</span>
                                                     </div>
                                                   </CommandItem>
                                                 ))}
@@ -259,7 +259,7 @@ export default function DraggableSequenceTable({
                                     <Input
                                       {...field}
                                       type="number"
-                                      className="h-9 w-24 ml-auto font-black text-emerald-600 text-right bg-white border-zinc-200"
+                                      className="h-9 w-24 ml-auto font-black text-emerald-600 text-right"
                                     />
                                   )}
                                 />
@@ -277,7 +277,7 @@ export default function DraggableSequenceTable({
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-8 w-8 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+                                    className="h-8 w-8 text-[rgb(var(--c-ink-4))] hover:text-[rgb(var(--c-ink-2))] hover:bg-[rgb(var(--c-s2))]"
                                     onClick={() => setEditingId(null)}
                                   >
                                     <X className="h-4 w-4" />
@@ -288,7 +288,7 @@ export default function DraggableSequenceTable({
                           ) : (
                             <>
                               <TableCell>
-                                <span className="text-sm font-black text-zinc-950 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">
+                                <span className="text-sm font-black text-[rgb(var(--c-ink))] uppercase tracking-tight group-hover:text-indigo-600 transition-colors">
                                   {row.operation_name}
                                 </span>
                               </TableCell>
@@ -312,7 +312,7 @@ export default function DraggableSequenceTable({
                                             </Badge>
                                           ))}
                                           {remainingCount > 0 && (
-                                            <Badge variant="outline" className="text-[9px] font-bold text-zinc-400 border-dashed border-zinc-200 px-1.5 py-0 h-4">
+                                            <Badge variant="outline" className="text-[9px] font-bold text-[rgb(var(--c-ink-4))] border-dashed border-[rgb(var(--c-line-2))] px-1.5 py-0 h-4">
                                               +{remainingCount}
                                             </Badge>
                                           )}
@@ -320,7 +320,7 @@ export default function DraggableSequenceTable({
                                       );
                                     })()
                                   ) : row.machine_name ? (
-                                    <Badge variant="secondary" className="text-[9px] font-bold text-zinc-500 bg-zinc-50 border-zinc-200 uppercase px-1.5 py-0 h-4">
+                                    <Badge variant="secondary" className="text-[9px] font-bold text-[rgb(var(--c-ink-3))] border-[rgb(var(--c-line-2))] uppercase px-1.5 py-0 h-4">
                                       {row.machine_name}
                                     </Badge>
                                   ) : (

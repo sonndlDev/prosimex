@@ -11,25 +11,22 @@ export default function UnauthorizedPage() {
   const required = location.state?.requiredPermission;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-6">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-zinc-200 shadow-lg p-8 text-center space-y-4">
-        <ShieldAlert className="w-12 h-12 text-red-500 mx-auto" />
-        <h1 className="text-xl font-black text-zinc-900">Không có quyền truy cập</h1>
-        <p className="text-sm text-zinc-600 leading-relaxed">
-          Tài khoản của bạn chưa được cấp quyền <strong>Xem</strong> hoặc <strong>Hiện menu</strong>
-          {required ? <> cho module <code className="text-indigo-700">{required}</code></> : null}.
-        </p>
-        <p className="text-xs text-zinc-400 font-bold">
-          Thử đăng xuất và đăng nhập lại sau khi admin cập nhật quyền. Cần tick cả <strong>Hiện menu</strong> và <strong>Xem</strong> để dùng đầy đủ.
-        </p>
-        <div className="flex flex-col gap-2 pt-2">
-          <Button onClick={() => refreshUser().then(() => navigate(-1))} variant="outline" className="rounded-xl font-bold">
-            Tải lại quyền
-          </Button>
-          <Button onClick={() => navigate("/")} className="rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700">
-            Về trang chủ
-          </Button>
-          <Button onClick={() => { logout(); navigate("/login"); }} variant="ghost" className="rounded-xl font-bold text-red-600">
+    <div className="min-h-screen flex items-center justify-center bg-[rgb(var(--bg))] p-6">
+      <div className="max-w-sm w-full bg-[rgb(var(--surface))] border border-[rgb(var(--border))] rounded-xl p-8 text-center shadow-[0_4px_16px_rgba(0,0,0,0.06)] space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-[rgb(var(--red-light))] border border-[rgb(var(--red-border))] flex items-center justify-center mx-auto">
+          <ShieldAlert className="w-6 h-6 text-[rgb(var(--red))]" />
+        </div>
+        <div>
+          <h1 className="text-[16px] font-semibold text-[rgb(var(--text))]">Không có quyền truy cập</h1>
+          <p className="text-[13px] text-[rgb(var(--text-3))] mt-2 leading-relaxed">
+            Tài khoản chưa được cấp quyền <strong>Xem</strong> hoặc <strong>Hiện menu</strong>
+            {required ? <> cho module <code className="text-[rgb(var(--blue))] bg-[rgb(var(--blue-light))] px-1.5 py-0.5 rounded text-[11px]">{required}</code></> : null}.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 pt-1">
+          <Button onClick={() => refreshUser().then(() => navigate(-1))} variant="outline" size="sm">Tải lại quyền</Button>
+          <Button onClick={() => navigate("/")} size="sm">Về trang chủ</Button>
+          <Button onClick={() => { logout(); navigate("/login"); }} variant="ghost" size="sm" className="text-[rgb(var(--red))] hover:bg-[rgb(var(--red-light))]">
             Đăng xuất
           </Button>
         </div>
