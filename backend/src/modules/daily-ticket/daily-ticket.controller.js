@@ -211,10 +211,14 @@ export const createTicket = async (req, res) => {
     const { ticket_date, items, is_manual } = req.body;
     const created_by = req.user.id;
 
-    const ticketInsert = await client.query(
-      `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by)
-       VALUES ($1, $2, $3, $3) RETURNING *`,
-      [ticket_date, is_manual || false, created_by]
+    const hasAutoApprove = req.user.role_name === 'ADMIN' || 
+    (req.user.permissions || []).includes('daily_tickets:auto_approve');
+    const ticketStatus = hasAutoApprove ? 'APPROVED' : 'PENDING_APPROVAL';
+
+     const ticketInsert = await client.query(
+      `INSERT INTO daily_production_tickets (ticket_date, is_manual, created_by, modified_by, status)
+      VALUES ($1, $2, $3, $3, $4) RETURNING *`,
+      [ticket_date, is_manual || false, created_by, ticketStatus]
     );
     const newTicket = ticketInsert.rows[0];
 
