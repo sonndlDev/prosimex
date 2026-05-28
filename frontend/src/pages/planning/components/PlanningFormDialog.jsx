@@ -589,35 +589,30 @@ const PlanningFormDialog = React.memo(
 
       // Nếu tạo mới và chọn nhiều máy -> Tách thành nhiều kế hoạch
       if (!editingPlan && selectedMachineIds.length > 1) {
-        selectedMachineIds.forEach((mId) => {
-          const mDays = plannedDays
-            .filter(
-              (d) =>
-                d.machineHours?.[mId] && parseFloat(d.machineHours[mId]) > 0,
-            )
-            .map((d) => ({
-              date: d.date,
-              hours: (parseFloat(d.machineHours[mId]) * 8).toFixed(6),
-              is_overtime: d.is_overtime || false,
-            }));
+      // ✅ Gộp tất cả vào 1 payload, để Page xử lý
+      const multiMachineDays = selectedMachineIds.map((mId) => ({
+        machine_id: mId,
+        days: (plannedDays)
+          .filter(d => d.machineHours?.[mId] && parseFloat(d.machineHours[mId]) > 0)
+          .map(d => ({
+            date: d.date,
+            hours: (parseFloat(d.machineHours[mId]) * 8).toFixed(6),
+            is_overtime: d.is_overtime || false,
+          })),
+      })).filter(m => m.days.length > 0);
 
-          if (mDays.length > 0) {
-            onSubmit({
-              ...baseData,
-              machine_id: mId,
-              machine_ids: [mId],
-              product_id: selectedProductId || null,
-              product_group_operation_id: selectedOpId || null,
-              inventory_input: inventory,
-              dinh_muc: dinhMuc,
-              planned_start_date: mDays[0].date,
-              endDate: mDays[mDays.length - 1].date,
-              days: mDays,
-            });
-          }
-        });
-        return;
-      }
+      onSubmit({
+        ...baseData,
+        isMultiMachine: true,       // ✅ Flag để Page nhận biết
+        multiMachineDays,
+        product_id: selectedProductId || null,
+        product_group_operation_id: selectedOpId || null,
+        inventory_input: inventory,
+        dinh_muc: dinhMuc,
+        planned_start_date: startDate,
+      });
+      return;
+    }
 
       // Trường hợp sửa hoặc chỉ 1 máy (hoặc dự phòng)
       // Nếu tồn kho đủ → tạo 1 placeholder day 0h để ghi nhận

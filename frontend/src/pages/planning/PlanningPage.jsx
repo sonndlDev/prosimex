@@ -128,7 +128,7 @@ export default function PlanningPage() {
 
   const { data: allOrdersData } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => orderService.getAll({ limit: 1000 }), // Lấy nhiều để filter
+    queryFn: () => orderService.getAll({ limit: 1000 }),
   });
   const orders = allOrdersData?.data || [];
 
@@ -330,6 +330,7 @@ export default function PlanningPage() {
 
   const handleFormSubmit = useCallback(
     async (payload) => {
+      // ── Case 1: Tạo kế hoạch theo đơn chung (full order mode) ──
       if (payload.isFullOrderMode) {
         batchOrderMutation.mutate({
           order_id: payload.order_id,
@@ -341,6 +342,46 @@ export default function PlanningPage() {
         });
         return;
       }
+
+      // ── Case 2: Tạo mới với nhiều máy (isMultiMachine flag từ Dialog) ──
+      // Dialog gửi 1 payload duy nhất chứa multiMachineDays thay vì gọi onSubmit nhiều lần
+      if (!editingPlan && payload.isMultiMachine && payload.multiMachineDays?.length > 0) {
+        const toastId = toast.loading(
+          `Đang tạo ${payload.multiMachineDays.length} kế hoạch...`,
+        );
+        try {
+          await Promise.all(
+            payload.multiMachineDays.map(({ machine_id, days }) =>
+              planningService.createPlan({
+                order_id: payload.order_id,
+                product_id: payload.product_id,
+                product_group_operation_id: payload.product_group_operation_id,
+                factory_id: payload.factory_id,
+                is_outsourced: payload.is_outsourced,
+                inventory_input: payload.inventory_input,
+                dinh_muc: payload.dinh_muc,
+                planned_start_date: days[0]?.date || payload.planned_start_date,
+                machine_id,
+                days,
+              }),
+            ),
+          );
+          queryClient.invalidateQueries({ queryKey: ["plans"] });
+          handleCloseModal();
+          toast.success(
+            `Tạo thành công ${payload.multiMachineDays.length} kế hoạch!`,
+            { id: toastId },
+          );
+        } catch (err) {
+          toast.error(
+            err.response?.data?.message || "Lỗi khi tạo kế hoạch đa máy",
+            { id: toastId },
+          );
+        }
+        return;
+      }
+
+      // ── Case 3: Cập nhật kế hoạch có nhiều máy (planGroup) ──
       if (editingPlan?.planGroup?.length > 1) {
         try {
           await Promise.all(
@@ -382,6 +423,8 @@ export default function PlanningPage() {
         }
         return;
       }
+
+      // ── Case 4: Tạo mới hoặc cập nhật 1 máy ──
       if (editingPlan) {
         updateMutation.mutate(
           { id: editingPlan.id, payload },
@@ -403,19 +446,18 @@ export default function PlanningPage() {
   );
 
   const mapDaysWithQuantity = useCallback((days, dinhMuc) => {
-  return days.map((d) => {
-    const hours = parseFloat(
-      (parseFloat(d.planned_work_quantity) / 8).toFixed(10), // giữ precision
-    );
-    return {
-      date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
-      hours,
-      // FIX: quantity cũng tính từ full precision hours
-      quantity: String(Math.round(hours * parseFloat(dinhMuc))),
-      is_overtime: d.is_overtime,
-    };
-  });
-}, []);
+    return days.map((d) => {
+      const hours = parseFloat(
+        (parseFloat(d.planned_work_quantity) / 8).toFixed(10),
+      );
+      return {
+        date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
+        hours,
+        quantity: String(Math.round(hours * parseFloat(dinhMuc))),
+        is_overtime: d.is_overtime,
+      };
+    });
+  }, []);
 
   const handleStartInlineEdit = useCallback(
     (plan) => {
@@ -434,12 +476,6 @@ export default function PlanningPage() {
     (plan, dateISO, value) => {
       setInlineEditDays((prev) => {
         const dinhMuc = parseFloat(plan.dinh_muc) || 1;
-        // Calculate total work needed from the existing days (not from order quantity)
-        // This ensures multi-machine plans maintain their allocated portion
-        const totalHoursInPlan = (prev || []).reduce(
-          (sum, d) => sum + parseFloat(d.hours || 0),
-          0,
-        );
         const planTotalNeeded = parseFloat(plan.remaining_quantity) / dinhMuc;
 
         let newDays = [...prev];
@@ -470,8 +506,6 @@ export default function PlanningPage() {
     (plan, dateISO) => {
       setInlineEditDays((prev) => {
         const dinhMuc = parseFloat(plan.dinh_muc) || 1;
-        // Calculate total work needed from the existing days (not from order quantity)
-        // This ensures multi-machine plans maintain their allocated portion
         const totalHoursInPlan = (prev || []).reduce(
           (sum, d) => sum + parseFloat(d.hours || 0),
           0,
@@ -624,7 +658,6 @@ export default function PlanningPage() {
               }
               const toastId = toast.loading("Đang tải toàn bộ dữ liệu...");
               try {
-                // Fetch all data matching current filters
                 const res = await planningService.getAll({
                   page: 1,
                   limit: 100000,
@@ -634,7 +667,6 @@ export default function PlanningPage() {
                 });
                 const allPlans = res.data || [];
 
-                // Recalculate date columns for all plans
                 const dates = new Set();
                 allPlans.forEach((plan) => {
                   plan.days?.forEach((day) => {
@@ -922,7 +954,7 @@ export default function PlanningPage() {
           </PopoverContent>
         </Popover>
 
-        {/* Multi-select filter replacement (Orders) */}
+        {/* Order Filter */}
         <Popover open={openFilter} onOpenChange={setOpenFilter}>
           <PopoverTrigger
             render={
@@ -1018,7 +1050,6 @@ export default function PlanningPage() {
           {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
         </Button>
 
-        {/* Clear Filters Button */}
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||
           selectedOrderIds.length > 0) && (
@@ -1264,7 +1295,7 @@ export default function PlanningPage() {
           </table>
         </div>
 
-        {/* Custom Pagination */}
+        {/* Pagination */}
         <div className="px-6 py-3 bg-white border-t border-zinc-200 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <p className="text-xs font-bold text-zinc-500">
