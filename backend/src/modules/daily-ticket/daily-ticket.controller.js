@@ -688,18 +688,10 @@ export const getPlanVsActualReport = async (req, res) => {
         o.order_code, o.name as order_name, o.po_customer,
         p.name as product_name, pgo.sequence_order,
         pg.name as product_group_name,
-        COALESCE(
-          op.name,
-          (
-            SELECT MAX(dti_sn.operation_name)
-            FROM daily_production_ticket_items dti_sn
-            JOIN daily_production_tickets dt_sn ON dt_sn.id = dti_sn.ticket_id
-            WHERE dt_sn.deleted_at IS NULL
-              AND dti_sn.order_id = base.order_id
-              AND dti_sn.product_id IS NOT DISTINCT FROM base.product_id
-              AND dti_sn.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
-          )
-        ) as operation_name,
+        CASE
+          WHEN base.product_group_operation_id IS NOT NULL THEN op.name
+          ELSE NULL
+        END as operation_name,
         COALESCE(
           (
             SELECT string_agg(DISTINCT COALESCE(m_agg.name, m_agg.code), ', ' ORDER BY COALESCE(m_agg.name, m_agg.code))
