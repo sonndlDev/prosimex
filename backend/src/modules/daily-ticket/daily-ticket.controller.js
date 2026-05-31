@@ -475,6 +475,15 @@ export const approveTicket = async (req, res) => {
       [user_id, id]
     );
 
+    const ticketCreator = ticketRes.rows[0].created_by;
+    if (ticketCreator && ticketCreator !== user_id) {
+      await client.query(
+        `INSERT INTO notifications (user_id, message, link)
+         VALUES ($1, $2, $3)`,
+        [ticketCreator, `Phiếu sản xuất #${id} đã được DUYỆT`, `/daily-tickets`]
+      );
+    }
+
     await client.query("COMMIT");
     res.json({ message: "Ticket approved successfully" });
   } catch (error) {
@@ -516,6 +525,15 @@ export const rejectTicket = async (req, res) => {
        VALUES ($1, 'REJECT', 'DailyProductionTicket', $2)`,
       [user_id, id]
     );
+
+    const ticketCreator = ticketRes.rows[0].created_by;
+    if (ticketCreator && ticketCreator !== user_id) {
+      await client.query(
+        `INSERT INTO notifications (user_id, message, link)
+         VALUES ($1, $2, $3)`,
+        [ticketCreator, `Phiếu sản xuất #${id} đã BỊ TỪ CHỐI`, `/daily-tickets`]
+      );
+    }
 
     await client.query("COMMIT");
     res.json({ message: "Ticket rejected successfully" });

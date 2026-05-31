@@ -107,7 +107,7 @@ function Combobox({
                     className={cn(
                       "px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-1 flex items-center justify-between",
                       isItemDisabled &&
-                        "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50",
+                      "opacity-50 pointer-events-none cursor-not-allowed bg-zinc-50",
                     )}
                   >
                     <div className="flex flex-col text-left">
@@ -267,7 +267,7 @@ function ManualRow({
       selectedProduct &&
       isNoOperation // operation_name được set = "Không công đoạn"
     ) {
-                console.log("selectedProduct Detail for", selectedProduct);
+      console.log("selectedProduct Detail for", selectedProduct);
       const orderQty = selectedProduct.order_quantity || 0;
       const totalActual = selectedProduct.total_actual || 0;
       if (orderQty > 0) return Math.max(0, orderQty - totalActual);
@@ -383,6 +383,11 @@ function ManualRow({
             placeholder="SL KH"
             className="h-9 text-sm text-right"
             min={0}
+
+            step={1}
+            onKeyDown={(e) => {
+              if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+            }}
           />
         )}
       />
@@ -398,6 +403,11 @@ function ManualRow({
             placeholder="SL TT"
             className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500"
             min={0}
+
+            step={1}
+            onKeyDown={(e) => {
+              if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+            }}
           />
         )}
       />
@@ -856,7 +866,7 @@ export default function ProductionOutputPage() {
             !isError &&
             ticket &&
             DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd") ===
-              searchDate && (
+            searchDate && (
               <Card className="overflow-hidden">
                 <div className="p-6 border-b border-zinc-200 bg-zinc-50/50 flex justify-between items-center">
                   <div>
@@ -929,6 +939,11 @@ export default function ProductionOutputPage() {
                                 }
                                 className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
                                 min={0}
+
+                                step={1}
+                                onKeyDown={(e) => {
+                                  if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                                }}
                               />
                             )}
                           />

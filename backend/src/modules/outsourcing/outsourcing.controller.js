@@ -3,7 +3,7 @@ import pool from "../../config/db.js";
 // Lấy chi tiết từng item (Dành cho Export Excel)
 export const exportDetailedItems = async (req, res) => {
   try {
-    const { type, search = "", order_id, product_id } = req.query;
+    const { type, search = "", order_id, product_id, date } = req.query;
 
     let whereClause = "WHERE t.deleted_at IS NULL";
     const queryParams = [];
@@ -26,6 +26,15 @@ export const exportDetailedItems = async (req, res) => {
     if (product_id) {
       queryParams.push(product_id);
       whereClause += ` AND i.product_id = $${queryParams.length}`;
+    }
+
+    if (date) {
+      queryParams.push(date);
+      if (type === 'PACKAGING') {
+        whereClause += ` AND DATE(t.created_at) = $${queryParams.length}`;
+      } else {
+        whereClause += ` AND (DATE(t.dispatch_date) = $${queryParams.length} OR DATE(t.created_at) = $${queryParams.length})`;
+      }
     }
 
     const dataQuery = `
@@ -85,7 +94,7 @@ export const exportDetailedItems = async (req, res) => {
 // Lấy danh sách phiếu (Outbound / All)
 export const getTickets = async (req, res) => {
   try {
-    const { type, search = "", page = 1, limit = 10, order_id, product_id } = req.query;
+    const { type, search = "", page = 1, limit = 10, order_id, product_id, date } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -111,6 +120,15 @@ export const getTickets = async (req, res) => {
     if (product_id) {
       queryParams.push(product_id);
       whereClause += ` AND EXISTS (SELECT 1 FROM outsourcing_ticket_items i WHERE i.ticket_id = t.id AND i.product_id = $${queryParams.length})`;
+    }
+
+    if (date) {
+      queryParams.push(date);
+      if (type === 'PACKAGING') {
+        whereClause += ` AND DATE(t.created_at) = $${queryParams.length}`;
+      } else {
+        whereClause += ` AND (DATE(t.dispatch_date) = $${queryParams.length} OR DATE(t.created_at) = $${queryParams.length})`;
+      }
     }
 
     const countQuery = `

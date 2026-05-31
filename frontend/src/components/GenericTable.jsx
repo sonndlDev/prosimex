@@ -316,7 +316,6 @@ export default function GenericTable({
                 paginatedData.map((row, index) => {
                   const isSelected = selected.includes(row.id);
                   const displayIndex = startIndex + index + 1;
-                  const rowBg = isSelected ? '#eef2ff' : undefined;
                   return (
                     <tr
                       key={row.id || index}
@@ -349,31 +348,51 @@ export default function GenericTable({
                           {String(displayIndex).padStart(2, '0')}
                         </span>
                       </td>
+
                       {columns.map(col => {
                         const value = row[col.id];
+                        const formatted = col.format ? col.format(value, row) : (value || '---');
+                        const tooltipText = typeof value === 'string' || typeof value === 'number'
+                          ? String(value)
+                          : null;
+
                         return (
-                          <td
-                            key={col.id}
-                            className={cn(
-                              "text-[13px] font-semibold text-zinc-700 px-4 py-4 border-r border-black-700",
-                              col.className,
-                              col.isSticky && "sticky z-20",
-                              col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]",
-                              freezeFirstCols && "border-b border-black-700"
-                            )}
-                            style={{
-                              textAlign: col.align || 'left',
-                              width: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                              minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                              maxWidth: col.width || (col.isSticky ? col.width : undefined),
-                              left: col.isSticky ? col.stickyLeft : undefined,
-                              backgroundColor: col.isSticky && isSelected ? '#eef2ff' : '#FFF',
-                            }}
-                          >
-                            {col.format ? col.format(value, row) : (value || '---')}
-                          </td>
+                          <TooltipProvider key={col.id} delayDuration={400}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <td
+                                  className={cn(
+                                    "text-[13px] font-semibold text-zinc-700 px-4 py-4 border-r border-black-700",
+                                    col.className,
+                                    col.isSticky && "sticky z-20",
+                                    col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]",
+                                    freezeFirstCols && "border-b border-black-700"
+                                  )}
+                                  style={{
+                                    textAlign: col.align || 'left',
+                                    width: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
+                                    minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
+                                    maxWidth: col.width || (col.isSticky ? col.width : undefined),
+                                    left: col.isSticky ? col.stickyLeft : undefined,
+                                    backgroundColor: col.isSticky && isSelected ? '#eef2ff' : '#FFF',
+                                  }}
+                                >
+                                  {formatted}
+                                </td>
+                              </TooltipTrigger>
+                              {tooltipText && (
+                                <TooltipContent
+                                  side="top"
+                                  className="max-w-xs bg-zinc-900 text-white border-none text-[11px] font-semibold px-3 py-2 rounded-lg shadow-xl"
+                                >
+                                  <p className="break-words">{tooltipText}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
                         );
                       })}
+
                       {(onEdit || onDelete || renderActions) && (
                         <td
                           className={cn("px-4 py-4", freezeFirstCols && "border-b border-black-700")}
@@ -421,7 +440,7 @@ export default function GenericTable({
           </table>
         </div>
 
-        {/* Improved Pagination Controls - Matches PlanningPage Style */}
+        {/* Pagination Controls */}
         <div className="px-6 py-3 bg-white border-t border-black-700 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-6">
             <p className="text-xs font-bold text-zinc-500">

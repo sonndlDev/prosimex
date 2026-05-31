@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const PlanningTableRow = React.memo(
   ({
@@ -44,55 +45,63 @@ const PlanningTableRow = React.memo(
     onInlineOTToggle,
     dailyMachineMetrics,
   }) => {
-    const isYellow = idx % 3 === 0;
-    const isOrange = idx % 2 === 0;
+    const isEven = idx % 2 !== 0; // nth-child(even) in 1-based indexing means odd in 0-based
+    const rowBg = isEven ? "bg-zinc-50" : "bg-white";
+
+    const renderTooltippedCell = (content, className, isSticky = false, left, width, isLastSticky = false) => {
+      const tooltipText = typeof content === 'string' || typeof content === 'number' ? String(content) : null;
+      return (
+        <TooltipProvider delayDuration={400}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ExcelDataCell
+                className={cn(
+                  className,
+                  isSticky && cn("sticky z-20 border-r border-zinc-200 group-hover:bg-zinc-100", rowBg),
+                  isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]"
+                )}
+                style={isSticky
+                  ? { left, width, minWidth: width, maxWidth: width, borderRight: '1px solid #d4d4d8' }
+                  : {}}
+              >
+                <div className="truncate w-full">{content}</div>
+              </ExcelDataCell>
+            </TooltipTrigger>
+            {tooltipText && (
+              <TooltipContent
+                side="top"
+                className="max-w-xs bg-zinc-900 text-white border-none text-[11px] font-semibold px-3 py-2 rounded-lg shadow-xl"
+              >
+                <p className="break-words">{tooltipText}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      );
+    };
 
     return (
-      <tr className="hover:bg-zinc-50 border-b border-zinc-200 transition-colors even:bg-zinc-50/30">
-        <ExcelDataCell>{idx + 1}</ExcelDataCell>
-        <ExcelDataCell className="font-medium">{plan.product_name}</ExcelDataCell>
-        <ExcelDataCell
-          className="font-bold text-[10px]"
-        >
-          {plan.product_group_name}
-        </ExcelDataCell>
-        <ExcelDataCell className="font-bold text-indigo-600">{plan.sequence_order || "—"}</ExcelDataCell>
-        <ExcelDataCell className="text-left px-3">{plan.operation_name}</ExcelDataCell>
-        <ExcelDataCell className="text-left px-3 font-bold text-blue-600">{plan.machine_code || plan.machine_name}</ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums font-medium">
-          {(
-            parseFloat(plan.inventory_input) +
-            parseFloat(plan.remaining_quantity)
-          ).toLocaleString('en-US')}
-        </ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums">
-          {parseFloat(plan.inventory_input).toLocaleString('en-US')}
-        </ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums font-black text-red-600">
-          {parseFloat(plan.remaining_quantity).toLocaleString('en-US')}
-        </ExcelDataCell>
-        <ExcelDataCell className="text-right px-3 tabular-nums">{parseFloat(plan.dinh_muc).toLocaleString('en-US')}</ExcelDataCell>
-        {/* <ExcelDataCell className="text-right px-3 tabular-nums font-bold text-blue-600">
-          {(parseFloat(plan.total_required_work) / 8).toLocaleString('en-US')}
-        </ExcelDataCell> */}
-        <ExcelDataCell className="text-right px-3 tabular-nums">0</ExcelDataCell>
-        <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">
-          x
-        </ExcelDataCell>
-        <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">
-          {DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}
-        </ExcelDataCell>
+      <tr className={cn("group border-b border-zinc-200 transition-colors", rowBg)}>
+        {renderTooltippedCell(idx + 1, "text-center font-medium", true, 0, 60)}
+        {renderTooltippedCell(plan.product_name, "font-medium text-left px-3", true, 60, 150)}
+        {renderTooltippedCell(plan.product_group_name, "font-bold text-[10px]", true, 210, 100)}
+        {renderTooltippedCell(plan.sequence_order || "—", "font-bold text-indigo-600", true, 310, 80)}
+        {renderTooltippedCell(plan.operation_name, "text-left px-3", true, 390, 150)}
+        {renderTooltippedCell(plan.machine_code || plan.machine_name, "text-left px-3 font-bold text-blue-600", true, 540, 120)}
+        {renderTooltippedCell(
+          (parseFloat(plan.inventory_input) + parseFloat(plan.remaining_quantity)).toLocaleString('en-US'),
+          "text-right px-3 tabular-nums font-medium",
+          true, 660, 100, true
+        )}
 
-        <ExcelDataCell className="text-zinc-500 font-mono text-[10px] cursor-help p-0">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger render={<div className="w-full h-full flex items-center justify-center">{DateTime.fromISO(plan.planned_end_date).toFormat("dd-MM")}</div>} />
-              <TooltipContent>
-                <p>Kết thúc vào cuối ngày {DateTime.fromISO(plan.planned_end_date).toFormat("dd/MM/yyyy")} (23:59)</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </ExcelDataCell>
+        {renderTooltippedCell(parseFloat(plan.inventory_input).toLocaleString('en-US'), "text-right px-3 tabular-nums")}
+        {renderTooltippedCell(parseFloat(plan.remaining_quantity).toLocaleString('en-US'), "text-right px-3 tabular-nums font-black text-red-600")}
+        {renderTooltippedCell(parseFloat(plan.dinh_muc).toLocaleString('en-US'), "text-right px-3 tabular-nums")}
+        {renderTooltippedCell("0", "text-right px-3 tabular-nums")}
+
+        {/* <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">x</ExcelDataCell> */}
+        {/* <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">{DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}</ExcelDataCell> */}
+        {/* <ExcelDataCell className="text-zinc-500 font-mono text-[10px] cursor-help p-0">...</ExcelDataCell> */}
 
         {/* Date columns */}
         {dateColumns.map((date, colIdx) => {
@@ -216,7 +225,7 @@ const PlanningTableRow = React.memo(
               </>
             ) : (
               <>
-                <TooltipProvider>
+                {/* <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger render={
                       <Button
@@ -230,7 +239,7 @@ const PlanningTableRow = React.memo(
                     } />
                     <TooltipContent><p>Sửa nhanh hàng này</p></TooltipContent>
                   </Tooltip>
-                </TooltipProvider>
+                </TooltipProvider> */}
 
                 <TooltipProvider>
                   <Tooltip>

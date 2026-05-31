@@ -45,7 +45,7 @@ export default function WarehousePage() {
   const totalItems = ordersData?.total || 0;
 
   const columns = [
-    { id: "po_auto_code", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
+    { id: "po_customer", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
     { id: "customer_name", label: "Tên khách", className: "font-medium" },
     {
       id: "expected_material_date",

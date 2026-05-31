@@ -514,7 +514,7 @@ export default function PlanningPage() {
           totalHoursInPlan > 0
             ? totalHoursInPlan
             : (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-              dinhMuc;
+            dinhMuc;
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);
@@ -529,8 +529,8 @@ export default function PlanningPage() {
             : "0.00";
           const quantity = existingDay
             ? String(
-                toDisplayQuantity(existingDay.planned_work_quantity, dinhMuc),
-              )
+              toDisplayQuantity(existingDay.planned_work_quantity, dinhMuc),
+            )
             : "0";
           newDays.push({
             date: dateISO,
@@ -715,17 +715,17 @@ export default function PlanningPage() {
                     "Còn lại": plan.remaining_quantity,
                     "Định mức": plan.dinh_muc,
                     "Đã SX": 0,
-                    Mẫu: "x",
-                    "Bắt đầu": plan.planned_start_date
-                      ? DateTime.fromISO(plan.planned_start_date).toFormat(
-                          "dd-MM",
-                        )
-                      : "",
-                    "Kết thúc": plan.planned_end_date
-                      ? DateTime.fromISO(plan.planned_end_date).toFormat(
-                          "dd-MM",
-                        )
-                      : "",
+                    // Mẫu: "x",
+                    // "Bắt đầu": plan.planned_start_date
+                    //   ? DateTime.fromISO(plan.planned_start_date).toFormat(
+                    //       "dd-MM",
+                    //     )
+                    //   : "",
+                    // "Kết thúc": plan.planned_end_date
+                    //   ? DateTime.fromISO(plan.planned_end_date).toFormat(
+                    //       "dd-MM",
+                    //     )
+                    //   : "",
                   };
 
                   exportDateColumns.forEach((date) => {
@@ -1053,131 +1053,131 @@ export default function PlanningPage() {
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||
           selectedOrderIds.length > 0) && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSelectedProductIds([]);
-              setSelectedMachineIds([]);
-              setSelectedOrderIds([]);
-              setPage(0);
-            }}
-            className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"
-          >
-            Đặt lại bộ lọc
-          </Button>
-        )}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSelectedProductIds([]);
+                setSelectedMachineIds([]);
+                setSelectedOrderIds([]);
+                setPage(0);
+              }}
+              className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"
+            >
+              Đặt lại bộ lọc
+            </Button>
+          )}
       </div>
 
       {/* Selected Filters View */}
       {(selectedOrderIds.length > 0 ||
         selectedProductIds.length > 0 ||
         selectedMachineIds.length > 0) && (
-        <div className="flex flex-wrap gap-2 items-center px-1">
-          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
-            ĐANG LỌC:
-          </span>
-          {selectedOrdersDisplay.slice(0, 5).map((o) => (
-            <Badge
-              key={o.id}
-              variant="secondary"
-              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
-            >
-              Đơn: {o.name.substring(0, 20)}
-              {o.name.length > 20 ? "..." : ""}
-              <button
-                onClick={() => toggleOrderSelection(o.id)}
-                className="hover:text-red-500 rounded-full p-0.5 ml-1"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-          {selectedOrderIds.length > 5 && (
-            <Badge
-              variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
-            >
-              +{selectedOrderIds.length - 5} đơn hàng khác
-            </Badge>
-          )}
-
-          {selectedProductsDisplay.slice(0, 5).map((p) => (
-            <Badge
-              key={p.id}
-              variant="secondary"
-              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
-            >
-              Mã: {p.name.substring(0, 20)}
-              {p.name.length > 20 ? "..." : ""}
-              <button
-                onClick={() => toggleProductSelection(p.id)}
-                className="hover:text-red-500 rounded-full p-0.5 ml-1"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </Badge>
-          ))}
-          {selectedProductIds.length > 5 && (
-            <Badge
-              variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
-            >
-              +{selectedProductIds.length - 5} mã hàng khác
-            </Badge>
-          )}
-
-          {selectedMachinesDisplay.slice(0, 5).map((m) => {
-            const machineLabel = formatMachineFilterLabel(m);
-            return (
+          <div className="flex flex-wrap gap-2 items-center px-1">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
+              ĐANG LỌC:
+            </span>
+            {selectedOrdersDisplay.slice(0, 5).map((o) => (
               <Badge
-                key={m.id}
+                key={o.id}
                 variant="secondary"
                 className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
               >
-                Máy: {machineLabel.substring(0, 28)}
-                {machineLabel.length > 28 ? "..." : ""}
+                Đơn: {o.name.substring(0, 20)}
+                {o.name.length > 20 ? "..." : ""}
                 <button
-                  onClick={() => toggleMachineSelection(m.id)}
+                  onClick={() => toggleOrderSelection(o.id)}
                   className="hover:text-red-500 rounded-full p-0.5 ml-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </Badge>
-            );
-          })}
-          {selectedMachineIds.length > 5 && (
-            <Badge
-              variant="outline"
-              className="h-6 text-[10px] font-bold bg-white border-dashed"
-            >
-              +{selectedMachineIds.length - 5} máy khác
-            </Badge>
-          )}
-        </div>
-      )}
+            ))}
+            {selectedOrderIds.length > 5 && (
+              <Badge
+                variant="outline"
+                className="h-6 text-[10px] font-bold bg-white border-dashed"
+              >
+                +{selectedOrderIds.length - 5} đơn hàng khác
+              </Badge>
+            )}
+
+            {selectedProductsDisplay.slice(0, 5).map((p) => (
+              <Badge
+                key={p.id}
+                variant="secondary"
+                className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+              >
+                Mã: {p.name.substring(0, 20)}
+                {p.name.length > 20 ? "..." : ""}
+                <button
+                  onClick={() => toggleProductSelection(p.id)}
+                  className="hover:text-red-500 rounded-full p-0.5 ml-1"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+            {selectedProductIds.length > 5 && (
+              <Badge
+                variant="outline"
+                className="h-6 text-[10px] font-bold bg-white border-dashed"
+              >
+                +{selectedProductIds.length - 5} mã hàng khác
+              </Badge>
+            )}
+
+            {selectedMachinesDisplay.slice(0, 5).map((m) => {
+              const machineLabel = formatMachineFilterLabel(m);
+              return (
+                <Badge
+                  key={m.id}
+                  variant="secondary"
+                  className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+                >
+                  Máy: {machineLabel.substring(0, 28)}
+                  {machineLabel.length > 28 ? "..." : ""}
+                  <button
+                    onClick={() => toggleMachineSelection(m.id)}
+                    className="hover:text-red-500 rounded-full p-0.5 ml-1"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+            {selectedMachineIds.length > 5 && (
+              <Badge
+                variant="outline"
+                className="h-6 text-[10px] font-bold bg-white border-dashed"
+              >
+                +{selectedMachineIds.length - 5} máy khác
+              </Badge>
+            )}
+          </div>
+        )}
 
       {/* Main Table */}
       <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
-          <table className="w-full border-collapse border-spacing-0">
+          <table className="w-full border-separate  border-spacing-0">
             <thead className="sticky top-0 z-20 shadow-sm">
               <tr className="bg-zinc-100">
-                <ExcelHeaderCell rowSpan={2}>Thứ tự</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Tên mã hàng</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Nhóm mã</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>STT CĐ</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Công đoạn</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Máy</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>SL đơn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-0 z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>Thứ tự</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[60px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Tên mã hàng</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[210px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>Nhóm mã</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[310px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>STT CĐ</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[390px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Công đoạn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[540px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>Máy</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[660px] z-30 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>SL đơn</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2} className="text-red-600">
                   Còn lại
                 </ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Định mức</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Đã SX</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Mẫu</ExcelHeaderCell>
+                {/* <ExcelHeaderCell rowSpan={2}>Mẫu</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Bắt đầu</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Kết thúc</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Kết thúc</ExcelHeaderCell> */}
                 {dateColumns.length > 0 && (
                   <ExcelHeaderCell
                     colSpan={dateColumns.length}

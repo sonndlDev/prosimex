@@ -49,8 +49,14 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
             format: (v) => Number(v).toLocaleString()
         },
         {
+            id: "original_total_sx",
+            label: <>SL đã nhập<br />(Không có CĐ)</>,
+            className: "font-bold text-center text-amber-600",
+            format: (v, row) => !row.final_op_name ? Number(v).toLocaleString() : "-"
+        },
+        {
             id: "total_sx_quantity",
-            label: "Đã hoàn thành\n(Giá trị TB)",
+            label: <>Đã hoàn thành<br />(Giá trị TB)</>,
             className: "font-black text-center text-emerald-600",
             format: (v) => Number(v).toLocaleString()
         },

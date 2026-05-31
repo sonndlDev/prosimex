@@ -28,9 +28,8 @@ export function formatShiftHours(hours) {
   if (!Number.isFinite(n) || n === 0) return "0";
   if (Math.abs(n - OVERTIME_CAPACITY) < 0.001) return "1.43";
   if (Math.abs(n - NORMAL_CAPACITY) < 0.001) return "1";
-  const rounded = Math.round(n * 100) / 100;
-  const s = rounded.toFixed(2);
-  return s.replace(/\.?0+$/, "") || "0";
+  // Làm tròn 3 chữ số, KHÔNG strip trailing zeros để giữ đúng precision
+  return (Math.round(n * 1000) / 1000).toFixed(3);
 }
 
 // Trong PlanningFormDialog, khi replaceDays:
@@ -166,7 +165,7 @@ export const ExcelHeaderCell = React.memo(
       colSpan={colSpan}
       rowSpan={rowSpan}
       style={style}
-      className={`border border-zinc-300 bg-zinc-100 text-zinc-600 font-black text-[10px] sm:text-[11px] p-2 uppercase tracking-wider whitespace-nowrap text-center align-middle ${className}`}
+      className={`border-b border-r border-zinc-300 bg-zinc-100 text-zinc-600 font-black text-[10px] sm:text-[11px] p-2 uppercase tracking-wider whitespace-nowrap text-center align-middle ${className}`}
     >
       {children}
     </th>
@@ -175,14 +174,16 @@ export const ExcelHeaderCell = React.memo(
 ExcelHeaderCell.displayName = "ExcelHeaderCell";
 
 export const ExcelDataCell = React.memo(
-  ({ children, className = "", style = {} }) => (
+  React.forwardRef(({ children, className = "", style = {}, ...props }, ref) => (
     <td
+      ref={ref}
       style={style}
-      className={`border border-zinc-200 p-2 text-xs sm:text-sm text-zinc-900 whitespace-nowrap h-12 text-center align-middle ${className}`}
+      className={`border-b border-r border-zinc-200 p-2 text-xs sm:text-sm text-zinc-900 whitespace-nowrap h-12 text-center align-middle ${className}`}
+      {...props}
     >
       {children}
     </td>
-  ),
+  )),
 );
 ExcelDataCell.displayName = "ExcelDataCell";
 
@@ -250,12 +251,12 @@ export function autoCalculateSchedule(totalNeeded, start, currentDays = [], mach
 
     let mh = {};
     if (machineIds.length > 1) {
-       let mRem = workToday;
-       machineIds.forEach(id => {
-          const mWork = Math.min(mRem, capacityPerMachine);
-          mh[id] = mWork.toFixed(10);
-          mRem -= mWork;
-       });
+      let mRem = workToday;
+      machineIds.forEach(id => {
+        const mWork = Math.min(mRem, capacityPerMachine);
+        mh[id] = mWork.toFixed(10);
+        mRem -= mWork;
+      });
     }
 
     accumulatedHours += workToday;
@@ -270,18 +271,18 @@ export function autoCalculateSchedule(totalNeeded, start, currentDays = [], mach
     currentDate = currentDate.plus({ days: 1 });
     i++;
   }
-  
+
   // Fix rounding errors: ensure ALL work is captured with high precision
   if (result.length > 0) {
     const totalDeclared = result.reduce((sum, d) => sum + parseFloat(d.hours), 0);
     const rounding = totalNeeded - totalDeclared;
-    
+
     // Apply correction if there's any remaining work, no matter how small
     if (Math.abs(rounding) > 0.00001) {
       const lastIdx = result.length - 1;
       const lastVal = parseFloat(result[lastIdx].hours) + rounding;
       result[lastIdx].hours = Math.max(0, lastVal).toFixed(10); // Keep high precision
-      
+
       // Update machineHours for multi-machine if needed
       if (result[lastIdx].machineHours && Object.keys(result[lastIdx].machineHours).length > 0) {
         const mIds = Object.keys(result[lastIdx].machineHours);
@@ -293,18 +294,18 @@ export function autoCalculateSchedule(totalNeeded, start, currentDays = [], mach
       }
     }
   }
-  
+
   return result;
 }
 
 export function rebalanceDays(daysArray, changedIndex, newValRaw, targetTotal, machineIds = []) {
   const newVal = parseFloat(newValRaw) || 0;
   const updated = [...daysArray];
-  
+
   // Auto-toggle overtime if hours > capacity of all machines
   const machineCount = Math.max(1, machineIds.length);
   let isOvertime = updated[changedIndex]?.is_overtime;
-  
+
   // Only force overtime ON if the value exceeds capacity
   if (newVal > machineCount * OVERTIME_CAPACITY + 0.001) {
     isOvertime = true;
@@ -340,7 +341,7 @@ export function rebalanceDaysAsQuantity(
 ) {
   const hoursVal = displayQtyToHours(qtyRaw, dinhMuc);
   const rebalanced = rebalanceDays(daysArray, changedIndex, String(hoursVal), targetTotalHours);
-  
+
   // FIX: tính targetTotalQty từ targetTotalHours với full precision,
   // KHÔNG qua formatShiftHours
   const exactTotalQty = (targetTotalHours * dinhMuc); // hours * dinhMuc = qty

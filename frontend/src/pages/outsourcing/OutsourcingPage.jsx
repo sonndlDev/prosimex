@@ -349,6 +349,14 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           const p = parseFloat(newItem.pallet_weight || 0);
           newItem.net_weight = (g - p).toFixed(2);
         }
+        // Validate SL Xuất không vượt quá order_quantity + 3%
+        if (field === 'quantity_out' && newItem.order_quantity) {
+          const maxAllowed = Math.floor(parseFloat(newItem.order_quantity) * 1.03);
+          if (parseFloat(value) > maxAllowed) {
+            toast.warning(`SL Xuất tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
+            newItem.quantity_out = String(maxAllowed);
+          }
+        }
         return newItem;
       }
       return item;
@@ -544,6 +552,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                     placeholder="0"
                     className={cn("h-9 font-bold", type === 'PACKAGING' ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
                     value={item.quantity_out}
+                    max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
                     onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
                   />
                 </div>
@@ -634,13 +643,13 @@ function InboundTicketForm({ type }) {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [returnFormData, setReturnFormData] = useState({});
   const [loadingReturn, setLoadingReturn] = useState(false);
-  
+
   // Edit/Delete history state
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [editingHistoryData, setEditingHistoryData] = useState({});
   const [showEditHistoryDialog, setShowEditHistoryDialog] = useState(false);
   const [isSavingHistory, setIsSavingHistory] = useState(false);
-  
+
   const [deleteHistoryId, setDeleteHistoryId] = useState(null);
   const [showDeleteHistoryDialog, setShowDeleteHistoryDialog] = useState(false);
   const [isDeletingHistory, setIsDeletingHistory] = useState(false);
@@ -899,13 +908,13 @@ function InboundTicketForm({ type }) {
                       <button
                         onClick={() => {
                           setEditingHistoryId(h.id);
-                          setEditingHistoryData({ 
-                            quantity_returned: h.quantity_returned || "", 
+                          setEditingHistoryData({
+                            quantity_returned: h.quantity_returned || "",
                             gross_weight: h.gross_weight || "",
                             pallet_weight: h.pallet_weight || "",
                             net_weight: h.net_weight || "",
                             missing_weight: h.missing_weight || "",
-                            notes: h.notes || "" 
+                            notes: h.notes || ""
                           });
                           setShowEditHistoryDialog(true);
                         }}
@@ -959,25 +968,25 @@ function InboundTicketForm({ type }) {
               Cập nhật thông tin lịch sử nhập hàng gia công
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-zinc-700 uppercase">SL Nhập (cái) *</Label>
-                <Input 
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="0"
                   value={editingHistoryData.quantity_returned || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({...prev, quantity_returned: e.target.value}))}
+                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, quantity_returned: e.target.value }))}
                   className="h-11 font-medium"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-zinc-700 uppercase">Gross (KG)</Label>
-                <Input 
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
@@ -987,7 +996,7 @@ function InboundTicketForm({ type }) {
                     const gross = parseFloat(e.target.value) || 0;
                     const pallet = parseFloat(editingHistoryData.pallet_weight) || 0;
                     setEditingHistoryData(prev => ({
-                      ...prev, 
+                      ...prev,
                       gross_weight: e.target.value,
                       net_weight: (gross - pallet).toFixed(2)
                     }));
@@ -998,7 +1007,7 @@ function InboundTicketForm({ type }) {
 
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-zinc-700 uppercase">Pallet (KG)</Label>
-                <Input 
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
@@ -1008,7 +1017,7 @@ function InboundTicketForm({ type }) {
                     const pallet = parseFloat(e.target.value) || 0;
                     const gross = parseFloat(editingHistoryData.gross_weight) || 0;
                     setEditingHistoryData(prev => ({
-                      ...prev, 
+                      ...prev,
                       pallet_weight: e.target.value,
                       net_weight: (gross - pallet).toFixed(2)
                     }));
@@ -1019,7 +1028,7 @@ function InboundTicketForm({ type }) {
 
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-zinc-700 uppercase">Net (KG)</Label>
-                <Input 
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
@@ -1032,33 +1041,33 @@ function InboundTicketForm({ type }) {
 
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-zinc-700 uppercase">KG Thiếu Thữa</Label>
-                <Input 
+                <Input
                   type="number"
                   step="0.01"
                   min="0"
                   placeholder="0.00"
                   value={editingHistoryData.missing_weight || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({...prev, missing_weight: e.target.value}))}
+                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, missing_weight: e.target.value }))}
                   className="h-11 font-medium"
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label className="text-sm font-bold text-zinc-700">Ghi chú</Label>
-              <textarea 
+              <textarea
                 placeholder="Thêm ghi chú nếu cần..."
                 value={editingHistoryData.notes || ""}
-                onChange={(e) => setEditingHistoryData(prev => ({...prev, notes: e.target.value}))}
+                onChange={(e) => setEditingHistoryData(prev => ({ ...prev, notes: e.target.value }))}
                 className="w-full h-20 p-3 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium resize-none"
               />
             </div>
           </div>
 
           <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowEditHistoryDialog(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setShowEditHistoryDialog(false)}
               className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
             >
               Hủy
@@ -1070,7 +1079,7 @@ function InboundTicketForm({ type }) {
                   toast.error("Vui lòng nhập số lượng");
                   return;
                 }
-                
+
                 setIsSavingHistory(true);
                 try {
                   await outsourcingService.updateReturn(editingHistoryId, {
@@ -1081,11 +1090,11 @@ function InboundTicketForm({ type }) {
                     missing_weight: editingHistoryData.missing_weight ? parseFloat(editingHistoryData.missing_weight) : null,
                     notes: editingHistoryData.notes || ""
                   });
-                  
+
                   // Refetch ticket data
                   const res = await outsourcingService.getByCode(searchCode.trim());
                   setHistory(res.history || []);
-                  
+
                   toast.success("Cập nhật lịch sử nhập thành công!");
                   setShowEditHistoryDialog(false);
                   setEditingHistoryId(null);
@@ -1116,9 +1125,9 @@ function InboundTicketForm({ type }) {
           </DialogHeader>
 
           <DialogFooter className="gap-2 pt-6 border-t border-zinc-100">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowDeleteHistoryDialog(false)} 
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteHistoryDialog(false)}
               className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
             >
               Hủy
@@ -1126,15 +1135,15 @@ function InboundTicketForm({ type }) {
             <Button
               onClick={async () => {
                 if (!deleteHistoryId) return;
-                
+
                 setIsDeletingHistory(true);
                 try {
                   await outsourcingService.deleteReturn(deleteHistoryId);
-                  
+
                   // Refetch ticket data
                   const res = await outsourcingService.getByCode(searchCode.trim());
                   setHistory(res.history || []);
-                  
+
                   toast.success("Xóa lịch sử nhập thành công!");
                   setShowDeleteHistoryDialog(false);
                   setDeleteHistoryId(null);
@@ -1223,6 +1232,14 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
         const g = parseFloat(newItem.gross_weight || 0);
         const p = parseFloat(newItem.pallet_weight || 0);
         newItem.net_weight = (g - p).toFixed(2);
+      }
+      // Validate SL Xuất không vượt quá order_quantity + 3%
+      if (field === 'quantity_out' && newItem.order_quantity) {
+        const maxAllowed = Math.floor(parseFloat(newItem.order_quantity) * 1.03);
+        if (parseFloat(value) > maxAllowed) {
+          toast.warning(`SL Xuất tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
+          newItem.quantity_out = String(maxAllowed);
+        }
       }
       return newItem;
     }));
@@ -1492,6 +1509,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                         placeholder="0"
                         className={cn("h-9 font-bold", ticketType === "PACKAGING" ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
                         value={item.quantity_out}
+                        max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
                         onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
                       />
                     </div>
@@ -1554,6 +1572,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   const [search, setSearch] = useState("");
   const [filterOrderId, setFilterOrderId] = useState("");
   const [filterProductId, setFilterProductId] = useState("");
+  const [filterDate, setFilterDate] = useState("");
   const [editTicketCode, setEditTicketCode] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [deleteTicketId, setDeleteTicketId] = useState(null);
@@ -1561,8 +1580,8 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["outsourcing-tickets", type, page, pageSize, search, filterOrderId, filterProductId],
-    queryFn: () => outsourcingService.getAll({ type, page, limit: pageSize, search, order_id: filterOrderId, product_id: filterProductId }),
+    queryKey: ["outsourcing-tickets", type, page, pageSize, search, filterOrderId, filterProductId, filterDate],
+    queryFn: () => outsourcingService.getAll({ type, page, limit: pageSize, search, order_id: filterOrderId, product_id: filterProductId, date: filterDate }),
     placeholderData: keepPreviousData
   });
 
@@ -1602,7 +1621,8 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
         type,
         search,
         order_id: filterOrderId,
-        product_id: filterProductId
+        product_id: filterProductId,
+        date: filterDate
       });
 
       if (!exportData || exportData.length === 0) {
@@ -1831,6 +1851,14 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row items-center gap-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+        <div className="flex-1 w-full md:w-auto">
+          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Ngày</Label>
+          <PremiumDatePicker
+            date={filterDate}
+            onSelect={setFilterDate}
+            placeholder="Chọn ngày"
+          />
+        </div>
         <div className="flex-1 w-full md:w-auto">
           <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo ĐH</Label>
           <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
