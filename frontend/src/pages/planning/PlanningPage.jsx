@@ -1160,15 +1160,15 @@ export default function PlanningPage() {
       <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
           <table className="w-full border-separate  border-spacing-0">
-            <thead className="sticky top-0 z-20 shadow-sm">
+            <thead className="sticky top-0 z-40 shadow-sm">
               <tr className="bg-zinc-100">
-                <ExcelHeaderCell rowSpan={2} className="sticky left-0 z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>Thứ tự</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[60px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Tên mã hàng</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[210px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>Nhóm mã</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[310px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>STT CĐ</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[390px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Công đoạn</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[540px] z-30 bg-zinc-100 border-r-zinc-300" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>Máy</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[660px] z-30 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>SL đơn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-0 z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>Thứ tự</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[60px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Tên mã hàng</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[210px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>Nhóm mã</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[310px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>STT CĐ</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[390px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Công đoạn</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[540px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>Máy</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="sticky left-[660px] z-50 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>SL đơn</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2} className="text-red-600">
                   Còn lại
@@ -1188,7 +1188,7 @@ export default function PlanningPage() {
                 )}
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky right-0 z-30 bg-zinc-100 border-l border-zinc-300"
+                  className="sticky right-0 z-50 bg-zinc-100 border-l border-zinc-300"
                 >
                   Hành động
                 </ExcelHeaderCell>
