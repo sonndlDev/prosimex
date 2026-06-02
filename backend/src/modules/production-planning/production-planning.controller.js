@@ -344,10 +344,13 @@ export const updateProductionPlan = async (req, res) => {
 
     // 3. Logic
     const remaining_quantity = order_quantity - parseFloat(inventory_input);
+    const nonZeroDays = (days || []).filter(d => parseFloat(d.hours) > 0);
     const total_required_work = parseFloat(
-      days.reduce((acc, d) => acc + parseFloat(d.hours), 0),
+      (days || []).reduce((acc, d) => acc + parseFloat(d.hours), 0),
     );
-    const planned_end_date = days[days.length - 1].date;
+    const planned_end_date = nonZeroDays.length > 0
+      ? nonZeroDays[nonZeroDays.length - 1].date
+      : (planned_start_date || currentPlan.planned_start_date);
 
     // 4. Update Plan
     const result = await client.query(
@@ -452,7 +455,7 @@ export const deleteProductionPlan = async (req, res) => {
 
     // 4. Reset order status if no more ACTIVE plans exist for this order
     const remainingPlansRes = await client.query(
-      "SELECT id FROM production_plans WHERE order_id = $1 AND id != $2 AND deleted_at IS NULL",
+      "SELECT id FROM production_plans WHERE order_id = $1 AND id != $2 AND deleted_at IS NULL FOR UPDATE",
       [order_id, id],
     );
     if (remainingPlansRes.rowCount === 0) {
@@ -750,7 +753,8 @@ export const stopPlan = async (req, res) => {
     // 2. Remove from machine_schedules for days AFTER stopped_at
     // We keep the schedule up to stopped_at for historical accuracy
     await client.query(
-      `DELETE FROM machine_schedules 
+      `UPDATE machine_schedules 
+       SET end_date = $2
        WHERE production_plan_id = $1 
          AND end_date > $2`,
       [id, stopped_at]

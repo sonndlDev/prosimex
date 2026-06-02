@@ -8,6 +8,7 @@ import {
   Copy,
   Loader2,
   HelpCircle,
+  Trash2
 } from "lucide-react";
 import {
   ExcelDataCell,
@@ -398,7 +399,7 @@ const PlanningTableRow = React.memo(
                           {isDeletePending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Edit className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           )}
                         </Button>
                       }

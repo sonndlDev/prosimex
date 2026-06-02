@@ -1148,6 +1148,10 @@ const PlanningFormDialog = React.memo(
                             const currentIds = field.value || [];
                             const toggleMachine = (id) => {
                               const sid = String(id);
+                              if (editingPlan && (!editingPlan.planGroup || editingPlan.planGroup.length <= 1)) {
+                                field.onChange([sid]);
+                                return;
+                              }
                               const next = currentIds.includes(sid)
                                 ? currentIds.filter((x) => x !== sid)
                                 : [...currentIds, sid];

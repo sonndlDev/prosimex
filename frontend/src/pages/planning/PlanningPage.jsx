@@ -499,7 +499,7 @@ export default function PlanningPage() {
     (plan, dateISO, value) => {
       setInlineEditDays((prev) => {
         const dinhMuc = parseFloat(plan.dinh_muc) || 1;
-        const planTotalNeeded = parseFloat(plan.remaining_quantity) / dinhMuc;
+        const planTotalNeeded = parseFloat(plan.total_required_work || 0);
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);
@@ -529,15 +529,7 @@ export default function PlanningPage() {
     (plan, dateISO) => {
       setInlineEditDays((prev) => {
         const dinhMuc = parseFloat(plan.dinh_muc) || 1;
-        const totalHoursInPlan = (prev || []).reduce(
-          (sum, d) => sum + parseFloat(d.hours || 0),
-          0,
-        );
-        const planTotalNeeded =
-          totalHoursInPlan > 0
-            ? totalHoursInPlan
-            : (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-              dinhMuc;
+        const planTotalNeeded = parseFloat(plan.total_required_work || 0);
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);
@@ -864,7 +856,10 @@ export default function PlanningPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setSelectedProductIds([])}
+                    onClick={() => {
+                      setSelectedProductIds([]);
+                      setPage(0);
+                    }}
                     className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
                     Xóa tất cả
@@ -959,7 +954,10 @@ export default function PlanningPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setSelectedMachineIds([])}
+                    onClick={() => {
+                      setSelectedMachineIds([]);
+                      setPage(0);
+                    }}
                     className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
                     Xóa tất cả
@@ -1037,7 +1035,10 @@ export default function PlanningPage() {
                   <Button
                     variant="ghost"
                     size="xs"
-                    onClick={() => setSelectedOrderIds([])}
+                    onClick={() => {
+                      setSelectedOrderIds([]);
+                      setPage(0);
+                    }}
                     className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50"
                   >
                     Xóa tất cả
@@ -1217,7 +1218,7 @@ export default function PlanningPage() {
                   <Checkbox
                     checked={
                       plansData?.data?.length > 0 &&
-                      selectedPlanIds.length === plansData.data.length
+                      plansData.data.every((p) => selectedPlanIds.includes(p.id))
                     }
                     onCheckedChange={(checked) => {
                       if (checked) {
