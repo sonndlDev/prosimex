@@ -1,9 +1,11 @@
 # Order (Đơn hàng)
 
 ## 1. Mô tả
+
 Module **Order** quản lý thông tin các đơn hàng từ khách hàng, bao gồm sản phẩm, số lượng, ngày giao hàng, và trạng thái sản xuất.
 
 ## 2. Các Endpoints
+
 - `GET /`: Lấy danh sách đơn hàng có phân trang, lọc (theo xưởng, trạng thái, ngày, khách hàng).
 - `GET /product-snapshots`: Lấy chi tiết đơn hàng dưới dạng snapshot sản phẩm.
 - `GET /:id/completion-report`: Báo cáo tiến độ hoàn thành đơn hàng.
@@ -15,6 +17,7 @@ Module **Order** quản lý thông tin các đơn hàng từ khách hàng, bao g
 - `DELETE /:id`: Xóa đơn hàng (Soft delete).
 
 ## 3. Luồng nghiệp vụ cốt lõi (Business Logic Flows)
+
 - **Tạo đơn hàng mới (Create Order)**:
   - Lưu thông tin chung của đơn hàng (`orders` table).
   - Tạo liên kết sản phẩm và lưu snapshot giá trị (`order_products` và snapshot logic) nhằm lưu lại trạng thái thuộc tính của sản phẩm tại thời điểm tạo đơn.
@@ -26,6 +29,7 @@ Module **Order** quản lý thông tin các đơn hàng từ khách hàng, bao g
   - Xóa mềm (Soft delete) đơn hàng bằng cách cập nhật trường `deleted_at`.
 
 ## 4. Mối quan hệ với các modules khác
+
 - **Customer**: Đơn hàng gắn với một khách hàng cụ thể.
 - **Product & Product Group**: Bảng Order lưu trữ các sản phẩm được đặt và thông tin nhóm sản phẩm.
 - **Production Planning**: Đơn hàng là cơ sở để lập kế hoạch sản xuất. Trạng thái có thể chuyển sang `PLANNED` khi lên kế hoạch xong.
