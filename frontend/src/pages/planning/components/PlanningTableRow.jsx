@@ -5,10 +5,9 @@ import {
   Save,
   X,
   ExternalLink,
-  Trash2,
   Copy,
   Loader2,
-  HelpCircle
+  HelpCircle,
 } from "lucide-react";
 import {
   ExcelDataCell,
@@ -24,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 const PlanningTableRow = React.memo(
@@ -31,6 +31,8 @@ const PlanningTableRow = React.memo(
     plan,
     idx,
     dateColumns,
+    isSelected,
+    onSelect,
     isInlineEditing,
     inlineEditDays,
     isUpdatePending,
@@ -48,8 +50,18 @@ const PlanningTableRow = React.memo(
     const isEven = idx % 2 !== 0; // nth-child(even) in 1-based indexing means odd in 0-based
     const rowBg = isEven ? "bg-zinc-50" : "bg-white";
 
-    const renderTooltippedCell = (content, className, isSticky = false, left, width, isLastSticky = false) => {
-      const tooltipText = typeof content === 'string' || typeof content === 'number' ? String(content) : null;
+    const renderTooltippedCell = (
+      content,
+      className,
+      isSticky = false,
+      left,
+      width,
+      isLastSticky = false,
+    ) => {
+      const tooltipText =
+        typeof content === "string" || typeof content === "number"
+          ? String(content)
+          : null;
       return (
         <TooltipProvider delayDuration={400}>
           <Tooltip>
@@ -57,12 +69,24 @@ const PlanningTableRow = React.memo(
               <ExcelDataCell
                 className={cn(
                   className,
-                  isSticky && cn("sticky z-20 border-r border-zinc-200 group-hover:bg-zinc-100", rowBg),
-                  isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]"
+                  isSticky &&
+                    cn(
+                      "sticky z-20 border-r border-zinc-200 group-hover:bg-zinc-100",
+                      rowBg,
+                    ),
+                  isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
                 )}
-                style={isSticky
-                  ? { left, width, minWidth: width, maxWidth: width, borderRight: '1px solid #d4d4d8' }
-                  : {}}
+                style={
+                  isSticky
+                    ? {
+                        left,
+                        width,
+                        minWidth: width,
+                        maxWidth: width,
+                        borderRight: "1px solid #d4d4d8",
+                      }
+                    : {}
+                }
               >
                 <div className="truncate w-full">{content}</div>
               </ExcelDataCell>
@@ -81,22 +105,87 @@ const PlanningTableRow = React.memo(
     };
 
     return (
-      <tr className={cn("group border-b border-zinc-200 transition-colors", rowBg)}>
-        {renderTooltippedCell(idx + 1, "text-center font-medium", true, 0, 60)}
-        {renderTooltippedCell(plan.product_name, "font-medium text-left px-3", true, 60, 150)}
-        {renderTooltippedCell(plan.product_group_name, "font-bold text-[10px]", true, 210, 100)}
-        {renderTooltippedCell(plan.sequence_order || "—", "font-bold text-indigo-600", true, 310, 80)}
-        {renderTooltippedCell(plan.operation_name, "text-left px-3", true, 390, 150)}
-        {renderTooltippedCell(plan.machine_code || plan.machine_name, "text-left px-3 font-bold text-blue-600", true, 540, 120)}
+      <tr
+        className={cn(
+          "group border-b border-zinc-200 transition-colors",
+          rowBg,
+        )}
+      >
+        <ExcelDataCell
+          className={cn(
+            "sticky left-0 z-20 border-r border-zinc-200 text-center",
+            rowBg,
+          )}
+          style={{ width: 40, minWidth: 40, maxWidth: 40 }}
+        >
+          <div className="flex items-center justify-center w-full h-full">
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={onSelect}
+              className="border-zinc-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+            />
+          </div>
+        </ExcelDataCell>
+        {renderTooltippedCell(idx + 1, "text-center font-medium", true, 40, 60)}
         {renderTooltippedCell(
-          (parseFloat(plan.inventory_input) + parseFloat(plan.remaining_quantity)).toLocaleString('en-US'),
+          plan.product_name,
+          "font-medium text-left px-3",
+          true,
+          100,
+          150,
+        )}
+        {renderTooltippedCell(
+          plan.product_group_name,
+          "font-bold text-[10px]",
+          true,
+          250,
+          100,
+        )}
+        {renderTooltippedCell(
+          plan.sequence_order || "—",
+          "font-bold text-indigo-600",
+          true,
+          350,
+          80,
+        )}
+        {renderTooltippedCell(
+          plan.operation_name,
+          "text-left px-3",
+          true,
+          430,
+          150,
+        )}
+        {renderTooltippedCell(
+          plan.machine_code || plan.machine_name,
+          "text-left px-3 font-bold text-blue-600",
+          true,
+          580,
+          120,
+        )}
+        {renderTooltippedCell(
+          (
+            parseFloat(plan.inventory_input) +
+            parseFloat(plan.remaining_quantity)
+          ).toLocaleString("en-US"),
           "text-right px-3 tabular-nums font-medium",
-          true, 660, 100, true
+          true,
+          700,
+          100,
+          true,
         )}
 
-        {renderTooltippedCell(parseFloat(plan.inventory_input).toLocaleString('en-US'), "text-right px-3 tabular-nums")}
-        {renderTooltippedCell(parseFloat(plan.remaining_quantity).toLocaleString('en-US'), "text-right px-3 tabular-nums font-black text-red-600")}
-        {renderTooltippedCell(parseFloat(plan.dinh_muc).toLocaleString('en-US'), "text-right px-3 tabular-nums")}
+        {renderTooltippedCell(
+          parseFloat(plan.inventory_input).toLocaleString("en-US"),
+          "text-right px-3 tabular-nums",
+        )}
+        {renderTooltippedCell(
+          parseFloat(plan.remaining_quantity).toLocaleString("en-US"),
+          "text-right px-3 tabular-nums font-black text-red-600",
+        )}
+        {renderTooltippedCell(
+          parseFloat(plan.dinh_muc).toLocaleString("en-US"),
+          "text-right px-3 tabular-nums",
+        )}
         {renderTooltippedCell("0", "text-right px-3 tabular-nums")}
 
         {/* <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">x</ExcelDataCell> */}
@@ -112,17 +201,23 @@ const PlanningTableRow = React.memo(
           );
           const editDayData = inlineEditDays.find((d) => d.date === date.key);
 
-          const metrics = dailyMachineMetrics?.[date.key]?.[plan.machine_id || "unknown"];
+          const metrics =
+            dailyMachineMetrics?.[date.key]?.[plan.machine_id || "unknown"];
           const totalHours = metrics?.totalHours || 0;
           const hasOvertime = metrics?.hasOvertime || false;
 
           let cellBg = "inherit";
           let textColor = "inherit";
 
-          const isStopped = plan.status === 'STOPPED';
-          const stoppedAt = plan.stopped_at ? DateTime.fromISO(plan.stopped_at) : null;
+          const isStopped = plan.status === "STOPPED";
+          const stoppedAt = plan.stopped_at
+            ? DateTime.fromISO(plan.stopped_at)
+            : null;
           const currentCellDate = DateTime.fromISO(date.key);
-          const isActuallyStopped = isStopped && stoppedAt && currentCellDate.startOf('day') > stoppedAt.startOf('day');
+          const isActuallyStopped =
+            isStopped &&
+            stoppedAt &&
+            currentCellDate.startOf("day") > stoppedAt.startOf("day");
 
           const dt = DateTime.fromISO(date.key);
           const isSunday = dt.weekday === 7;
@@ -166,8 +261,11 @@ const PlanningTableRow = React.memo(
                 <div className="flex flex-col items-center justify-center h-full">
                   <span
                     onClick={() => onInlineOTToggle(plan, date.key)}
-                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${editDayData?.is_overtime ? "text-red-500" : "text-zinc-400"
-                      } hover:text-red-600 mb-0.5`}
+                    className={`cursor-pointer text-[8px] font-black uppercase leading-tight ${
+                      editDayData?.is_overtime
+                        ? "text-red-500"
+                        : "text-zinc-400"
+                    } hover:text-red-600 mb-0.5`}
                   >
                     {editDayData?.is_overtime ? "TĂNG CA" : "chuẩn"}
                   </span>
@@ -181,12 +279,21 @@ const PlanningTableRow = React.memo(
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center gap-0.5">
-                  <span className={`text-[7px] font-black uppercase ${parseOvertimeFlag(dayData?.is_overtime) ? "opacity-100" : "opacity-0"}`}>
+                  <span
+                    className={`text-[7px] font-black uppercase ${parseOvertimeFlag(dayData?.is_overtime) ? "opacity-100" : "opacity-0"}`}
+                  >
                     TC
                   </span>
-                  <span className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}>
+                  <span
+                    className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}
+                  >
                     {dayData
-                      ? Math.round(toDisplayQuantity(dayData.planned_work_quantity, plan.dinh_muc))
+                      ? Math.round(
+                          toDisplayQuantity(
+                            dayData.planned_work_quantity,
+                            plan.dinh_muc,
+                          ),
+                        )
                       : "-"}
                   </span>
                 </div>
@@ -243,17 +350,21 @@ const PlanningTableRow = React.memo(
 
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger render={
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
-                        onClick={() => onOpenEdit(plan)}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    } />
-                    <TooltipContent><p>Chỉnh sửa chi tiết</p></TooltipContent>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50"
+                          onClick={() => onOpenEdit(plan)}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>
+                      <p>Chỉnh sửa chi tiết</p>
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
 
@@ -275,22 +386,26 @@ const PlanningTableRow = React.memo(
 
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger render={
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => onOpenDelete(plan.id)}
-                        disabled={isDeletePending}
-                      >
-                        {isDeletePending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    } />
-                    <TooltipContent><p>Xóa kế hoạch</p></TooltipContent>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => onOpenDelete(plan.id)}
+                          disabled={isDeletePending}
+                        >
+                          {isDeletePending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Edit className="h-4 w-4" />
+                          )}
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>
+                      <p>Xóa kế hoạch</p>
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </>

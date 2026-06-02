@@ -21,6 +21,7 @@ import {
   Layers,
   Eye,
   EyeOff,
+  Trash2,
 } from "lucide-react";
 
 // Shadcn UI
@@ -55,6 +56,7 @@ import {
 import PlanningTableRow from "./components/PlanningTableRow";
 import PlanningFormDialog from "./components/PlanningFormDialog";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /** Mã máy (code) là duy nhất theo xưởng; name có thể trùng giữa nhiều bản ghi. */
 const formatMachineFilterLabel = (machine) => {
@@ -89,6 +91,8 @@ export default function PlanningPage() {
     open: false,
     planId: null,
   });
+
+  const [selectedPlanIds, setSelectedPlanIds] = useState([]);
 
   // ─── Data Fetching ─────────────────────────────────────
   const {
@@ -240,6 +244,21 @@ export default function PlanningPage() {
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa"),
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids) => {
+      // Vì planningService.delete chỉ nhận 1 id, gọi Promise.all để xoá từng id một
+      const promises = ids.map((id) => planningService.delete(id));
+      await Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+      toast.success("Xóa các kế hoạch thành công!");
+      setSelectedPlanIds([]);
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || "Lỗi khi xóa các kế hoạch"),
+  });
+
   const cloneMutation = useMutation({
     mutationFn: (id) => planningService.clone(id),
     onSuccess: () => {
@@ -345,7 +364,11 @@ export default function PlanningPage() {
 
       // ── Case 2: Tạo mới với nhiều máy (isMultiMachine flag từ Dialog) ──
       // Dialog gửi 1 payload duy nhất chứa multiMachineDays thay vì gọi onSubmit nhiều lần
-      if (!editingPlan && payload.isMultiMachine && payload.multiMachineDays?.length > 0) {
+      if (
+        !editingPlan &&
+        payload.isMultiMachine &&
+        payload.multiMachineDays?.length > 0
+      ) {
         const toastId = toast.loading(
           `Đang tạo ${payload.multiMachineDays.length} kế hoạch...`,
         );
@@ -514,7 +537,7 @@ export default function PlanningPage() {
           totalHoursInPlan > 0
             ? totalHoursInPlan
             : (parseFloat(plan.quantity) - parseFloat(plan.inventory_input)) /
-            dinhMuc;
+              dinhMuc;
 
         let newDays = [...prev];
         let index = newDays.findIndex((d) => d.date === dateISO);
@@ -529,8 +552,8 @@ export default function PlanningPage() {
             : "0.00";
           const quantity = existingDay
             ? String(
-              toDisplayQuantity(existingDay.planned_work_quantity, dinhMuc),
-            )
+                toDisplayQuantity(existingDay.planned_work_quantity, dinhMuc),
+              )
             : "0";
           newDays.push({
             date: dateISO,
@@ -1053,108 +1076,132 @@ export default function PlanningPage() {
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||
           selectedOrderIds.length > 0) && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setSelectedProductIds([]);
-                setSelectedMachineIds([]);
-                setSelectedOrderIds([]);
-                setPage(0);
-              }}
-              className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"
-            >
-              Đặt lại bộ lọc
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSelectedProductIds([]);
+              setSelectedMachineIds([]);
+              setSelectedOrderIds([]);
+              setPage(0);
+            }}
+            className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"
+          >
+            Đặt lại bộ lọc
+          </Button>
+        )}
+
+        {selectedPlanIds.length > 0 && (
+          <Button
+            variant="destructive"
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Bạn có chắc chắn muốn xóa ${selectedPlanIds.length} kế hoạch đã chọn?`,
+                )
+              ) {
+                bulkDeleteMutation.mutate(selectedPlanIds);
+              }
+            }}
+            disabled={bulkDeleteMutation.isPending}
+            className="h-10 px-4 font-bold text-xs rounded-xl transition-all shadow-md ml-auto"
+          >
+            {bulkDeleteMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="w-4 h-4 mr-2" />
+            )}
+            Xóa {selectedPlanIds.length} kế hoạch đã chọn
+          </Button>
+        )}
       </div>
 
       {/* Selected Filters View */}
       {(selectedOrderIds.length > 0 ||
         selectedProductIds.length > 0 ||
         selectedMachineIds.length > 0) && (
-          <div className="flex flex-wrap gap-2 items-center px-1">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
-              ĐANG LỌC:
-            </span>
-            {selectedOrdersDisplay.slice(0, 5).map((o) => (
+        <div className="flex flex-wrap gap-2 items-center px-1">
+          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
+            ĐANG LỌC:
+          </span>
+          {selectedOrdersDisplay.slice(0, 5).map((o) => (
+            <Badge
+              key={o.id}
+              variant="secondary"
+              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+            >
+              Đơn: {o.name.substring(0, 20)}
+              {o.name.length > 20 ? "..." : ""}
+              <button
+                onClick={() => toggleOrderSelection(o.id)}
+                className="hover:text-red-500 rounded-full p-0.5 ml-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedOrderIds.length > 5 && (
+            <Badge
+              variant="outline"
+              className="h-6 text-[10px] font-bold bg-white border-dashed"
+            >
+              +{selectedOrderIds.length - 5} đơn hàng khác
+            </Badge>
+          )}
+
+          {selectedProductsDisplay.slice(0, 5).map((p) => (
+            <Badge
+              key={p.id}
+              variant="secondary"
+              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+            >
+              Mã: {p.name.substring(0, 20)}
+              {p.name.length > 20 ? "..." : ""}
+              <button
+                onClick={() => toggleProductSelection(p.id)}
+                className="hover:text-red-500 rounded-full p-0.5 ml-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedProductIds.length > 5 && (
+            <Badge
+              variant="outline"
+              className="h-6 text-[10px] font-bold bg-white border-dashed"
+            >
+              +{selectedProductIds.length - 5} mã hàng khác
+            </Badge>
+          )}
+
+          {selectedMachinesDisplay.slice(0, 5).map((m) => {
+            const machineLabel = formatMachineFilterLabel(m);
+            return (
               <Badge
-                key={o.id}
+                key={m.id}
                 variant="secondary"
                 className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
               >
-                Đơn: {o.name.substring(0, 20)}
-                {o.name.length > 20 ? "..." : ""}
+                Máy: {machineLabel.substring(0, 28)}
+                {machineLabel.length > 28 ? "..." : ""}
                 <button
-                  onClick={() => toggleOrderSelection(o.id)}
+                  onClick={() => toggleMachineSelection(m.id)}
                   className="hover:text-red-500 rounded-full p-0.5 ml-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </Badge>
-            ))}
-            {selectedOrderIds.length > 5 && (
-              <Badge
-                variant="outline"
-                className="h-6 text-[10px] font-bold bg-white border-dashed"
-              >
-                +{selectedOrderIds.length - 5} đơn hàng khác
-              </Badge>
-            )}
-
-            {selectedProductsDisplay.slice(0, 5).map((p) => (
-              <Badge
-                key={p.id}
-                variant="secondary"
-                className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
-              >
-                Mã: {p.name.substring(0, 20)}
-                {p.name.length > 20 ? "..." : ""}
-                <button
-                  onClick={() => toggleProductSelection(p.id)}
-                  className="hover:text-red-500 rounded-full p-0.5 ml-1"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </Badge>
-            ))}
-            {selectedProductIds.length > 5 && (
-              <Badge
-                variant="outline"
-                className="h-6 text-[10px] font-bold bg-white border-dashed"
-              >
-                +{selectedProductIds.length - 5} mã hàng khác
-              </Badge>
-            )}
-
-            {selectedMachinesDisplay.slice(0, 5).map((m) => {
-              const machineLabel = formatMachineFilterLabel(m);
-              return (
-                <Badge
-                  key={m.id}
-                  variant="secondary"
-                  className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
-                >
-                  Máy: {machineLabel.substring(0, 28)}
-                  {machineLabel.length > 28 ? "..." : ""}
-                  <button
-                    onClick={() => toggleMachineSelection(m.id)}
-                    className="hover:text-red-500 rounded-full p-0.5 ml-1"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              );
-            })}
-            {selectedMachineIds.length > 5 && (
-              <Badge
-                variant="outline"
-                className="h-6 text-[10px] font-bold bg-white border-dashed"
-              >
-                +{selectedMachineIds.length - 5} máy khác
-              </Badge>
-            )}
-          </div>
-        )}
+            );
+          })}
+          {selectedMachineIds.length > 5 && (
+            <Badge
+              variant="outline"
+              className="h-6 text-[10px] font-bold bg-white border-dashed"
+            >
+              +{selectedMachineIds.length - 5} máy khác
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Main Table */}
       <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
@@ -1162,13 +1209,78 @@ export default function PlanningPage() {
           <table className="w-full border-separate  border-spacing-0">
             <thead className="sticky top-0 z-40 shadow-sm">
               <tr className="bg-zinc-100">
-                <ExcelHeaderCell rowSpan={2} className="sticky left-0 z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 60, minWidth: 60, maxWidth: 60 }}>Thứ tự</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[60px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Tên mã hàng</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[210px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>Nhóm mã</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[310px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>STT CĐ</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[390px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 150, minWidth: 150, maxWidth: 150 }}>Công đoạn</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[540px] z-50 bg-zinc-100 border-r-zinc-300" style={{ width: 120, minWidth: 120, maxWidth: 120 }}>Máy</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="sticky left-[660px] z-50 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300" style={{ width: 100, minWidth: 100, maxWidth: 100 }}>SL đơn</ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-0 z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 40, minWidth: 40, maxWidth: 40 }}
+                >
+                  <Checkbox
+                    checked={
+                      plansData?.data?.length > 0 &&
+                      selectedPlanIds.length === plansData.data.length
+                    }
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedPlanIds(
+                          plansData?.data?.map((p) => p.id) || [],
+                        );
+                      } else {
+                        setSelectedPlanIds([]);
+                      }
+                    }}
+                    aria-label="Select all"
+                    className="border-zinc-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 ml-1"
+                  />
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[40px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                >
+                  Thứ tự
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[100px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 150, minWidth: 150, maxWidth: 150 }}
+                >
+                  Tên mã hàng
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[250px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                >
+                  Nhóm mã
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[350px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 80, minWidth: 80, maxWidth: 80 }}
+                >
+                  STT CĐ
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[430px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 150, minWidth: 150, maxWidth: 150 }}
+                >
+                  Công đoạn
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[580px] z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                >
+                  Máy
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky left-[700px] z-50 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300"
+                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                >
+                  SL đơn
+                </ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2} className="text-red-600">
                   Còn lại
@@ -1252,6 +1364,14 @@ export default function PlanningPage() {
                     plan={plan}
                     idx={idx}
                     dateColumns={dateColumns}
+                    isSelected={selectedPlanIds.includes(plan.id)}
+                    onSelect={(checked) => {
+                      setSelectedPlanIds((prev) =>
+                        checked
+                          ? [...prev, plan.id]
+                          : prev.filter((id) => id !== plan.id),
+                      );
+                    }}
                     isInlineEditing={inlineEditingId === plan.id}
                     inlineEditDays={
                       inlineEditingId === plan.id ? inlineEditDays : []
