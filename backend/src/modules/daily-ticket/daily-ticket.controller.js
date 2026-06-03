@@ -621,7 +621,7 @@ export const getPlanVsActualReport = async (req, res) => {
           AND EXISTS (
             SELECT 1 FROM daily_production_ticket_items dti_f
             JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
-            WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date >= $${queryParams.length}
+            WHERE dt_f.deleted_at IS NULL AND (dt_f.status IS NULL OR dt_f.status != 'REJECTED') AND dt_f.ticket_date >= $${queryParams.length}
               AND dti_f.order_id = base.order_id
               AND dti_f.product_id IS NOT DISTINCT FROM base.product_id
               AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
@@ -644,7 +644,7 @@ export const getPlanVsActualReport = async (req, res) => {
           AND EXISTS (
             SELECT 1 FROM daily_production_ticket_items dti_f
             JOIN daily_production_tickets dt_f ON dti_f.ticket_id = dt_f.id
-            WHERE dt_f.deleted_at IS NULL AND dt_f.ticket_date <= $${queryParams.length}
+            WHERE dt_f.deleted_at IS NULL AND (dt_f.status IS NULL OR dt_f.status != 'REJECTED') AND dt_f.ticket_date <= $${queryParams.length}
               AND dti_f.order_id = base.order_id
               AND dti_f.product_id IS NOT DISTINCT FROM base.product_id
               AND dti_f.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
@@ -688,7 +688,7 @@ export const getPlanVsActualReport = async (req, res) => {
         SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
         FROM daily_production_ticket_items dti
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
-        WHERE dt.deleted_at IS NULL
+        WHERE dt.deleted_at IS NULL AND (dt.status IS NULL OR dt.status != 'REJECTED')
           AND dti.production_plan_id IS NULL
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
@@ -764,7 +764,7 @@ export const getPlanVsActualReport = async (req, res) => {
             ))
             FROM daily_production_ticket_items dti
             JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
-            WHERE dt.deleted_at IS NULL
+            WHERE dt.deleted_at IS NULL AND (dt.status IS NULL OR dt.status != 'REJECTED')
               AND (
                 dti.production_plan_id IN (
                   SELECT pp_agg.id FROM production_plans pp_agg WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
@@ -805,7 +805,7 @@ export const getPlanVsActualReport = async (req, res) => {
         SELECT dti.order_id, dti.product_id, dti.product_group_operation_id
         FROM daily_production_ticket_items dti
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id
-        WHERE dt.deleted_at IS NULL
+        WHERE dt.deleted_at IS NULL AND (dt.status IS NULL OR dt.status != 'REJECTED')
           AND dti.production_plan_id IS NULL
         GROUP BY dti.order_id, dti.product_id, dti.product_group_operation_id
       ),
@@ -1052,7 +1052,7 @@ export const exportDetailedTickets = async (req, res) => {
                 o.name as order_name,
                 o.po_customer,
                 p.name as product_name,
-                dti.operation_name,
+                COALESCE(op.name, dti.operation_name) as operation_name,
                 dti.planned_quantity,
                 dti.actual_quantity,
                 dti.notes,
@@ -1062,6 +1062,8 @@ export const exportDetailedTickets = async (req, res) => {
             JOIN daily_production_ticket_items dti ON dti.ticket_id = dt.id
             LEFT JOIN orders o ON dti.order_id = o.id
             LEFT JOIN products p ON dti.product_id = p.id
+            LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
+            LEFT JOIN operations op ON pgo.operation_id = op.id
             LEFT JOIN machines m ON dt.machine_id = m.id
             LEFT JOIN users cu ON dt.created_by = cu.id
             ${whereClause}
