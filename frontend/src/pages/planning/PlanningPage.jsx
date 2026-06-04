@@ -288,11 +288,11 @@ export default function PlanningPage() {
   }, []);
 
   const buildMergedPlanForEdit = useCallback((plan, siblings) => {
-    if (siblings.length === 0) return plan;
+    // Luôn build dữ liệu dạng multi-machine (_mergedPlannedDays) để form dễ dàng thêm/bớt máy
 
     const allPlans = [plan, ...siblings];
     const machineIds = allPlans
-      .map((p) => String(p.machine_id))
+      .map((p) => (p.machine_id ? String(p.machine_id) : null))
       .filter(Boolean);
     const daysByDate = {};
 
@@ -319,10 +319,12 @@ export default function PlanningPage() {
     const mergedPlannedDays = Object.values(daysByDate)
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((day) => {
-        const total = machineIds.reduce(
-          (s, mid) => s + parseFloat(day.machineHours[mid] || 0),
-          0,
-        );
+        let total = 0;
+        if (machineIds.length > 0) {
+          total = machineIds.reduce((s, mid) => s + parseFloat(day.machineHours[mid] || 0), 0);
+        } else {
+          total = parseFloat(day.machineHours["null"] || 0);
+        }
         return {
           ...day,
           hours: total.toFixed(6),
@@ -404,16 +406,31 @@ export default function PlanningPage() {
         return;
       }
 
-      // ── Case 3: Cập nhật kế hoạch có nhiều máy (planGroup) ──
-      if (editingPlan?.planGroup?.length > 1) {
+      // ── Case 3 & 4: Cập nhật kế hoạch ──
+      if (editingPlan) {
+        const toastId = toast.loading("Đang cập nhật kế hoạch...");
         try {
-          await Promise.all(
-            editingPlan.planGroup.map(({ id, machine_id }) => {
-              const mId = String(machine_id);
-              const planRecord = plans.find((p) => p.id === id) || editingPlan;
+          const payloadMachineIds = payload.machine_ids || [];
+          // Nếu planGroup không tồn tại (chỉ 1 máy), tạo mảng chuẩn để xử lý
+          const planGroup = editingPlan.planGroup || [{ id: editingPlan.id, machine_id: editingPlan.machine_id }];
+          const promises = [];
+
+          const planRecord = plans.find((p) => p.id === editingPlan.id) || editingPlan;
+
+          // 1. Phân loại theo planGroup: Cập nhật máy giữ lại, Xóa máy bỏ đi
+          planGroup.forEach(({ id, machine_id }) => {
+            const mId = String(machine_id);
+            if (payloadMachineIds.includes(mId)) {
+              // Cập nhật
               const mDays = (payload.days || [])
                 .map((d) => {
-                  const machineHrs = parseFloat(d.machine_hours?.[mId] ?? 0);
+                  let machineHrs = 0;
+                  // Nếu chọn nhiều máy, lấy từ machine_hours. Nếu chỉ 1 máy, lấy từ hours chung
+                  if (payloadMachineIds.length > 1) {
+                    machineHrs = parseFloat(d.machine_hours?.[mId] ?? 0);
+                  } else {
+                    machineHrs = parseFloat(d.hours) / 8; // d.hours is already multiplied by 8
+                  }
                   if (machineHrs <= 0) return null;
                   return {
                     date: d.date,
@@ -423,36 +440,75 @@ export default function PlanningPage() {
                 })
                 .filter(Boolean);
 
-              return planningService.update(id, {
-                order_id: planRecord.order_id,
-                product_id: planRecord.product_id,
-                product_group_operation_id:
-                  planRecord.product_group_operation_id,
-                inventory_input:
-                  payload.inventory_input ?? planRecord.inventory_input,
-                planned_start_date:
-                  payload.planned_start_date ?? planRecord.planned_start_date,
-                dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
-                machine_id: machine_id || null,
-                days: mDays,
-              });
-            }),
-          );
+              promises.push(
+                planningService.update(id, {
+                  order_id: planRecord.order_id,
+                  product_id: planRecord.product_id,
+                  product_group_operation_id: planRecord.product_group_operation_id,
+                  inventory_input: payload.inventory_input ?? planRecord.inventory_input,
+                  planned_start_date: payload.planned_start_date ?? planRecord.planned_start_date,
+                  dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
+                  machine_id: machine_id || null,
+                  days: mDays,
+                })
+              );
+            } else {
+              // Xóa
+              promises.push(planningService.delete(id));
+            }
+          });
+
+          // 2. Thêm mới các máy được chọn thêm (chưa có trong planGroup)
+          payloadMachineIds.forEach((mId) => {
+            const exists = planGroup.some((p) => String(p.machine_id) === String(mId));
+            if (!exists) {
+              const mDays = (payload.days || [])
+                .map((d) => {
+                  let machineHrs = 0;
+                  if (payloadMachineIds.length > 1) {
+                    machineHrs = parseFloat(d.machine_hours?.[String(mId)] ?? 0);
+                  } else {
+                    machineHrs = parseFloat(d.hours) / 8;
+                  }
+                  if (machineHrs <= 0) return null;
+                  return {
+                    date: d.date,
+                    hours: (machineHrs * 8).toFixed(6),
+                    is_overtime: d.is_overtime || false,
+                  };
+                })
+                .filter(Boolean);
+
+              promises.push(
+                planningService.createPlan({
+                  order_id: planRecord.order_id,
+                  product_id: planRecord.product_id,
+                  product_group_operation_id: planRecord.product_group_operation_id,
+                  factory_id: payload.factory_id || planRecord.factory_id,
+                  is_outsourced: payload.is_outsourced || planRecord.is_outsourced,
+                  inventory_input: payload.inventory_input ?? planRecord.inventory_input,
+                  dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
+                  planned_start_date: payload.planned_start_date ?? planRecord.planned_start_date,
+                  machine_id: mId,
+                  days: mDays,
+                })
+              );
+            }
+          });
+
+          if (promises.length === 0 && payloadMachineIds.length === 0) {
+              toast.error("Vui lòng chọn ít nhất 1 máy!", { id: toastId });
+              return;
+          }
+
+          await Promise.all(promises);
           queryClient.invalidateQueries({ queryKey: ["plans"] });
           handleCloseModal();
-          toast.success("Cập nhật thành công!");
+          toast.success("Cập nhật thành công!", { id: toastId });
         } catch (err) {
-          toast.error(err.response?.data?.message || "Lỗi khi cập nhật");
+          toast.error(err.response?.data?.message || "Lỗi khi cập nhật kế hoạch", { id: toastId });
         }
         return;
-      }
-
-      // ── Case 4: Tạo mới hoặc cập nhật 1 máy ──
-      if (editingPlan) {
-        updateMutation.mutate(
-          { id: editingPlan.id, payload },
-          { onSuccess: () => handleCloseModal() },
-        );
       } else {
         createMutation.mutate(payload);
       }
