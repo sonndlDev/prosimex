@@ -352,9 +352,9 @@ export default function GenericTable({
                       {columns.map(col => {
                         const value = row[col.id];
                         const formatted = col.format ? col.format(value, row) : (value || '---');
-                        const tooltipText = typeof value === 'string' || typeof value === 'number'
+                        const tooltipText = col.disableTooltip ? null : (typeof value === 'string' || typeof value === 'number'
                           ? String(value)
-                          : null;
+                          : null);
 
                         return (
                           <TooltipProvider key={col.id} delayDuration={400}>

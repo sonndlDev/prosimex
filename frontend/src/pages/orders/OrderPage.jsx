@@ -470,28 +470,15 @@ function OrderPageCore({
   {
     id: "completion_percentage",
     label: "Phần trăm hoàn thành đơn hàng",
+    disableTooltip: true,
     format: (value, row) => (
-      <div
-        className="flex justify-center items-center h-full w-full cursor-pointer hover:opacity-80 transition-opacity"
-        onClick={(e) => {
-          e.stopPropagation();
+      <CompletionPercentageCell
+        orderId={row.id}
+        onClick={() => {
           setReportOrderId(row.id);
           setOpenCompletionReport(true);
         }}
-      >
-        <Badge
-          variant={
-            (row.completion_percentage || 0) >= 100
-              ? "success"
-              : (row.completion_percentage || 0) > 0
-              ? "warning"
-              : "outline"
-          }
-          className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100"
-        >
-          {(row.completion_percentage || 0)}%
-        </Badge>
-      </div>
+      />
     )
   },
 

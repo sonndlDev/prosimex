@@ -151,7 +151,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-y-auto border-none shadow-2xl rounded-2xl bg-zinc-50">
-                <DialogHeader className="p-6 bg-white border-b border-zinc-100 flex flex-row items-center justify-between space-y-0">
+                <DialogHeader className="p-6 pb-0 bg-white border-b border-zinc-100 flex flex-row items-center justify-between space-y-0">
                     <DialogTitle className="text-xl font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
                         <div className="w-10 h-10 bg-rose-600 rounded-xl text-white flex items-center justify-center shadow-lg shadow-rose-100">
                             <PackageMinus className="w-5 h-5" />
@@ -163,16 +163,16 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="p-6 space-y-6">
+                <div className="p-6 pt-0 space-y-6">
                     {isLoading ? (
-                        <div className="h-[400px] flex flex-col items-center justify-center gap-3 text-zinc-400">
+                        <div className="h-[auto] flex flex-col items-center justify-center gap-3 text-zinc-400">
                             <Loader2 className="w-8 h-8 animate-spin" />
                             <p className="text-xs font-bold uppercase tracking-widest">Đang tải dữ liệu...</p>
                         </div>
                     ) : (
                         <>
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-3 gap-4">
+                            {/* <div className="grid grid-cols-3 gap-4">
                                 <Card className="border-none shadow-sm bg-white overflow-hidden relative group">
                                     <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-50 rounded-bl-full opacity-50 group-hover:scale-110 transition-transform"></div>
                                     <CardContent className="p-5 flex items-center gap-4 relative z-10">
@@ -209,7 +209,7 @@ export default function RemainingQuantityDialog({ open, onClose, orderId }) {
                                         </div>
                                     </CardContent>
                                 </Card>
-                            </div>
+                            </div> */}
 
                             {/* Details Table */}
                             <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 overflow-hidden">

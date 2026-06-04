@@ -334,7 +334,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   });
 
   const [items, setItems] = useState([
-    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }
+    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -349,11 +349,16 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           const p = parseFloat(newItem.pallet_weight || 0);
           newItem.net_weight = (g - p).toFixed(2);
         }
-        // Validate SL Xuất không vượt quá order_quantity + 3%
+        if (field === 'quantity_out' && value) {
+          newItem.accessory_quantity = "";
+        }
+        if (field === 'accessory_quantity' && value) {
+          newItem.quantity_out = "";
+        }
         if (field === 'quantity_out' && newItem.order_quantity) {
           const maxAllowed = Math.floor(parseFloat(newItem.order_quantity) * 1.03);
           if (parseFloat(value) > maxAllowed) {
-            toast.warning(`SL Xuất tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
+            toast.warning(`SL Xuất BP chính tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
             newItem.quantity_out = String(maxAllowed);
           }
         }
@@ -364,7 +369,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   };
 
   const addItem = () => {
-    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
   };
 
   const removeItem = (id) => {
@@ -379,9 +384,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       toast.error("Vui lòng chọn Nhà cung cấp");
       return;
     }
-    const invalidItem = items.find(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out));
+    const invalidItem = items.find(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out && !i.accessory_quantity));
     if (invalidItem) {
-      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và Số lượng xuất" : "") + " cho tất cả các phần!");
+      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và SL Xuất (BP chính hoặc Phụ kiện)" : "") + " cho tất cả các phần!");
       return;
     }
     if (type !== 'PACKAGING' && !formData.expected_return_date) {
@@ -406,7 +411,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       setCreatedTicket(res);
       toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
       // Reset form
-      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -540,22 +545,51 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                     </select>
                   </div>
                 )}
-                <div className={cn(
-                  "space-y-1.5 p-2 rounded-lg border",
-                  type === 'PACKAGING' ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
-                )}>
-                  <Label className={cn("text-[10px] font-bold uppercase", type === 'PACKAGING' ? "text-emerald-700" : "text-blue-700")}>
-                    {type === 'PACKAGING' ? 'SL Đóng gói *' : 'SL Xuất *'}
-                  </Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    className={cn("h-9 font-bold", type === 'PACKAGING' ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
-                    value={item.quantity_out}
-                    max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
-                    onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
-                  />
-                </div>
+                {type === 'PACKAGING' ? (
+                  <div className={cn(
+                    "space-y-1.5 p-2 rounded-lg border",
+                    "bg-emerald-50/50 border-emerald-100"
+                  )}>
+                    <Label className={cn("text-[10px] font-bold uppercase", "text-emerald-700")}>
+                      {'SL Đóng gói *'}
+                    </Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      className={cn("h-9 font-bold", "text-emerald-900 border-emerald-200")}
+                      value={item.quantity_out}
+                      onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 lg:col-span-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
+                        <Label className="text-[10px] font-bold uppercase text-blue-700">SL Xuất BP chính</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          className="h-9 font-bold text-blue-900 border-blue-200"
+                          value={item.quantity_out}
+                          max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
+                          disabled={!!item.accessory_quantity}
+                          onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1 p-2 rounded-lg border bg-amber-50/50 border-amber-100">
+                        <Label className="text-[10px] font-bold uppercase text-amber-700">SL PK/Hàng lỗi</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          className="h-9 font-bold text-amber-900 border-amber-200"
+                          value={item.accessory_quantity}
+                          disabled={!!item.quantity_out}
+                          onChange={e => handleItemChange(item.id, 'accessory_quantity', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {type !== 'PACKAGING' && (
@@ -1175,6 +1209,7 @@ function mapTicketItemForEdit(item) {
     order_quantity: item.order_quantity ?? "",
     processing_type: item.processing_type ?? "",
     quantity_out: item.quantity_out ?? "",
+    accessory_quantity: item.accessory_quantity ?? "",
     gross_weight: item.gross_weight ?? "",
     pallet_weight: item.pallet_weight ?? "",
     net_weight: item.net_weight ?? "",
@@ -1233,11 +1268,16 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
         const p = parseFloat(newItem.pallet_weight || 0);
         newItem.net_weight = (g - p).toFixed(2);
       }
-      // Validate SL Xuất không vượt quá order_quantity + 3%
+      if (field === 'quantity_out' && value) {
+        newItem.accessory_quantity = "";
+      }
+      if (field === 'accessory_quantity' && value) {
+        newItem.quantity_out = "";
+      }
       if (field === 'quantity_out' && newItem.order_quantity) {
         const maxAllowed = Math.floor(parseFloat(newItem.order_quantity) * 1.03);
         if (parseFloat(value) > maxAllowed) {
-          toast.warning(`SL Xuất tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
+          toast.warning(`SL Xuất BP chính tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
           newItem.quantity_out = String(maxAllowed);
         }
       }
@@ -1255,6 +1295,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
       order_quantity: "",
       processing_type: "",
       quantity_out: "",
+      accessory_quantity: "",
       gross_weight: "",
       pallet_weight: "",
       net_weight: "",
@@ -1283,9 +1324,9 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
       toast.error("Vui lòng chọn Nhà cung cấp");
       return;
     }
-    const invalidItem = items.find(i => !i.order_id || !i.product_id || (ticketType !== "PACKAGING" && !i.quantity_out));
+    const invalidItem = items.find(i => !i.order_id || !i.product_id || (ticketType !== "PACKAGING" && !i.quantity_out && !i.accessory_quantity));
     if (invalidItem) {
-      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (ticketType !== "PACKAGING" ? " và Số lượng xuất" : "") + " cho tất cả các phần!");
+      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (ticketType !== "PACKAGING" ? " và SL Xuất (BP chính hoặc Phụ kiện)" : "") + " cho tất cả các phần!");
       return;
     }
 
@@ -1308,6 +1349,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
             order_quantity: i.order_quantity || 0,
             processing_type: i.processing_type || null,
             quantity_out: i.quantity_out || 0,
+            accessory_quantity: i.accessory_quantity || 0,
             gross_weight: i.gross_weight || null,
             pallet_weight: i.pallet_weight || null,
             net_weight: i.net_weight || null,
@@ -1497,22 +1539,51 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                         </select>
                       </div>
                     )}
-                    <div className={cn(
-                      "space-y-1.5 p-2 rounded-lg border",
-                      ticketType === "PACKAGING" ? "bg-emerald-50/50 border-emerald-100" : "bg-blue-50/50 border-blue-100"
-                    )}>
-                      <Label className={cn("text-[10px] font-bold uppercase", ticketType === "PACKAGING" ? "text-emerald-700" : "text-blue-700")}>
-                        {ticketType === "PACKAGING" ? "SL Đóng gói *" : "SL Xuất *"}
-                      </Label>
-                      <Input
-                        type="number"
-                        placeholder="0"
-                        className={cn("h-9 font-bold", ticketType === "PACKAGING" ? "text-emerald-900 border-emerald-200" : "text-blue-900 border-blue-200")}
-                        value={item.quantity_out}
-                        max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
-                        onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
-                      />
-                    </div>
+                    {ticketType === "PACKAGING" ? (
+                      <div className={cn(
+                        "space-y-1.5 p-2 rounded-lg border",
+                        "bg-emerald-50/50 border-emerald-100"
+                      )}>
+                        <Label className={cn("text-[10px] font-bold uppercase", "text-emerald-700")}>
+                          {'SL Đóng gói *'}
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          className={cn("h-9 font-bold", "text-emerald-900 border-emerald-200")}
+                          value={item.quantity_out}
+                          onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 lg:col-span-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
+                            <Label className="text-[10px] font-bold uppercase text-blue-700">SL Xuất BP chính</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              className="h-9 font-bold text-blue-900 border-blue-200"
+                              value={item.quantity_out}
+                              max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
+                              disabled={!!item.accessory_quantity}
+                              onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1 p-2 rounded-lg border bg-amber-50/50 border-amber-100">
+                            <Label className="text-[10px] font-bold uppercase text-amber-700">SL PK/Hàng lỗi</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              className="h-9 font-bold text-amber-900 border-amber-200"
+                              value={item.accessory_quantity}
+                              disabled={!!item.quantity_out}
+                              onChange={e => handleItemChange(item.localKey, "accessory_quantity", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {ticketType !== "PACKAGING" && (
@@ -1636,7 +1707,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
       // ─── Cột phếu đi (B..O = col 2..15) | Phếu về (P..X = col 16..24)
       const diHeaders = [
         "NGÀY XUẤT ĐI", "PO NCC (MÃ PHIẾU)", "ĐƠN HÀNG", "MÃ HÀNG", "SL ORDER",
-        "LOẠI HÌNH", "KIỆN", "SL XUẤT", "KG/CÁI", "GROSS WEIGH (KG)",
+        "LOẠI HÌNH", "KIỆN", "SL XUẤT BP CHÍNH", "SL PHỤ KIỆN", "KG/CÁI", "GROSS WEIGH (KG)",
         "PALLET WEIGH (KG)", "NET WEIGH (KG)", "GHI CHÚ", "NGÀY DỰ KIẾN VỀ"
       ];
       const veHeaders = [
@@ -1651,7 +1722,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
       // ─── Cột widths
       ws.getColumn(1).width = 6;
       diHeaders.forEach((_, i) => {
-        const widths = [13, 20, 18, 22, 9, 10, 7, 9, 9, 14, 14, 12, 18, 15];
+        const widths = [13, 20, 18, 22, 9, 10, 7, 12, 10, 9, 14, 14, 12, 18, 15];
         ws.getColumn(diColStart + i).width = widths[i] || 12;
       });
       veHeaders.forEach((_, i) => {
@@ -1732,6 +1803,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
           e.processing_type || "",
           e.package_count != null ? parseFloat(e.package_count) : 0,
           e.quantity_out != null ? parseFloat(e.quantity_out) : 0,
+          e.accessory_quantity != null ? parseFloat(e.accessory_quantity) : 0,
           e.unit_net_weight != null ? parseFloat(e.unit_net_weight) : 0,
           e.gross_weight != null ? parseFloat(e.gross_weight) : 0,
           e.pallet_weight != null ? parseFloat(e.pallet_weight) : 0,
@@ -1739,7 +1811,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
           e.notes || "",
           e.expected_return_date ? DateTime.fromISO(e.expected_return_date).toFormat("dd/MM/yyyy") : "",
           e.last_returned_at ? DateTime.fromISO(e.last_returned_at).toFormat("dd/MM/yyyy") : "",
-          "",  // Kiện về
+          "",
           e.total_returned != null ? parseFloat(e.total_returned) : 0,
           e.unit_net_weight != null ? parseFloat(e.unit_net_weight) : 0,
           e.return_gross_weight != null ? parseFloat(e.return_gross_weight) : 0,
@@ -1810,9 +1882,15 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
     },
     {
       id: "quantity_out",
-      label: "Tổng Xuất",
+      label: "SL Xuất BP Chính",
       className: "font-black text-blue-600 tabular-nums text-right",
       format: (val) => parseFloat(val).toLocaleString()
+    },
+    {
+      id: "accessory_quantity",
+      label: "SL Phụ kiện",
+      className: "font-bold text-amber-600 tabular-nums text-right",
+      format: (val) => parseFloat(val || 0).toLocaleString()
     },
     {
       id: "total_returned",
