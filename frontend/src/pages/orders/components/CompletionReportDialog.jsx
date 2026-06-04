@@ -39,6 +39,7 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
   });
 
   const rows = response?.data || [];
+  const overallPercentage = response?.overall_completion_percentage || 0;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -144,7 +145,13 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
           )}
         </div>
 
-        <DialogFooter className="px-6 py-4 bg-white border-t border-zinc-200">
+        <DialogFooter className="px-6 py-4 bg-white border-t border-zinc-200 flex justify-between items-center">
+           <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-zinc-600">Tổng hoàn thành:</span>
+              <Badge variant={overallPercentage >= 100 ? "success" : overallPercentage > 0 ? "warning" : "outline"} className="font-black text-sm tabular-nums">
+                {overallPercentage.toFixed(0)}%
+              </Badge>
+           </div>
            <Button onClick={onClose} className="bg-zinc-950 hover:bg-zinc-800 text-white font-black px-10">
              <CheckCircle2 className="mr-2 h-4 w-4" /> Đóng báo cáo
            </Button>

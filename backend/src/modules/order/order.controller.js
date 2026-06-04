@@ -412,8 +412,6 @@ export const getOrderCompletionReport = async (req, res) => {
           totalProgress += stageProgress;
         }
         percentage = (totalProgress / totalStages) * 100;
-      } else if (required > 0) {
-        percentage = (completedQty / required) * 100;
       }
 
       return {
@@ -427,7 +425,14 @@ export const getOrderCompletionReport = async (req, res) => {
       };
     });
 
-    res.json({ data });
+    const totalRequired = data.reduce((sum, r) => sum + (parseFloat(r.required_quantity) || 0), 0);
+    const weightedSum = data.reduce((sum, r) => {
+      const qty = parseFloat(r.required_quantity) || 0;
+      return sum + (r.completion_percentage * qty);
+    }, 0);
+    const overallCompletionPercentage = totalRequired > 0 ? weightedSum / totalRequired : 0;
+
+    res.json({ data, overall_completion_percentage: overallCompletionPercentage });
   } catch (error) {
     console.error("Get Order Completion Report Error:", error);
     res.status(500).json({ message: "Error retrieving order completion report", error });

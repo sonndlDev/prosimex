@@ -16,21 +16,10 @@ export default function CompletionPercentageCell({ orderId, onClick }) {
   }
 
   const rows = response?.data || [];
-  
+  const overallPercentage = response?.overall_completion_percentage || 0;
+
   if (rows.length === 0) {
     return <span className="text-zinc-400 font-medium">-</span>;
-  }
-
-  const totalRequired = rows.reduce((sum, r) => sum + (parseFloat(r.required_quantity) || 0), 0);
-  const weightedSum = rows.reduce((sum, r) => {
-      const qty = parseFloat(r.required_quantity) || 0;
-      const pct = parseFloat(r.completion_percentage) || 0;
-      return sum + (pct * qty);
-  }, 0);
-
-  let overallPercentage = 0;
-  if (totalRequired > 0) {
-      overallPercentage = weightedSum / totalRequired;
   }
 
   return (
