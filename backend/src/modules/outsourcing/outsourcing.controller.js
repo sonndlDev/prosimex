@@ -60,6 +60,7 @@ export const exportDetailedItems = async (req, res) => {
         i.processing_type,
         i.package_count,
         i.quantity_out,
+        i.accessory_quantity,
         i.unit_net_weight,
         i.gross_weight,
         i.pallet_weight,
@@ -145,6 +146,7 @@ export const getTickets = async (req, res) => {
         SELECT
           i.ticket_id,
           SUM(i.quantity_out) AS quantity_out,
+          SUM(i.accessory_quantity) AS accessory_quantity,
           SUM(i.package_count) AS total_packages,
           string_agg(DISTINCT p.name, ', ' ORDER BY p.name) AS product_name,
           string_agg(
@@ -172,6 +174,7 @@ export const getTickets = async (req, res) => {
         COALESCE(cu.full_name, cu.username) as creator_name,
         COALESCE(mu.full_name, mu.username) as modifier_name,
         COALESCE(tia.quantity_out, 0) as quantity_out,
+        COALESCE(tia.accessory_quantity, 0) as accessory_quantity,
         COALESCE(tia.total_packages, 0) as total_packages,
         COALESCE(tra.total_returned, 0) as total_returned,
         tia.product_name,
@@ -217,6 +220,7 @@ export const getTicketByCode = async (req, res) => {
         SELECT
           i.ticket_id,
           SUM(i.quantity_out) AS quantity_out,
+          SUM(i.accessory_quantity) AS accessory_quantity,
           string_agg(DISTINCT p.name, ', ' ORDER BY p.name) AS product_name,
           string_agg(
             DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''),
@@ -244,6 +248,7 @@ export const getTicketByCode = async (req, res) => {
         COALESCE(cu.full_name, cu.username) as creator_name,
         COALESCE(mu.full_name, mu.username) as modifier_name,
         COALESCE(tia.quantity_out, 0) as quantity_out,
+        COALESCE(tia.accessory_quantity, 0) as accessory_quantity,
         COALESCE(tra.total_returned, 0) as total_returned,
         tia.product_name,
         tia.order_name
@@ -394,8 +399,8 @@ export const createTicket = async (req, res) => {
       for (const item of items) {
         await client.query(
           `INSERT INTO outsourcing_ticket_items 
-          (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+          (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, accessory_quantity, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             newTicket.id,
             item.order_id,
@@ -403,6 +408,7 @@ export const createTicket = async (req, res) => {
             item.order_quantity || 0,
             item.processing_type || null,
             item.quantity_out || 0,
+            item.accessory_quantity || 0,
             item.gross_weight || null,
             item.pallet_weight || null,
             item.net_weight || null,
@@ -764,11 +770,12 @@ export const updateTicket = async (req, res) => {
         await client.query(
           `UPDATE outsourcing_ticket_items
            SET order_id = $1, product_id = $2, order_quantity = $3, processing_type = $4, quantity_out = $5,
-               gross_weight = $6, pallet_weight = $7, net_weight = $8, notes = $9, 
-               packing_specification = $10, package_count = $11, unit_net_weight = $12
-           WHERE id = $13`,
+               accessory_quantity = $6, gross_weight = $7, pallet_weight = $8, net_weight = $9, notes = $10, 
+               packing_specification = $11, package_count = $12, unit_net_weight = $13
+           WHERE id = $14`,
           [
             item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, quantity_out,
+            item.accessory_quantity || 0,
             item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
             item.packing_specification || null, item.package_count || null, item.unit_net_weight || null,
             item.id
@@ -777,11 +784,12 @@ export const updateTicket = async (req, res) => {
       } else {
         await client.query(
           `INSERT INTO outsourcing_ticket_items 
-           (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, 
+           (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, accessory_quantity,
             gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             id, item.order_id, item.product_id, item.order_quantity || 0, item.processing_type || null, item.quantity_out || 0,
+            item.accessory_quantity || 0,
             item.gross_weight || null, item.pallet_weight || null, item.net_weight || null, item.notes || null,
             item.packing_specification || null, item.package_count || null, item.unit_net_weight || null
           ]

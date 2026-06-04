@@ -97,41 +97,71 @@ export const getOrders = async (req, res) => {
 
     // Get data with calculated completion percentage (includes joins needed for whereClause)
     const dataQuery = `
-      WITH order_completion AS (
+      WITH product_completion AS (
         SELECT 
           op.order_id,
-          SUM(op.quantity) as total_required,
+          op.product_id,
+          op.quantity as required,
           COALESCE((
-            SELECT SUM(dti.actual_quantity) 
-            FROM daily_production_ticket_items dti 
-            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-            WHERE dti.order_id = op.order_id AND dt.deleted_at IS NULL
-          ), 0) as total_sx,
+            SELECT COUNT(*) FROM product_group_operations pgo 
+            WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
+            AND pgo.deleted_at IS NULL
+          ), 0) as total_stages,
           COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-          ), 0) as total_plating_out,
-          COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
-          ), 0) as total_packaging_out
+            SELECT SUM(LEAST(COALESCE(stage_actual.actual_qty, 0)::numeric / NULLIF(op.quantity, 0), 1.0))
+            FROM (
+              SELECT pgo.id as pgo_id,
+                CASE
+                  WHEN o.name ILIKE '%ĐI MẠ%' OR o.name ILIKE '%ĐI XI%' THEN
+                    (SELECT COALESCE(SUM(oti.quantity_out), 0) FROM outsourcing_tickets ot 
+                     JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PLATING' AND ot.deleted_at IS NULL)
+                  WHEN o.name ILIKE '%VỀ MẠ%' OR o.name ILIKE '%XI MẠ VỀ%' OR o.name ILIKE '%VỀ XI%' THEN
+                    (SELECT COALESCE(SUM(or_t.quantity_returned), 0) FROM outsourcing_returns or_t 
+                     JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+                     JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PLATING' AND ot.deleted_at IS NULL)
+                  WHEN o.name ILIKE '%ĐÓNG GÓI%' OR o.name ILIKE '%ĐONG GOI%' THEN
+                    (SELECT COALESCE(SUM(oti.quantity_out), 0) FROM outsourcing_tickets ot 
+                     JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL)
+                  ELSE
+                    (SELECT COALESCE(SUM(dti.actual_quantity), 0) FROM daily_production_ticket_items dti 
+                     JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+                     WHERE dti.order_id = op.order_id AND dti.product_id = op.product_id 
+                     AND dti.product_group_operation_id = pgo.id AND dt.deleted_at IS NULL)
+                END as actual_qty
+              FROM product_group_operations pgo
+              JOIN operations o ON pgo.operation_id = o.id AND o.deleted_at IS NULL
+              WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
+              AND pgo.deleted_at IS NULL
+            ) stage_actual
+          ), 0) as total_progress
         FROM order_products op
         JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
-        GROUP BY op.order_id
+      ),
+      order_completion AS (
+        SELECT 
+          order_id,
+          SUM(required) as total_required,
+          CASE WHEN SUM(required) > 0 
+            THEN ROUND(SUM(
+              CASE WHEN total_stages > 0 THEN (total_progress / total_stages) * 100 ELSE 0 END
+              * required) / SUM(required))
+            ELSE 0 
+          END as completion_percentage
+        FROM product_completion
+        GROUP BY order_id
       )
       SELECT o.*, c.name as customer_name, 
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
              oe.pallet_info, oe.accessory_status,
-             CASE 
-               WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
-               ELSE 0 
-             END as completion_percentage,
+             COALESCE(oc.completion_percentage, 0) as completion_percentage,
              COALESCE(
                (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
                 FROM order_products op
@@ -176,42 +206,72 @@ export const getOrderById = async (req, res) => {
     const { id } = req.params;
 
     const dataQuery = `
-      WITH order_completion AS (
+      WITH product_completion AS (
         SELECT 
           op.order_id,
-          SUM(op.quantity) as total_required,
+          op.product_id,
+          op.quantity as required,
           COALESCE((
-            SELECT SUM(dti.actual_quantity) 
-            FROM daily_production_ticket_items dti 
-            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-            WHERE dti.order_id = op.order_id AND dt.deleted_at IS NULL
-          ), 0) as total_sx,
+            SELECT COUNT(*) FROM product_group_operations pgo 
+            WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
+            AND pgo.deleted_at IS NULL
+          ), 0) as total_stages,
           COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
-          ), 0) as total_plating_out,
-          COALESCE((
-            SELECT SUM(oti.quantity_out) 
-            FROM outsourcing_tickets ot 
-            JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
-            WHERE oti.order_id = op.order_id AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
-          ), 0) as total_packaging_out
+            SELECT SUM(LEAST(COALESCE(stage_actual.actual_qty, 0)::numeric / NULLIF(op.quantity, 0), 1.0))
+            FROM (
+              SELECT pgo.id as pgo_id,
+                CASE
+                  WHEN o.name ILIKE '%ĐI MẠ%' OR o.name ILIKE '%ĐI XI%' THEN
+                    (SELECT COALESCE(SUM(oti.quantity_out), 0) FROM outsourcing_tickets ot 
+                     JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PLATING' AND ot.deleted_at IS NULL)
+                  WHEN o.name ILIKE '%VỀ MẠ%' OR o.name ILIKE '%XI MẠ VỀ%' OR o.name ILIKE '%VỀ XI%' THEN
+                    (SELECT COALESCE(SUM(or_t.quantity_returned), 0) FROM outsourcing_returns or_t 
+                     JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+                     JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PLATING' AND ot.deleted_at IS NULL)
+                  WHEN o.name ILIKE '%ĐÓNG GÓI%' OR o.name ILIKE '%ĐONG GOI%' THEN
+                    (SELECT COALESCE(SUM(oti.quantity_out), 0) FROM outsourcing_tickets ot 
+                     JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+                     WHERE oti.order_id = op.order_id AND oti.product_id = op.product_id 
+                     AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL)
+                  ELSE
+                    (SELECT COALESCE(SUM(dti.actual_quantity), 0) FROM daily_production_ticket_items dti 
+                     JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+                     WHERE dti.order_id = op.order_id AND dti.product_id = op.product_id 
+                     AND dti.product_group_operation_id = pgo.id AND dt.deleted_at IS NULL)
+                END as actual_qty
+              FROM product_group_operations pgo
+              JOIN operations o ON pgo.operation_id = o.id AND o.deleted_at IS NULL
+              WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
+              AND pgo.deleted_at IS NULL
+            ) stage_actual
+          ), 0) as total_progress
         FROM order_products op
         JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
         WHERE op.order_id = $1
-        GROUP BY op.order_id
+      ),
+      order_completion AS (
+        SELECT 
+          order_id,
+          SUM(required) as total_required,
+          CASE WHEN SUM(required) > 0 
+            THEN ROUND(SUM(
+              CASE WHEN total_stages > 0 THEN (total_progress / total_stages) * 100 ELSE 0 END
+              * required) / SUM(required))
+            ELSE 0 
+          END as completion_percentage
+        FROM product_completion
+        GROUP BY order_id
       )
       SELECT o.*, c.name as customer_name, 
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
              oe.pallet_info, oe.accessory_status,
-             CASE 
-               WHEN oc.total_required > 0 THEN ROUND(((oc.total_sx + oc.total_plating_out + oc.total_packaging_out) / oc.total_required) * 100)
-               ELSE 0 
-             END as completion_percentage,
+             COALESCE(oc.completion_percentage, 0) as completion_percentage,
              COALESCE(
                (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
                 FROM order_products op
@@ -250,18 +310,23 @@ export const getOrderCompletionReport = async (req, res) => {
           SELECT 
               op.product_id,
               COALESCE(op.product_group_id, p.product_group_id) AS effective_group_id,
+              (SELECT COUNT(*) FROM product_group_operations pgo WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL) as total_stages,
               (SELECT pgo.id FROM product_group_operations pgo WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL ORDER BY pgo.sequence_order DESC LIMIT 1) as final_pgo_id
           FROM order_products op
           JOIN products p ON op.product_id = p.id
           WHERE op.order_id = $1
       ),
-      sx_totals AS (
-        SELECT dti.product_id, SUM(dti.actual_quantity) as total_sx
+      inhouse_totals AS (
+        SELECT dti.product_id, dti.product_group_operation_id, SUM(dti.actual_quantity) as qty
         FROM daily_production_ticket_items dti 
         JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-        JOIN product_stages ps ON ps.product_id = dti.product_id AND ps.final_pgo_id = dti.product_group_operation_id
         WHERE dti.order_id = $1 AND dt.deleted_at IS NULL
-        GROUP BY dti.product_id
+        GROUP BY dti.product_id, dti.product_group_operation_id
+      ),
+      sx_totals AS (
+        SELECT it.product_id, it.qty as total_sx
+        FROM inhouse_totals it
+        JOIN product_stages ps ON ps.product_id = it.product_id AND ps.final_pgo_id = it.product_group_operation_id
       ),
       plating_totals AS (
         SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
@@ -289,12 +354,29 @@ export const getOrderCompletionReport = async (req, res) => {
         p.id as product_id,
         COALESCE(op.product_name, p.name) as product_code,
         op.quantity as required_quantity,
+        ps.total_stages,
         COALESCE(st.total_sx, 0) as sx_quantity,
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
         COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
-        COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity
+        COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+        (
+          SELECT json_agg(json_build_object(
+            'operation_name', op_name.name,
+            'actual_quantity', CASE
+              WHEN op_name.name ILIKE '%ĐI MẠ%' OR op_name.name ILIKE '%ĐI XI%' THEN COALESCE(pt.total_plating_out, 0)
+              WHEN op_name.name ILIKE '%VỀ MẠ%' OR op_name.name ILIKE '%XI MẠ VỀ%' OR op_name.name ILIKE '%VỀ XI%' THEN COALESCE(pr.total_plating_returned, 0)
+              WHEN op_name.name ILIKE '%ĐÓNG GÓI%' OR op_name.name ILIKE '%ĐONG GOI%' THEN COALESCE(pkt.total_packaging_out, 0)
+              ELSE COALESCE(ih.qty, 0)
+            END
+          ) ORDER BY pgo.sequence_order ASC)
+          FROM product_group_operations pgo
+          JOIN operations op_name ON pgo.operation_id = op_name.id
+          LEFT JOIN inhouse_totals ih ON ih.product_group_operation_id = pgo.id AND ih.product_id = p.id
+          WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL
+        ) as operations_detail
       FROM order_products op
       JOIN products p ON op.product_id = p.id
+      JOIN product_stages ps ON p.id = ps.product_id
       LEFT JOIN sx_totals st ON p.id = st.product_id
       LEFT JOIN plating_totals pt ON p.id = pt.product_id
       LEFT JOIN plating_returns pr ON p.id = pr.product_id
@@ -310,8 +392,9 @@ export const getOrderCompletionReport = async (req, res) => {
       const platingOut = parseFloat(row.plating_out_quantity) || 0;
       const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
       const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
+      const totalStages = parseInt(row.total_stages) || 0;
+      const operationsDetail = row.operations_detail || [];
 
-      // New average completed logic:
       const items = [];
       if (sx > 0) items.push(sx);
       if (platingOut > 0) items.push(platingOut);
@@ -321,7 +404,15 @@ export const getOrderCompletionReport = async (req, res) => {
       const completedQty = items.length > 0 ? items.reduce((a, b) => a + b, 0) / items.length : 0;
 
       let percentage = 0;
-      if (required > 0) {
+      if (totalStages > 0 && required > 0) {
+        let totalProgress = 0;
+        for (const op of operationsDetail) {
+          const actual = parseFloat(op.actual_quantity) || 0;
+          const stageProgress = Math.min(actual / required, 1.0);
+          totalProgress += stageProgress;
+        }
+        percentage = (totalProgress / totalStages) * 100;
+      } else if (required > 0) {
         percentage = (completedQty / required) * 100;
       }
 
