@@ -246,14 +246,29 @@ export default function PlanningPage() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids) => {
-      // Vì planningService.delete chỉ nhận 1 id, gọi Promise.all để xoá từng id một
-      const promises = ids.map((id) => planningService.delete(id));
-      await Promise.all(promises);
+      let succeeded = 0;
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await planningService.delete(id);
+          succeeded++;
+        } catch {
+          failed++;
+        }
+      }
+      if (failed > 0 && succeeded === 0) {
+        throw new Error("All deletions failed");
+      }
+      return { succeeded, failed };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["plans"] });
-      toast.success("Xóa các kế hoạch thành công!");
       setSelectedPlanIds([]);
+      if (result.failed > 0) {
+        toast.warning(`Deleted ${result.succeeded}/${result.succeeded + result.failed} plans. ${result.failed} failed.`);
+      } else {
+        toast.success("Xóa các kế hoạch thành công!");
+      }
     },
     onError: (err) =>
       toast.error(err.response?.data?.message || "Lỗi khi xóa các kế hoạch"),

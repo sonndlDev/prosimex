@@ -494,7 +494,7 @@ const PlanningFormDialog = React.memo(
       if (JSON.stringify(newItems) !== JSON.stringify(case2Items)) {
         replaceCase2(newItems);
       }
-    }, [startDate, endDate, isFullOrderMode, selectedOrderId]); // Only these trigger auto-split
+    }, [startDate, endDate, isFullOrderMode, selectedOrderId, case2Items, replaceCase2]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Manual shift logic for Case 2
     const handleCase2Update = (idx, changes) => {

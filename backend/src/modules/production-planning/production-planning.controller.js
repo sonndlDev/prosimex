@@ -59,7 +59,7 @@ export const getProductionPlans = async (req, res) => {
       `
       SELECT COUNT(*) 
       FROM production_plans pp
-      JOIN orders o ON pp.order_id = o.id
+      LEFT JOIN orders o ON pp.order_id = o.id
       ${whereClause}
     `,
       queryParams,
@@ -126,6 +126,7 @@ export const getProductionPlans = async (req, res) => {
                AND wpa.working_date = ppd.working_date) as worker_names
            FROM production_plan_days ppd 
            WHERE ppd.production_plan_id = ANY($1)
+           AND ppd.deleted_at IS NULL
            ORDER BY ppd.working_date ASC`,
         [planIds],
       );
@@ -216,7 +217,7 @@ export const createProductionPlan = async (req, res) => {
     // 2. Business Logic Calculations
     const remaining_quantity = order_quantity - parseFloat(inventory_input);
     const total_required_work = parseFloat(
-      days.reduce((acc, d) => acc + parseFloat(d.hours), 0),
+      (days || []).reduce((acc, d) => acc + parseFloat(d.hours), 0),
     );
     // Fallback: nếu days rỗng hoặc chỉ có 0h placeholder → dùng planned_start_date
     const nonZeroDays = (days || []).filter(d => parseFloat(d.hours) > 0);
@@ -366,10 +367,10 @@ export const updateProductionPlan = async (req, res) => {
           : currentPlan.inventory_input,
         remaining_quantity,
         total_required_work,
-        planned_start_date || currentPlan.planned_start_date,
+        planned_start_date ?? currentPlan.planned_start_date,
         planned_end_date,
-        product_id || currentPlan.product_id,
-        dinh_muc || currentPlan.dinh_muc,
+        product_id ?? currentPlan.product_id,
+        dinh_muc ?? currentPlan.dinh_muc,
         id,
         created_by,
         machine_id !== undefined ? machine_id : currentPlan.machine_id,
@@ -378,7 +379,7 @@ export const updateProductionPlan = async (req, res) => {
 
     // 5. Delete and Re-insert Days (Bulk INSERT)
     await client.query(
-      "DELETE FROM production_plan_days WHERE production_plan_id = $1",
+      "UPDATE production_plan_days SET deleted_at = CURRENT_TIMESTAMP WHERE production_plan_id = $1 AND deleted_at IS NULL",
       [id],
     );
     if (days && days.length > 0) {
@@ -396,7 +397,7 @@ export const updateProductionPlan = async (req, res) => {
     }
 
     // 6. Update Machine Schedule (Delete and Re-insert to ensure consistency)
-    await client.query("DELETE FROM machine_schedules WHERE production_plan_id = $1", [id]);
+    await client.query("UPDATE machine_schedules SET deleted_at = CURRENT_TIMESTAMP WHERE production_plan_id = $1 AND deleted_at IS NULL", [id]);
     if (machine_id) {
       await client.query(
         `INSERT INTO machine_schedules (machine_id, order_id, production_plan_id, start_date, end_date)
@@ -443,7 +444,7 @@ export const deleteProductionPlan = async (req, res) => {
 
     // 2. Delete from machine_schedules (CASCADE equivalent)
     await client.query(
-      "DELETE FROM machine_schedules WHERE production_plan_id = $1",
+      "UPDATE machine_schedules SET deleted_at = CURRENT_TIMESTAMP WHERE production_plan_id = $1 AND deleted_at IS NULL",
       [id],
     );
 
@@ -503,8 +504,8 @@ export const cloneProductionPlan = async (req, res) => {
     // 2. Insert as new Plan
     const planInsert = await client.query(
       `INSERT INTO production_plans 
-             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, created_by, modified_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12) RETURNING *`,
+             (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by, modified_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING *`,
       [
         plan.order_id,
         plan.product_id,
@@ -517,6 +518,7 @@ export const cloneProductionPlan = async (req, res) => {
         plan.factory_id,
         plan.is_outsourced,
         plan.dinh_muc,
+        plan.machine_id,
         created_by,
       ],
     );
@@ -524,7 +526,7 @@ export const cloneProductionPlan = async (req, res) => {
 
     // 3. Clone Days (Bulk INSERT)
     const daysRes = await client.query(
-      "SELECT * FROM production_plan_days WHERE production_plan_id = $1",
+      "SELECT * FROM production_plan_days WHERE production_plan_id = $1 AND deleted_at IS NULL",
       [id],
     );
     if (daysRes.rows.length > 0) {
@@ -543,7 +545,7 @@ export const cloneProductionPlan = async (req, res) => {
 
     // 4. Clone Machine Schedule
     const schedRes = await client.query(
-      "SELECT * FROM machine_schedules WHERE production_plan_id = $1",
+      "SELECT * FROM machine_schedules WHERE production_plan_id = $1 AND deleted_at IS NULL",
       [id],
     );
     if (schedRes.rowCount > 0) {
@@ -659,14 +661,34 @@ export const createOrderGeneralPlan = async (req, res) => {
       const pNorm = parseFloat(p.norm) || 1;
       const pDaysNeeded = Math.max(1, Math.ceil((pEnd - pStart) / (1000 * 60 * 60 * 24)) + 1);
 
+      const productIdVal = p.productId || p.product_id;
+      let pgoId = null;
+      const pgoLookup = await client.query(
+        `SELECT pgo.id 
+         FROM product_group_operations pgo
+         JOIN products pr ON pr.product_group_id = pgo.product_group_id
+         WHERE pr.id = $1 AND pgo.deleted_at IS NULL
+         AND pgo.id NOT IN (
+           SELECT pp.product_group_operation_id FROM production_plans pp
+           WHERE pp.order_id = $2 AND pp.product_id = $1 AND pp.product_group_operation_id IS NOT NULL AND pp.deleted_at IS NULL
+         )
+         ORDER BY pgo.sequence_order ASC
+         LIMIT 1`,
+        [productIdVal, order_id]
+      );
+      if (pgoLookup.rowCount > 0) {
+        pgoId = pgoLookup.rows[0].id;
+      }
+
       // Insert Plan
       const planInsert = await client.query(
         `INSERT INTO production_plans 
-         (order_id, product_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by, modified_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12) RETURNING *`,
+         (order_id, product_id, product_group_operation_id, inventory_input, remaining_quantity, total_required_work, planned_start_date, planned_end_date, factory_id, is_outsourced, dinh_muc, machine_id, created_by, modified_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13) RETURNING *`,
         [
           order_id,
-          p.productId || p.product_id,
+          productIdVal,
+          pgoId,
           0,
           pQty,
           pDaysNeeded * 8,
@@ -741,13 +763,20 @@ export const stopPlan = async (req, res) => {
            stopped_at = $1, 
            updated_at = CURRENT_TIMESTAMP, 
            modified_by = $2 
-       WHERE id = $3 AND deleted_at IS NULL
+       WHERE id = $3 AND deleted_at IS NULL AND status != 'STOPPED'
        RETURNING *`,
       [stopped_at, user_id, id]
     );
 
     if (planUpdate.rowCount === 0) {
-      return res.status(404).json({ message: "Plan not found" });
+      const existingPlan = await client.query(
+        "SELECT status FROM production_plans WHERE id = $1 AND deleted_at IS NULL",
+        [id]
+      );
+      if (existingPlan.rowCount === 0) {
+        return res.status(404).json({ message: "Plan not found" });
+      }
+      return res.status(409).json({ message: "Plan is already stopped" });
     }
 
     // 2. Remove from machine_schedules for days AFTER stopped_at
@@ -756,7 +785,8 @@ export const stopPlan = async (req, res) => {
       `UPDATE machine_schedules 
        SET end_date = $2
        WHERE production_plan_id = $1 
-         AND end_date > $2`,
+         AND end_date > $2
+         AND deleted_at IS NULL`,
       [id, stopped_at]
     );
 

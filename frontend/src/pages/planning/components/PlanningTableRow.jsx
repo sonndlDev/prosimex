@@ -195,7 +195,7 @@ const PlanningTableRow = React.memo(
 
         {/* Date columns */}
         {dateColumns.map((date, colIdx) => {
-          const dayData = plan.days.find(
+          const dayData = plan.days?.find(
             (d) =>
               DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd") ===
               date.key,
