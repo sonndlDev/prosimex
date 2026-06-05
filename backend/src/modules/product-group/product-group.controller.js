@@ -356,6 +356,72 @@ export const updateProductGroupOperation = async (req, res) => {
   }
 }
 
+export const getStageConfigs = async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await pool.query(
+      `SELECT psc.*, p.name as product_name
+       FROM product_stage_configs psc
+       JOIN products p ON psc.product_id = p.id AND p.deleted_at IS NULL
+       WHERE psc.product_group_id = $1
+       ORDER BY p.name ASC`,
+      [id]
+    )
+    const productsRes = await pool.query(
+      `SELECT p.id, p.name FROM products p
+       WHERE p.product_group_id = $1 AND p.deleted_at IS NULL
+       ORDER BY p.name ASC`,
+      [id]
+    )
+    const configsMap = {}
+    result.rows.forEach(r => { configsMap[r.product_id] = r })
+    const data = productsRes.rows.map(p => ({
+      product_id: p.id,
+      product_name: p.name,
+      product_group_id: parseInt(id),
+      has_xi_ma: configsMap[p.id]?.has_xi_ma || false,
+      has_dong_goi: configsMap[p.id]?.has_dong_goi || false,
+    }))
+    const opsCount = await pool.query(
+      `SELECT COUNT(*) FROM product_group_operations WHERE product_group_id = $1 AND deleted_at IS NULL`,
+      [id]
+    )
+    res.json({ data, has_operations: parseInt(opsCount.rows[0].count) > 0 })
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving stage configs', error })
+  }
+}
+
+export const saveStageConfigs = async (req, res) => {
+  const client = await pool.connect()
+  try {
+    const { id } = req.params
+    const { configs } = req.body
+    const userId = req.user?.id
+    await client.query('BEGIN')
+    for (const cfg of configs) {
+      await client.query(
+        `INSERT INTO product_stage_configs (product_id, product_group_id, has_xi_ma, has_dong_goi, updated_at)
+         VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+         ON CONFLICT (product_id, product_group_id)
+         DO UPDATE SET has_xi_ma = $3, has_dong_goi = $4, updated_at = CURRENT_TIMESTAMP`,
+        [cfg.product_id, id, cfg.has_xi_ma || false, cfg.has_dong_goi || false]
+      )
+    }
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'UPDATE', 'ProductStageConfigs', $2, $3)`,
+      [userId, id, JSON.stringify(configs)]
+    )
+    await client.query('COMMIT')
+    res.json({ message: 'Stage configs saved successfully' })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    res.status(500).json({ message: 'Error saving stage configs', error })
+  } finally {
+    client.release()
+  }
+}
+
 export const reorderProductGroupOperations = async (req, res) => {
   const client = await pool.connect()
   try {

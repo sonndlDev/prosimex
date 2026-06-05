@@ -34,7 +34,7 @@ export default function CompletionPercentageCell({ orderId, onClick }) {
               }}
           >
             <Badge variant={overallPercentage >= 100 ? "success" : overallPercentage > 0 ? "warning" : "outline"} className="font-black tabular-nums border-zinc-200 shadow-sm cursor-pointer hover:bg-zinc-100">
-              {overallPercentage.toFixed(0)}%
+              {overallPercentage.toFixed(2)}%
             </Badge>
           </div>
         </TooltipTrigger>

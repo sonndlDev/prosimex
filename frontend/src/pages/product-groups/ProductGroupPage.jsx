@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productGroupService } from "../../services/product-group.service";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus, Zap } from "lucide-react";
+import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus, Zap, ClipboardList, ArrowRight, Package, CheckCircle2, Circle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,6 +33,10 @@ export default function ProductGroupPage() {
   const [quickCreateOpModal, setQuickCreateOpModal] = useState(false);
   const [quickOpName, setQuickOpName] = useState("");
   const [quickOpDesc, setQuickOpDesc] = useState("");
+  const [stageConfigModal, setStageConfigModal] = useState(false);
+  const [stageConfigGroup, setStageConfigGroup] = useState(null);
+  const [stageConfigs, setStageConfigs] = useState([]);
+  const [stageHasOps, setStageHasOps] = useState(true);
 
   // Pagination & Filter State
   const [page, setPage] = useState(1);
@@ -107,6 +111,35 @@ export default function ProductGroupPage() {
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi tạo công đoạn"),
   });
 
+  const { data: stageConfigsData, isLoading: stageConfigsLoading } = useQuery({
+    queryKey: ["stageConfigs", stageConfigGroup?.id],
+    queryFn: () => productGroupService.getStageConfigs(stageConfigGroup.id),
+    enabled: !!stageConfigGroup && stageConfigModal,
+  });
+
+  useEffect(() => {
+    if (stageConfigsData?.data) {
+      setStageConfigs(stageConfigsData.data.map(d => ({
+        product_id: d.product_id,
+        product_name: d.product_name,
+        has_xi_ma: d.has_xi_ma,
+        has_dong_goi: d.has_dong_goi,
+      })));
+      setStageHasOps(stageConfigsData.has_operations);
+    }
+  }, [stageConfigsData]);
+
+  const saveStageConfigsMutation = useMutation({
+    mutationFn: (configs) => productGroupService.saveStageConfigs(stageConfigGroup.id, configs),
+    onSuccess: () => {
+      toast.success("Đã lưu cấu hình giai đoạn thành công!");
+      setStageConfigModal(false);
+      setStageConfigGroup(null);
+      queryClient.invalidateQueries({ queryKey: ["productGroups"] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi lưu cấu hình"),
+  });
+
   const handleQuickCreateOp = () => {
     const trimmedName = quickOpName.trim();
     if (!trimmedName) { toast.error("Vui lòng nhập tên công đoạn!"); return; }
@@ -123,6 +156,17 @@ export default function ProductGroupPage() {
 
   const columns = [
     { id: "name", label: "Tên nhóm" },
+    {
+      id: "stage_config", label: "Giai đoạn", align: "center",
+      format: (v, row) => (
+        <button
+          onClick={() => { setStageConfigGroup(row); setStageConfigModal(true); }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+        >
+          <ClipboardList className="w-3 h-3" /> Chỉnh sửa
+        </button>
+      ),
+    },
     {
       id: "actions", label: "Quy trình", align: "center",
       format: (v, row) => (
@@ -437,6 +481,176 @@ export default function ProductGroupPage() {
       </Dialog>
 
       <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
+
+      <Dialog open={stageConfigModal} onOpenChange={(v) => { if (!v) { setStageConfigModal(false); setStageConfigGroup(null); } }}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
+            <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-2.5">
+              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50">
+                <ClipboardList className="w-5 h-5 text-indigo-600" />
+              </div>
+              <span>Cấu hình giai đoạn</span>
+              <span className="text-indigo-600 font-semibold">{stageConfigGroup?.name}</span>
+            </DialogTitle>
+            <p className="text-sm text-zinc-500 mt-1 ml-[46px]">
+              Bật/tắt các công đoạn cho từng mã hàng trong nhóm
+            </p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            {stageConfigsLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-200 border-t-indigo-600"></div>
+                <p className="text-sm text-zinc-400">Đang tải dữ liệu...</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-zinc-50 to-zinc-100/80">
+                      <th className="text-left px-5 py-3.5 font-semibold text-zinc-700 text-xs uppercase tracking-wider border-b border-zinc-200">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-3.5 h-3.5 text-zinc-400" />
+                          Mã hàng
+                        </div>
+                      </th>
+                      <th className="text-center px-4 py-3.5 font-semibold text-zinc-700 text-xs uppercase tracking-wider border-b border-zinc-200">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <ArrowRight className="w-3.5 h-3.5 text-blue-500" />
+                          Xi mạ đi
+                        </div>
+                      </th>
+                      <th className="text-center px-4 py-3.5 font-semibold text-zinc-700 text-xs uppercase tracking-wider border-b border-zinc-200">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <ArrowRight className="w-3.5 h-3.5 text-blue-500 rotate-180" />
+                          Xi mạ về
+                        </div>
+                      </th>
+                      <th className="text-center px-4 py-3.5 font-semibold text-zinc-700 text-xs uppercase tracking-wider border-b border-zinc-200">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Package className="w-3.5 h-3.5 text-amber-500" />
+                          Đóng gói
+                        </div>
+                      </th>
+                      <th className="text-center px-4 py-3.5 font-semibold text-zinc-700 text-xs uppercase tracking-wider border-b border-zinc-200">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          {stageHasOps ? 'Công đoạn cuối' : 'Hàng đen'}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {stageConfigs.map((cfg, idx) => (
+                      <tr key={cfg.product_id} className="hover:bg-indigo-50/30 transition-colors group">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            {/* <div className="w-7 h-7 rounded-md bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                              {cfg.product_name.charAt(0).toUpperCase()}
+                            </div> */}
+                            <span className="font-medium text-zinc-800">{cfg.product_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={cfg.has_xi_ma}
+                              onCheckedChange={(checked) => {
+                                const updated = [...stageConfigs];
+                                updated[idx] = { ...updated[idx], has_xi_ma: !!checked };
+                                setStageConfigs(updated);
+                              }}
+                              className="data-checked:border-blue-500 data-checked:bg-blue-500 size-5"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={cfg.has_xi_ma}
+                              onCheckedChange={(checked) => {
+                                const updated = [...stageConfigs];
+                                updated[idx] = { ...updated[idx], has_xi_ma: !!checked };
+                                setStageConfigs(updated);
+                              }}
+                              className="data-checked:border-blue-500 data-checked:bg-blue-500 size-5"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={cfg.has_dong_goi}
+                              onCheckedChange={(checked) => {
+                                const updated = [...stageConfigs];
+                                updated[idx] = { ...updated[idx], has_dong_goi: !!checked };
+                                setStageConfigs(updated);
+                              }}
+                              className="data-checked:border-amber-500 data-checked:bg-amber-500 size-5"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={cfg.has_dong_goi}
+                              onCheckedChange={(checked) => {
+                                const updated = [...stageConfigs];
+                                updated[idx] = { ...updated[idx], has_dong_goi: !!checked };
+                                setStageConfigs(updated);
+                              }}
+                              className="data-checked:border-emerald-500 data-checked:bg-emerald-500 size-5"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {stageConfigs.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="text-center py-12">
+                          <div className="flex flex-col items-center gap-2">
+                            <Circle className="w-8 h-8 text-zinc-300" />
+                            <p className="text-sm text-zinc-400">Nhóm mã hàng này chưa có mã hàng nào</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {stageConfigs.length > 0 && (
+            <DialogFooter className="shrink-0 px-6 py-4 bg-zinc-50/80 border-t border-zinc-200 gap-2">
+              <Button type="button" variant="outline" onClick={() => { setStageConfigModal(false); setStageConfigGroup(null); }} className="border-zinc-300 hover:bg-zinc-100">
+                Hủy
+              </Button>
+              <Button
+                onClick={() => saveStageConfigsMutation.mutate(stageConfigs.map(c => ({
+                  product_id: c.product_id,
+                  has_xi_ma: c.has_xi_ma,
+                  has_dong_goi: c.has_dong_goi,
+                })))}
+                disabled={saveStageConfigsMutation.isPending}
+                className="bg-indigo-600 hover:bg-indigo-700 shadow-sm shadow-indigo-200"
+              >
+                {saveStageConfigsMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                    Đang lưu...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Lưu cấu hình
+                  </span>
+                )}
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

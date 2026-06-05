@@ -40,5 +40,13 @@ export const productGroupService = {
     reorderOperations: async (groupId, orders) => {
         const { data } = await api.put(`/product-groups/${groupId}/operations/reorder`, { orders });
         return data;
+    },
+    getStageConfigs: async (groupId) => {
+        const { data } = await api.get(`/product-groups/${groupId}/stage-configs`);
+        return data;
+    },
+    saveStageConfigs: async (groupId, configs) => {
+        const { data } = await api.put(`/product-groups/${groupId}/stage-configs`, { configs });
+        return data;
     }
 };

@@ -394,9 +394,40 @@ export const createTicket = async (req, res) => {
 
     const newTicket = insertRes.rows[0];
 
-    // Insert items
     if (items && items.length > 0) {
       for (const item of items) {
+        const stageCheck = await client.query(
+          `SELECT psc.has_xi_ma, psc.has_dong_goi
+           FROM product_stage_configs psc
+           JOIN products p ON psc.product_id = p.id AND p.deleted_at IS NULL
+           WHERE psc.product_id = $1
+           AND psc.product_group_id = COALESCE(
+             (SELECT product_group_id FROM order_products WHERE order_id = $2 AND product_id = $1 LIMIT 1),
+             p.product_group_id
+           )
+           LIMIT 1`,
+          [item.product_id, item.order_id]
+        );
+        if (stageCheck.rowCount > 0) {
+          const cfg = stageCheck.rows[0];
+          if (type === "PLATING" && !cfg.has_xi_ma) {
+            const prodRes = await client.query("SELECT name FROM products WHERE id = $1", [item.product_id]);
+            const prodName = prodRes.rows[0]?.name || item.product_id;
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+              message: `Mã hàng "${prodName}" không được cấu hình xi mạ. Vui lòng cấu hình giai đoạn ở nhóm mã hàng trước khi tạo phiếu gia công.`
+            });
+          }
+          if (type === "PACKAGING" && !cfg.has_dong_goi) {
+            const prodRes = await client.query("SELECT name FROM products WHERE id = $1", [item.product_id]);
+            const prodName = prodRes.rows[0]?.name || item.product_id;
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+              message: `Mã hàng "${prodName}" không được cấu hình đóng gói. Vui lòng cấu hình giai đoạn ở nhóm mã hàng trước khi tạo phiếu gia công.`
+            });
+          }
+        }
+
         await client.query(
           `INSERT INTO outsourcing_ticket_items 
           (ticket_id, order_id, product_id, order_quantity, processing_type, quantity_out, accessory_quantity, gross_weight, pallet_weight, net_weight, notes, packing_specification, package_count, unit_net_weight)

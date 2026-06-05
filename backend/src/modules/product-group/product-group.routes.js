@@ -2,7 +2,8 @@ import express from 'express'
 import {
   getProductGroups, createProductGroup, updateProductGroup, deleteProductGroup,
   getProductGroupOperations, createProductGroupOperation, deleteProductGroupOperation,
-  updateProductGroupOperation, reorderProductGroupOperations
+  updateProductGroupOperation, reorderProductGroupOperations,
+  getStageConfigs, saveStageConfigs
 } from './product-group.controller.js'
 import verifyToken from '../../middlewares/auth.middleware.js'
 import { authorize } from '../../middlewares/rbac.middleware.js'
@@ -22,5 +23,8 @@ router.post('/:id/operations', authorize(['ADMIN', 'PLANNER'], 'product_groups:c
 router.put('/:id/operations/reorder', authorize(['ADMIN', 'PLANNER'], 'product_groups:update'), reorderProductGroupOperations)
 router.put('/:id/operations/:operationId', authorize(['ADMIN', 'PLANNER'], 'product_groups:update'), updateProductGroupOperation)
 router.delete('/:id/operations/:operationId', authorize(['ADMIN', 'PLANNER'], 'product_groups:delete'), deleteProductGroupOperation)
+
+router.get('/:id/stage-configs', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'product_groups:read'), getStageConfigs)
+router.put('/:id/stage-configs', authorize(['ADMIN', 'PLANNER'], 'product_groups:update'), saveStageConfigs)
 
 export default router
