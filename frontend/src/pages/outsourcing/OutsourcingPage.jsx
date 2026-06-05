@@ -1375,7 +1375,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto bg-white border border-zinc-200 rounded-2xl shadow-xl">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto bg-white border border-zinc-200 rounded-2xl shadow-xl">
         <DialogHeader>
           <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa phiếu gia công</DialogTitle>
           <DialogDescription className="text-xs font-medium text-zinc-500">

@@ -222,25 +222,6 @@ function ProgressBar({ pct }) {
 }
 
 // ─── Status Badge ────────────────────────────────────────────────────────────
-function StatusBadge({ pct }) {
-  if (pct >= 100)
-    return (
-      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[10px] h-5 px-2 gap-1">
-        <CheckCircle2 className="w-3 h-3" /> Hoàn thành
-      </Badge>
-    );
-  if (pct > 0)
-    return (
-      <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-[10px] h-5 px-2 gap-1">
-        <Clock className="w-3 h-3" /> Đang SX
-      </Badge>
-    );
-  return (
-    <Badge className="bg-zinc-50 text-zinc-500 border border-zinc-300 font-bold text-[10px] h-5 px-2 gap-1">
-      <AlertCircle className="w-3 h-3" /> Chưa bắt đầu
-    </Badge>
-  );
-}
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 const FilterBar = memo(
@@ -1059,24 +1040,6 @@ export default function PlanVsActualPage() {
                     >
                       Tiến độ %
                     </TableHead>
-                    <TableHead
-                      rowSpan={2}
-                      className="font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
-                    >
-                      Trạng thái
-                    </TableHead>
-                    {/* <SortableHead
-                      rowSpan={2}
-                      field="planned_start_date"
-                      label="Bắt đầu KH"
-                      className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
-                    />
-                    <SortableHead
-                      rowSpan={2}
-                      field="planned_end_date"
-                      label="Kết thúc KH"
-                      className="text-center font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
-                    /> */}
                     {dateColumns.map((date) => (
                       <TableHead
                         key={date.key}
@@ -1199,7 +1162,7 @@ export default function PlanVsActualPage() {
                         value={row.dinh_muc}
                         className="sticky left-[690px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-500 w-[60px] min-w-[60px] max-w-[60px]"
                       >
-                        {row.dinh_muc || "—"}
+                        {Math.round(row.dinh_muc) || "—"}
                       </TCell>
                       {/* Thực tế */}
                       <TCell
@@ -1227,19 +1190,7 @@ export default function PlanVsActualPage() {
                       >
                         <ProgressBar pct={row.percentage} />
                       </TCell>
-                      {/* Trạng thái */}
-                      <TCell
-                        value={
-                          row.percentage >= 100
-                            ? "Hoàn thành"
-                            : row.percentage > 0
-                              ? "Đang SX"
-                              : "Chưa bắt đầu"
-                        }
-                        className="group-hover:bg-indigo-50"
-                      >
-                        <StatusBadge pct={row.percentage} />
-                      </TCell>
+
                       {/* Bắt đầu KH */}
                       {/* <TCell
                         value={

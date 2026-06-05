@@ -232,7 +232,7 @@ export default function DailyTicketReportDialog({ open, onClose }) {
                           <TableCell className="text-right text-xs font-bold tabular-nums text-zinc-400">{row.inventory?.toLocaleString() || "0"}</TableCell>
                           <TableCell className="text-right text-xs font-black tabular-nums text-red-500">{row.qtyToProduce?.toLocaleString()}</TableCell>
                           
-                          <TableCell className="text-right text-xs font-bold tabular-nums">{row.dinh_muc || ""}</TableCell>
+                          <TableCell className="text-right text-xs font-bold tabular-nums">{row.dinh_muc ? Math.round(row.dinh_muc) : ""}</TableCell>
                           <TableCell className="text-right text-xs font-black tabular-nums text-rose-500">{row.total_required_work ? (parseFloat(row.total_required_work) / 8).toFixed(2) : "0.00"}</TableCell>
                           
                           <TableCell className="text-right text-xs font-black tabular-nums text-emerald-600 bg-emerald-50/20">{row.totalActual.toLocaleString()}</TableCell>

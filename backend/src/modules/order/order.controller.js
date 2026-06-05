@@ -403,15 +403,12 @@ export const getOrderCompletionReport = async (req, res) => {
 
       const completedQty = items.length > 0 ? items.reduce((a, b) => a + b, 0) / items.length : 0;
 
+      // Calculate percentage from the SAME 4 column values shown in UI
       let percentage = 0;
       if (totalStages > 0 && required > 0) {
-        let totalProgress = 0;
-        for (const op of operationsDetail) {
-          const actual = parseFloat(op.actual_quantity) || 0;
-          const stageProgress = Math.min(actual / required, 1.0);
-          totalProgress += stageProgress;
-        }
-        percentage = (totalProgress / totalStages) * 100;
+        const stageValues = [sx, platingOut, platingReturned, packagingOut];
+        const progressSum = stageValues.reduce((sum, val) => sum + Math.min(val / required, 1.0), 0);
+        percentage = (progressSum / totalStages) * 100;
       }
 
       return {

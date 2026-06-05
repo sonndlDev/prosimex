@@ -671,7 +671,7 @@ const PlanningFormDialog = React.memo(
 
     return (
       <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 !flex flex-col !overflow-hidden border-zinc-200">
+        <DialogContent className="max-w-6xl max-h-[90vh] p-0 !flex flex-col !overflow-hidden border-zinc-200">
           <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-md shadow-indigo-100">

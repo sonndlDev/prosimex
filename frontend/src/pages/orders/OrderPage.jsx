@@ -212,7 +212,7 @@ function OrderPageCore({
 
 
 
-  const orders = ordersData?.data || [];
+  const orders = (ordersData?.data || []).filter(o => o.status !== "DONE");
   const totalItems = ordersData?.total || 0;
 
   // Mutations
