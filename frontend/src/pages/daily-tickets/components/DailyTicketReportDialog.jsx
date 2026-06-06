@@ -95,7 +95,7 @@ export default function DailyTicketReportDialog({ open, onClose }) {
           if (d && d.working_date) {
             const dateStr = DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd");
             const hours = parseFloat(d.planned_quantity) / 8 || 0;
-            const dinhMuc = parseFloat(row.dinh_muc) || 0;
+            const dinhMuc = parseFloat(d.dinh_muc) ?? parseFloat(row.dinh_muc) ?? 0;
             const qty = hours * dinhMuc;
             
             if (!planByDate[dateStr]) planByDate[dateStr] = 0;

@@ -751,10 +751,12 @@ export const getPlanVsActualReport = async (req, res) => {
         (
             SELECT json_agg(json_build_object(
                 'working_date', ppd.working_date,
-                'planned_quantity', ppd.planned_work_quantity
+                'planned_quantity', ppd.planned_work_quantity,
+                'dinh_muc', COALESCE(pp_agg.dinh_muc, pgo_sub.dinh_muc)
             ))
             FROM production_plan_days ppd
             JOIN production_plans pp_agg ON ppd.production_plan_id = pp_agg.id
+            LEFT JOIN product_group_operations pgo_sub ON pp_agg.product_group_operation_id = pgo_sub.id
             WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
         ) as plan_days,
         (

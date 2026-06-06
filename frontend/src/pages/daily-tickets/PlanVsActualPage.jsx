@@ -774,7 +774,7 @@ export default function PlanVsActualPage() {
             "yyyy-MM-dd",
           );
           const hours = parseFloat(d.planned_quantity) / 8 || 0;
-          const dm = parseFloat(row.dinh_muc) || 0;
+          const dm = parseFloat(d.dinh_muc) ?? parseFloat(row.dinh_muc) ?? 0;
           planByDate[dateStr] = (planByDate[dateStr] || 0) + hours * dm;
         }
       });
