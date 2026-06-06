@@ -580,7 +580,7 @@ export const getOrderSummaryReport = async (req, res) => {
               SELECT dti.product_group_operation_id, SUM(dti.actual_quantity) as qty
               FROM daily_production_ticket_items dti
               JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
-              WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL
+              WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL AND dt.status IN ('APPROVED', 'COMPLETED')
               GROUP BY dti.product_group_operation_id
             ) op_totals ON op_totals.product_group_operation_id = pgo.id
             WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL
