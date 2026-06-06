@@ -393,9 +393,11 @@ export const getOrderCompletionReport = async (req, res) => {
         GROUP BY dti.product_id, dti.product_group_operation_id
       ),
       sx_totals AS (
-        SELECT it.product_id, it.qty as total_sx
+        SELECT it.product_id, SUM(it.qty) as total_sx
         FROM inhouse_totals it
-        JOIN product_stages ps ON ps.product_id = it.product_id AND ps.final_pgo_id = it.product_group_operation_id
+        JOIN product_stages ps ON ps.product_id = it.product_id
+        WHERE ps.final_pgo_id IS NULL OR ps.final_pgo_id = it.product_group_operation_id
+        GROUP BY it.product_id
       ),
       plating_totals AS (
         SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
@@ -486,6 +488,8 @@ export const getOrderCompletionReport = async (req, res) => {
       } else if (stageCount === 2 && required > 0) {
         percentage = (Math.min(packagingOut, required) * 100 / required
                     + Math.min(sx, required) * 100 / required) / 2;
+      } else if (stageCount === 0 && required > 0) {
+        percentage = Math.min(sx, required) * 100 / required;
       }
       percentage = Math.round(percentage * 100) / 100;
 
