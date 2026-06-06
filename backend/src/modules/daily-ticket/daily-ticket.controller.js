@@ -758,7 +758,8 @@ export const getPlanVsActualReport = async (req, res) => {
             JOIN production_plans pp_agg ON ppd.production_plan_id = pp_agg.id
             LEFT JOIN product_group_operations pgo_sub ON pp_agg.product_group_operation_id = pgo_sub.id
             WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
-        ) as plan_days,
+            AND ppd.deleted_at IS NULL
+            ) as plan_days,
         (
             SELECT json_agg(json_build_object(
                 'ticket_date', dt.ticket_date,
