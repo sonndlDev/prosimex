@@ -84,6 +84,7 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
   });
 
   const rows = response?.data ?? [];
+  console.log("Báo cáo hoàn thành:", rows);
   const overallPercentage = response?.overall_completion_percentage ?? 0;
 
   function renderContent() {
@@ -185,6 +186,7 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
             </Table>
           </div>
         </div>
+        
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
     );
@@ -223,7 +225,7 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
         </DialogHeader>
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden bg-zinc-50/50">
+        <div className="flex-1 overflow-auto bg-zinc-50/50">
           {renderContent()}
         </div>
 
