@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -168,6 +168,86 @@ export default function GenericTable({
     }
   };
 
+  const tableRef = useRef(null);
+  const resizeRef = useRef(null);
+  const [columnWidths, setColumnWidths] = useState({});
+  const [resizingCol, setResizingCol] = useState(null);
+  const [hoveredResize, setHoveredResize] = useState(null);
+  const widthsInitRef = useRef(false);
+
+  const initWidths = useCallback(() => {
+    if (!tableRef.current) return;
+    const ths = tableRef.current.querySelectorAll('thead > tr > th');
+    const newWidths = {};
+    columns.forEach((col, i) => {
+      const thIndex = (onBulkDelete ? 1 : 0) + 1 + i;
+      if (ths[thIndex]) {
+        newWidths[col.id] = ths[thIndex].getBoundingClientRect().width;
+      }
+    });
+    setColumnWidths(prev => {
+      const merged = { ...newWidths };
+      Object.keys(prev).forEach(key => {
+        if (!(key in merged)) merged[key] = prev[key];
+      });
+      return merged;
+    });
+    widthsInitRef.current = true;
+  }, [columns, onBulkDelete]);
+
+  const handleResizeStart = useCallback((e, col) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!widthsInitRef.current) initWidths();
+    const startX = e.clientX;
+    const th = e.target.closest('th');
+    const startWidth = th ? th.getBoundingClientRect().width : 150;
+    const minW = col.minWidth ? parseInt(col.minWidth) : 50;
+    resizeRef.current = { colId: col.id, startX, startWidth, minW };
+    setResizingCol(col.id);
+
+    const handleMove = (moveEvent) => {
+      if (!resizeRef.current) return;
+      const { startX: sx, startWidth: sw, colId, minW: mw } = resizeRef.current;
+      const newWidth = Math.max(mw, sw + moveEvent.clientX - sx);
+      setColumnWidths(prev => ({ ...prev, [colId]: newWidth }));
+    };
+
+    const handleUp = () => {
+      resizeRef.current = null;
+      setResizingCol(null);
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  }, [initWidths]);
+
+  const ResizeHandle = ({ col }) => (
+    <div
+      onMouseDown={(e) => handleResizeStart(e, col)}
+      onMouseEnter={() => setHoveredResize(col.id)}
+      onMouseLeave={() => setHoveredResize(null)}
+      className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize z-40 transition-colors"
+      style={{
+        backgroundColor: resizingCol === col.id
+          ? 'rgb(99, 102, 241)'
+          : hoveredResize === col.id
+            ? 'rgba(99, 102, 241, 0.3)'
+            : 'transparent',
+      }}
+    />
+  );
+
+  const getColWidth = (col) => {
+    if (columnWidths[col.id] !== undefined) return `${columnWidths[col.id]}px`;
+    if (col.width) return col.width;
+    if (col.minWidth) return `${col.minWidth}px`;
+    if (freezeFirstCols) return '150px';
+    return 'auto';
+  };
+
   if (error) {
     return (
       <Alert variant="destructive" className="border-red-200 bg-red-50">
@@ -218,7 +298,8 @@ export default function GenericTable({
           style={{ maxHeight }}
         >
           <table
-            className={cn("w-full caption-bottom text-sm", freezeFirstCols && "table-fixed min-w-max border-separate border-spacing-0")}
+            ref={tableRef}
+            className={cn("w-full caption-bottom text-sm", freezeFirstCols && "table-fixed min-w-max border-separate border-spacing-0", resizingCol && "select-none")}
             style={{ borderCollapse: freezeFirstCols ? 'separate' : 'collapse', borderSpacing: 0 }}
           >
             <thead>
@@ -259,7 +340,7 @@ export default function GenericTable({
                   <th
                     key={col.id}
                     className={cn(
-                      "font-black text-[10px] uppercase tracking-widest text-black-700 px-4 py-3  bg-white",
+                      "relative font-black text-[10px] uppercase tracking-widest text-black-700 px-4 py-3  bg-white",
                       col.isSticky ? "sticky z-30 border-r border-black-400" : "",
                       col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)]",
                       freezeFirstCols && "border-b border-black-400"
@@ -269,14 +350,15 @@ export default function GenericTable({
                       top: 0,
                       zIndex: col.isSticky ? 30 : 10,
                       textAlign: col.align || 'left',
-                      width: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                      minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                      maxWidth: col.width || (col.isSticky ? col.width : undefined),
+                      width: getColWidth(col),
+                      minWidth: getColWidth(col),
+                      maxWidth: col.isSticky ? getColWidth(col) : undefined,
                       left: col.isSticky ? col.stickyLeft : undefined,
                       backgroundColor: '#f4f4f5',
                     }}
                   >
                     {col.label}
+                    <ResizeHandle col={col} />
                   </th>
                 ))}
                 {(onEdit || onDelete || renderActions) && (
@@ -370,9 +452,9 @@ export default function GenericTable({
                                   )}
                                   style={{
                                     textAlign: col.align || 'left',
-                                    width: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                                    minWidth: col.width || (col.isSticky ? col.width : (col.minWidth ? `${col.minWidth}px` : (freezeFirstCols ? '150px' : 'auto'))),
-                                    maxWidth: col.width || (col.isSticky ? col.width : undefined),
+                                    width: getColWidth(col),
+                                    minWidth: getColWidth(col),
+                                    maxWidth: col.isSticky ? getColWidth(col) : undefined,
                                     left: col.isSticky ? col.stickyLeft : undefined,
                                     backgroundColor: col.isSticky && isSelected ? '#eef2ff' : '#FFF',
                                   }}
