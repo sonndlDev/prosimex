@@ -117,7 +117,7 @@ function OrderPageCore({
     startDate: "",
     endDate: "",
     dateType: "received",
-    status: "ALL",
+    status: "INCOMPLETE",
     customer_id: "ALL",
     product_id: "ALL",
     person_in_charge: "",
@@ -149,6 +149,8 @@ function OrderPageCore({
 
   const [openRemainingQuantity, setOpenRemainingQuantity] = useState(false);
   const [remainingQuantityOrderId, setRemainingQuantityOrderId] = useState(null);
+
+  const [markingDoneId, setMarkingDoneId] = useState(null);
 
   const [importErrors, setImportErrors] = useState([]);
   const [showImportErrors, setShowImportErrors] = useState(false);
@@ -212,7 +214,7 @@ function OrderPageCore({
 
 
 
-  const orders = (ordersData?.data || []).filter(o => o.status !== "DONE");
+  const orders = ordersData?.data || [];
   const totalItems = ordersData?.total || 0;
 
   // Mutations
@@ -254,6 +256,26 @@ function OrderPageCore({
     },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa đơn hàng"),
   });
+
+  const markDoneMutation = useMutation({
+    mutationFn: ({ id }) => orderService.update(id, { status: "DONE" }),
+    onSuccess: (_, { id }) => {
+      toast.success("Đơn hàng đã được đánh dấu Hoàn thành!");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setMarkingDoneId(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || "Lỗi khi cập nhật trạng thái");
+      setMarkingDoneId(null);
+    },
+  });
+
+  const handleMarkDone = useCallback((e, row) => {
+    e.stopPropagation();
+    if (!window.confirm(`Đánh dấu hoàn thành đơn hàng "${row.po_customer || row.po_auto_code}"?`)) return;
+    setMarkingDoneId(row.id);
+    markDoneMutation.mutate({ id: row.id });
+  }, [markDoneMutation]);
 
   const columns = [
   {
@@ -459,7 +481,31 @@ function OrderPageCore({
   {
     id: "status",
     label: "Trạng thái",
-    format: (value) => getOrderStatusBadge(value),
+    className: "min-w-[160px]",
+    format: (value, row) => {
+      const pct = parseFloat(row.completion_percentage) || 0;
+      const isReady = pct >= 100 && value !== "DONE" && value !== "CANCELLED";
+      const isLoading = markingDoneId === row.id;
+      return (
+        <div className="flex flex-col items-start gap-1.5">
+          {getOrderStatusBadge(value)}
+          {isReady && hasPermission("orders:update") && (
+            <button
+              onClick={(e) => handleMarkDone(e, row)}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white shadow-md shadow-emerald-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+              Hoàn thành
+            </button>
+          )}
+        </div>
+      );
+    },
   },
 
   {
@@ -1793,7 +1839,7 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
         </div>
 
         {/* Filters Row - Sử dụng flex-1 để co giãn tự nhiên */}
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Customer */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1844,18 +1890,64 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
             </PopoverContent>
           </Popover>
 
-          {/* Person In Charge (NV) */}
-          <div className="relative group">
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">NPT:</span>
-            </div>
-            <Input
-              placeholder="Tên nhân viên..."
-              value={tempFilters.person_in_charge}
-              onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))}
-              className="pl-10 h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
-            />
-          </div>
+          {/* Status Filter */}
+          {(() => {
+            const STATUS_OPTIONS = [
+              { value: "INCOMPLETE", label: "Chưa hoàn thành" },
+              { value: "ALL", label: "Tất cả" },
+              { value: "DRAFT", label: "Nháp" },
+              { value: "PLANNED", label: "Kế hoạch" },
+              { value: "IN_PROGRESS", label: "Đang sản xuất" },
+              { value: "DONE", label: "Hoàn thành" },
+              { value: "CANCELLED", label: "Đã hủy" },
+            ];
+            const selectedLabel = STATUS_OPTIONS.find(o => o.value === tempFilters.status)?.label || "Tất cả";
+            return (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Trạng thái:</span>
+                      <span className="truncate text-[11px] text-zinc-900">{selectedLabel}</span>
+                    </div>
+                    <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                  <Command className="w-full">
+                    <CommandList className="max-h-[220px] p-1">
+                      <CommandGroup>
+                        {STATUS_OPTIONS.map((opt) => (
+                          <CommandItem
+                            key={opt.value}
+                            value={opt.label}
+                            onSelect={() => setTempFilters(prev => ({ ...prev, status: opt.value }))}
+                            className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                          >
+                            <span className="text-[11px] font-bold">{opt.label}</span>
+                            <Check className={cn("h-4 w-4 text-indigo-600", tempFilters.status === opt.value ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            );
+          })()}
+
+          {/* Person In Charge */}
+          <Input
+            placeholder="Người phụ trách..."
+            value={tempFilters.person_in_charge}
+            onChange={e => setTempFilters(prev => ({ ...prev, person_in_charge: e.target.value }))}
+            className="h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
+          />
 
           {/* Date Picker Range - Tối ưu padding và font để không bị vỡ */}
           <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">

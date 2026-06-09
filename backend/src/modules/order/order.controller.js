@@ -39,8 +39,12 @@ export const getOrders = async (req, res) => {
     }
 
     if (status && status !== "ALL") {
-      queryParams.push(status);
-      whereClause += ` AND o.status = $${queryParams.length}`;
+      if (status === "INCOMPLETE") {
+        whereClause += ` AND o.status NOT IN ('DONE', 'CANCELLED')`;
+      } else {
+        queryParams.push(status);
+        whereClause += ` AND o.status = $${queryParams.length}`;
+      }
     }
 
     if (customer_id && customer_id !== "ALL") {
