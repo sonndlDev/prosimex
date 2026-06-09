@@ -40,11 +40,11 @@ function badgeVariant(pct) {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function PercentCell({ quantity, required }) {
+function PercentCell({ quantity, required, disabled }) {
   const pct = calcPercent(quantity, required);
   return (
-    <TableCell className="text-right text-[12px] font-bold tabular-nums border-r border-zinc-200">
-      {formatPercent(pct)}
+    <TableCell className={`text-right text-[12px] font-bold tabular-nums border-r border-zinc-200 ${disabled ? "bg-zinc-300 text-zinc-500" : ""}`}>
+      {disabled ? "-" : formatPercent(pct)}
     </TableCell>
   );
 }
@@ -172,9 +172,10 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
                     </TableCell>
 
                     {/* SX / ĐI XMS / XMS VỀ / ĐÓNG GÓI */}
-                    {["sx_quantity", "plating_out_quantity", "plating_returned_quantity", "packaging_out_quantity"].map((key) => (
-                      <PercentCell key={key} quantity={row[key]} required={row.required_quantity} />
-                    ))}
+                    <PercentCell quantity={row.sx_quantity} required={row.required_quantity} disabled={false} />
+                    <PercentCell quantity={row.plating_out_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={row.plating_returned_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={row.packaging_out_quantity} required={row.required_quantity} disabled={!row.has_dong_goi} />
 
                     {/* % Hoàn thành */}
                     <TableCell className="text-right border-l-2 border-zinc-400 bg-zinc-50/80">

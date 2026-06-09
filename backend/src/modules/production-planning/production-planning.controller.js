@@ -274,7 +274,7 @@ export const createProductionPlan = async (req, res) => {
 
     // 6. Update Order Status
     await client.query("UPDATE orders SET status = $1 WHERE id = $2", [
-      "PLANNED",
+      "IN_PROGRESS",
       order_id,
     ]);
 
@@ -461,7 +461,7 @@ export const deleteProductionPlan = async (req, res) => {
     );
     if (remainingPlansRes.rowCount === 0) {
       await client.query("UPDATE orders SET status = $1 WHERE id = $2", [
-        "DRAFT",
+        "NOT_STARTED",
         order_id,
       ]);
     }
@@ -728,7 +728,7 @@ export const createOrderGeneralPlan = async (req, res) => {
       createdPlans.push(newPlan);
     }
 
-    await client.query("UPDATE orders SET status = 'PLANNED' WHERE id = $1", [order_id]);
+    await client.query("UPDATE orders SET status = 'IN_PROGRESS' WHERE id = $1", [order_id]);
     await client.query(
         `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data) VALUES ($1, 'BATCH_CREATE', 'ProductionPlan', $2, $3)`,
         [created_by, order_id, { plan_count: createdPlans.length }]

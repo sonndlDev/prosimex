@@ -39,11 +39,11 @@ const entityLabel = (e) => ({
 }[e] ?? e);
 
 const STATUS_CONFIG = {
-  DRAFT: { label: 'Nháp', color: 'bg-zinc-400' },
-  PLANNED: { label: 'Kế hoạch', color: 'bg-blue-500' },
+  NOT_STARTED: { label: 'Chưa SX', color: 'bg-zinc-400' },
   IN_PROGRESS: { label: 'Đang SX', color: 'bg-amber-500' },
   DONE: { label: 'Hoàn thành', color: 'bg-emerald-500' },
-  CANCELLED: { label: 'Đã hủy', color: 'bg-rose-400' },
+  PARTIAL_SHIPPED: { label: 'Xuất 1 phần', color: 'bg-blue-500' },
+  WAITING_CONTAINER: { label: 'Chờ xuất cont', color: 'bg-violet-500' },
 };
 
 // ─── Small reusable components ───────────────────────────

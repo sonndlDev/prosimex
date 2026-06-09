@@ -27,6 +27,9 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
       net_weight_text: "",
       package_count_text: "",
       container_volume_text: "",
+      pallet_info: "",
+      accessory_status: "",
+      packaging_spec: "",
     },
   });
 
@@ -38,6 +41,9 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
         net_weight_text: order.net_weight_text || "",
         package_count_text: order.package_count_text || "",
         container_volume_text: order.container_volume_text || "",
+        pallet_info: order.pallet_info || "",
+        accessory_status: order.accessory_status || "",
+        packaging_spec: order.packaging_spec || "",
       });
     }
   }, [order, open, reset]);
@@ -138,6 +144,39 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
                 control={control}
                 render={({ field }) => (
                   <Input {...field} placeholder="VD: 20ft, 40 LCL..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                )}
+              />
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label className="text-xs font-bold text-zinc-700">Loại pallet, kích thước, tải trọng</Label>
+              <Controller
+                name="pallet_info"
+                control={control}
+                render={({ field }) => (
+                  <Input {...field} placeholder="VD: Pallet gỗ 1200x1000, 500kg..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                )}
+              />
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label className="text-xs font-bold text-zinc-700">Tình trạng phụ kiện</Label>
+              <Controller
+                name="accessory_status"
+                control={control}
+                render={({ field }) => (
+                  <Input {...field} placeholder="VD: Đầy đủ, thiếu ốc vít..." className="border-zinc-300 focus-visible:ring-indigo-500" />
+                )}
+              />
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label className="text-xs font-bold text-zinc-700">Quy cách đóng gói</Label>
+              <Controller
+                name="packaging_spec"
+                control={control}
+                render={({ field }) => (
+                  <Input {...field} placeholder="VD: Thùng carton 5 lớp, bọc nilon..." className="border-zinc-300 focus-visible:ring-indigo-500" />
                 )}
               />
             </div>

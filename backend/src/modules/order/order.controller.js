@@ -40,7 +40,7 @@ export const getOrders = async (req, res) => {
 
     if (status && status !== "ALL") {
       if (status === "INCOMPLETE") {
-        whereClause += ` AND o.status NOT IN ('DONE', 'CANCELLED')`;
+        whereClause += ` AND o.status != 'DONE'`;
       } else {
         queryParams.push(status);
         whereClause += ` AND o.status = $${queryParams.length}`;
@@ -194,7 +194,7 @@ export const getOrders = async (req, res) => {
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
-             oe.pallet_info, oe.accessory_status,
+              oe.pallet_info, oe.accessory_status, oe.packaging_spec,
              COALESCE(oc.completion_percentage, 0) as completion_percentage,
              COALESCE(
                (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
@@ -334,7 +334,7 @@ export const getOrderById = async (req, res) => {
              COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name,
              oe.production_start_date, oe.expected_shipping_date, oe.expected_container_shipping_date, oe.customer_confirmation_result,
              oe.expected_material_date, oe.actual_material_date, oe.net_weight_text, oe.package_count_text, oe.container_volume_text,
-             oe.pallet_info, oe.accessory_status,
+              oe.pallet_info, oe.accessory_status, oe.packaging_spec,
              COALESCE(oc.completion_percentage, 0) as completion_percentage,
              COALESCE(
                (SELECT json_agg(json_build_object(${ORDER_PRODUCT_JSON_FIELDS}))
@@ -445,12 +445,15 @@ export const getOrderCompletionReport = async (req, res) => {
               WHEN op_name.name ILIKE '%VỀ MẠ%' OR op_name.name ILIKE '%XI MẠ VỀ%' OR op_name.name ILIKE '%VỀ XI%' THEN COALESCE(pr.total_plating_returned, 0)
               WHEN op_name.name ILIKE '%ĐÓNG GÓI%' OR op_name.name ILIKE '%ĐONG GOI%' THEN COALESCE(pkt.total_packaging_out, 0)
               ELSE COALESCE(ih.qty, 0)
-            END
-          ) ORDER BY pgo.sequence_order ASC)
-          FROM product_group_operations pgo
-          JOIN operations op_name ON pgo.operation_id = op_name.id
+            END,
+            'configured', CASE WHEN pgo.id IS NOT NULL THEN true ELSE false END
+          ) ORDER BY pgo.sequence_order ASC, op_name.name ASC)
+          FROM operations op_name
+          LEFT JOIN product_group_operations pgo ON pgo.operation_id = op_name.id
+            AND pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id)
+            AND pgo.deleted_at IS NULL
           LEFT JOIN inhouse_totals ih ON ih.product_group_operation_id = pgo.id AND ih.product_id = p.id
-          WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id) AND pgo.deleted_at IS NULL
+          WHERE op_name.deleted_at IS NULL
         ) as operations_detail
       FROM order_products op
       JOIN products p ON op.product_id = p.id
@@ -1119,7 +1122,10 @@ export const updateWarehouseDetails = async (req, res) => {
       actual_material_date,
       net_weight_text,
       package_count_text,
-      container_volume_text
+      container_volume_text,
+      pallet_info,
+      accessory_status,
+      packaging_spec
     } = req.body;
 
     await client.query("BEGIN");
@@ -1137,15 +1143,21 @@ export const updateWarehouseDetails = async (req, res) => {
         actual_material_date, 
         net_weight_text, 
         package_count_text, 
-        container_volume_text
+        container_volume_text,
+        pallet_info,
+        accessory_status,
+        packaging_spec
        )
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (order_id) DO UPDATE SET
          expected_material_date = EXCLUDED.expected_material_date,
          actual_material_date = EXCLUDED.actual_material_date,
          net_weight_text = EXCLUDED.net_weight_text,
          package_count_text = EXCLUDED.package_count_text,
-         container_volume_text = EXCLUDED.container_volume_text`,
+         container_volume_text = EXCLUDED.container_volume_text,
+         pallet_info = EXCLUDED.pallet_info,
+         accessory_status = EXCLUDED.accessory_status,
+         packaging_spec = EXCLUDED.packaging_spec`,
       [
         id,
         expected_material_date || null,
@@ -1153,13 +1165,16 @@ export const updateWarehouseDetails = async (req, res) => {
         net_weight_text || null,
         package_count_text || null,
         container_volume_text || null,
+        pallet_info || null,
+        accessory_status || null,
+        packaging_spec || null,
       ]
     );
 
     await client.query(
       `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
              VALUES ($1, 'UPDATE_WAREHOUSE', 'Order', $2, $3)`,
-      [req.user.id, id, { expected_material_date, actual_material_date, net_weight_text, package_count_text, container_volume_text }]
+      [req.user.id, id, { expected_material_date, actual_material_date, net_weight_text, package_count_text, container_volume_text, pallet_info, accessory_status, packaging_spec }]
     );
 
     await client.query("COMMIT");

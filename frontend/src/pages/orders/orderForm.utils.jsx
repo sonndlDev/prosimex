@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
   Clock,
-  Timer,
-  XCircle,
+  Package,
+  Truck,
+  Ship,
 } from "lucide-react";
 
 export const PRODUCT_ITEMS_GRID =
@@ -21,7 +22,7 @@ export const orderFormDefaultValues = {
   production_location: "",
   person_in_charge: "",
   note: "",
-  status: "DRAFT",
+  status: "NOT_STARTED",
   production_start_date: "",
   expected_shipping_date: [],
   expected_container_shipping_date: [],
@@ -90,31 +91,41 @@ export function orderToFormValues(order) {
 
 export function getOrderStatusBadge(status) {
   switch (status) {
-    case "PLANNED":
+    case "NOT_STARTED":
       return (
-        <Badge variant="primary" className="gap-1">
-          <Timer className="w-3 h-3" /> PLANNED
+        <Badge variant="outline" className="gap-1">
+          <Package className="w-3 h-3" /> CHƯA SẢN XUẤT
         </Badge>
       );
     case "IN_PROGRESS":
       return (
         <Badge variant="warning" className="gap-1">
-          <Clock className="w-3 h-3" /> IN PROGRESS
+          <Clock className="w-3 h-3" /> ĐANG SẢN XUẤT
         </Badge>
       );
     case "DONE":
       return (
         <Badge variant="success" className="gap-1">
-          <CheckCircle2 className="w-3 h-3" /> DONE
+          <CheckCircle2 className="w-3 h-3" /> HOÀN THÀNH
         </Badge>
       );
-    case "CANCELLED":
+    case "PARTIAL_SHIPPED":
       return (
-        <Badge variant="destructive" className="gap-1">
-          <XCircle className="w-3 h-3" /> CANCELLED
+        <Badge variant="secondary" className="gap-1">
+          <Truck className="w-3 h-3" /> ĐÃ XUẤT 1 PHẦN
+        </Badge>
+      );
+    case "WAITING_CONTAINER":
+      return (
+        <Badge variant="primary" className="gap-1">
+          <Ship className="w-3 h-3" /> CHỜ XUẤT CONT
         </Badge>
       );
     default:
-      return <Badge variant="outline">DRAFT</Badge>;
+      return (
+        <Badge variant="outline" className="gap-1">
+          <Package className="w-3 h-3" /> CHƯA SẢN XUẤT
+        </Badge>
+      );
   }
 }

@@ -482,9 +482,10 @@ function OrderPageCore({
     id: "status",
     label: "Trạng thái",
     className: "min-w-[160px]",
+    disableTooltip: true,
     format: (value, row) => {
       const pct = parseFloat(row.completion_percentage) || 0;
-      const isReady = pct >= 100 && value !== "DONE" && value !== "CANCELLED";
+      const isReady = pct >= 100 && value !== "DONE";
       const isLoading = markingDoneId === row.id;
       return (
         <div className="flex flex-col items-start gap-1.5">
@@ -745,16 +746,18 @@ function OrderPageCore({
 
   const getStatusLabel = (status) => {
     switch (status) {
-      case "PLANNED":
-        return "PLANNED";
+      case "NOT_STARTED":
+        return "CHƯA SẢN XUẤT";
       case "IN_PROGRESS":
-        return "IN PROGRESS";
+        return "ĐANG SẢN XUẤT";
       case "DONE":
-        return "DONE";
-      case "CANCELLED":
-        return "CANCELLED";
+        return "HOÀN THÀNH";
+      case "PARTIAL_SHIPPED":
+        return "ĐÃ XUẤT 1 PHẦN";
+      case "WAITING_CONTAINER":
+        return "CHỜ XUẤT CONT";
       default:
-        return "DRAFT";
+        return "CHƯA SẢN XUẤT";
     }
   };
 
@@ -1176,12 +1179,21 @@ function OrderPageCore({
                                 onValueChange={field.onChange}
                               >
                                 <SelectTrigger className="bg-white border-zinc-200 h-10 uppercase font-bold text-[10px] rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all">
-                                  <SelectValue />
+                                  {(() => {
+                                    const map = { NOT_STARTED: "Chưa sản xuất", IN_PROGRESS: "Đang sản xuất", DONE: "Hoàn thành", PARTIAL_SHIPPED: "Đã xuất 1 phần", WAITING_CONTAINER: "Chờ xuất cont" };
+                                    return <span>{map[field.value] || field.value || "Chọn trạng thái"}</span>;
+                                  })()}
                                 </SelectTrigger>
                                 <SelectContent className="w-[var(--radix-select-trigger-width)] border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
-                                  {["DRAFT", "PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"].map((s) => (
-                                    <SelectItem key={s} value={s} className="uppercase font-bold text-[10px] rounded-lg py-2.5 px-3 focus:bg-indigo-50 focus:text-indigo-700 transition-colors cursor-pointer mb-0.5 last:mb-0">
-                                      {s}
+                                  {[
+                                    { value: "NOT_STARTED", label: "Chưa sản xuất" },
+                                    { value: "IN_PROGRESS", label: "Đang sản xuất" },
+                                    { value: "DONE", label: "Hoàn thành" },
+                                    { value: "PARTIAL_SHIPPED", label: "Đã xuất 1 phần" },
+                                    { value: "WAITING_CONTAINER", label: "Chờ xuất cont" },
+                                  ].map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value} className="uppercase font-bold text-[10px] rounded-lg py-2.5 px-3 focus:bg-indigo-50 focus:text-indigo-700 transition-colors cursor-pointer mb-0.5 last:mb-0">
+                                      {opt.label}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1190,7 +1202,7 @@ function OrderPageCore({
                           />
                         ) : (
                           <div className="bg-zinc-100/80 border border-zinc-200 rounded-xl h-10 flex items-center px-3 font-bold text-zinc-500 text-[10px] uppercase">
-                            DRAFT
+                            CHƯA SẢN XUẤT
                           </div>
                         )}
                       </div>
@@ -1893,13 +1905,12 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
           {/* Status Filter */}
           {(() => {
             const STATUS_OPTIONS = [
-              { value: "INCOMPLETE", label: "Chưa hoàn thành" },
               { value: "ALL", label: "Tất cả" },
-              { value: "DRAFT", label: "Nháp" },
-              { value: "PLANNED", label: "Kế hoạch" },
+              { value: "NOT_STARTED", label: "Chưa sản xuất" },
               { value: "IN_PROGRESS", label: "Đang sản xuất" },
               { value: "DONE", label: "Hoàn thành" },
-              { value: "CANCELLED", label: "Đã hủy" },
+              { value: "PARTIAL_SHIPPED", label: "Đã xuất 1 phần" },
+              { value: "WAITING_CONTAINER", label: "Chờ xuất cont" },
             ];
             const selectedLabel = STATUS_OPTIONS.find(o => o.value === tempFilters.status)?.label || "Tất cả";
             return (

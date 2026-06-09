@@ -57,7 +57,7 @@ export const getMetrics = async (req, res) => {
         FROM orders o
         JOIN customers c ON o.customer_id = c.id
         WHERE o.deleted_at IS NULL
-          AND o.status NOT IN ('DONE', 'CANCELLED')
+          AND o.status != 'DONE'
           AND o.delivery_date IS NOT NULL
           AND o.delivery_date <= NOW() + INTERVAL '7 days'
         ORDER BY o.delivery_date ASC
@@ -105,11 +105,11 @@ export const getMetrics = async (req, res) => {
       statusMap[row.status] = parseInt(row.count);
     }
     const ordersByStatus = {
-      DRAFT: statusMap['DRAFT'] || 0,
-      PLANNED: statusMap['PLANNED'] || 0,
+      NOT_STARTED: statusMap['NOT_STARTED'] || 0,
       IN_PROGRESS: statusMap['IN_PROGRESS'] || 0,
       DONE: statusMap['DONE'] || 0,
-      CANCELLED: statusMap['CANCELLED'] || 0,
+      PARTIAL_SHIPPED: statusMap['PARTIAL_SHIPPED'] || 0,
+      WAITING_CONTAINER: statusMap['WAITING_CONTAINER'] || 0,
     };
     const totalOrders = Object.values(ordersByStatus).reduce((a, b) => a + b, 0);
 

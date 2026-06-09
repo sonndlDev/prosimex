@@ -31,7 +31,7 @@ async function softDeleteProductionPlansByFilter(client, whereSql, params, userI
       [orderId],
     );
     if (remaining.rowCount === 0) {
-      await client.query(`UPDATE orders SET status = 'DRAFT' WHERE id = $1 AND deleted_at IS NULL`, [
+      await client.query(`UPDATE orders SET status = 'NOT_STARTED' WHERE id = $1 AND deleted_at IS NULL`, [
         orderId,
       ]);
     }

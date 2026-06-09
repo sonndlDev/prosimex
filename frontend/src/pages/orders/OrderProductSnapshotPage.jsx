@@ -97,9 +97,11 @@ const statusBadge = (status) => {
 
     IN_PROGRESS: "bg-amber-100 text-amber-800 border-amber-200",
 
-    PLANNED: "bg-blue-100 text-blue-800 border-blue-200",
+    NOT_STARTED: "bg-zinc-100 text-zinc-800 border-zinc-200",
 
-    CANCELLED: "bg-red-100 text-red-800 border-red-200",
+    PARTIAL_SHIPPED: "bg-blue-100 text-blue-800 border-blue-200",
+
+    WAITING_CONTAINER: "bg-violet-100 text-violet-800 border-violet-200",
 
   };
 
@@ -488,11 +490,11 @@ export default function OrderProductSnapshotPage() {
 
             <SelectContent>
 
-              {["ALL", "DRAFT", "PLANNED", "IN_PROGRESS", "DONE", "CANCELLED"].map((s) => (
+              {["ALL", "NOT_STARTED", "IN_PROGRESS", "DONE", "PARTIAL_SHIPPED", "WAITING_CONTAINER"].map((s) => (
 
                 <SelectItem key={s} value={s}>
 
-                  {s === "ALL" ? "Tất cả" : s}
+                  {s === "ALL" ? "Tất cả" : s === "NOT_STARTED" ? "Chưa sản xuất" : s === "IN_PROGRESS" ? "Đang sản xuất" : s === "DONE" ? "Hoàn thành" : s === "PARTIAL_SHIPPED" ? "Đã xuất 1 phần" : s === "WAITING_CONTAINER" ? "Chờ xuất cont" : s}
 
                 </SelectItem>
 
