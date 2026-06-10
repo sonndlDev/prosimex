@@ -1566,7 +1566,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                               className="h-9 font-bold text-blue-900 border-blue-200"
                               value={item.quantity_out}
                               max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
-                              disabled={!!item.accessory_quantity}
+                              // disabled={!!item.accessory_quantity}
                               onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
                             />
                           </div>
@@ -1577,7 +1577,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                               placeholder="0"
                               className="h-9 font-bold text-amber-900 border-amber-200"
                               value={item.accessory_quantity}
-                              disabled={!!item.quantity_out}
+                              // disabled={!!item.quantity_out}
                               onChange={e => handleItemChange(item.localKey, "accessory_quantity", e.target.value)}
                             />
                           </div>

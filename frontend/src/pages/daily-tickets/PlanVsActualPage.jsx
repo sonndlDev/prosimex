@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo } from "react";
+import React, { useState, useMemo, useCallback, memo, startTransition } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { dailyTicketService } from "../../services/daily-ticket.service";
@@ -221,7 +221,19 @@ function ProgressBar({ pct }) {
   );
 }
 
-// ─── Status Badge ────────────────────────────────────────────────────────────
+// ─── Resize Handle ───────────────────────────────────────────────────────────
+function ResizeHandle({ onMouseDown }) {
+  return (
+    <span
+      onMouseDown={onMouseDown}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute right-0 top-0 w-2 h-full cursor-col-resize z-20 group/rh flex items-center justify-center"
+      style={{ touchAction: "none" }}
+    >
+      <span className="w-px h-4 bg-zinc-300 group-hover/rh:bg-indigo-400 transition-colors rounded-full" />
+    </span>
+  );
+}
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
 const FilterBar = memo(
@@ -675,6 +687,59 @@ export default function PlanVsActualPage() {
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState({ sortBy: "order_code", direction: "DESC" });
 
+  // ── Column resize ──────────────────────────────────────────────────────────
+  const [colWidths, setColWidths] = useState({
+    stt: 40, seq: 40, product: 140, order: 140, operation: 120,
+    plan_qty: 70, inventory: 70, qty_produce: 70, dinh_muc: 60,
+    actual: 70, remaining: 70, progress: 100,
+  });
+  const [dateColWidth, setDateColWidth] = useState(52);
+
+  const startResize = useCallback((e, colKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colKey === "__date__" ? dateColWidth : colWidths[colKey];
+    const onMove = (ev) => {
+      const newW = Math.max(
+        colKey === "__date__" ? 36 : 28,
+        startWidth + ev.clientX - startX,
+      );
+      startTransition(() => {
+        if (colKey === "__date__") setDateColWidth(newW);
+        else setColWidths((p) => ({ ...p, [colKey]: newW }));
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [colWidths, dateColWidth]);
+
+  const sl = useMemo(() => {
+    const w = colWidths;
+    const r = { stt: 0 };
+    r.seq = r.stt + w.stt;
+    r.product = r.seq + w.seq;
+    r.order = r.product + w.product;
+    r.operation = r.order + w.order;
+    r.plan_qty = r.operation + w.operation;
+    r.inventory = r.plan_qty + w.plan_qty;
+    r.qty_produce = r.inventory + w.inventory;
+    r.dinh_muc = r.qty_produce + w.qty_produce;
+    r.actual = r.dinh_muc + w.dinh_muc;
+    r.remaining = r.actual + w.actual;
+    r.progress = r.remaining + w.remaining;
+    return r;
+  }, [colWidths]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const handleSort = (field) => {
     setSort((prev) => ({
       sortBy: field,
@@ -693,19 +758,25 @@ export default function PlanVsActualPage() {
     );
   };
 
-  const SortableHead = ({ field, label, className, ...props }) => (
+  const SortableHead = ({ field, label, className, style, colKey, ...props }) => (
     <TableHead
       {...props}
       className={cn(
         "cursor-pointer hover:bg-zinc-100 transition-colors",
         className,
       )}
+      style={style}
       onClick={() => handleSort(field)}
     >
       <div className="flex items-center">
         {label}
         <SortIcon field={field} />
       </div>
+      {colKey && (
+        <ResizeHandle
+          onMouseDown={(e) => startResize(e, colKey)}
+        />
+      )}
     </TableHead>
   );
 
@@ -968,95 +1039,142 @@ export default function PlanVsActualPage() {
               <table className="w-full caption-bottom text-sm border-separate border-spacing-0">
                 <TableHeader className="sticky top-0 z-50">
                   <TableRow className="bg-zinc-50 hover:bg-zinc-50 border-b-2 border-zinc-300">
+                    {/* STT */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-0 z-40 bg-zinc-50 border-r border-zinc-300 w-[40px] min-w-[40px] max-w-[40px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-center font-black text-[9px] uppercase text-zinc-500"
+                      style={{ width: colWidths.stt, minWidth: colWidths.stt, left: sl.stt }}
                     >
                       STT
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "stt")} />
                     </TableHead>
+                    {/* TT */}
                     <SortableHead
                       rowSpan={2}
                       field="sequence_order"
                       label="TT"
-                      className="sticky left-[40px] z-40 bg-zinc-50 border-r border-zinc-300 w-[40px] min-w-[40px] max-w-[40px] text-center font-black text-[9px] uppercase text-zinc-500"
+                      colKey="seq"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-center font-black text-[9px] uppercase text-zinc-500"
+                      style={{ width: colWidths.seq, minWidth: colWidths.seq, left: sl.seq }}
                     />
+                    {/* Mã hàng */}
                     <SortableHead
                       rowSpan={2}
                       field="product_name"
                       label="Mã hàng"
-                      className="sticky left-[80px] z-40 bg-zinc-50 border-r border-zinc-300 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500"
+                      colKey="product"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 font-black text-[9px] uppercase text-zinc-500"
+                      style={{ width: colWidths.product, minWidth: colWidths.product, left: sl.product }}
                     />
+                    {/* Đơn hàng */}
                     <SortableHead
                       rowSpan={2}
                       field="order_code"
                       label="Đơn hàng"
-                      className="sticky left-[220px] z-40 bg-zinc-50 border-r border-zinc-300 w-[140px] min-w-[140px] max-w-[140px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      colKey="order"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      style={{ width: colWidths.order, minWidth: colWidths.order, left: sl.order }}
                     />
+                    {/* Công đoạn */}
                     <SortableHead
                       rowSpan={2}
                       field="operation_name"
                       label="Công đoạn"
-                      className="sticky left-[360px] z-40 bg-zinc-50 border-r border-zinc-300 w-[120px] min-w-[120px] max-w-[120px] font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      colKey="operation"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      style={{ width: colWidths.operation, minWidth: colWidths.operation, left: sl.operation }}
                     />
+                    {/* SL Đơn */}
                     <SortableHead
                       rowSpan={2}
                       field="plan_quantity"
                       label="SL Đơn"
-                      className="sticky left-[480px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap w-[70px] min-w-[70px] max-w-[70px]"
+                      colKey="plan_qty"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      style={{ width: colWidths.plan_qty, minWidth: colWidths.plan_qty, left: sl.plan_qty }}
                     />
+                    {/* Tồn kho */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[550px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap w-[70px] min-w-[70px] max-w-[70px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-400 whitespace-nowrap"
+                      style={{ width: colWidths.inventory, minWidth: colWidths.inventory, left: sl.inventory }}
                     >
                       Tồn kho
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "inventory")} />
                     </TableHead>
+                    {/* Cần SX */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[620px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap w-[70px] min-w-[70px] max-w-[70px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-rose-500 whitespace-nowrap"
+                      style={{ width: colWidths.qty_produce, minWidth: colWidths.qty_produce, left: sl.qty_produce }}
                     >
                       Cần SX
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "qty_produce")} />
                     </TableHead>
+                    {/* Định mức */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[690px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap w-[60px] min-w-[60px] max-w-[60px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-zinc-500 whitespace-nowrap"
+                      style={{ width: colWidths.dinh_muc, minWidth: colWidths.dinh_muc, left: sl.dinh_muc }}
                     >
                       Định mức
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "dinh_muc")} />
                     </TableHead>
+                    {/* Thực tế */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[750px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-emerald-600 whitespace-nowrap w-[70px] min-w-[70px] max-w-[70px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-emerald-600 whitespace-nowrap"
+                      style={{ width: colWidths.actual, minWidth: colWidths.actual, left: sl.actual }}
                     >
                       Thực tế
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "actual")} />
                     </TableHead>
+                    {/* Còn lại */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[820px] z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-rose-600 whitespace-nowrap w-[70px] min-w-[70px] max-w-[70px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 text-right font-black text-[9px] uppercase text-rose-600 whitespace-nowrap"
+                      style={{ width: colWidths.remaining, minWidth: colWidths.remaining, left: sl.remaining }}
                     >
                       Còn lại
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "remaining")} />
                     </TableHead>
+                    {/* Tiến độ % */}
                     <TableHead
                       rowSpan={2}
-                      className="sticky left-[890px] z-40 bg-zinc-50 border-r border-zinc-300 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap min-w-[100px] w-[100px] max-w-[100px]"
+                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap"
+                      style={{ width: colWidths.progress, minWidth: colWidths.progress, left: sl.progress }}
                     >
                       Tiến độ %
+                      <ResizeHandle onMouseDown={(e) => startResize(e, "progress")} />
                     </TableHead>
+                    {/* Date columns */}
                     {dateColumns.map((date) => (
                       <TableHead
                         key={date.key}
                         colSpan={2}
                         className="bg-indigo-50/40 text-indigo-700 text-center font-black text-[9px] border-l border-zinc-300 py-2 whitespace-nowrap"
+                        style={{ width: dateColWidth * 2, minWidth: dateColWidth * 2 }}
                       >
-                        {date.label}
+                        <div className="relative flex items-center justify-center px-2">
+                          {date.label}
+                          <ResizeHandle onMouseDown={(e) => startResize(e, "__date__")} />
+                        </div>
                       </TableHead>
                     ))}
                   </TableRow>
                   <TableRow className="hover:bg-zinc-50 bg-zinc-50">
                     {dateColumns.map((date) => (
                       <React.Fragment key={`sub-${date.key}`}>
-                        <TableHead className="text-[8px] font-black uppercase text-amber-600 border-l border-zinc-300 bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap">
+                        <TableHead
+                          className="text-[8px] font-black uppercase text-amber-600 border-l border-zinc-300 bg-amber-50/30 text-center h-7 px-1 whitespace-nowrap"
+                          style={{ width: dateColWidth, minWidth: dateColWidth }}
+                        >
                           KH
                         </TableHead>
-                        <TableHead className="text-[8px] font-black uppercase text-zinc-400 border-l border-zinc-200 text-center h-7 px-1 whitespace-nowrap">
+                        <TableHead
+                          className="text-[8px] font-black uppercase text-zinc-400 border-l border-zinc-200 text-center h-7 px-1 whitespace-nowrap"
+                          style={{ width: dateColWidth, minWidth: dateColWidth }}
+                        >
                           TT
                         </TableHead>
                       </React.Fragment>
@@ -1076,27 +1194,27 @@ export default function PlanVsActualPage() {
                       {/* STT */}
                       <TCell
                         value={(page - 1) * limit + idx + 1}
-                        className="sticky left-0 z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-200 tabular-nums w-[40px] min-w-[40px] max-w-[40px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 font-black text-[10px] text-zinc-400 text-center border-r border-zinc-200 tabular-nums"
+                        style={{ width: colWidths.stt, minWidth: colWidths.stt, left: sl.stt }}
                       >
                         {(page - 1) * limit + idx + 1}
                       </TCell>
                       {/* Thứ tự */}
                       <TCell
                         value={row.sequence_order}
-                        className="sticky left-[40px] z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-200 w-[40px] min-w-[40px] max-w-[40px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 text-center font-black text-xs text-zinc-700 border-r border-zinc-200"
+                        style={{ width: colWidths.seq, minWidth: colWidths.seq, left: sl.seq }}
                       >
                         {row.sequence_order || "—"}
                       </TCell>
                       {/* Mã hàng */}
                       <TCell
                         value={row.product_name}
-                        className="sticky left-[80px] z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-200 uppercase tracking-tight w-[140px] min-w-[140px] max-w-[140px] truncate"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 font-black text-xs text-zinc-950 border-r border-zinc-200 uppercase tracking-tight overflow-hidden"
+                        style={{ width: colWidths.product, minWidth: colWidths.product, left: sl.product }}
                       >
                         <div className="flex flex-col gap-1">
-                          <div
-                            className="max-w-[130px] truncate"
-                            title={row.product_name}
-                          >
+                          <div className="truncate" title={row.product_name}>
                             {row.product_name || "—"}
                           </div>
                           {!row.pp_id ? (
@@ -1113,15 +1231,16 @@ export default function PlanVsActualPage() {
                       {/* Đơn hàng */}
                       <TCell
                         value={row.order_code || row.order_name}
-                        className="sticky left-[220px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-300 w-[140px] min-w-[140px] max-w-[140px] overflow-hidden"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-300 overflow-hidden"
+                        style={{ width: colWidths.order, minWidth: colWidths.order, left: sl.order }}
                       >
                         <div className="flex flex-col w-full">
-                          <span className="text-[11px] font-black text-indigo-700 group-hover:bg-indigo-50 truncate block w-full">
+                          <span className="text-[11px] font-black text-indigo-700 truncate block w-full">
                             {row.order_code || row.order_name || "—"}
                           </span>
                           {row.po_customer && (
                             <span
-                              className="text-[10px] text-zinc-400 font-medium group-hover:bg-indigo-50 truncate block w-full"
+                              className="text-[10px] text-zinc-400 font-medium truncate block w-full"
                               title={row.po_customer}
                             >
                               {row.po_customer}
@@ -1132,42 +1251,48 @@ export default function PlanVsActualPage() {
                       {/* Công đoạn */}
                       <TCell
                         value={row.operation_name}
-                        className="sticky left-[360px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-[11px] font-black text-zinc-800 whitespace-nowrap w-[120px] min-w-[120px] max-w-[120px] truncate"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-[11px] font-black text-zinc-800 truncate"
+                        style={{ width: colWidths.operation, minWidth: colWidths.operation, left: sl.operation }}
                       >
                         {row.operation_name || "—"}
                       </TCell>
                       {/* SL Đơn */}
                       <TCell
                         value={row.planQty}
-                        className="sticky left-[480px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-700 w-[70px] min-w-[70px] max-w-[70px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-700"
+                        style={{ width: colWidths.plan_qty, minWidth: colWidths.plan_qty, left: sl.plan_qty }}
                       >
                         {row.planQty.toLocaleString()}
                       </TCell>
                       {/* Tồn kho */}
                       <TCell
                         value={row.inventory}
-                        className="sticky left-[550px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-400 w-[70px] min-w-[70px] max-w-[70px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-400"
+                        style={{ width: colWidths.inventory, minWidth: colWidths.inventory, left: sl.inventory }}
                       >
                         {row.inventory.toLocaleString()}
                       </TCell>
                       {/* Cần SX */}
                       <TCell
                         value={row.qtyToProduce}
-                        className="sticky left-[620px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums text-rose-500 w-[70px] min-w-[70px] max-w-[70px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums text-rose-500"
+                        style={{ width: colWidths.qty_produce, minWidth: colWidths.qty_produce, left: sl.qty_produce }}
                       >
                         {row.qtyToProduce.toLocaleString()}
                       </TCell>
                       {/* Định mức */}
                       <TCell
                         value={row.dinh_muc}
-                        className="sticky left-[690px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-500 w-[60px] min-w-[60px] max-w-[60px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-bold tabular-nums text-zinc-500"
+                        style={{ width: colWidths.dinh_muc, minWidth: colWidths.dinh_muc, left: sl.dinh_muc }}
                       >
                         {Math.round(row.dinh_muc) || "—"}
                       </TCell>
                       {/* Thực tế */}
                       <TCell
                         value={row.totalActual}
-                        className="sticky left-[750px] z-30 bg-white group-hover:bg-emerald-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums text-emerald-600 w-[70px] min-w-[70px] max-w-[70px]"
+                        className="sticky z-30 bg-white group-hover:bg-emerald-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums text-emerald-600"
+                        style={{ width: colWidths.actual, minWidth: colWidths.actual, left: sl.actual }}
                       >
                         {row.totalActual.toLocaleString()}
                       </TCell>
@@ -1175,56 +1300,21 @@ export default function PlanVsActualPage() {
                       <TCell
                         value={row.remaining}
                         className={cn(
-                          "sticky left-[820px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums w-[70px] min-w-[70px] max-w-[70px]",
-                          row.remaining > 0
-                            ? "text-rose-600"
-                            : "text-emerald-600",
+                          "sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 text-right text-xs font-black tabular-nums",
+                          row.remaining > 0 ? "text-rose-600" : "text-emerald-600",
                         )}
+                        style={{ width: colWidths.remaining, minWidth: colWidths.remaining, left: sl.remaining }}
                       >
                         {row.remaining.toLocaleString()}
                       </TCell>
                       {/* Tiến độ */}
                       <TCell
                         value={`${row.percentage.toFixed(1)}%`}
-                        className="sticky left-[890px] z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)] min-w-[100px] w-[100px] max-w-[100px]"
+                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]"
+                        style={{ width: colWidths.progress, minWidth: colWidths.progress, left: sl.progress }}
                       >
                         <ProgressBar pct={row.percentage} />
                       </TCell>
-
-                      {/* Bắt đầu KH */}
-                      {/* <TCell
-                        value={
-                          row.planned_start_date
-                            ? DateTime.fromISO(row.planned_start_date).toFormat(
-                                "dd/MM/yyyy",
-                              )
-                            : null
-                        }
-                        className="text-center text-[10px] group-hover:bg-indigo-50 font-bold text-zinc-400 whitespace-nowrap tabular-nums"
-                      >
-                        {row.planned_start_date
-                          ? DateTime.fromISO(row.planned_start_date).toFormat(
-                              "dd/MM",
-                            )
-                          : "—"}
-                      </TCell> */}
-                      {/* Kết thúc KH */}
-                      {/* <TCell
-                        value={
-                          row.planned_end_date
-                            ? DateTime.fromISO(row.planned_end_date).toFormat(
-                                "dd/MM/yyyy",
-                              )
-                            : null
-                        }
-                        className="text-center text-[10px] font-bold group-hover:bg-indigo-50 text-zinc-400 whitespace-nowrap tabular-nums"
-                      >
-                        {row.planned_end_date
-                          ? DateTime.fromISO(row.planned_end_date).toFormat(
-                              "dd/MM",
-                            )
-                          : "—"}
-                      </TCell> */}
 
                       {/* Date columns */}
                       {dateColumns.map((date) => {
@@ -1242,6 +1332,7 @@ export default function PlanVsActualPage() {
                                   ? "text-amber-600 bg-amber-50/20"
                                   : "text-zinc-200",
                               )}
+                              style={{ width: dateColWidth, minWidth: dateColWidth }}
                             >
                               {pQty > 0
                                 ? pQty.toLocaleString(undefined, {
@@ -1255,6 +1346,7 @@ export default function PlanVsActualPage() {
                                 "text-right text-[11px] font-black border-l group-hover:bg-indigo-50 border-zinc-200 tabular-nums px-2",
                                 aQty > 0 ? "text-zinc-900" : "text-zinc-200",
                               )}
+                              style={{ width: dateColWidth, minWidth: dateColWidth }}
                             >
                               {aQty > 0 ? aQty.toLocaleString() : "—"}
                             </TCell>
