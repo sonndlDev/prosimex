@@ -36,5 +36,9 @@ export const outsourcingService = {
   delete: async (id) => {
     const { data } = await api.delete(`/outsourcing/${id}`);
     return data;
+  },
+  getRemainingQuantity: async (orderId, productId) => {
+    const { data } = await api.get('/outsourcing/remaining-quantity', { params: { order_id: orderId, product_id: productId } });
+    return data;
   }
 };

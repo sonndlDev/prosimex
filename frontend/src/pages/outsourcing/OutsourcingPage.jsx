@@ -339,6 +339,20 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
 
   const [loading, setLoading] = useState(false);
   const [createdTicket, setCreatedTicket] = useState(null);
+  const [remainingQuantities, setRemainingQuantities] = useState({});
+
+  const fetchRemainingQuantity = async (itemId, orderId, productId) => {
+    if (!orderId || !productId) {
+      setRemainingQuantities(prev => ({ ...prev, [itemId]: null }));
+      return;
+    }
+    try {
+      const res = await outsourcingService.getRemainingQuantity(orderId, productId);
+      setRemainingQuantities(prev => ({ ...prev, [itemId]: res.remaining }));
+    } catch {
+      setRemainingQuantities(prev => ({ ...prev, [itemId]: null }));
+    }
+  };
 
   const handleItemChange = (id, field, value) => {
     setItems(prev => prev.map(item => {
@@ -369,7 +383,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   };
 
   const addItem = () => {
-    setItems(prev => [...prev, { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+    const newId = Date.now();
+    setItems(prev => [...prev, { id: newId, order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+    setRemainingQuantities(prev => ({ ...prev, [newId]: null }));
   };
 
   const removeItem = (id) => {
@@ -410,8 +426,9 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       const res = await outsourcingService.create(payload);
       setCreatedTicket(res);
       toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
-      // Reset form
-      setItems([{ id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+      const resetId = Date.now();
+      setItems([{ id: resetId, order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
+      setRemainingQuantities({ [resetId]: null });
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -483,7 +500,6 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                     value={item.order_id}
                     onChange={v => {
                       handleItemChange(item.id, 'order_id', v);
-                      // if product is already selected, update quantity
                       const selectedOrder = orders.find(o => String(o.id) === String(v));
                       if (selectedOrder && selectedOrder.products && item.product_id) {
                         const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
@@ -491,6 +507,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                           handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
                         }
                       }
+                      fetchRemainingQuantity(item.id, v, item.product_id);
                     }}
                     orders={orders}
                   />
@@ -510,6 +527,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                           }
                         }
                       }
+                      fetchRemainingQuantity(item.id, item.order_id, v);
                     }}
                     products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products}
                   />
@@ -518,6 +536,30 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                   <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
                   <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
                 </div>
+                {item.order_id && item.product_id && remainingQuantities[item.id] != null && (
+                  <div className={cn(
+                    "space-y-1.5 p-2 rounded-lg border",
+                    remainingQuantities[item.id] > 0
+                      ? "bg-orange-50/50 border-orange-200"
+                      : "bg-emerald-50/50 border-emerald-200"
+                  )}>
+                    <Label className={cn(
+                      "text-[10px] font-bold uppercase",
+                      remainingQuantities[item.id] > 0 ? "text-orange-700" : "text-emerald-700"
+                    )}>
+                      SL Còn thiếu
+                    </Label>
+                    <Input
+                      type="number"
+                      readOnly
+                      className={cn(
+                        "h-9 font-black",
+                        remainingQuantities[item.id] > 0 ? "text-orange-900 border-orange-200" : "text-emerald-900 border-emerald-200"
+                      )}
+                      value={remainingQuantities[item.id]}
+                    />
+                  </div>
+                )}
                 {type === 'PACKAGING' && (
                   <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
@@ -843,10 +885,17 @@ function InboundTicketForm({ type }) {
                             {item.package_count && <p className="text-xs font-semibold text-blue-600">Kiện hàng: {item.package_count}</p>}
                             {item.unit_net_weight && <p className="text-xs font-semibold text-amber-600">KL Tịnh: {item.unit_net_weight} kg/cái</p>}
                           </div>
+                          {item.notes && (
+                            <div className="mt-2 p-2 bg-zinc-50 border border-zinc-200 rounded-lg">
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase mb-0.5">Ghi chú phiếu đi</p>
+                              <p className="text-xs text-zinc-700 italic">{item.notes}</p>
+                            </div>
+                          )}
                         </div>
                         <div className="text-right space-y-0.5 whitespace-nowrap">
-                          <p className="text-xs font-bold text-zinc-500">Xuất: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
-                          <p className="text-xs font-bold text-indigo-600">Về: <span className="font-extrabold">{item.total_returned}</span></p>
+                          <p className="text-xs font-bold text-zinc-500">Xuất BP chính: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
+                          {item.accessory_quantity > 0 && <p className="text-xs font-bold text-amber-600">Xuất PK: <span className="font-extrabold">{item.accessory_quantity}</span></p>}
+                          <p className="text-xs font-bold text-indigo-600">Về BP chính: <span className="font-extrabold">{item.total_returned}</span></p>
                         </div>
                       </div>
 
@@ -855,14 +904,29 @@ function InboundTicketForm({ type }) {
                       </div>
 
                       <div className="flex flex-col gap-3 pt-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
+                          <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
+                            <Label className="text-[10px] font-bold uppercase text-blue-700">SL Nhập BP chính *</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={returnFormData[item.id]?.quantity_returned || ""}
+                              onChange={e => handleReturnFormChange(item.id, 'quantity_returned', e.target.value)}
+                              className="h-9 font-bold text-blue-900 border-blue-200 focus-visible:ring-blue-600"
+                            />
+                          </div>
+                          <div className="space-y-1 p-2 rounded-lg border bg-amber-50/50 border-amber-100">
+                            <Label className="text-[10px] font-bold uppercase text-amber-700">SL Nhập PK/Hàng lỗi</Label>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              value={returnFormData[item.id]?.accessory_quantity_returned || ""}
+                              onChange={e => handleReturnFormChange(item.id, 'accessory_quantity_returned', e.target.value)}
+                              className="h-9 font-bold text-amber-900 border-amber-200 focus-visible:ring-amber-600"
+                            />
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                          <Input
-                            type="number"
-                            placeholder="SL Nhập *"
-                            value={returnFormData[item.id]?.quantity_returned || ""}
-                            onChange={e => handleReturnFormChange(item.id, 'quantity_returned', e.target.value)}
-                            className="bg-indigo-50/30 text-sm font-bold border-indigo-200 focus-visible:ring-indigo-600"
-                          />
                           <Input
                             type="number"
                             step="0.01"
@@ -887,8 +951,6 @@ function InboundTicketForm({ type }) {
                             value={returnFormData[item.id]?.net_weight || ""}
                             className="text-sm font-bold bg-zinc-100"
                           />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
                           <Input
                             type="number"
                             step="0.01"
@@ -897,8 +959,10 @@ function InboundTicketForm({ type }) {
                             onChange={e => handleReturnFormChange(item.id, 'missing_weight', e.target.value)}
                             className="text-sm font-medium"
                           />
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
                           <Input
-                            placeholder="Ghi chú"
+                            placeholder="Ghi chú nhập về"
                             value={returnFormData[item.id]?.notes || ""}
                             onChange={e => handleReturnFormChange(item.id, 'notes', e.target.value)}
                             className="text-sm font-medium"
@@ -944,6 +1008,7 @@ function InboundTicketForm({ type }) {
                           setEditingHistoryId(h.id);
                           setEditingHistoryData({
                             quantity_returned: h.quantity_returned || "",
+                            accessory_quantity_returned: h.accessory_quantity_returned || "",
                             gross_weight: h.gross_weight || "",
                             pallet_weight: h.pallet_weight || "",
                             net_weight: h.net_weight || "",
@@ -974,7 +1039,12 @@ function InboundTicketForm({ type }) {
                           #{history.length - i}
                         </div>
                         <div>
-                          <p className="font-black text-lg text-emerald-600 tracking-tight leading-none mb-1">+{h.quantity_returned}</p>
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-black text-lg text-emerald-600 tracking-tight leading-none">+{h.quantity_returned}</p>
+                            {h.accessory_quantity_returned > 0 && (
+                              <p className="text-xs font-bold text-amber-600">PK: +{h.accessory_quantity_returned}</p>
+                            )}
+                          </div>
                           <p className="text-xs font-bold text-zinc-700 truncate max-w-[150px]">{h.product_name}</p>
                         </div>
                       </div>
@@ -1006,7 +1076,7 @@ function InboundTicketForm({ type }) {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">SL Nhập (cái) *</Label>
+                <Label className="text-xs font-bold text-blue-700 uppercase">SL Nhập BP chính *</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -1014,7 +1084,20 @@ function InboundTicketForm({ type }) {
                   placeholder="0"
                   value={editingHistoryData.quantity_returned || ""}
                   onChange={(e) => setEditingHistoryData(prev => ({ ...prev, quantity_returned: e.target.value }))}
-                  className="h-11 font-medium"
+                  className="h-11 font-medium border-blue-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-amber-700 uppercase">SL Nhập PK/Hàng lỗi</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0"
+                  value={editingHistoryData.accessory_quantity_returned || ""}
+                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, accessory_quantity_returned: e.target.value }))}
+                  className="h-11 font-medium border-amber-200"
                 />
               </div>
 
@@ -1118,6 +1201,7 @@ function InboundTicketForm({ type }) {
                 try {
                   await outsourcingService.updateReturn(editingHistoryId, {
                     quantity_returned: parseFloat(editingHistoryData.quantity_returned),
+                    accessory_quantity_returned: editingHistoryData.accessory_quantity_returned ? parseFloat(editingHistoryData.accessory_quantity_returned) : 0,
                     gross_weight: editingHistoryData.gross_weight ? parseFloat(editingHistoryData.gross_weight) : null,
                     pallet_weight: editingHistoryData.pallet_weight ? parseFloat(editingHistoryData.pallet_weight) : null,
                     net_weight: editingHistoryData.net_weight ? parseFloat(editingHistoryData.net_weight) : null,
@@ -1226,13 +1310,28 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [remainingQuantities, setRemainingQuantities] = useState({});
 
   const ticketType = ticket?.type || type;
+
+  const fetchRemainingQuantity = async (localKey, orderId, productId) => {
+    if (!orderId || !productId) {
+      setRemainingQuantities(prev => ({ ...prev, [localKey]: null }));
+      return;
+    }
+    try {
+      const res = await outsourcingService.getRemainingQuantity(orderId, productId);
+      setRemainingQuantities(prev => ({ ...prev, [localKey]: res.remaining }));
+    } catch {
+      setRemainingQuantities(prev => ({ ...prev, [localKey]: null }));
+    }
+  };
 
   useEffect(() => {
     if (!open || !ticketCode) {
       setTicket(null);
       setItems([]);
+      setRemainingQuantities({});
       return;
     }
     let cancelled = false;
@@ -1248,7 +1347,13 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
           dispatch_date: t.dispatch_date ? DateTime.fromISO(t.dispatch_date).toFormat("yyyy-MM-dd") : "",
           expected_return_date: t.expected_return_date ? DateTime.fromISO(t.expected_return_date).toFormat("yyyy-MM-dd") : "",
         });
-        setItems((t.items || []).map(mapTicketItemForEdit));
+        const mappedItems = (t.items || []).map(mapTicketItemForEdit);
+        setItems(mappedItems);
+        mappedItems.forEach(item => {
+          if (item.order_id && item.product_id) {
+            fetchRemainingQuantity(item.localKey, item.order_id, item.product_id);
+          }
+        });
       } catch {
         if (!cancelled) toast.error("Không tải được chi tiết phiếu");
         onOpenChange(false);
@@ -1286,8 +1391,9 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
   };
 
   const addItem = () => {
+    const newLocalKey = `new-${Date.now()}`;
     setItems(prev => [...prev, {
-      localKey: `new-${Date.now()}`,
+      localKey: newLocalKey,
       id: null,
       isNew: true,
       order_id: "",
@@ -1305,6 +1411,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
       unit_net_weight: "",
       total_returned: 0,
     }]);
+    setRemainingQuantities(prev => ({ ...prev, [newLocalKey]: null }));
   };
 
   const removeItem = (localKey) => {
@@ -1487,6 +1594,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                               handleItemChange(item.localKey, "order_quantity", parseFloat(matchedProduct.quantity));
                             }
                           }
+                          fetchRemainingQuantity(item.localKey, v, item.product_id);
                         }}
                         orders={orders}
                       />
@@ -1504,6 +1612,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                               handleItemChange(item.localKey, "order_quantity", parseFloat(matchedProduct.quantity));
                             }
                           }
+                          fetchRemainingQuantity(item.localKey, item.order_id, v);
                         }}
                         products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products}
                       />
@@ -1512,6 +1621,30 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                       <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
                       <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.localKey, "order_quantity", e.target.value)} />
                     </div>
+                    {item.order_id && item.product_id && remainingQuantities[item.localKey] != null && (
+                      <div className={cn(
+                        "space-y-1.5 p-2 rounded-lg border",
+                        remainingQuantities[item.localKey] > 0
+                          ? "bg-orange-50/50 border-orange-200"
+                          : "bg-emerald-50/50 border-emerald-200"
+                      )}>
+                        <Label className={cn(
+                          "text-[10px] font-bold uppercase",
+                          remainingQuantities[item.localKey] > 0 ? "text-orange-700" : "text-emerald-700"
+                        )}>
+                          SL Còn thiếu
+                        </Label>
+                        <Input
+                          type="number"
+                          readOnly
+                          className={cn(
+                            "h-9 font-black",
+                            remainingQuantities[item.localKey] > 0 ? "text-orange-900 border-orange-200" : "text-emerald-900 border-emerald-200"
+                          )}
+                          value={remainingQuantities[item.localKey]}
+                        />
+                      </div>
+                    )}
                     {ticketType === "PACKAGING" && (
                       <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
                         <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
@@ -1704,15 +1837,15 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
       const workbook = new ExcelJS.Workbook();
       const ws = workbook.addWorksheet("Phiếu Gia Công");
 
-      // ─── Cột phếu đi (B..O = col 2..15) | Phếu về (P..X = col 16..24)
+      // ─── Cột phếu đi (B..O = col 2..15) | Phếu về (P..Y = col 16..25)
       const diHeaders = [
         "NGÀY XUẤT ĐI", "PO NCC (MÃ PHIẾU)", "ĐƠN HÀNG", "MÃ HÀNG", "SL ORDER",
         "LOẠI HÌNH", "KIỆN", "SL XUẤT BP CHÍNH", "SL PHỤ KIỆN", "KG/CÁI", "GROSS WEIGH (KG)",
         "PALLET WEIGH (KG)", "NET WEIGH (KG)", "GHI CHÚ", "NGÀY DỰ KIẾN VỀ"
       ];
       const veHeaders = [
-        "NGÀY NHẬP HÀNG", "KIỆN", "SL NHẬP", "KG/CÁI", "GROSS WEIGH (KG)",
-        "PALLET WEIGH (KG)", "NET WEIGH (KG)", "KG THIẾU THỮA", "GHI CHÚ"
+        "NGÀY NHẬP HÀNG", "KIỆN", "SL NHẬP BP CHÍNH", "SL NHẬP PHỤ KIỆN", "KG/CÁI", "GROSS WEIGH (KG)",
+        "PALLET WEIGH (KG)", "NET WEIGH (KG)", "KG THIẾU THỪA", "GHI CHÚ"
       ];
 
       const diColStart = 2; // 1-indexed
@@ -1726,7 +1859,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
         ws.getColumn(diColStart + i).width = widths[i] || 12;
       });
       veHeaders.forEach((_, i) => {
-        const widths = [15, 7, 9, 9, 14, 14, 12, 13, 20];
+        const widths = [15, 7, 12, 12, 9, 14, 14, 12, 13, 20];
         ws.getColumn(veColStart + i).width = widths[i] || 12;
       });
 
@@ -1813,6 +1946,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
           e.last_returned_at ? DateTime.fromISO(e.last_returned_at).toFormat("dd/MM/yyyy") : "",
           "",
           e.total_returned != null ? parseFloat(e.total_returned) : 0,
+          e.total_accessory_returned != null ? parseFloat(e.total_accessory_returned) : 0,
           e.unit_net_weight != null ? parseFloat(e.unit_net_weight) : 0,
           e.return_gross_weight != null ? parseFloat(e.return_gross_weight) : 0,
           e.return_pallet_weight != null ? parseFloat(e.return_pallet_weight) : 0,

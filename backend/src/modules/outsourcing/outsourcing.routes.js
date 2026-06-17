@@ -3,6 +3,7 @@ import {
   getTickets,
   exportDetailedItems,
   getTicketByCode,
+  getRemainingQuantity,
   createTicket,
   addReturnEntry,
   updateReturnEntry,
@@ -23,6 +24,7 @@ router.use(verifyToken);
 // router.use(permissionsMiddleware("planning"));
 
 // API Endpoints
+router.get("/remaining-quantity", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), getRemainingQuantity);
 router.get("/", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), getTickets);
 router.get("/export-detailed", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:read'), exportDetailedItems);
 router.post("/", authorize(["ADMIN", "PLANNER", "MANAGER"], 'outsourcing:create'), createTicket);

@@ -43,6 +43,7 @@ export const exportDetailedItems = async (req, res) => {
           r.ticket_item_id,
           MAX(r.returned_at) AS last_returned_at,
           SUM(r.quantity_returned) AS total_returned,
+          SUM(r.accessory_quantity_returned) AS total_accessory_returned,
           SUM(r.gross_weight) AS return_gross_weight,
           SUM(r.pallet_weight) AS return_pallet_weight,
           SUM(r.net_weight) AS return_net_weight,
@@ -69,6 +70,7 @@ export const exportDetailedItems = async (req, res) => {
         t.expected_return_date,
         ra.last_returned_at,
         ra.total_returned,
+        ra.total_accessory_returned,
         ra.return_gross_weight,
         ra.return_pallet_weight,
         ra.return_net_weight,
@@ -93,6 +95,37 @@ export const exportDetailedItems = async (req, res) => {
 };
 
 // Lấy danh sách phiếu (Outbound / All)
+export const getRemainingQuantity = async (req, res) => {
+  try {
+    const { order_id, product_id } = req.query;
+    if (!order_id || !product_id) {
+      return res.status(400).json({ message: "Thiếu order_id hoặc product_id" });
+    }
+
+    const orderProductRes = await pool.query(
+      `SELECT quantity FROM order_products WHERE order_id = $1 AND product_id = $2 LIMIT 1`,
+      [order_id, product_id]
+    );
+    const orderQuantity = orderProductRes.rowCount > 0 ? parseFloat(orderProductRes.rows[0].quantity || 0) : 0;
+
+    const dispatchedRes = await pool.query(
+      `SELECT COALESCE(SUM(i.quantity_out), 0) as total_dispatched
+       FROM outsourcing_ticket_items i
+       JOIN outsourcing_tickets t ON i.ticket_id = t.id
+       WHERE i.order_id = $1 AND i.product_id = $2 AND t.deleted_at IS NULL`,
+      [order_id, product_id]
+    );
+    const totalDispatched = parseFloat(dispatchedRes.rows[0].total_dispatched || 0);
+
+    const remaining = orderQuantity - totalDispatched;
+
+    res.json({ order_quantity: orderQuantity, total_dispatched: totalDispatched, remaining: Math.max(0, remaining) });
+  } catch (error) {
+    console.error("Get Remaining Quantity Error:", error);
+    res.status(500).json({ message: "Lỗi khi lấy sản lượng còn thiếu" });
+  }
+};
+
 export const getTickets = async (req, res) => {
   try {
     const { type, search = "", page = 1, limit = 10, order_id, product_id, date } = req.query;
@@ -474,18 +507,17 @@ export const addReturnEntry = async (req, res) => {
   try {
     await client.query("BEGIN");
     const { ticket_id } = req.params;
-    const { ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
+    const { ticket_item_id, quantity_returned, accessory_quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
     const created_by = req.user.id;
 
     // Insert return entry
     const insertRes = await client.query(
-      `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [ticket_item_id, quantity_returned, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
+      `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, accessory_quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [ticket_item_id, quantity_returned, accessory_quantity_returned || 0, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
     );
 
-    // Update status of main ticket
-    // We get sum of all items out and sum of all items returned
+    // Update status of main ticket - only use quantity_returned (BP chính) for status
     const checkRes = await client.query(
       `SELECT 
         (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
@@ -532,7 +564,7 @@ export const updateReturnEntry = async (req, res) => {
   try {
     await client.query("BEGIN");
     const { return_id } = req.params;
-    const { quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
+    const { quantity_returned, accessory_quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes } = req.body;
     const modified_by = req.user.id;
 
     // Get the current return entry to find the ticket_id
@@ -551,22 +583,23 @@ export const updateReturnEntry = async (req, res) => {
 
     // Update return entry
     const updateRes = await client.query(
-  `UPDATE outsourcing_returns 
-   SET quantity_returned = $1, gross_weight = $2, pallet_weight = $3, net_weight = $4, 
-       missing_weight = $5, notes = $6
-   WHERE id = $7 RETURNING *`,
-  [
-    quantity_returned ?? null,
-    gross_weight ?? null,
-    pallet_weight ?? null,
-    net_weight ?? null,
-    missing_weight ?? null,
-    notes ?? null,
-    return_id
-  ]
-);
+      `UPDATE outsourcing_returns 
+       SET quantity_returned = $1, accessory_quantity_returned = $2, gross_weight = $3, pallet_weight = $4, 
+           net_weight = $5, missing_weight = $6, notes = $7
+       WHERE id = $8 RETURNING *`,
+      [
+        quantity_returned ?? null,
+        accessory_quantity_returned ?? 0,
+        gross_weight ?? null,
+        pallet_weight ?? null,
+        net_weight ?? null,
+        missing_weight ?? null,
+        notes ?? null,
+        return_id
+      ]
+    );
 
-    // Recalculate ticket status
+    // Recalculate ticket status - only use quantity_returned (BP chính)
     const checkRes = await client.query(
       `SELECT 
         (SELECT COALESCE(SUM(quantity_out), 0) FROM outsourcing_ticket_items WHERE ticket_id = $1) as quantity_out,
