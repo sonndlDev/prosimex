@@ -768,10 +768,7 @@ function InboundTicketForm({ type }) {
 
   const handleAddReturn = async (itemId) => {
     const data = returnFormData[itemId] || {};
-    if (!data.quantity_returned || parseFloat(data.quantity_returned) <= 0) {
-      toast.error("Vui lòng nhập số lượng hợp lệ!");
-      return;
-    }
+    
     setLoadingReturn(true);
     try {
       await outsourcingService.addReturn(ticketData.id, { ticket_item_id: itemId, ...data });
