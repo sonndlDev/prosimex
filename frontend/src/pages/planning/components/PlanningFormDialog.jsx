@@ -281,7 +281,7 @@ const PlanningFormDialog = React.memo(
       productQtyInOrder > 0
         ? productQtyInOrder
         : selectedOrder
-          ? parseFloat(selectedOrder.quantity)
+          ? parseFloat(selectedOrder.quantity) || 0
           : 0;
     const remainingQty = Math.max(0, totalOrderQty - inventory);
     // Khi tồn kho đủ hoặc vượt số lượng đơn → vẫn cho tạo kế hoạch để ghi nhận trong báo cáo
@@ -379,7 +379,7 @@ const PlanningFormDialog = React.memo(
               const shiftHours =
                 d.hours != null && d.hours !== ""
                   ? parseFloat(d.hours)
-                  : parseFloat(d.planned_work_quantity) / 8;
+                  : (parseFloat(d.planned_work_quantity) || 0) / 8;
               if (d.machineHours) {
                 return normalizePlannedDay({
                   date,
@@ -613,19 +613,19 @@ const PlanningFormDialog = React.memo(
             .filter(d => d.machineHours?.[mId] && parseFloat(d.machineHours[mId]) > 0)
             .map(d => ({
               date: d.date,
-              hours: (parseFloat(d.machineHours[mId]) * 8).toFixed(6),
+              hours: ((parseFloat(d.machineHours[mId]) || 0) * 8).toFixed(6),
               is_overtime: d.is_overtime || false,
             })),
         })).filter(m => m.days.length > 0);
 
         onSubmit({
           ...baseData,
-          isMultiMachine: true,       // ✅ Flag để Page nhận biết
+          isMultiMachine: true,
           multiMachineDays,
           product_id: selectedProductId || null,
           product_group_operation_id: selectedOpId || null,
-          inventory_input: inventory,
-          dinh_muc: dinhMuc,
+          inventory_input: parseFloat(inventory) || 0,
+          dinh_muc: parseFloat(dinhMuc) || 0,
           planned_start_date: startDate,
         });
         return;
@@ -639,15 +639,15 @@ const PlanningFormDialog = React.memo(
           : plannedDays
             .filter(
               (d) =>
-                parseFloat(d.hours) > 0 ||
+                (parseFloat(d.hours) || 0) > 0 ||
                 (d.machineHours &&
                   Object.values(d.machineHours).some(
-                    (h) => parseFloat(h) > 0,
+                    (h) => (parseFloat(h) || 0) > 0,
                   )),
             )
             .map((d) => ({
               date: d.date,
-              hours: (parseFloat(d.hours) * 8).toFixed(6),
+              hours: ((parseFloat(d.hours) || 0) * 8).toFixed(6),
               is_overtime: d.is_overtime || false,
               machine_hours: d.machineHours || {},
             }));
@@ -659,8 +659,8 @@ const PlanningFormDialog = React.memo(
           selectedMachineIds.length > 0 ? selectedMachineIds[0] : null,
         product_id: selectedProductId || null,
         product_group_operation_id: selectedOpId || null,
-        inventory_input: inventory,
-        dinh_muc: dinhMuc,
+        inventory_input: parseFloat(inventory) || 0,
+        dinh_muc: parseFloat(dinhMuc) || 0,
         planned_start_date: startDate,
         endDate:
           isInventoryCovered && plannedDays.length === 0 ? startDate : endDate,

@@ -165,8 +165,8 @@ const PlanningTableRow = React.memo(
         )}
         {renderTooltippedCell(
           (
-            parseFloat(plan.inventory_input) +
-            parseFloat(plan.remaining_quantity)
+            (parseFloat(plan.inventory_input) || 0) +
+            (parseFloat(plan.remaining_quantity) || 0)
           ).toLocaleString("en-US"),
           "text-right px-3 tabular-nums font-medium",
           true,
@@ -176,15 +176,15 @@ const PlanningTableRow = React.memo(
         )}
 
         {renderTooltippedCell(
-          parseFloat(plan.inventory_input).toLocaleString("en-US"),
+          (parseFloat(plan.inventory_input) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums",
         )}
         {renderTooltippedCell(
-          parseFloat(plan.remaining_quantity).toLocaleString("en-US"),
+          (parseFloat(plan.remaining_quantity) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums font-black text-red-600",
         )}
         {renderTooltippedCell(
-          parseFloat(plan.dinh_muc).toLocaleString("en-US"),
+          (parseFloat(plan.dinh_muc) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums",
         )}
         {renderTooltippedCell("0", "text-right px-3 tabular-nums")}
@@ -289,12 +289,12 @@ const PlanningTableRow = React.memo(
                     className={`text-[10px] font-bold tabular-nums ${!dayData ? "text-zinc-300" : ""}`}
                   >
                     {dayData
-                      ? Math.round(
+                      ? (Math.round(
                           toDisplayQuantity(
                             dayData.planned_work_quantity,
                             plan.dinh_muc,
                           ),
-                        )
+                        ) || 0)
                       : "-"}
                   </span>
                 </div>

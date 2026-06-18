@@ -324,7 +324,7 @@ export default function PlanningPage() {
           };
         }
         daysByDate[date].machineHours[mId] = (
-          parseFloat(d.planned_work_quantity) / 8
+          (parseFloat(d.planned_work_quantity) || 0) / 8
         ).toFixed(6);
         if (parseOvertimeFlag(d.is_overtime))
           daysByDate[date].is_overtime = true;
@@ -398,8 +398,8 @@ export default function PlanningPage() {
                 product_group_operation_id: payload.product_group_operation_id,
                 factory_id: payload.factory_id,
                 is_outsourced: payload.is_outsourced,
-                inventory_input: payload.inventory_input,
-                dinh_muc: payload.dinh_muc,
+                inventory_input: parseFloat(payload.inventory_input) || 0,
+                dinh_muc: parseFloat(payload.dinh_muc) || 0,
                 planned_start_date: days[0]?.date || payload.planned_start_date,
                 machine_id,
                 days,
@@ -444,9 +444,9 @@ export default function PlanningPage() {
                   if (payloadMachineIds.length > 1) {
                     machineHrs = parseFloat(d.machine_hours?.[mId] ?? 0);
                   } else {
-                    machineHrs = parseFloat(d.hours) / 8; // d.hours is already multiplied by 8
+                    machineHrs = (parseFloat(d.hours) || 0) / 8;
                   }
-                  if (machineHrs <= 0) return null;
+                  if (machineHrs <= 0 || isNaN(machineHrs)) return null;
                   return {
                     date: d.date,
                     hours: (machineHrs * 8).toFixed(6),
@@ -460,9 +460,9 @@ export default function PlanningPage() {
                   order_id: planRecord.order_id,
                   product_id: planRecord.product_id,
                   product_group_operation_id: planRecord.product_group_operation_id,
-                  inventory_input: payload.inventory_input ?? planRecord.inventory_input,
+                  inventory_input: parseFloat(payload.inventory_input ?? planRecord.inventory_input) || 0,
                   planned_start_date: payload.planned_start_date ?? planRecord.planned_start_date,
-                  dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
+                  dinh_muc: parseFloat(payload.dinh_muc ?? planRecord.dinh_muc) || 0,
                   machine_id: machine_id || null,
                   days: mDays,
                 })
@@ -483,9 +483,9 @@ export default function PlanningPage() {
                   if (payloadMachineIds.length > 1) {
                     machineHrs = parseFloat(d.machine_hours?.[String(mId)] ?? 0);
                   } else {
-                    machineHrs = parseFloat(d.hours) / 8;
+                    machineHrs = (parseFloat(d.hours) || 0) / 8;
                   }
-                  if (machineHrs <= 0) return null;
+                  if (machineHrs <= 0 || isNaN(machineHrs)) return null;
                   return {
                     date: d.date,
                     hours: (machineHrs * 8).toFixed(6),
@@ -501,8 +501,8 @@ export default function PlanningPage() {
                   product_group_operation_id: planRecord.product_group_operation_id,
                   factory_id: payload.factory_id || planRecord.factory_id,
                   is_outsourced: payload.is_outsourced || planRecord.is_outsourced,
-                  inventory_input: payload.inventory_input ?? planRecord.inventory_input,
-                  dinh_muc: payload.dinh_muc ?? planRecord.dinh_muc,
+                  inventory_input: parseFloat(payload.inventory_input ?? planRecord.inventory_input) || 0,
+                  dinh_muc: parseFloat(payload.dinh_muc ?? planRecord.dinh_muc) || 0,
                   planned_start_date: payload.planned_start_date ?? planRecord.planned_start_date,
                   machine_id: mId,
                   days: mDays,
@@ -542,12 +542,12 @@ export default function PlanningPage() {
   const mapDaysWithQuantity = useCallback((days, dinhMuc) => {
     return days.map((d) => {
       const hours = parseFloat(
-        (parseFloat(d.planned_work_quantity) / 8).toFixed(10),
+        ((parseFloat(d.planned_work_quantity) || 0) / 8).toFixed(10),
       );
       return {
         date: DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd"),
         hours,
-        quantity: String(Math.round(hours * parseFloat(dinhMuc))),
+        quantity: String(Math.round(hours * (parseFloat(dinhMuc) || 0))),
         is_overtime: d.is_overtime,
       };
     });
@@ -611,7 +611,7 @@ export default function PlanningPage() {
               dateISO,
           );
           const hours = existingDay
-            ? (parseFloat(existingDay.planned_work_quantity) / 8).toFixed(6)
+            ? ((parseFloat(existingDay.planned_work_quantity) || 0) / 8).toFixed(6)
             : "0.00";
           const quantity = existingDay
             ? String(
@@ -650,14 +650,14 @@ export default function PlanningPage() {
         order_id: plan.order_id,
         product_id: plan.product_id,
         product_group_operation_id: plan.product_group_operation_id,
-        inventory_input: plan.inventory_input,
+        inventory_input: parseFloat(plan.inventory_input) || 0,
         planned_start_date: plan.planned_start_date,
         machine_id: plan.machine_id || null,
         days: inlineEditDays
-          .filter((d) => parseFloat(d.hours) > 0)
+          .filter((d) => (parseFloat(d.hours) || 0) > 0)
           .map((d) => ({
             date: d.date,
-            hours: (parseFloat(d.hours) * 8).toFixed(6),
+            hours: ((parseFloat(d.hours) || 0) * 8).toFixed(6),
             is_overtime: d.is_overtime,
           })),
       };
@@ -795,8 +795,8 @@ export default function PlanningPage() {
                     "Công đoạn": plan.operation_name,
                     Máy: plan.machine_name,
                     "SL đơn":
-                      parseFloat(plan.inventory_input) +
-                      parseFloat(plan.remaining_quantity),
+                      (parseFloat(plan.inventory_input) || 0) +
+                      (parseFloat(plan.remaining_quantity) || 0),
                     "Tồn kho": plan.inventory_input,
                     "Còn lại": plan.remaining_quantity,
                     "Định mức": plan.dinh_muc,

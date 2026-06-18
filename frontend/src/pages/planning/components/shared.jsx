@@ -89,7 +89,7 @@ export function buildDailyMachineMetrics(plans, options = {}) {
       const machineId = String(plan.machine_id || "unknown");
       const hours = day.hours
         ? parseFloat(day.hours)
-        : parseFloat(day.planned_work_quantity) / 8;
+        : (parseFloat(day.planned_work_quantity) || 0) / 8;
 
       addMachineDayHours(metrics, dateISO, machineId, hours, day.is_overtime);
     });
@@ -138,9 +138,9 @@ export function getMachineDayUsage(metrics, dateISO, machineId) {
 /** Số lượng SP hiển thị trên lịch = (planned_work_quantity / 8) * định mức */
 export function toDisplayQuantity(plannedWorkQty, dinhMuc) {
   const dm = parseFloat(dinhMuc) || 1;
-  const hours = parseFloat(plannedWorkQty) / 8;
+  const hours = (parseFloat(plannedWorkQty) || 0) / 8;
   const result = hours * dm;
-  return result; // Return exact value, let caller handle rounding if needed
+  return result;
 }
 
 /** Chuyển số lượng SP nhập vào → giờ công (shifts) dùng cho rebalance/lưu */
