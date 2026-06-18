@@ -177,6 +177,11 @@ export const createProductionPlan = async (req, res) => {
       days, // [{date, hours, is_overtime}]
     } = req.body;
 
+    if (!order_id) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "order_id is required" });
+    }
+
     const created_by = req.user.id;
 
     // 1. Fetch related Order and product-specific quantity
@@ -215,9 +220,9 @@ export const createProductionPlan = async (req, res) => {
     }
 
     // 2. Business Logic Calculations
-    const remaining_quantity = order_quantity - parseFloat(inventory_input);
+    const remaining_quantity = order_quantity - (parseFloat(inventory_input) || 0);
     const total_required_work = parseFloat(
-      (days || []).reduce((acc, d) => acc + parseFloat(d.hours), 0),
+      (days || []).reduce((acc, d) => acc + (parseFloat(d.hours) || 0), 0),
     );
     // Fallback: nếu days rỗng hoặc chỉ có 0h placeholder → dùng planned_start_date
     const nonZeroDays = (days || []).filter(d => parseFloat(d.hours) > 0);
@@ -344,10 +349,10 @@ export const updateProductionPlan = async (req, res) => {
     }
 
     // 3. Logic
-    const remaining_quantity = order_quantity - parseFloat(inventory_input);
+    const remaining_quantity = order_quantity - (parseFloat(inventory_input) || 0);
     const nonZeroDays = (days || []).filter(d => parseFloat(d.hours) > 0);
     const total_required_work = parseFloat(
-      (days || []).reduce((acc, d) => acc + parseFloat(d.hours), 0),
+      (days || []).reduce((acc, d) => acc + (parseFloat(d.hours) || 0), 0),
     );
     const planned_end_date = nonZeroDays.length > 0
       ? nonZeroDays[nonZeroDays.length - 1].date
@@ -609,14 +614,14 @@ export const createOrderGeneralPlan = async (req, res) => {
       const products = productsRes.rows;
       if (products.length === 0) throw new Error("No products in order");
 
-      const totalOrderQty = products.reduce((sum, p) => sum + parseFloat(p.quantity), 0);
+      const totalOrderQty = products.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
       const start = new Date(start_date);
       const end = new Date(end_date);
       const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
       if (diffDays <= 0) throw new Error("Invalid date range");
 
       const avgOrderNormPerDay = totalOrderQty / diffDays;
-      const avgItemNormPerDay = avgOrderNormPerDay; // User requested: take the norm directly, no division by count
+      const avgItemNormPerDay = avgOrderNormPerDay || 1; // User requested: take the norm directly, no division by count
 
       let sequentialStart = new Date(start);
       productsToPlan = products.map(p => {
