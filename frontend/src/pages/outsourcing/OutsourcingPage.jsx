@@ -768,13 +768,19 @@ function InboundTicketForm({ type }) {
 
   const handleAddReturn = async (itemId) => {
     const data = returnFormData[itemId] || {};
-    
+    const qtyReturned = parseFloat(data.quantity_returned || 0);
+    const qtyAccessory = parseFloat(data.accessory_quantity_returned || 0);
+    if (!qtyReturned && !qtyAccessory) {
+      toast.warning("Vui lòng nhập ít nhất một số lượng (BP chính hoặc PK/Hàng lỗi)");
+      return;
+    }
+
     setLoadingReturn(true);
     try {
       await outsourcingService.addReturn(ticketData.id, { ticket_item_id: itemId, ...data });
       toast.success("Đã cập nhật lượng nhập về!");
       setReturnFormData(prev => ({ ...prev, [itemId]: undefined }));
-      handleSearch(); // Refresh data
+      handleSearch();
     } catch (error) {
       toast.error("Lỗi khi nhập bổ sung");
     } finally {
@@ -903,7 +909,7 @@ function InboundTicketForm({ type }) {
                       <div className="flex flex-col gap-3 pt-2">
                         <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
                           <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
-                            <Label className="text-[10px] font-bold uppercase text-blue-700">SL Nhập BP chính *</Label>
+                            <Label className="text-[10px] font-bold uppercase text-blue-700">SL Nhập BP chính</Label>
                             <Input
                               type="number"
                               placeholder="0"
@@ -1073,7 +1079,7 @@ function InboundTicketForm({ type }) {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-blue-700 uppercase">SL Nhập BP chính *</Label>
+                <Label className="text-xs font-bold text-blue-700 uppercase">SL Nhập BP chính</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -1189,8 +1195,8 @@ function InboundTicketForm({ type }) {
             <Button
               onClick={async () => {
                 if (!editingHistoryId) return;
-                if (!editingHistoryData.quantity_returned) {
-                  toast.error("Vui lòng nhập số lượng");
+                if (!editingHistoryData.quantity_returned && !editingHistoryData.accessory_quantity_returned) {
+                  toast.error("Vui lòng nhập ít nhất một số lượng (BP chính hoặc PK/Hàng lỗi)");
                   return;
                 }
 

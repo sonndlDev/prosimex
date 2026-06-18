@@ -514,7 +514,7 @@ export const addReturnEntry = async (req, res) => {
     const insertRes = await client.query(
       `INSERT INTO outsourcing_returns (ticket_item_id, quantity_returned, accessory_quantity_returned, gross_weight, pallet_weight, net_weight, missing_weight, notes, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [ticket_item_id, quantity_returned, accessory_quantity_returned || 0, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
+      [ticket_item_id, quantity_returned || 0, accessory_quantity_returned || 0, gross_weight || null, pallet_weight || null, net_weight || null, missing_weight || null, notes || null, created_by]
     );
 
     // Update status of main ticket - only use quantity_returned (BP chính) for status
@@ -588,8 +588,8 @@ export const updateReturnEntry = async (req, res) => {
            net_weight = $5, missing_weight = $6, notes = $7
        WHERE id = $8 RETURNING *`,
       [
-        quantity_returned ?? null,
-        accessory_quantity_returned ?? 0,
+        quantity_returned || 0,
+        accessory_quantity_returned || 0,
         gross_weight ?? null,
         pallet_weight ?? null,
         net_weight ?? null,
