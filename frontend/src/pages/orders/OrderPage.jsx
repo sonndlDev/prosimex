@@ -449,7 +449,7 @@ function OrderPageCore({
 
   {
     id: "actual_material_date",
-    label: <p className="text-center">Ngày báo XNK</p>,
+    label: <p className="text-center">ngày gửi BK</p>,
     format: (value, row) =>
       row.actual_material_date
         ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy")
@@ -799,7 +799,7 @@ function OrderPageCore({
           "Ngày NL về xưởng (Dự kiến)": formatExportDate(row.expected_material_date),
           "Ngày bắt đầu sản xuất": formatExportDate(row.production_start_date),
           "Ngày xuất hàng (Dự kiến)": formatExportDate(row.expected_shipping_date),
-          "Ngày báo XNK": formatExportDate(row.actual_material_date),
+          "ngày gửi BK": formatExportDate(row.actual_material_date),
           "Ngày xuất công (Thực tế)": formatExportDate(row.expected_container_shipping_date),
           "Trạng thái": getStatusLabel(row.status),
           "Kết quả xác nhận Kh": row.customer_confirmation_result || "",
@@ -1367,7 +1367,7 @@ function OrderPageCore({
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
                           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                          Ngày báo XNK
+                          ngày gửi BK
                         </Label>
                         <Controller
                           name="actual_material_date"
@@ -1376,7 +1376,7 @@ function OrderPageCore({
                             <PremiumDatePicker
                               date={field.value}
                               onSelect={field.onChange}
-                              placeholder="Chọn ngày báo XNK"
+                              placeholder="Chọn ngày gửi BK"
                             />
                           )}
                         />

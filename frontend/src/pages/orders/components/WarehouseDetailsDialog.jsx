@@ -101,7 +101,7 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
             </div>
 
             <div className="space-y-2 text-left">
-              <Label className="text-xs font-bold text-zinc-700">Ngày báo XNK</Label>
+              <Label className="text-xs font-bold text-zinc-700">ngày gửi BK</Label>
               <Controller
                 name="actual_material_date"
                 control={control}

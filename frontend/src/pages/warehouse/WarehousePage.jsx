@@ -54,7 +54,7 @@ export default function WarehousePage() {
     },
     {
       id: "actual_material_date",
-      label: <p className="text-center">Ngày báo XNK</p>,
+      label: <p className="text-center">ngày gửi BK</p>,
       format: (value, row) => row.actual_material_date ? DateTime.fromISO(row.actual_material_date).toFormat("dd/MM/yyyy") : "-"
     },
     { id: "net_weight_text", label: "Net W", format: (value, row) => row.net_weight_text || "-" },
