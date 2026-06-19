@@ -155,13 +155,13 @@ export const getOrders = async (req, res) => {
               WHERE oti.order_id = psd.order_id AND oti.product_id = psd.product_id 
               AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
             ), 0)::numeric ELSE 0 END as dong_goi,
-          CASE WHEN psd.has_dong_goi AND psd.final_pgo_id IS NOT NULL THEN
-            COALESCE((
-              SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti 
-              JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-              WHERE dti.order_id = psd.order_id AND dti.product_id = psd.product_id 
-              AND dti.product_group_operation_id = psd.final_pgo_id AND dt.deleted_at IS NULL
-            ), 0)::numeric ELSE 0 END as cong_doan_cuoi
+          COALESCE((
+            SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti 
+            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+            WHERE dti.order_id = psd.order_id AND dti.product_id = psd.product_id 
+            AND dt.deleted_at IS NULL
+            AND (psd.final_pgo_id IS NULL OR dti.product_group_operation_id = psd.final_pgo_id)
+          ), 0)::numeric as sx
         FROM product_stage_data psd
       ),
       product_percentages AS (
@@ -175,10 +175,12 @@ export const getOrders = async (req, res) => {
               ROUND((LEAST(pa.xi_ma_di, pa.required) * 100.0 / NULLIF(pa.required, 0)
                + LEAST(pa.xi_ma_ve, pa.required) * 100.0 / NULLIF(pa.required, 0)
                + LEAST(pa.dong_goi, pa.required) * 100.0 / NULLIF(pa.required, 0)
-               + LEAST(pa.cong_doan_cuoi, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 4.0, 2)
+               + LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 4.0, 2)
             WHEN pa.stage_count = 2 THEN
               ROUND((LEAST(pa.dong_goi, pa.required) * 100.0 / NULLIF(pa.required, 0)
-               + LEAST(pa.cong_doan_cuoi, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 2.0, 2)
+               + LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 2.0, 2)
+            WHEN pa.stage_count = 0 AND pa.required > 0 THEN
+              ROUND(LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0), 2)
             ELSE 0
           END as product_percentage
         FROM product_actuals pa
@@ -297,13 +299,13 @@ export const getOrderById = async (req, res) => {
               WHERE oti.order_id = psd.order_id AND oti.product_id = psd.product_id 
               AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
             ), 0)::numeric ELSE 0 END as dong_goi,
-          CASE WHEN psd.has_dong_goi AND psd.final_pgo_id IS NOT NULL THEN
-            COALESCE((
-              SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti 
-              JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
-              WHERE dti.order_id = psd.order_id AND dti.product_id = psd.product_id 
-              AND dti.product_group_operation_id = psd.final_pgo_id AND dt.deleted_at IS NULL
-            ), 0)::numeric ELSE 0 END as cong_doan_cuoi
+          COALESCE((
+            SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti 
+            JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+            WHERE dti.order_id = psd.order_id AND dti.product_id = psd.product_id 
+            AND dt.deleted_at IS NULL
+            AND (psd.final_pgo_id IS NULL OR dti.product_group_operation_id = psd.final_pgo_id)
+          ), 0)::numeric as sx
         FROM product_stage_data psd
       ),
       product_percentages AS (
@@ -317,10 +319,12 @@ export const getOrderById = async (req, res) => {
               ROUND((LEAST(pa.xi_ma_di, pa.required) * 100.0 / NULLIF(pa.required, 0)
                + LEAST(pa.xi_ma_ve, pa.required) * 100.0 / NULLIF(pa.required, 0)
                + LEAST(pa.dong_goi, pa.required) * 100.0 / NULLIF(pa.required, 0)
-               + LEAST(pa.cong_doan_cuoi, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 4.0, 2)
+               + LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 4.0, 2)
             WHEN pa.stage_count = 2 THEN
               ROUND((LEAST(pa.dong_goi, pa.required) * 100.0 / NULLIF(pa.required, 0)
-               + LEAST(pa.cong_doan_cuoi, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 2.0, 2)
+               + LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0)) / 2.0, 2)
+            WHEN pa.stage_count = 0 AND pa.required > 0 THEN
+              ROUND(LEAST(pa.sx, pa.required) * 100.0 / NULLIF(pa.required, 0), 2)
             ELSE 0
           END as product_percentage
         FROM product_actuals pa
