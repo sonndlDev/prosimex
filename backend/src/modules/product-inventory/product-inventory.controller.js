@@ -2,7 +2,7 @@ import pool from '../../config/db.js';
 
 export const getInventory = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", inventory_type = "ALL" } = req.query;
+    const { page = 1, limit = 10, search = "", inventory_type = "ALL", completed = "ALL" } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -18,6 +18,12 @@ export const getInventory = async (req, res) => {
     if (inventory_type && inventory_type !== "ALL") {
       queryParams.push(inventory_type);
       whereClause += ` AND pi.inventory_type = $${queryParams.length}`;
+    }
+
+    if (completed === "true" || completed === "1") {
+      whereClause += ` AND pi.completed_at IS NOT NULL`;
+    } else if (completed === "false" || completed === "0") {
+      whereClause += ` AND pi.completed_at IS NULL`;
     }
 
 
@@ -152,6 +158,54 @@ export const updateInventory = async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Update Inventory Error:", error);
     res.status(500).json({ message: "Error updating inventory", error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+export const completeInventory = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    if (!id) {
+      return res.status(400).json({ message: "Inventory ID is required" });
+    }
+
+    const currentResult = await client.query(
+      `SELECT * FROM product_inventory WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: "Inventory record not found" });
+    }
+
+    const currentData = currentResult.rows[0];
+
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `UPDATE product_inventory 
+       SET completed_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data) 
+       VALUES ($1, 'COMPLETE', 'ProductInventory', $2, $3, $4)`,
+      [userId, id, JSON.stringify(currentData), JSON.stringify({ completed_at: new Date().toISOString() })]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Inventory completed successfully", data: result.rows[0] });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Complete Inventory Error:", error);
+    res.status(500).json({ message: "Error completing inventory", error: error.message });
   } finally {
     client.release();
   }

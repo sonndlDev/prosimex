@@ -1,0 +1,1 @@
+ALTER TABLE product_inventory ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP DEFAULT NULL;

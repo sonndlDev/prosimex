@@ -3,7 +3,7 @@ import api from './api';
 export const inventoryService = {
     getAll: async (params = {}) => {
         const { data } = await api.get('/product-inventory', { params });
-        return data; // { data, total, page, limit }
+        return data;
     },
     save: async (payload) => {
         const { data } = await api.post('/product-inventory', payload);
@@ -11,6 +11,10 @@ export const inventoryService = {
     },
     update: async (id, payload) => {
         const { data } = await api.put(`/product-inventory/${id}`, payload);
+        return data;
+    },
+    complete: async (id) => {
+        const { data } = await api.patch(`/product-inventory/${id}/complete`);
         return data;
     },
     delete: async (id) => {

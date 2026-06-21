@@ -27,7 +27,8 @@ import {
     RotateCcw,
     Edit2,
     Trash2,
-    AlertCircle
+    AlertCircle,
+    CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -64,7 +65,8 @@ export default function ProductInventoryPage() {
 
     const initialFilters = {
         search: "",
-        inventory_type: "ALL"
+        inventory_type: "ALL",
+        completed: "false"
     };
 
     const [tempFilters, setTempFilters] = useState(initialFilters);
@@ -140,6 +142,15 @@ export default function ProductInventoryPage() {
             setDeleteConfirmId(null);
         },
         onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xóa tồn kho")
+    });
+
+    const completeMutation = useMutation({
+        mutationFn: (id) => inventoryService.complete(id),
+        onSuccess: () => {
+            toast.success("Đã hoàn thành tồn kho");
+            queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi hoàn thành tồn kho")
     });
 
     // Handlers
@@ -251,7 +262,15 @@ export default function ProductInventoryPage() {
             className: "font-bold text-zinc-700",
             format: (v, row) => (
                 <div className="flex flex-col gap-1">
-                    <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 border-none font-bold uppercase text-[9px] w-fit">{v}</Badge>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 border-none font-bold uppercase text-[9px] w-fit">{v}</Badge>
+                        {row.completed_at && (
+                            <Badge className="text-[8px] font-black uppercase px-2 py-0 h-4 border-none w-fit bg-emerald-100 text-emerald-700">
+                                <CheckCircle2 className="w-3 h-3 mr-0.5" />
+                                Hoàn thành
+                            </Badge>
+                        )}
+                    </div>
                     <Badge className={cn(
                         "text-[8px] font-black uppercase px-2 py-0 h-4 border-none w-fit",
                         row.inventory_type === 'TP' ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"
@@ -280,6 +299,18 @@ export default function ProductInventoryPage() {
             className: "text-center",
             format: (v, row) => (
                 <div className="flex items-center justify-center gap-2">
+                    {hasPermission('product_inventory:update') && !row.completed_at && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                            onClick={() => completeMutation.mutate(row.id)}
+                            disabled={completeMutation.isPending}
+                            title="Hoàn thành"
+                        >
+                            <CheckCircle2 className="w-4 h-4" />
+                        </Button>
+                    )}
                     {hasPermission('product_inventory:update') && (
                         <Button
                             size="sm"
@@ -694,13 +725,13 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
                 </div>
 
                 {/* Filters Grid */}
-                <div className="w-full xl:w-64 shrink-0">
+                <div className="flex items-center gap-2 w-full xl:w-auto shrink-0">
                     {/* Loại tồn kho */}
                     <Select
                         value={tempFilters.inventory_type}
                         onValueChange={val => setTempFilters(prev => ({ ...prev, inventory_type: val }))}
                     >
-                        <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm">
+                        <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm w-full xl:w-48">
                             <div className="flex items-center gap-2 overflow-hidden">
                                 <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Loại:</span>
                                 <SelectValue placeholder="Tất cả" />
@@ -710,6 +741,24 @@ const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
                             <SelectItem value="ALL">Tất cả</SelectItem>
                             <SelectItem value="BTP">Bán thành phẩm (BTP)</SelectItem>
                             <SelectItem value="TP">Thành phẩm (TP)</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    {/* Trạng thái hoàn thành */}
+                    <Select
+                        value={tempFilters.completed}
+                        onValueChange={val => setTempFilters(prev => ({ ...prev, completed: val }))}
+                    >
+                        <SelectTrigger className="h-10 text-[11px] font-bold border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white transition-all shadow-sm w-full xl:w-48">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <span className="text-zinc-400 whitespace-nowrap uppercase tracking-tighter">Trạng thái:</span>
+                                <SelectValue placeholder="Tất cả" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Tất cả</SelectItem>
+                            <SelectItem value="false">Chưa hoàn thành</SelectItem>
+                            <SelectItem value="true">Đã hoàn thành</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
