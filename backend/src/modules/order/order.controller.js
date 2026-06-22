@@ -215,7 +215,7 @@ export const getOrders = async (req, res) => {
       LEFT JOIN order_completion oc ON o.id = oc.order_id
       ${whereClause}
      ORDER BY 
-        CASE WHEN o.po_auto_code ~ '^\d+$' THEN CAST(o.po_auto_code AS INTEGER) ELSE NULL END DESC NULLS LAST,
+        CASE WHEN BTRIM(o.po_auto_code) ~ '^\d+$' THEN CAST(BTRIM(o.po_auto_code) AS INTEGER) ELSE NULL END DESC NULLS LAST,
         o.created_at DESC
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
