@@ -47,6 +47,9 @@ const PlanningTableRow = React.memo(
     onInlineDayChange,
     onInlineOTToggle,
     dailyMachineMetrics,
+    colWidths,
+    stickyLefts,
+    dateColWidth,
   }) => {
     const isEven = idx % 2 !== 0; // nth-child(even) in 1-based indexing means odd in 0-based
     const rowBg = isEven ? "bg-zinc-50" : "bg-white";
@@ -86,7 +89,9 @@ const PlanningTableRow = React.memo(
                         maxWidth: width,
                         borderRight: "1px solid #d4d4d8",
                       }
-                    : {}
+                    : width
+                      ? { width, minWidth: width }
+                      : {}
                 }
               >
                 <div className="truncate w-full">{content}</div>
@@ -114,10 +119,10 @@ const PlanningTableRow = React.memo(
       >
         <ExcelDataCell
           className={cn(
-            "sticky left-0 z-20 border-r border-zinc-200 text-center",
+            "sticky z-20 border-r border-zinc-200 text-center",
             rowBg,
           )}
-          style={{ width: 40, minWidth: 40, maxWidth: 40 }}
+          style={{ width: colWidths.checkbox, minWidth: colWidths.checkbox, maxWidth: colWidths.checkbox, left: stickyLefts.checkbox }}
         >
           <div className="flex items-center justify-center w-full h-full">
             <Checkbox
@@ -127,41 +132,48 @@ const PlanningTableRow = React.memo(
             />
           </div>
         </ExcelDataCell>
-        {renderTooltippedCell(idx + 1, "text-center font-medium", true, 40, 60)}
+        {renderTooltippedCell(idx + 1, "text-center font-medium", true, stickyLefts.stt, colWidths.stt)}
         {renderTooltippedCell(
           plan.product_name,
           "font-medium text-left px-3",
           true,
-          100,
-          150,
+          stickyLefts.product,
+          colWidths.product,
         )}
         {renderTooltippedCell(
           plan.product_group_name,
           "font-bold text-[10px]",
           true,
-          250,
-          100,
+          stickyLefts.group,
+          colWidths.group,
         )}
         {renderTooltippedCell(
           plan.sequence_order || "—",
           "font-bold text-indigo-600",
           true,
-          350,
-          80,
+          stickyLefts.seq,
+          colWidths.seq,
         )}
         {renderTooltippedCell(
           plan.operation_name,
           "text-left px-3",
           true,
-          430,
-          150,
+          stickyLefts.operation,
+          colWidths.operation,
+        )}
+        {renderTooltippedCell(
+          plan.operation_note || "—",
+          cn("text-left px-3 text-[10px] italic", plan.operation_note ? "text-zinc-500" : "text-zinc-300"),
+          true,
+          stickyLefts.op_note,
+          colWidths.op_note,
         )}
         {renderTooltippedCell(
           plan.machine_code || plan.machine_name,
           "text-left px-3 font-bold text-blue-600",
           true,
-          580,
-          120,
+          stickyLefts.machine,
+          colWidths.machine,
         )}
         {renderTooltippedCell(
           (
@@ -170,24 +182,33 @@ const PlanningTableRow = React.memo(
           ).toLocaleString("en-US"),
           "text-right px-3 tabular-nums font-medium",
           true,
-          700,
-          100,
+          stickyLefts.order_qty,
+          colWidths.order_qty,
           true,
         )}
 
         {renderTooltippedCell(
           (parseFloat(plan.inventory_input) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums",
+          false,
+          undefined,
+          colWidths.inventory,
         )}
         {renderTooltippedCell(
           (parseFloat(plan.remaining_quantity) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums font-black text-red-600",
+          false,
+          undefined,
+          colWidths.remaining,
         )}
         {renderTooltippedCell(
           (parseFloat(plan.dinh_muc) || 0).toLocaleString("en-US"),
           "text-right px-3 tabular-nums",
+          false,
+          undefined,
+          colWidths.dinh_muc,
         )}
-        {renderTooltippedCell("0", "text-right px-3 tabular-nums")}
+        {renderTooltippedCell("0", "text-right px-3 tabular-nums", false, undefined, colWidths.da_sx)}
 
         {/* <ExcelDataCell className="bg-emerald-50 text-emerald-700 font-black">x</ExcelDataCell> */}
         {/* <ExcelDataCell className="text-zinc-500 font-mono text-[10px]">{DateTime.fromISO(plan.planned_start_date).toFormat("dd-MM")}</ExcelDataCell> */}
@@ -255,6 +276,8 @@ const PlanningTableRow = React.memo(
                 backgroundColor: isInlineEditing ? "#fff" : cellBg,
                 color: isInlineEditing ? "inherit" : textColor,
                 padding: isInlineEditing ? 0 : "4px 6px",
+                width: dateColWidth,
+                minWidth: dateColWidth,
               }}
               className="relative"
             >

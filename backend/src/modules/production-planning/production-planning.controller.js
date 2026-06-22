@@ -82,6 +82,7 @@ export const getProductionPlans = async (req, res) => {
                 pgo.sequence_order, 
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 op.name as operation_name, 
+                op.description as operation_note,
                 pp.machine_id as machine_id,
                 m.name as machine_name,
                 m.code as machine_code,

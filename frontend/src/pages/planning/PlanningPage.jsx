@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, startTransition } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
@@ -58,6 +58,26 @@ import PlanningFormDialog from "./components/PlanningFormDialog";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
+function ResizeHandle({ onMouseDown }) {
+  return (
+    <span
+      onMouseDown={onMouseDown}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute right-0 top-0 w-2 h-full cursor-col-resize z-20 group/rh flex items-center justify-center"
+      style={{ touchAction: "none" }}
+    >
+      <span className="w-px h-4 bg-zinc-300 group-hover/rh:bg-indigo-400 transition-colors rounded-full" />
+    </span>
+  );
+}
+
+const STICKY_KEYS = ["checkbox", "stt", "product", "group", "seq", "operation", "op_note", "machine", "order_qty"];
+const DEFAULT_COL_WIDTHS = {
+  checkbox: 40, stt: 60, product: 150, group: 100, seq: 80,
+  operation: 150, op_note: 150, machine: 120, order_qty: 100,
+  inventory: 80, remaining: 80, dinh_muc: 80, da_sx: 80,
+};
+
 /** Mã máy (code) là duy nhất theo xưởng; name có thể trùng giữa nhiều bản ghi. */
 const formatMachineFilterLabel = (machine) => {
   const code = machine?.code?.trim();
@@ -85,6 +105,47 @@ export default function PlanningPage() {
   const [openProductFilter, setOpenProductFilter] = useState(false);
   const [openMachineFilter, setOpenMachineFilter] = useState(false);
   const [showPastDays, setShowPastDays] = useState(false);
+
+  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+  const [dateColWidth, setDateColWidth] = useState(54);
+
+  const startResize = useCallback((e, colKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colKey === "__date__" ? dateColWidth : colWidths[colKey];
+    const onMove = (ev) => {
+      const newW = Math.max(
+        colKey === "__date__" ? 36 : 28,
+        startWidth + ev.clientX - startX,
+      );
+      startTransition(() => {
+        if (colKey === "__date__") setDateColWidth(newW);
+        else setColWidths((p) => ({ ...p, [colKey]: newW }));
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [colWidths, dateColWidth]);
+
+  const stickyLefts = useMemo(() => {
+    const w = colWidths;
+    const r = {};
+    let acc = 0;
+    for (const key of STICKY_KEYS) {
+      r[key] = acc;
+      acc += w[key] || 0;
+    }
+    return r;
+  }, [colWidths]);
 
   // Delete confirmation
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -1284,7 +1345,7 @@ export default function PlanningPage() {
                 <ExcelHeaderCell
                   rowSpan={2}
                   className="sticky left-0 z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 40, minWidth: 40, maxWidth: 40 }}
+                  style={{ width: colWidths.checkbox, minWidth: colWidths.checkbox, maxWidth: colWidths.checkbox, left: stickyLefts.checkbox }}
                 >
                   <Checkbox
                     checked={
@@ -1303,62 +1364,76 @@ export default function PlanningPage() {
                     aria-label="Select all"
                     className="border-zinc-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 ml-1"
                   />
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "checkbox")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[40px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 60, minWidth: 60, maxWidth: 60 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.stt, minWidth: colWidths.stt, maxWidth: colWidths.stt, left: stickyLefts.stt }}
                 >
                   Thứ tự
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "stt")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[100px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 150, minWidth: 150, maxWidth: 150 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.product, minWidth: colWidths.product, maxWidth: colWidths.product, left: stickyLefts.product }}
                 >
                   Tên mã hàng
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "product")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[250px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.group, minWidth: colWidths.group, maxWidth: colWidths.group, left: stickyLefts.group }}
                 >
                   Nhóm mã
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "group")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[350px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 80, minWidth: 80, maxWidth: 80 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.seq, minWidth: colWidths.seq, maxWidth: colWidths.seq, left: stickyLefts.seq }}
                 >
                   STT CĐ
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "seq")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[430px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 150, minWidth: 150, maxWidth: 150 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.operation, minWidth: colWidths.operation, maxWidth: colWidths.operation, left: stickyLefts.operation }}
                 >
                   Công đoạn
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "operation")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[580px] z-50 bg-zinc-100 border-r-zinc-300"
-                  style={{ width: 120, minWidth: 120, maxWidth: 120 }}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.op_note, minWidth: colWidths.op_note, maxWidth: colWidths.op_note, left: stickyLefts.op_note }}
+                >
+                  Ghi chú CĐ
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "op_note")} />
+                </ExcelHeaderCell>
+                <ExcelHeaderCell
+                  rowSpan={2}
+                  className="sticky z-50 bg-zinc-100 border-r-zinc-300"
+                  style={{ width: colWidths.machine, minWidth: colWidths.machine, maxWidth: colWidths.machine, left: stickyLefts.machine }}
                 >
                   Máy
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "machine")} />
                 </ExcelHeaderCell>
                 <ExcelHeaderCell
                   rowSpan={2}
-                  className="sticky left-[700px] z-50 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300"
-                  style={{ width: 100, minWidth: 100, maxWidth: 100 }}
+                  className="sticky z-50 bg-zinc-100 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r-zinc-300"
+                  style={{ width: colWidths.order_qty, minWidth: colWidths.order_qty, maxWidth: colWidths.order_qty, left: stickyLefts.order_qty }}
                 >
                   SL đơn
+                  <ResizeHandle onMouseDown={(e) => startResize(e, "order_qty")} />
                 </ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Tồn kho</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2} className="text-red-600">
-                  Còn lại
-                </ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Định mức</ExcelHeaderCell>
-                <ExcelHeaderCell rowSpan={2}>Đã SX</ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Tồn kho<ResizeHandle onMouseDown={(e) => startResize(e, "inventory")} /></ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2} className="text-red-600">Còn lại<ResizeHandle onMouseDown={(e) => startResize(e, "remaining")} /></ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Định mức<ResizeHandle onMouseDown={(e) => startResize(e, "dinh_muc")} /></ExcelHeaderCell>
+                <ExcelHeaderCell rowSpan={2}>Đã SX<ResizeHandle onMouseDown={(e) => startResize(e, "da_sx")} /></ExcelHeaderCell>
                 {/* <ExcelHeaderCell rowSpan={2}>Mẫu</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Bắt đầu</ExcelHeaderCell>
                 <ExcelHeaderCell rowSpan={2}>Kết thúc</ExcelHeaderCell> */}
@@ -1388,11 +1463,12 @@ export default function PlanningPage() {
                       <ExcelHeaderCell
                         key={date.key}
                         className={cn(
-                          "text-[9px] min-w-[54px] p-1 h-auto py-2",
+                          "text-[9px] p-1 h-auto py-2",
                           isSunday
                             ? "bg-zinc-400 text-red-50"
                             : "bg-sky-50/50 text-zinc-600",
                         )}
+                        style={{ width: dateColWidth, minWidth: dateColWidth }}
                       >
                         <div className="flex flex-col items-center gap-1.5">
                           <div className="flex flex-col items-center">
@@ -1464,12 +1540,15 @@ export default function PlanningPage() {
                     onInlineDayChange={handleInlineDayChange}
                     onInlineOTToggle={handleInlineOTToggle}
                     dailyMachineMetrics={dailyMachineMetrics}
+                    colWidths={colWidths}
+                    stickyLefts={stickyLefts}
+                    dateColWidth={dateColWidth}
                   />
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={17 + dateColumns.length}
+                    colSpan={18 + dateColumns.length}
                     className="py-20 text-center text-zinc-400 bg-white"
                   >
                     {isLoading ? (
