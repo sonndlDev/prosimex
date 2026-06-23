@@ -17,6 +17,10 @@ export const inventoryService = {
         const { data } = await api.patch(`/product-inventory/${id}/complete`);
         return data;
     },
+    exportInventory: async (id, payload) => {
+        const { data } = await api.post(`/product-inventory/${id}/export`, payload);
+        return data;
+    },
     delete: async (id) => {
         const { data } = await api.delete(`/product-inventory/${id}`);
         return data;

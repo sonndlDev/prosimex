@@ -48,5 +48,9 @@ export const productGroupService = {
     saveStageConfigs: async (groupId, configs) => {
         const { data } = await api.put(`/product-groups/${groupId}/stage-configs`, { configs });
         return data;
+    },
+    exportGroups: async (params = {}) => {
+        const { data } = await api.get('/product-groups/export', { params });
+        return data;
     }
 };

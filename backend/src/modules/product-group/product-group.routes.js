@@ -3,7 +3,7 @@ import {
   getProductGroups, createProductGroup, updateProductGroup, deleteProductGroup,
   getProductGroupOperations, createProductGroupOperation, deleteProductGroupOperation,
   updateProductGroupOperation, reorderProductGroupOperations,
-  getStageConfigs, saveStageConfigs
+  getStageConfigs, saveStageConfigs, exportProductGroups
 } from './product-group.controller.js'
 import verifyToken from '../../middlewares/auth.middleware.js'
 import { authorize } from '../../middlewares/rbac.middleware.js'
@@ -11,6 +11,7 @@ import { authorize } from '../../middlewares/rbac.middleware.js'
 const router = express.Router()
 
 router.use(verifyToken)
+router.get('/export', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'product_groups:read'), exportProductGroups)
 // Assuming PLANNER manages product groups
 router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'product_groups:read'), getProductGroups)
 router.post('/', authorize(['ADMIN', 'PLANNER'], 'product_groups:create'), createProductGroup)

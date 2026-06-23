@@ -28,7 +28,8 @@ import {
     Edit2,
     Trash2,
     AlertCircle,
-    CheckCircle2
+    CheckCircle2,
+    Truck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -92,6 +93,9 @@ export default function ProductInventoryPage() {
     const [editingRecord, setEditingRecord] = useState(null);
     const [editFormData, setEditFormData] = useState({});
     const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+    const [exportRecord, setExportRecord] = useState(null);
+    const [exportQuantity, setExportQuantity] = useState("");
+    const [exportNote, setExportNote] = useState("");
 
     // Fetch data
     const { data: productsData } = useQuery({
@@ -151,6 +155,18 @@ export default function ProductInventoryPage() {
             queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
         },
         onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi hoàn thành tồn kho")
+    });
+
+    const exportMutation = useMutation({
+        mutationFn: ({ id, payload }) => inventoryService.exportInventory(id, payload),
+        onSuccess: () => {
+            toast.success("Đã xuất kho thành công");
+            queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
+            setExportRecord(null);
+            setExportQuantity("");
+            setExportNote("");
+        },
+        onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi xuất kho")
     });
 
     // Handlers
@@ -249,6 +265,23 @@ export default function ProductInventoryPage() {
         deleteMutation.mutate(deleteConfirmId);
     };
 
+    const handleExportClick = (record) => {
+        setExportRecord(record);
+        setExportQuantity("");
+        setExportNote("");
+    };
+
+    const handleExportConfirm = () => {
+        if (!exportRecord) return;
+        const qty = parseFloat(exportQuantity);
+        if (isNaN(qty) || qty <= 0) return toast.error("Số lượng xuất không hợp lệ");
+        if (qty > parseFloat(exportRecord.quantity)) return toast.error("Số lượng xuất vượt quá tồn kho");
+        exportMutation.mutate({
+            id: exportRecord.id,
+            payload: { quantity: qty, note: exportNote }
+        });
+    };
+
     const tableColumns = [
         {
             id: "product_name",
@@ -286,6 +319,12 @@ export default function ProductInventoryPage() {
             className: "font-black text-right",
             format: (v) => <span className="text-blue-600">{Number(v).toLocaleString()}</span>
         },
+        {
+            id: "used_quantity",
+            label: "Đã xuất",
+            className: "font-bold text-right",
+            format: (v) => <span className="text-amber-600">{Number(v || 0).toLocaleString()}</span>
+        },
         { id: "note", label: "Ghi chú", className: "text-zinc-500 italic text-xs max-w-[200px] truncate" },
         { id: "recorder_name", label: "Người nhập", className: "font-medium text-xs" },
         {
@@ -299,6 +338,17 @@ export default function ProductInventoryPage() {
             className: "text-center",
             format: (v, row) => (
                 <div className="flex items-center justify-center gap-2">
+                    {hasPermission('product_inventory:update') && !row.completed_at && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                            onClick={() => handleExportClick(row)}
+                            title="Xuất kho"
+                        >
+                            <Truck className="w-4 h-4" />
+                        </Button>
+                    )}
                     {hasPermission('product_inventory:update') && !row.completed_at && (
                         <Button
                             size="sm"
@@ -686,6 +736,76 @@ export default function ProductInventoryPage() {
                         >
                             {deleteMutation.isPending ? "Đang xóa..." : (
                                 <><Trash2 className="w-4 h-4 mr-2" /> Xóa</>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Export Inventory Modal */}
+            <Dialog open={!!exportRecord} onOpenChange={(open) => !open && setExportRecord(null)}>
+                <DialogContent className="max-w-lg p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="bg-amber-50 border-b border-amber-100 p-6">
+                        <DialogTitle className="text-lg font-black uppercase tracking-tight text-amber-800 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-amber-500 rounded-xl text-white flex items-center justify-center shadow-lg shadow-amber-100">
+                                <Truck className="w-5 h-5" />
+                            </div>
+                            Xuất kho
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-6 space-y-4">
+                        <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                            <p className="text-xs font-bold text-zinc-500 uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{exportRecord?.product_name}</span></p>
+                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{exportRecord?.operation_name}</span></p>
+                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Tồn kho hiện tại: <span className="text-blue-600 ml-2">{Number(exportRecord?.quantity).toLocaleString()}</span></p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Số lượng xuất <span className="text-red-500">*</span></Label>
+                            <Input
+                                type="number"
+                                placeholder="Nhập số lượng..."
+                                className="h-10 font-black text-blue-600 focus:ring-indigo-500"
+                                value={exportQuantity}
+                                onChange={(e) => setExportQuantity(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Ghi chú <span className="text-zinc-400 font-normal">(tuỳ chọn)</span></Label>
+                            <Textarea
+                                placeholder="Nhập lý do xuất kho..."
+                                className="font-medium text-sm border-zinc-200 rounded-lg bg-zinc-50 hover:bg-white transition-all focus:ring-indigo-500"
+                                rows={3}
+                                value={exportNote}
+                                onChange={(e) => setExportNote(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-xs text-blue-700 font-medium">
+                                Hệ thống sẽ tách thành 2 bản ghi: bản ghi gốc giảm số lượng, bản ghi mới ghi nhận số đã xuất.
+                            </p>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-6">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setExportRecord(null)}
+                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                        >
+                            Hủy
+                        </Button>
+                        <Button
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest shadow-lg shadow-amber-100 transition-all active:scale-[0.98] disabled:opacity-50 px-8"
+                            disabled={exportMutation.isPending || !exportQuantity}
+                            onClick={handleExportConfirm}
+                        >
+                            {exportMutation.isPending ? "Đang xuất..." : (
+                                <><Truck className="w-4 h-4 mr-2" /> Xác nhận xuất</>
                             )}
                         </Button>
                     </DialogFooter>

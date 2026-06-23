@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DateTime } from "luxon";
+import * as XLSX from "xlsx";
 import { productGroupService } from "../../services/product-group.service";
 import { operationService } from "../../services/operation.service";
 import { machineService } from "../../services/machine.service";
@@ -13,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus, Zap, ClipboardList, ArrowRight, Package, CheckCircle2, Circle } from "lucide-react";
+import { Settings, Cpu, Search, Layers, ChevronsUpDown, Check, Plus, Zap, ClipboardList, ArrowRight, Package, CheckCircle2, Circle, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -140,6 +142,43 @@ export default function ProductGroupPage() {
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi lưu cấu hình"),
   });
 
+  const handleExportExcel = async () => {
+    try {
+      const rows = await productGroupService.exportGroups();
+      if (!rows || rows.length === 0) {
+        toast.error("Không có dữ liệu để xuất");
+        return;
+      }
+      const formattedData = rows.map((r) => ({
+        "Tên nhóm": r.group_name || "",
+        "Mã hàng": r.product_name || "",
+        "Xi mạ": r.has_xi_ma ? "Có" : "Không",
+        "Đóng gói": r.has_dong_goi ? "Có" : "Không",
+        "STT công đoạn": r.sequence_order ?? "",
+        "Công đoạn": r.operation_name || "",
+        "Máy sản xuất": r.machine_names || "",
+        "Định mức": r.dinh_muc ?? "",
+        "Người tạo": r.creator_name || "",
+        "Ngày tạo": r.created_at ? DateTime.fromISO(r.created_at).toFormat("dd/MM/yyyy HH:mm") : "",
+        "Người sửa": r.modifier_name || "",
+        "Ngày sửa": r.updated_at ? DateTime.fromISO(r.updated_at).toFormat("dd/MM/yyyy HH:mm") : "",
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(formattedData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "NhomMaHang");
+      worksheet["!cols"] = [
+        { wch: 25 }, { wch: 20 }, { wch: 10 }, { wch: 10 },
+        { wch: 12 }, { wch: 25 }, { wch: 30 }, { wch: 12 },
+        { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 },
+      ];
+      XLSX.writeFile(workbook, `NhomMaHang_${DateTime.now().toFormat("yyyyMMdd_HHmm")}.xlsx`);
+      toast.success(`Đã xuất ${rows.length} dòng dữ liệu`);
+    } catch (err) {
+      console.error("Export product groups error:", err);
+      toast.error("Lỗi khi xuất file Excel");
+    }
+  };
+
   const handleQuickCreateOp = () => {
     const trimmedName = quickOpName.trim();
     if (!trimmedName) { toast.error("Vui lòng nhập tên công đoạn!"); return; }
@@ -210,11 +249,21 @@ export default function ProductGroupPage() {
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-black text-zinc-950 uppercase tracking-tight">Nhóm sản phẩm</h1>
-        {hasPermission("product_groups:create") && (
-          <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
-            <Plus className="w-4 h-4" /> Thêm nhóm
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Xuất Excel
           </Button>
-        )}
+          {hasPermission("product_groups:create") && (
+            <Button onClick={() => handleOpen()} className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 font-black uppercase text-xs tracking-widest gap-2">
+              <Plus className="w-4 h-4" /> Thêm nhóm
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">

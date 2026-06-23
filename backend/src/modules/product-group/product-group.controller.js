@@ -422,6 +422,48 @@ export const saveStageConfigs = async (req, res) => {
   }
 }
 
+export const exportProductGroups = async (req, res) => {
+  try {
+    const { factory_id } = req.query
+
+    let whereClause = "WHERE pg.deleted_at IS NULL"
+    const queryParams = []
+
+    if (factory_id) {
+      queryParams.push(factory_id)
+      whereClause += ` AND pg.factory_id = $${queryParams.length}`
+    }
+
+    const query = `
+      SELECT pg.id, pg.name as group_name,
+             p.id as product_id, p.name as product_name,
+             COALESCE(psc.has_xi_ma, false) as has_xi_ma,
+             COALESCE(psc.has_dong_goi, false) as has_dong_goi,
+             pgo.sequence_order,
+             o.name as operation_name,
+             (SELECT string_agg(m.name, ', ') FROM machines m WHERE m.id = ANY(pgo.machine_ids)) as machine_names,
+             pgo.dinh_muc,
+             COALESCE(cu.full_name, cu.username) as creator_name,
+             COALESCE(mu.full_name, mu.username) as modifier_name,
+             pg.created_at, pg.updated_at
+      FROM product_groups pg
+      LEFT JOIN products p ON p.product_group_id = pg.id AND p.deleted_at IS NULL
+      LEFT JOIN product_stage_configs psc ON psc.product_id = p.id AND psc.product_group_id = pg.id
+      LEFT JOIN product_group_operations pgo ON pgo.product_group_id = pg.id AND pgo.deleted_at IS NULL
+      LEFT JOIN operations o ON pgo.operation_id = o.id
+      LEFT JOIN users cu ON pg.created_by = cu.id
+      LEFT JOIN users mu ON pg.modified_by = mu.id
+      ${whereClause}
+      ORDER BY pg.name ASC, p.name ASC, pgo.sequence_order ASC
+    `
+    const result = await pool.query(query, queryParams)
+    res.json(result.rows)
+  } catch (error) {
+    console.error("Export Product Groups Error:", error)
+    res.status(500).json({ message: "Error exporting product groups", error })
+  }
+}
+
 export const reorderProductGroupOperations = async (req, res) => {
   const client = await pool.connect()
   try {

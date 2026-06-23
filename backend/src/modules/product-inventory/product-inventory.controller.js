@@ -44,7 +44,18 @@ export const getInventory = async (req, res) => {
         pi.*, 
         p.name as product_name, 
         o.name as operation_name,
-        COALESCE(u.full_name, u.username) as recorder_name
+        COALESCE(u.full_name, u.username) as recorder_name,
+        COALESCE(
+          (SELECT SUM(pi2.quantity) FROM product_inventory pi2
+           WHERE pi2.product_id = pi.product_id
+             AND pi2.operation_id = pi.operation_id
+             AND pi2.inventory_type = pi.inventory_type
+             AND pi2.completed_at IS NOT NULL
+             AND pi2.deleted_at IS NULL
+             AND pi2.recorded_at >= pi.recorded_at
+             AND pi2.id != pi.id),
+          0
+        )::numeric as used_quantity
       FROM product_inventory pi
       JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
       JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
@@ -210,6 +221,90 @@ export const completeInventory = async (req, res) => {
     client.release();
   }
 };
+
+export const exportInventory = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { quantity, note } = req.body;
+    const userId = req.user.id;
+
+    if (!id) {
+      return res.status(400).json({ message: 'Inventory ID is required' })
+    }
+
+    if (!quantity || parseFloat(quantity) <= 0) {
+      return res.status(400).json({ message: 'Số lượng xuất phải lớn hơn 0' })
+    }
+
+    const currentResult = await client.query(
+      `SELECT * FROM product_inventory WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    )
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Inventory record not found' })
+    }
+
+    const currentData = currentResult.rows[0]
+
+    if (currentData.completed_at) {
+      return res.status(400).json({ message: 'Không thể xuất kho bản ghi đã hoàn thành' })
+    }
+
+    const exportQty = parseFloat(quantity)
+    const currentQty = parseFloat(currentData.quantity)
+
+    if (exportQty > currentQty) {
+      return res.status(400).json({ message: `Số lượng xuất (${exportQty}) vượt quá tồn kho hiện tại (${currentQty})` })
+    }
+
+    await client.query('BEGIN')
+
+    const remainingQty = currentQty - exportQty
+
+    await client.query(
+      `UPDATE product_inventory 
+       SET quantity = $1
+       WHERE id = $2`,
+      [remainingQty, id]
+    )
+
+    const exportNote = note ? `Xuất kho: ${note}` : 'Xuất kho'
+    const insertResult = await client.query(
+      `INSERT INTO product_inventory (product_id, operation_id, quantity, note, recorded_by, inventory_type, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [currentData.product_id, currentData.operation_id, exportQty, exportNote, userId, currentData.inventory_type]
+    )
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data)
+       VALUES ($1, 'EXPORT', 'ProductInventory', $2, $3, $4)`,
+      [userId, id, JSON.stringify(currentData), JSON.stringify({
+        original_remaining: remainingQty,
+        exported_quantity: exportQty,
+        exported_record_id: insertResult.rows[0].id,
+        note: exportNote
+      })]
+    )
+
+    await client.query('COMMIT')
+    res.json({
+      message: 'Xuất kho thành công',
+      data: {
+        original: { id: parseInt(id), remaining_quantity: remainingQty },
+        exported: insertResult.rows[0]
+      }
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Export Inventory Error:', error)
+    res.status(500).json({ message: 'Error exporting inventory', error: error.message })
+  } finally {
+    client.release()
+  }
+}
 
 export const deleteInventory = async (req, res) => {
   const client = await pool.connect();
