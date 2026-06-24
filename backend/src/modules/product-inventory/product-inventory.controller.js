@@ -32,7 +32,7 @@ export const getInventory = async (req, res) => {
       SELECT COUNT(*) 
       FROM product_inventory pi
       JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
-      JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
+      LEFT JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
       ${whereClause}
     `;
     const countResult = await pool.query(countQuery, queryParams);
@@ -48,17 +48,17 @@ export const getInventory = async (req, res) => {
         COALESCE(
           (SELECT SUM(pi2.quantity) FROM product_inventory pi2
            WHERE pi2.product_id = pi.product_id
-             AND pi2.operation_id = pi.operation_id
-             AND pi2.inventory_type = pi.inventory_type
-             AND pi2.completed_at IS NOT NULL
-             AND pi2.deleted_at IS NULL
-             AND pi2.recorded_at >= pi.recorded_at
-             AND pi2.id != pi.id),
+              AND pi2.operation_id IS NOT DISTINCT FROM pi.operation_id
+              AND pi2.inventory_type = pi.inventory_type
+              AND pi2.completed_at IS NOT NULL
+              AND pi2.deleted_at IS NULL
+              AND pi2.recorded_at >= pi.recorded_at
+              AND pi2.id != pi.id),
           0
         )::numeric as used_quantity
       FROM product_inventory pi
       JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
-      JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
+      LEFT JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
       LEFT JOIN users u ON pi.recorded_by = u.id
       ${whereClause}
       ORDER BY pi.recorded_at DESC

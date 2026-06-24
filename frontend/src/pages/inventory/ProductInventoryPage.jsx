@@ -96,6 +96,7 @@ export default function ProductInventoryPage() {
     const [exportRecord, setExportRecord] = useState(null);
     const [exportQuantity, setExportQuantity] = useState("");
     const [exportNote, setExportNote] = useState("");
+    const [noOpForm, setNoOpForm] = useState({ quantity: "", note: "", inventory_type: "BTP" });
 
     // Fetch data
     const { data: productsData } = useQuery({
@@ -174,6 +175,7 @@ export default function ProductInventoryPage() {
         setSelectedProduct(null);
         setSelectedOps([]);
         setFormItems({});
+        setNoOpForm({ quantity: "", note: "", inventory_type: "BTP" });
         setIsProductOpen(false);
     };
 
@@ -181,6 +183,7 @@ export default function ProductInventoryPage() {
         setSelectedProduct(product);
         setSelectedOps([]);
         setFormItems({});
+        setNoOpForm({ quantity: "", note: "", inventory_type: "BTP" });
         setIsProductOpen(false);
     };
 
@@ -206,19 +209,27 @@ export default function ProductInventoryPage() {
         });
     };
 
+    const hasNoOperations = !isLoadingOps && operations?.length === 0;
+
     const handleSave = () => {
         if (!selectedProduct) return toast.error("Vui lòng chọn mã hàng");
-        if (selectedOps.length === 0) return toast.error("Vui lòng chọn ít nhất một công đoạn");
 
-        const items = selectedOps.map(op => ({
-            operation_id: op.operation_id,
-            quantity: parseFloat(formItems[op.id]?.quantity || 0),
-            note: formItems[op.id]?.note || "",
-            inventory_type: formItems[op.id]?.inventory_type || "BTP"
-        }));
-
-        if (items.some(it => isNaN(it.quantity) || it.quantity < 0)) {
-            return toast.error("Số lượng không hợp lệ");
+        let items;
+        if (hasNoOperations) {
+            const qty = parseFloat(noOpForm.quantity || 0);
+            if (isNaN(qty) || qty < 0) return toast.error("Số lượng không hợp lệ");
+            items = [{ operation_id: null, quantity: qty, note: noOpForm.note || "", inventory_type: noOpForm.inventory_type || "BTP" }];
+        } else {
+            if (selectedOps.length === 0) return toast.error("Vui lòng chọn ít nhất một công đoạn");
+            items = selectedOps.map(op => ({
+                operation_id: op.operation_id,
+                quantity: parseFloat(formItems[op.id]?.quantity || 0),
+                note: formItems[op.id]?.note || "",
+                inventory_type: formItems[op.id]?.inventory_type || "BTP"
+            }));
+            if (items.some(it => isNaN(it.quantity) || it.quantity < 0)) {
+                return toast.error("Số lượng không hợp lệ");
+            }
         }
 
         saveMutation.mutate({
@@ -296,7 +307,7 @@ export default function ProductInventoryPage() {
             format: (v, row) => (
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 border-none font-bold uppercase text-[9px] w-fit">{v}</Badge>
+                        <Badge variant="secondary" className="bg-zinc-100 text-zinc-600 border-none font-bold uppercase text-[9px] w-fit">{v || "Không có công đoạn"}</Badge>
                         {row.completed_at && (
                             <Badge className="text-[8px] font-black uppercase px-2 py-0 h-4 border-none w-fit bg-emerald-100 text-emerald-700">
                                 <CheckCircle2 className="w-3 h-3 mr-0.5" />
@@ -506,6 +517,61 @@ export default function ProductInventoryPage() {
                         {/* Operation Selector */}
                         {selectedProduct && (
                             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                {hasNoOperations ? (
+                                    <div className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <Badge className="bg-zinc-100 text-zinc-600 border-none font-black text-[10px] uppercase px-3 py-1">
+                                                Không có công đoạn
+                                            </Badge>
+                                            <div className="flex items-center bg-zinc-100 rounded-lg p-0.5 border border-zinc-200">
+                                                <button
+                                                    className={cn(
+                                                        "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
+                                                        noOpForm.inventory_type === 'BTP'
+                                                            ? "bg-white text-orange-600 shadow-sm"
+                                                            : "text-zinc-400 hover:text-zinc-600"
+                                                    )}
+                                                    onClick={() => setNoOpForm({ ...noOpForm, inventory_type: 'BTP' })}
+                                                >
+                                                    BTP
+                                                </button>
+                                                <button
+                                                    className={cn(
+                                                        "px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all",
+                                                        noOpForm.inventory_type === 'TP'
+                                                            ? "bg-white text-emerald-600 shadow-sm"
+                                                            : "text-zinc-400 hover:text-zinc-600"
+                                                    )}
+                                                    onClick={() => setNoOpForm({ ...noOpForm, inventory_type: 'TP' })}
+                                                >
+                                                    TP
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="col-span-1 space-y-1.5">
+                                                <Label className="text-[10px] font-black uppercase text-zinc-400">Số lượng</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0"
+                                                    className="h-10 font-black text-blue-600 focus:ring-indigo-500"
+                                                    value={noOpForm.quantity}
+                                                    onChange={(e) => setNoOpForm({ ...noOpForm, quantity: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="col-span-2 space-y-1.5">
+                                                <Label className="text-[10px] font-black uppercase text-zinc-400">Ghi chú</Label>
+                                                <Input
+                                                    placeholder="Nhập ghi chú..."
+                                                    className="h-10 text-sm font-medium"
+                                                    value={noOpForm.note}
+                                                    onChange={(e) => setNoOpForm({ ...noOpForm, note: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                <>
                                 <div className="space-y-2">
                                     <Label className="text-xs font-black uppercase tracking-tighter text-zinc-500 pl-1">Chọn công đoạn</Label>
                                     <div className="flex flex-wrap gap-2 min-h-[44px] p-3 bg-zinc-50/50 border border-dashed border-zinc-200 rounded-2xl">
@@ -600,6 +666,8 @@ export default function ProductInventoryPage() {
                                         </div>
                                     </ScrollArea>
                                 )}
+                            </>
+                                )}
                             </div>
                         )}
                     </div>
@@ -617,7 +685,7 @@ export default function ProductInventoryPage() {
                         </Button>
                         <Button
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] disabled:opacity-50 px-8"
-                            disabled={!selectedProduct || selectedOps.length === 0 || saveMutation.isPending}
+                            disabled={!selectedProduct || (!hasNoOperations && selectedOps.length === 0) || saveMutation.isPending}
                             onClick={handleSave}
                         >
                             {saveMutation.isPending ? "Đang lưu..." : (
@@ -643,7 +711,7 @@ export default function ProductInventoryPage() {
                     <div className="p-6 space-y-4">
                         <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
                             <p className="text-xs font-bold text-zinc-500 uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{editingRecord?.product_name}</span></p>
-                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{editingRecord?.operation_name}</span></p>
+                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{editingRecord?.operation_name || "Không có công đoạn"}</span></p>
                         </div>
 
                         <div className="space-y-2">
@@ -757,7 +825,7 @@ export default function ProductInventoryPage() {
                     <div className="p-6 space-y-4">
                         <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
                             <p className="text-xs font-bold text-zinc-500 uppercase">Sản phẩm: <span className="text-indigo-600 ml-2">{exportRecord?.product_name}</span></p>
-                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{exportRecord?.operation_name}</span></p>
+                            <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Công đoạn: <span className="text-indigo-600 ml-2">{exportRecord?.operation_name || "Không có công đoạn"}</span></p>
                             <p className="text-xs font-bold text-zinc-500 uppercase mt-1">Tồn kho hiện tại: <span className="text-blue-600 ml-2">{Number(exportRecord?.quantity).toLocaleString()}</span></p>
                         </div>
 
