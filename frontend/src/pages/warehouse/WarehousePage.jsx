@@ -46,7 +46,7 @@ export default function WarehousePage() {
 
   const columns = [
     { id: "po_customer", label: "Mã đơn hàng", className: "font-bold text-blue-600" },
-    { id: "customer_name", label: "Tên khách", className: "font-medium" },
+    { id: "customer_name", label: "Tên đơn hàng", className: "font-medium" },
     {
       id: "expected_material_date",
       label: <p className="text-center">Ngày NL về xưởng <br /> (Dự kiến)</p>,
