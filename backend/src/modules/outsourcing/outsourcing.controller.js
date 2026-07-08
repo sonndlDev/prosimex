@@ -97,7 +97,7 @@ export const exportDetailedItems = async (req, res) => {
 // Lấy danh sách phiếu (Outbound / All)
 export const getRemainingQuantity = async (req, res) => {
   try {
-    const { order_id, product_id } = req.query;
+    const { order_id, product_id, type } = req.query;
     if (!order_id || !product_id) {
       return res.status(400).json({ message: "Thiếu order_id hoặc product_id" });
     }
@@ -108,13 +108,24 @@ export const getRemainingQuantity = async (req, res) => {
     );
     const orderQuantity = orderProductRes.rowCount > 0 ? parseFloat(orderProductRes.rows[0].quantity || 0) : 0;
 
-    const dispatchedRes = await pool.query(
-      `SELECT COALESCE(SUM(i.quantity_out), 0) as total_dispatched
-       FROM outsourcing_ticket_items i
-       JOIN outsourcing_tickets t ON i.ticket_id = t.id
-       WHERE i.order_id = $1 AND i.product_id = $2 AND t.deleted_at IS NULL`,
-      [order_id, product_id]
-    );
+    let dispatchedRes;
+    if (type) {
+      dispatchedRes = await pool.query(
+        `SELECT COALESCE(SUM(i.quantity_out), 0) as total_dispatched
+         FROM outsourcing_ticket_items i
+         JOIN outsourcing_tickets t ON i.ticket_id = t.id
+         WHERE i.order_id = $1 AND i.product_id = $2 AND t.type = $3 AND t.deleted_at IS NULL`,
+        [order_id, product_id, type]
+      );
+    } else {
+      dispatchedRes = await pool.query(
+        `SELECT COALESCE(SUM(i.quantity_out), 0) as total_dispatched
+         FROM outsourcing_ticket_items i
+         JOIN outsourcing_tickets t ON i.ticket_id = t.id
+         WHERE i.order_id = $1 AND i.product_id = $2 AND t.deleted_at IS NULL`,
+        [order_id, product_id]
+      );
+    }
     const totalDispatched = parseFloat(dispatchedRes.rows[0].total_dispatched || 0);
 
     const remaining = orderQuantity - totalDispatched;

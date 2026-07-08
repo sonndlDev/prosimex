@@ -347,7 +347,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       return;
     }
     try {
-      const res = await outsourcingService.getRemainingQuantity(orderId, productId);
+      const res = await outsourcingService.getRemainingQuantity(orderId, productId, type);
       setRemainingQuantities(prev => ({ ...prev, [itemId]: res.remaining }));
     } catch {
       setRemainingQuantities(prev => ({ ...prev, [itemId]: null }));
@@ -1323,7 +1323,7 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
       return;
     }
     try {
-      const res = await outsourcingService.getRemainingQuantity(orderId, productId);
+      const res = await outsourcingService.getRemainingQuantity(orderId, productId, ticketType);
       setRemainingQuantities(prev => ({ ...prev, [localKey]: res.remaining }));
     } catch {
       setRemainingQuantities(prev => ({ ...prev, [localKey]: null }));
