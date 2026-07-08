@@ -105,6 +105,8 @@ export default function PlanningPage() {
   const [openProductFilter, setOpenProductFilter] = useState(false);
   const [openMachineFilter, setOpenMachineFilter] = useState(false);
   const [showPastDays, setShowPastDays] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
   const [dateColWidth, setDateColWidth] = useState(54);
@@ -168,6 +170,8 @@ export default function PlanningPage() {
       selectedOrderIds,
       selectedProductIds,
       selectedMachineIds,
+      startDate,
+      endDate,
     ],
     queryFn: () =>
       planningService.getAll({
@@ -176,6 +180,8 @@ export default function PlanningPage() {
         order_ids: selectedOrderIds.join(","),
         product_ids: selectedProductIds.join(","),
         machine_ids: selectedMachineIds.join(","),
+        ...(startDate ? { startDate } : {}),
+        ...(endDate ? { endDate } : {}),
       }),
   });
 
@@ -256,11 +262,13 @@ export default function PlanningPage() {
 
     return continuousDates
       .filter((d) => showPastDays || d >= todayStr)
+      .filter((d) => !startDate || d >= startDate)
+      .filter((d) => !endDate || d <= endDate)
       .map((d) => ({
         key: d,
         label: DateTime.fromISO(d).toFormat("dd-MM"),
       }));
-  }, [plans, showPastDays]);
+  }, [plans, showPastDays, startDate, endDate]);
 
   // ─── Mutations ─────────────────────────────────────────
   const createMutation = useMutation({
@@ -811,6 +819,8 @@ export default function PlanningPage() {
                   order_ids: selectedOrderIds.join(","),
                   product_ids: selectedProductIds.join(","),
                   machine_ids: selectedMachineIds.join(","),
+                  ...(startDate ? { startDate } : {}),
+                  ...(endDate ? { endDate } : {}),
                 });
                 const allPlans = res.data || [];
 
@@ -840,6 +850,8 @@ export default function PlanningPage() {
                   const todayStr = DateTime.now().toFormat("yyyy-MM-dd");
                   exportDateColumns = continuousDates
                     .filter((d) => showPastDays || d >= todayStr)
+                    .filter((d) => !startDate || d >= startDate)
+                    .filter((d) => !endDate || d <= endDate)
                     .map((d) => ({
                       key: d,
                       label: DateTime.fromISO(d).toFormat("dd-MM"),
@@ -1206,15 +1218,45 @@ export default function PlanningPage() {
           {showPastDays ? "Đang hiện ngày cũ" : "Ẩn ngày cũ"}
         </Button>
 
+        {/* Khoảng ngày */}
+        <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
+          <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">
+            Ngày:
+          </span>
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setPage(0);
+            }}
+            className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[110px]"
+          />
+          <span className="text-zinc-300 mx-0.5">—</span>
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setPage(0);
+            }}
+            className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[110px]"
+          />
+        </div>
+
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||
-          selectedOrderIds.length > 0) && (
+          selectedOrderIds.length > 0 ||
+          startDate ||
+          endDate) && (
           <Button
             variant="ghost"
             onClick={() => {
               setSelectedProductIds([]);
               setSelectedMachineIds([]);
               setSelectedOrderIds([]);
+              setStartDate("");
+              setEndDate("");
               setPage(0);
             }}
             className="h-10 px-3 text-red-500 hover:text-red-600 hover:bg-red-50/60 font-bold text-xs rounded-xl transition-all"

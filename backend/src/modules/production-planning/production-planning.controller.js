@@ -2,7 +2,7 @@ import pool from "../../config/db.js";
 
 export const getProductionPlans = async (req, res) => {
   try {
-    const { page = 1, limit = 10, order_ids, product_ids, machine_ids } = req.query;
+    const { page = 1, limit = 10, order_ids, product_ids, machine_ids, startDate, endDate } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -51,8 +51,17 @@ export const getProductionPlans = async (req, res) => {
       queryParams.push(req.query.machine_id);
       whereClause += ` AND pp.machine_id = $${queryParams.length}`;
     }
-    // Removed date-based filtering as per user request to be less restrictive
-    // Previously used to limit by order range or plan date range
+
+    // Overlap filter: keep plans whose [planned_start_date, planned_end_date]
+    // intersects the requested [startDate, endDate] window.
+    if (startDate) {
+      queryParams.push(startDate);
+      whereClause += ` AND pp.planned_end_date >= $${queryParams.length}`;
+    }
+    if (endDate) {
+      queryParams.push(endDate);
+      whereClause += ` AND pp.planned_start_date <= $${queryParams.length}`;
+    }
 
     // Get total count for pagination
     const countResult = await pool.query(
