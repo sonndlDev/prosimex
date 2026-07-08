@@ -491,6 +491,15 @@ export default function CustomSchedule({
                         </p>
                       </div>
 
+                      <div className="border-t border-zinc-800/50 pt-3">
+                        <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
+                          Đơn hàng
+                        </p>
+                        <p className="text-[10px] font-black text-black uppercase truncate">
+                          {hoveredEvent.order_code || "N/A"}
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
                         <div>
                           <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
