@@ -1,9 +1,10 @@
-import pool from "../../config/db.js";
+import pool from '../../config/db.js'
 import {
   ORDER_PRODUCT_JSON_FIELDS,
   insertOrderProductWithSnapshot,
   refreshOrderProductSnapshots,
-} from "../../utils/order-product-snapshot.util.js";
+  snapshotOrderProducts,
+} from '../../utils/order-product-snapshot.util.js'
 
 export const getOrders = async (req, res) => {
   try {
@@ -107,14 +108,14 @@ export const getOrders = async (req, res) => {
           op.product_id,
           op.quantity as required,
           COALESCE(op.product_group_id, p_active.product_group_id) as effective_group_id,
-          COALESCE(psc.has_xi_ma, FALSE) as has_xi_ma,
-          COALESCE(psc.has_dong_goi, FALSE) as has_dong_goi,
+          COALESCE(ss.has_xi_ma, psc.has_xi_ma, FALSE) as has_xi_ma,
+          COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) as has_dong_goi,
           CASE
-            WHEN COALESCE(psc.has_xi_ma, FALSE) AND COALESCE(psc.has_dong_goi, FALSE) THEN 4
-            WHEN COALESCE(psc.has_dong_goi, FALSE) THEN 2
+            WHEN COALESCE(ss.has_xi_ma, psc.has_xi_ma, FALSE) AND COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) THEN 4
+            WHEN COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) THEN 2
             ELSE 0
           END as stage_count,
-          COALESCE((
+          COALESCE(ss.final_pgo_id, (
             SELECT pgo.id FROM product_group_operations pgo 
             WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
             AND pgo.deleted_at IS NULL
@@ -124,6 +125,7 @@ export const getOrders = async (req, res) => {
         JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
         LEFT JOIN product_stage_configs psc ON psc.product_id = op.product_id 
           AND psc.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id)
+        LEFT JOIN order_product_snapshots ss ON ss.order_id = op.order_id AND ss.product_id = op.product_id
       ),
       product_actuals AS (
         SELECT 
@@ -254,14 +256,14 @@ export const getOrderById = async (req, res) => {
           op.product_id,
           op.quantity as required,
           COALESCE(op.product_group_id, p_active.product_group_id) as effective_group_id,
-          COALESCE(psc.has_xi_ma, FALSE) as has_xi_ma,
-          COALESCE(psc.has_dong_goi, FALSE) as has_dong_goi,
+          COALESCE(ss.has_xi_ma, psc.has_xi_ma, FALSE) as has_xi_ma,
+          COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) as has_dong_goi,
           CASE
-            WHEN COALESCE(psc.has_xi_ma, FALSE) AND COALESCE(psc.has_dong_goi, FALSE) THEN 4
-            WHEN COALESCE(psc.has_dong_goi, FALSE) THEN 2
+            WHEN COALESCE(ss.has_xi_ma, psc.has_xi_ma, FALSE) AND COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) THEN 4
+            WHEN COALESCE(ss.has_dong_goi, psc.has_dong_goi, FALSE) THEN 2
             ELSE 0
           END as stage_count,
-          COALESCE((
+          COALESCE(ss.final_pgo_id, (
             SELECT pgo.id FROM product_group_operations pgo 
             WHERE pgo.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id) 
             AND pgo.deleted_at IS NULL
@@ -271,6 +273,7 @@ export const getOrderById = async (req, res) => {
         JOIN products p_active ON op.product_id = p_active.id AND p_active.deleted_at IS NULL
         LEFT JOIN product_stage_configs psc ON psc.product_id = op.product_id 
           AND psc.product_group_id = COALESCE(op.product_group_id, p_active.product_group_id)
+        LEFT JOIN order_product_snapshots ss ON ss.order_id = op.order_id AND ss.product_id = op.product_id
         WHERE op.order_id = $1
       ),
       product_actuals AS (
@@ -379,7 +382,93 @@ export const getOrderCompletionReport = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const query = `
+    const orderRes = await pool.query("SELECT status FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (orderRes.rowCount === 0) return res.status(404).json({ message: "Order not found" });
+    const isDone = orderRes.rows[0].status === "DONE";
+
+    const query = isDone ? `
+      WITH product_stages AS (
+          SELECT 
+              ss.product_id,
+              ss.total_stages,
+              ss.final_pgo_id,
+              ss.has_xi_ma,
+              ss.has_dong_goi,
+              ss.stage_count
+          FROM order_product_snapshots ss
+          WHERE ss.order_id = $1
+      ),
+      inhouse_totals AS (
+        SELECT dti.product_id, dti.product_group_operation_id, SUM(dti.actual_quantity) as qty
+        FROM daily_production_ticket_items dti 
+        JOIN daily_production_tickets dt ON dti.ticket_id = dt.id 
+        WHERE dti.order_id = $1 AND dt.deleted_at IS NULL
+        GROUP BY dti.product_id, dti.product_group_operation_id
+      ),
+      sx_totals AS (
+        SELECT it.product_id, SUM(it.qty) as total_sx
+        FROM inhouse_totals it
+        JOIN product_stages ps ON ps.product_id = it.product_id
+        WHERE ps.final_pgo_id IS NULL OR ps.final_pgo_id = it.product_group_operation_id
+        GROUP BY it.product_id
+      ),
+      plating_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      plating_returns AS (
+        SELECT oti.product_id, SUM(or_t.quantity_returned) as total_plating_returned
+        FROM outsourcing_returns or_t 
+        JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+        JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      packaging_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_packaging_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      )
+      SELECT 
+        p.id as product_id,
+        COALESCE(op.product_name, p.name) as product_code,
+        op.quantity as required_quantity,
+        ps.total_stages,
+        ps.stage_count,
+        ps.has_xi_ma,
+        ps.has_dong_goi,
+        COALESCE(st.total_sx, 0) as sx_quantity,
+        COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
+        COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
+        COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+        (
+          SELECT json_agg(json_build_object(
+            'operation_name', snap_op->>'operation_name',
+            'actual_quantity', CASE
+              WHEN snap_op->>'operation_name' ILIKE '%ĐI MẠ%' OR snap_op->>'operation_name' ILIKE '%ĐI XI%' THEN COALESCE(pt.total_plating_out, 0)
+              WHEN snap_op->>'operation_name' ILIKE '%VỀ MẠ%' OR snap_op->>'operation_name' ILIKE '%XI MẠ VỀ%' OR snap_op->>'operation_name' ILIKE '%VỀ XI%' THEN COALESCE(pr.total_plating_returned, 0)
+              WHEN snap_op->>'operation_name' ILIKE '%ĐÓNG GÓI%' OR snap_op->>'operation_name' ILIKE '%ĐONG GOI%' THEN COALESCE(pkt.total_packaging_out, 0)
+              ELSE COALESCE((SELECT ih.qty FROM inhouse_totals ih WHERE ih.product_group_operation_id = (snap_op->>'pgo_id')::int AND ih.product_id = p.id), 0)
+            END,
+            'configured', true
+          ) ORDER BY (snap_op->>'sequence_order')::int ASC)
+          FROM jsonb_array_elements(ss.operations_json) AS snap_op
+        ) as operations_detail
+      FROM order_products op
+      JOIN products p ON op.product_id = p.id
+      JOIN product_stages ps ON p.id = ps.product_id
+      JOIN order_product_snapshots ss ON ss.order_id = op.order_id AND ss.product_id = op.product_id
+      LEFT JOIN sx_totals st ON p.id = st.product_id
+      LEFT JOIN plating_totals pt ON p.id = pt.product_id
+      LEFT JOIN plating_returns pr ON p.id = pr.product_id
+      LEFT JOIN packaging_totals pkt ON p.id = pkt.product_id
+      WHERE op.order_id = $1
+    ` : `
       WITH product_stages AS (
           SELECT 
               op.product_id,
@@ -536,12 +625,69 @@ export const getOrderSummaryReport = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if order exists
-    const orderRes = await pool.query("SELECT id, po_auto_code FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
+    const orderRes = await pool.query("SELECT id, po_auto_code, status FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
     if (orderRes.rowCount === 0) return res.status(404).json({ message: "Order not found" });
+    const isDone = orderRes.rows[0].status === "DONE";
 
-    // Complex query to get summary by identifying first and last stages for each product
-    const query = `
+    const query = isDone ? `
+      WITH product_stages AS (
+          SELECT 
+              ss.product_id,
+              ss.start_pgo_id,
+              ss.final_pgo_id,
+              ss.final_op_name
+          FROM order_product_snapshots ss
+          WHERE ss.order_id = $1
+      ),
+      plating_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_plating_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      plating_returns AS (
+        SELECT oti.product_id, SUM(or_t.quantity_returned) as total_plating_returned
+        FROM outsourcing_returns or_t 
+        JOIN outsourcing_ticket_items oti ON or_t.ticket_item_id = oti.id
+        JOIN outsourcing_tickets ot ON oti.ticket_id = ot.id 
+        WHERE oti.order_id = $1 AND ot.type = 'PLATING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      ),
+      packaging_totals AS (
+        SELECT oti.product_id, SUM(oti.quantity_out) as total_packaging_out
+        FROM outsourcing_tickets ot 
+        JOIN outsourcing_ticket_items oti ON ot.id = oti.ticket_id
+        WHERE oti.order_id = $1 AND ot.type = 'PACKAGING' AND ot.deleted_at IS NULL
+        GROUP BY oti.product_id
+      )
+      SELECT 
+          p.id as product_id,
+          COALESCE(op.product_name, p.name) as product_name,
+          op.quantity as required_quantity,
+          ps.final_op_name,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.start_pgo_id AND dt.deleted_at IS NULL), 0) as started_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = ps.final_pgo_id AND dt.deleted_at IS NULL), 0) as finished_quantity,
+          COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dt.deleted_at IS NULL), 0) as total_sx_quantity,
+          COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
+          COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
+          COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+          (
+            SELECT json_agg(json_build_object(
+              'operation_name', snap_op->>'operation_name',
+              'actual_quantity', COALESCE((SELECT SUM(dti.actual_quantity) FROM daily_production_ticket_items dti JOIN daily_production_tickets dt ON dt.id = dti.ticket_id WHERE dti.order_id = $1 AND dti.product_id = p.id AND dti.product_group_operation_id = (snap_op->>'pgo_id')::int AND dt.deleted_at IS NULL AND dt.status IN ('APPROVED', 'COMPLETED')), 0)
+            ) ORDER BY (snap_op->>'sequence_order')::int ASC)
+            FROM jsonb_array_elements(ss.operations_json) AS snap_op
+          ) as operations_detail
+      FROM order_products op
+      JOIN products p ON op.product_id = p.id
+      JOIN product_stages ps ON p.id = ps.product_id
+      JOIN order_product_snapshots ss ON ss.order_id = op.order_id AND ss.product_id = op.product_id
+      LEFT JOIN plating_totals pt ON p.id = pt.product_id
+      LEFT JOIN plating_returns pr ON p.id = pr.product_id
+      LEFT JOIN packaging_totals pkt ON p.id = pkt.product_id
+      WHERE op.order_id = $1
+    ` : `
       WITH product_stages AS (
           SELECT 
               op.product_id,
@@ -923,8 +1069,9 @@ export const updateOrder = async (req, res) => {
 
     const afterData = result.rows[0];
 
-    if (newStatus === "DONE" && currentStatus !== "DONE") {
-      await refreshOrderProductSnapshots(client, id);
+    if (newStatus === 'DONE' && currentStatus !== 'DONE') {
+      await refreshOrderProductSnapshots(client, id)
+      await snapshotOrderProducts(client, id)
     }
 
     // Update order_ext
