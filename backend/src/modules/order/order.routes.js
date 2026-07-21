@@ -1,5 +1,5 @@
 import express from 'express'
-import { getOrders, getOrderCompletionReport, getOrderSummaryReport, createOrder, updateOrder, deleteOrder, updateWarehouseDetails, getOrderProductSnapshots } from './order.controller.js'
+import { getOrders, getOrderById, getOrderCompletionReport, getOrderSummaryReport, createOrder, updateOrder, deleteOrder, updateWarehouseDetails, getOrderProductSnapshots } from './order.controller.js'
 import verifyToken from '../../middlewares/auth.middleware.js'
 import { authorize } from '../../middlewares/rbac.middleware.js'
 
@@ -9,6 +9,7 @@ router.use(verifyToken)
 
 router.get('/', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrders)
 router.get('/product-snapshots', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderProductSnapshots)
+router.get('/:id', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderById)
 router.get('/:id/completion-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderCompletionReport)
 router.get('/:id/summary-report', authorize(['ADMIN', 'PLANNER', 'OPERATOR'], 'orders:read'), getOrderSummaryReport)
 router.post('/', authorize(['ADMIN', 'PLANNER'], 'orders:create'), createOrder)
