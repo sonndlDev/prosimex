@@ -21,20 +21,6 @@ import { Input } from "@/components/ui/input";
 
 import { Label } from "@/components/ui/label";
 
-import {
-
-  Select,
-
-  SelectContent,
-
-  SelectItem,
-
-  SelectTrigger,
-
-  SelectValue,
-
-} from "@/components/ui/select";
-
 import { Switch } from "@/components/ui/switch";
 
 import {
@@ -126,8 +112,6 @@ export default function OrderProductSnapshotPage() {
 
   const [search, setSearch] = useState("");
 
-  const [status, setStatus] = useState("ALL");
-
   const [driftOnly, setDriftOnly] = useState(false);
 
   const [orderIdFilter, setOrderIdFilter] = useState("");
@@ -140,7 +124,7 @@ export default function OrderProductSnapshotPage() {
 
   const { data, isLoading, error } = useQuery({
 
-    queryKey: ["order-product-snapshots", page, pageSize, search, status, driftOnly, orderIdFilter],
+    queryKey: ["order-product-snapshots", page, pageSize, search, driftOnly, orderIdFilter],
 
     queryFn: () =>
 
@@ -152,7 +136,7 @@ export default function OrderProductSnapshotPage() {
 
         search: search || undefined,
 
-        status: status !== "ALL" ? status : undefined,
+        status: "DONE",
 
         drift_only: driftOnly ? "true" : undefined,
 
@@ -386,8 +370,6 @@ export default function OrderProductSnapshotPage() {
 
     setSearch("");
 
-    setStatus("ALL");
-
     setDriftOnly(false);
 
     setOrderIdFilter("");
@@ -457,52 +439,6 @@ export default function OrderProductSnapshotPage() {
             className="h-10 font-bold"
 
           />
-
-        </div>
-
-        <div className="space-y-1.5 min-w-[160px]">
-
-          <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-
-            Trạng thái đơn
-
-          </Label>
-
-          <Select
-
-            value={status}
-
-            onValueChange={(v) => {
-
-              setStatus(v);
-
-              setPage(1);
-
-            }}
-
-          >
-
-            <SelectTrigger className="h-10 font-bold">
-
-              <SelectValue />
-
-            </SelectTrigger>
-
-            <SelectContent>
-
-              {["ALL", "NOT_STARTED", "IN_PROGRESS", "DONE", "PARTIAL_SHIPPED", "WAITING_CONTAINER"].map((s) => (
-
-                <SelectItem key={s} value={s}>
-
-                  {s === "ALL" ? "Tất cả" : s === "NOT_STARTED" ? "Chưa sản xuất" : s === "IN_PROGRESS" ? "Đang sản xuất" : s === "DONE" ? "Hoàn thành" : s === "PARTIAL_SHIPPED" ? "Đã xuất 1 phần" : s === "WAITING_CONTAINER" ? "Chờ xuất cont" : s}
-
-                </SelectItem>
-
-              ))}
-
-            </SelectContent>
-
-          </Select>
 
         </div>
 

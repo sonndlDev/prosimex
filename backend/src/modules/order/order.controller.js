@@ -1173,16 +1173,15 @@ export const getOrderProductSnapshots = async (req, res) => {
     const {
       page = 1,
       limit = 20,
-      search = "",
+      search = '',
       order_id,
-      status,
       drift_only,
-    } = req.query;
+    } = req.query
     const pageInt = parseInt(page) || 1;
     const limitInt = Math.min(parseInt(limit) || 20, 100);
     const offsetInt = (pageInt - 1) * limitInt;
 
-    let whereClause = "WHERE o.deleted_at IS NULL";
+    let whereClause = "WHERE o.deleted_at IS NULL AND o.status = 'DONE'";
     const queryParams = [];
 
     if (search) {
@@ -1198,11 +1197,6 @@ export const getOrderProductSnapshots = async (req, res) => {
     if (order_id) {
       queryParams.push(order_id);
       whereClause += ` AND o.id = $${queryParams.length}`;
-    }
-
-    if (status && status !== "ALL") {
-      queryParams.push(status);
-      whereClause += ` AND o.status = $${queryParams.length}`;
     }
 
     if (drift_only === "true" || drift_only === "1") {
