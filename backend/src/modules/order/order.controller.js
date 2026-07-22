@@ -625,7 +625,7 @@ export const getOrderSummaryReport = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const orderRes = await pool.query("SELECT id, po_auto_code, status FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
+    const orderRes = await pool.query("SELECT id, po_auto_code, status, name FROM orders WHERE id = $1 AND deleted_at IS NULL", [id]);
     if (orderRes.rowCount === 0) return res.status(404).json({ message: "Order not found" });
     const isDone = orderRes.rows[0].status === "DONE";
 

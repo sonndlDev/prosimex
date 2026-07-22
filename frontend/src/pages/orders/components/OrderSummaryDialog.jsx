@@ -31,6 +31,7 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
     const totals = summaryData?.totals || { required: 0, started: 0, finished: 0, total_sx: 0 };
     const details = summaryData?.details || [];
     const poCode = summaryData?.order?.po_auto_code || "---";
+    const orderName = summaryData?.order?.name || "---";
 
     const completionRate = totals.required > 0 ? (totals.total_sx / totals.required) * 100 : 0;
     const startedRate = totals.required > 0 ? (totals.started / totals.required) * 100 : 0;
@@ -103,7 +104,7 @@ export default function OrderSummaryDialog({ open, onClose, orderId }) {
                         </div>
                         <div>
                             <span>Báo cáo tổng hợp đơn hàng</span>
-                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Mã PO: {poCode}</p>
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Tên đơn hàng: {orderName}</p>
                         </div>
                     </DialogTitle>
                 </DialogHeader>
