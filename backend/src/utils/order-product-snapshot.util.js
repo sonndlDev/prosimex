@@ -117,7 +117,7 @@ export async function snapshotOrderProducts(client, orderId) {
            FROM product_group_operations pgo
            JOIN operations o ON pgo.operation_id = o.id
            WHERE pgo.product_group_id = COALESCE(op.product_group_id, p.product_group_id)
-           AND pgo.deleted_at IS NULL),
+           AND pgo.deleted_at IS NULL)::jsonb,
          '[]'::jsonb
        ) AS operations_json,
        cust.name AS customer_name,
