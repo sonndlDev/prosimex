@@ -375,8 +375,8 @@ export default function ProductGroupPage() {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                        <Command className="w-full" shouldFilter={false} onValueChange={(v) => setOpSearch(v)}>
-                          <CommandInput placeholder="Tìm công đoạn..." />
+                        <Command className="w-full" shouldFilter={false}>
+                          <CommandInput placeholder="Tìm công đoạn..." onValueChange={(v) => setOpSearch(v)} />
                           <CommandList className="max-h-64 p-1" onScroll={(e) => {
                             const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
                             if (scrollHeight - scrollTop - clientHeight < 50 && hasNextPage && !isFetchingNextPage) {
