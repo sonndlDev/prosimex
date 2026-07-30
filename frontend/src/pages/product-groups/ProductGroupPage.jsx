@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import * as XLSX from "xlsx";
 import { productGroupService } from "../../services/product-group.service";
@@ -49,8 +49,26 @@ export default function ProductGroupPage() {
   const opInitial = { operation_id: "", machine_ids: [], sequence_order: "", dinh_muc: "" };
   const { control: opControl, handleSubmit: handleOpFormSubmit, reset: resetOp, setValue: setOpValue, watch: watchOp } = useForm({ defaultValues: opInitial });
 
-  const { data: operationsListData } = useQuery({ queryKey: ["operations"], queryFn: () => operationService.getAll({ limit: 1000 }) });
-  const operationsList = operationsListData?.data || [];
+  const [opSearch, setOpSearch] = useState("");
+  const [debouncedOpSearch, setDebouncedOpSearch] = useState("");
+  const [selectedOpName, setSelectedOpName] = useState("");
+  const debounceTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => setDebouncedOpSearch(opSearch), 300);
+    return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
+  }, [opSearch]);
+
+  const { data: operationsListData, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ["operations-search", debouncedOpSearch],
+    queryFn: ({ pageParam = 1 }) => operationService.getAll({ page: pageParam, limit: 50, search: debouncedOpSearch }),
+    getNextPageParam: (lastPage) => {
+      const totalPages = Math.ceil(lastPage.total / 50);
+      return lastPage.page < totalPages ? lastPage.page + 1 : undefined;
+    },
+  });
+  const operationsList = operationsListData?.pages.flatMap(p => p.data) || [];
   const { data: machinesListData } = useQuery({ queryKey: ["machines"], queryFn: () => machineService.getAll({ limit: 1000 }) });
   const machinesList = machinesListData?.data || [];
 
@@ -82,7 +100,7 @@ export default function ProductGroupPage() {
 
   const addOpMutation = useMutation({
     mutationFn: (payload) => productGroupService.addOperation(selectedGroup.id, payload),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }); resetOp(opInitial); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["groupOperations", selectedGroup?.id] }); resetOp(opInitial); setSelectedOpName(""); setOpSearch(""); },
     onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi thêm công đoạn"),
   });
   const removeOpMutation = useMutation({
@@ -102,9 +120,9 @@ export default function ProductGroupPage() {
   const quickCreateOpMutation = useMutation({
     mutationFn: operationService.create,
     onSuccess: (newOp) => {
-      queryClient.invalidateQueries({ queryKey: ["operations"] });
-      // Auto-select the newly created operation in the form
+      queryClient.invalidateQueries({ queryKey: ["operations-search"], refetchType: "active" });
       setOpValue("operation_id", String(newOp.id));
+      setSelectedOpName(newOp.name);
       setQuickCreateOpModal(false);
       setQuickOpName("");
       setQuickOpDesc("");
@@ -182,14 +200,6 @@ export default function ProductGroupPage() {
   const handleQuickCreateOp = () => {
     const trimmedName = quickOpName.trim();
     if (!trimmedName) { toast.error("Vui lòng nhập tên công đoạn!"); return; }
-    // Check duplicate in existing operations list
-    const isDuplicate = operationsList?.some(
-      (o) => o.name.trim().toLowerCase() === trimmedName.toLowerCase()
-    );
-    if (isDuplicate) {
-      toast.error(`Công đoạn "${trimmedName}" đã tồn tại!`);
-      return;
-    }
     quickCreateOpMutation.mutate({ name: trimmedName, description: quickOpDesc.trim() || undefined });
   };
 
@@ -231,9 +241,6 @@ export default function ProductGroupPage() {
     else createMutation.mutate(data);
   };
   const onAddOp = (data) => {
-    const selectedOp = operationsList?.find(o => String(o.id) === String(data.operation_id));
-    const isDuplicate = groupOperations?.some(op => String(op.operation_name).trim().toLowerCase() === String(selectedOp?.name).trim().toLowerCase());
-    if (isDuplicate) { toast.error(`Công đoạn "${selectedOp?.name}" đã tồn tại!`); return; }
     addOpMutation.mutate({
       ...data,
       sequence_order: parseInt(data.sequence_order) || nextSequenceOrder,
@@ -362,28 +369,36 @@ export default function ProductGroupPage() {
                           )}
                         >
                           <span className="truncate">
-                            {field.value ? operationsList?.find(o => String(o.id) === String(field.value))?.name : "Chọn công đoạn..."}
+                            {field.value ? selectedOpName || "Chọn công đoạn..." : "Chọn công đoạn..."}
                           </span>
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-30" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                        <Command className="w-full">
-                          <CommandInput placeholder="Tìm nhanh công đoạn..." />
-                          <CommandList className="max-h-64 p-1">
+                        <Command className="w-full" shouldFilter={false}>
+                          <CommandInput placeholder="Tìm công đoạn..." onValueChange={(v) => setOpSearch(v)} />
+                          <CommandList className="max-h-64 p-1" onScroll={(e) => {
+                            const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                            if (scrollHeight - scrollTop - clientHeight < 50 && hasNextPage && !isFetchingNextPage) {
+                              fetchNextPage();
+                            }
+                          }}>
                             <CommandEmpty className="py-6 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không có dữ liệu</CommandEmpty>
                             <CommandGroup>
                               {operationsList?.map((o) => (
                                 <CommandItem
                                   key={o.id}
                                   value={o.name}
-                                  onSelect={() => field.onChange(String(o.id))}
+                                  onSelect={() => { field.onChange(String(o.id)); setSelectedOpName(o.name); }}
                                   className="px-3 py-2.5 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
                                 >
                                   <span className="text-xs font-bold">{o.name}</span>
                                   <Check className={cn("ml-auto h-4 w-4 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
                                 </CommandItem>
                               ))}
+                              {isFetchingNextPage && (
+                                <div className="py-2 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Đang tải thêm...</div>
+                              )}
                             </CommandGroup>
                           </CommandList>
                         </Command>

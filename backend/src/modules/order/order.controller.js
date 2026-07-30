@@ -1075,21 +1075,25 @@ export const updateOrder = async (req, res) => {
     }
 
     // Update order_ext
-    const shippingDateVal = Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []);
-    const containerDateVal = Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []);
+    const shippingDateVal = 'expected_shipping_date' in req.body
+      ? (Array.isArray(expected_shipping_date) ? JSON.stringify(expected_shipping_date) : JSON.stringify(expected_shipping_date ? [expected_shipping_date] : []))
+      : null;
+    const containerDateVal = 'expected_container_shipping_date' in req.body
+      ? (Array.isArray(expected_container_shipping_date) ? JSON.stringify(expected_container_shipping_date) : JSON.stringify(expected_container_shipping_date ? [expected_container_shipping_date] : []))
+      : null;
     
     await client.query(
       `INSERT INTO order_ext (order_id, production_start_date, expected_shipping_date, expected_container_shipping_date, customer_confirmation_result, pallet_info, accessory_status, expected_material_date, actual_material_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        ON CONFLICT (order_id) DO UPDATE SET
-         production_start_date = EXCLUDED.production_start_date,
-         expected_shipping_date = EXCLUDED.expected_shipping_date,
-         expected_container_shipping_date = EXCLUDED.expected_container_shipping_date,
-         customer_confirmation_result = EXCLUDED.customer_confirmation_result,
-         pallet_info = EXCLUDED.pallet_info,
-         accessory_status = EXCLUDED.accessory_status,
-         expected_material_date = EXCLUDED.expected_material_date,
-         actual_material_date = EXCLUDED.actual_material_date`,
+         production_start_date = COALESCE(EXCLUDED.production_start_date, order_ext.production_start_date),
+         expected_shipping_date = COALESCE(EXCLUDED.expected_shipping_date, order_ext.expected_shipping_date),
+         expected_container_shipping_date = COALESCE(EXCLUDED.expected_container_shipping_date, order_ext.expected_container_shipping_date),
+         customer_confirmation_result = COALESCE(EXCLUDED.customer_confirmation_result, order_ext.customer_confirmation_result),
+         pallet_info = COALESCE(EXCLUDED.pallet_info, order_ext.pallet_info),
+         accessory_status = COALESCE(EXCLUDED.accessory_status, order_ext.accessory_status),
+         expected_material_date = COALESCE(EXCLUDED.expected_material_date, order_ext.expected_material_date),
+         actual_material_date = COALESCE(EXCLUDED.actual_material_date, order_ext.actual_material_date)`,
       [
         id,
         production_start_date || null,
