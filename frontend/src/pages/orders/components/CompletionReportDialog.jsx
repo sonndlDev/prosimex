@@ -76,7 +76,8 @@ const HEAD_CLS = `font-black text-[11px] text-zinc-800 ${BORDER}`;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CompletionReportDialog({ orderId, open, onClose }) {
+export default function CompletionReportDialog({ products, orderId, open, onClose }) {
+  console.log("🚀 ~ file: CompletionReportDialog.jsx:205 ~ CompletionReportDialog ~ products:", products);
   const { data: response, isLoading, error } = useQuery({
     queryKey: ["order-completion", orderId],
     queryFn: () => orderService.getCompletionReport(orderId),
@@ -205,7 +206,7 @@ export default function CompletionReportDialog({ orderId, open, onClose }) {
             </div>
             <div>
               <DialogTitle className="text-lg font-black uppercase tracking-tight leading-tight">
-                Báo cáo Hoàn Thành Đơn Hàng
+                Báo cáo Hoàn Thành Đơn Hàng - <span className="text-blue-200">{products?.name}</span>
               </DialogTitle>
               <div className="flex items-center gap-2 mt-0.5">
                 <Clock className="w-3 h-3 text-zinc-400" />

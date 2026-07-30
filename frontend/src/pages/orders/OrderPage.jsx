@@ -140,6 +140,7 @@ function OrderPageCore({
 
   const [openCompletionReport, setOpenCompletionReport] = useState(false);
   const [reportOrderId, setReportOrderId] = useState(null);
+  const [reportProducts, setReportProducts] = useState(null);
 
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
   const [warehouseOrder, setWarehouseOrder] = useState(null);
@@ -196,6 +197,7 @@ function OrderPageCore({
     queryFn: () => productService.getAll({ limit: 1000 }),
   });
   const products = productsData?.data || [];
+  console.log("🚀 ~ file: OrderPage.jsx:174 ~ OrderPageCore ~ products:", products);
 
   const { data: productGroupsData } = useQuery({
     queryKey: ["productGroups"],
@@ -523,6 +525,7 @@ function OrderPageCore({
         orderId={row.id}
         onClick={() => {
           setReportOrderId(row.id);
+          setReportProducts(row);
           setOpenCompletionReport(true);
         }}
       />
@@ -1772,6 +1775,7 @@ function OrderPageCore({
       {orderFormDialog}
 
       <CompletionReportDialog
+        products={reportProducts}
         orderId={reportOrderId}
         open={openCompletionReport}
         onClose={() => {
