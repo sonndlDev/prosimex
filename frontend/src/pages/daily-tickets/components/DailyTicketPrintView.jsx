@@ -125,7 +125,7 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                   {/* Items */}
                   {ticket?.items?.map((item, index) => (
                     <tr key={index} className="h-14">
-                      <td className="border border-black p-2 text-center text-[11px] font-bold leading-tight">{item.customer_name || ""}</td>
+                      <td className="border border-black p-2 text-center text-[11px] font-bold leading-tight">{item.customer_code || ""}</td>
                       <td className="border border-black p-2 text-center text-[11px] tabular-nums">{item.po_customer || ""}</td>
                       <td className="border border-black p-2 text-center text-[11px] italic">{item.product_group_name || ""}</td>
                       <td className="border border-black p-2 text-left font-bold text-[13px] uppercase leading-tight tracking-tight">{item.product_name || ""}</td>

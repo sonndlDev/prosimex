@@ -183,6 +183,7 @@ export const getTicketById = async (req, res) => {
     const itemsRes = await pool.query(
       `SELECT dti.*, 
               o.order_code, o.name as order_name, o.po_customer,
+              c.code as customer_code,
               c.name as customer_name,
               p.name as product_name,
               pg.name as product_group_name,
