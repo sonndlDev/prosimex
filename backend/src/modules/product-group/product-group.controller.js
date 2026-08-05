@@ -424,7 +424,7 @@ export const saveStageConfigs = async (req, res) => {
 
 export const exportProductGroups = async (req, res) => {
   try {
-    const { factory_id } = req.query
+    const { factory_id, search = "" } = req.query
 
     let whereClause = "WHERE pg.deleted_at IS NULL"
     const queryParams = []
@@ -432,6 +432,11 @@ export const exportProductGroups = async (req, res) => {
     if (factory_id) {
       queryParams.push(factory_id)
       whereClause += ` AND pg.factory_id = $${queryParams.length}`
+    }
+
+    if (search) {
+      queryParams.push(`%${search}%`)
+      whereClause += ` AND (pg.name ILIKE $${queryParams.length})`
     }
 
     const query = `

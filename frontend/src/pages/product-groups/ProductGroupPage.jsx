@@ -162,7 +162,7 @@ export default function ProductGroupPage() {
 
   const handleExportExcel = async () => {
     try {
-      const rows = await productGroupService.exportGroups();
+      const rows = await productGroupService.exportGroups({ search });
       if (!rows || rows.length === 0) {
         toast.error("Không có dữ liệu để xuất");
         return;
