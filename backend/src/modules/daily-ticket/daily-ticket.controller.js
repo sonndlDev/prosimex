@@ -769,17 +769,20 @@ export const getPlanVsActualReport = async (req, res) => {
             FROM daily_production_ticket_items dti
             JOIN daily_production_tickets dt ON dt.id = dti.ticket_id
             WHERE dt.deleted_at IS NULL AND (dt.status IS NULL OR dt.status != 'REJECTED')
-              AND (
-                dti.production_plan_id IN (
-                  SELECT pp_agg.id FROM production_plans pp_agg WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
-                )
-                OR (
-                  dti.production_plan_id IS NULL
-                  AND dti.order_id = base.order_id
-                  AND dti.product_id IS NOT DISTINCT FROM base.product_id
-                  AND dti.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
-                )
-              )
+              // AND (
+              //   dti.production_plan_id IN (
+              //     SELECT pp_agg.id FROM production_plans pp_agg WHERE ${ppMatchSql.replace(/pp_m/g, "pp_agg")}
+              //   )
+              //   OR (
+              //     dti.production_plan_id IS NULL
+              //     AND dti.order_id = base.order_id
+              //     AND dti.product_id IS NOT DISTINCT FROM base.product_id
+              //     AND dti.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
+              //   )
+              // )
+              AND dti.order_id = base.order_id
+              AND dti.product_id IS NOT DISTINCT FROM base.product_id
+              AND dti.product_group_operation_id IS NOT DISTINCT FROM base.product_group_operation_id
         ) as actual_tickets
       FROM unique_base base
       LEFT JOIN orders o ON base.order_id = o.id
