@@ -14,7 +14,7 @@ import { createTestOperation } from "./testJob.js";
  *   - *   → every day of week
  */
 export function startScheduler() {
-  const CRON_EXPRESSION = "0 14 * * *";
+  const CRON_EXPRESSION = "0 15 * * *";
 
   cron.schedule(
     CRON_EXPRESSION,
