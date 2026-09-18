@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import AccessDeniedBanner from "../components/AccessDeniedBanner";
 import NotificationDropdown from "../components/NotificationDropdown";
-import { useLocation, Outlet, useNavigate } from "react-router-dom";
+import { useLocation, Outlet, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
@@ -86,13 +86,11 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
           const btn = (
-            <div
-              role="button"
-              tabIndex={0}
+            <Link
+              to={item.path}
               key={item.path}
-              onClick={() => navigate(item.path)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-300 relative group overflow-hidden cursor-pointer outline-none",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] font-medium transition-all duration-300 relative group overflow-hidden cursor-pointer outline-none no-underline",
                 isActive
                   ? "bg-primary text-white shadow-md shadow-primary/20"
                   : "text-slate-600 hover:bg-primary/10 hover:text-primary",
@@ -104,7 +102,7 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
               )}
               <Icon className={cn("w-5 h-5 flex-shrink-0 transition-transform duration-300", !isActive && "group-hover:scale-110")} />
               {!isCollapsed && <span className="transition-transform duration-300 group-hover:translate-x-1">{item.text}</span>}
-            </div>
+            </Link>
           );
           if (isCollapsed) {
             return (
@@ -120,10 +118,10 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
 
       {/* User info */}
       <div className="p-4 border-t border-slate-200/50 bg-slate-50/30">
-        <div
-          onClick={() => navigate("/profile")}
+        <Link
+          to="/profile"
           className={cn(
-            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-white hover:shadow-sm transition-all duration-300 border border-transparent hover:border-slate-200/60",
+            "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer hover:bg-white hover:shadow-sm transition-all duration-300 border border-transparent hover:border-slate-200/60 no-underline",
             isCollapsed ? "justify-center" : ""
           )}
         >
@@ -155,7 +153,7 @@ function SidebarContent({ isCollapsed, user, allowedMenus, navigate, location, h
               <TooltipContent><p>Đăng xuất</p></TooltipContent>
             </Tooltip>
           )}
-        </div>
+        </Link>
       </div>
     </div>
   );
