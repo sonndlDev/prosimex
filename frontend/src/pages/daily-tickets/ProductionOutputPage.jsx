@@ -384,9 +384,9 @@ function ManualRow({
             className="h-9 text-sm text-right"
             min={0}
 
-            step={1}
+            step={0.01}
             onKeyDown={(e) => {
-              if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+              if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
             }}
           />
         )}
@@ -404,9 +404,9 @@ function ManualRow({
             className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500"
             min={0}
 
-            step={1}
+            step={0.01}
             onKeyDown={(e) => {
-              if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+              if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
             }}
           />
         )}
@@ -940,9 +940,9 @@ export default function ProductionOutputPage() {
                                 className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
                                 min={0}
 
-                                step={1}
+                                step={0.01}
                                 onKeyDown={(e) => {
-                                  if ([".", ",", "e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                                  if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
                                 }}
                               />
                             )}
