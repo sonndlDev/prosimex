@@ -78,21 +78,22 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
             >
               <table className="w-full border-collapse table-fixed border-2 border-black">
                 <colgroup>
-                  <col className="w-[14%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[22%]" />
-                  <col className="w-[16%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[12%]" />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <tbody>
                   {/* Row 1 */}
                   <tr>
                     <td colSpan={2} className="border border-black p-2 text-left font-bold text-sm">SLK:</td>
-                    <td colSpan={3} className="border border-black p-4 text-center">
+                    <td colSpan={5} className="border border-black p-4 text-center">
                       <div className="text-3xl font-black uppercase tracking-tight">PHIẾU SẢN XUẤT</div>
-                      {/* <div className="text-sm font-normal mt-1">Mã số phiếu: <span className="font-bold">{ticketCode}</span></div> */}
                     </td>
                     <td colSpan={2} className="border border-black p-2 text-center font-black text-xl italic tracking-tighter">PROSIMEX MES</td>
                   </tr>
@@ -102,50 +103,71 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
                     <td className="border border-black p-2 text-center font-black text-base">{ticketDate}</td>
                     <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase bg-zinc-50/50">CA SX: ....................</td>
                     <td className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50">MÃ SỐ CN:</td>
-                    <td colSpan={2} className="border border-black p-2 text-center text-[10px] leading-tight text-zinc-400">Mã số phiếu: {ticketCode}</td>
+                    <td colSpan={4} className="border border-black p-2 text-center text-[10px] leading-tight text-zinc-400">Mã số phiếu: {ticketCode}</td>
                   </tr>
                   {/* Row 3 */}
                   <tr>
                     <td className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50">MÁY MÓC / LINE:</td>
                     <td className="border border-black p-2 text-center font-black text-base italic">{firstMachine}</td>
                     <td colSpan={2} className="border border-black p-2 text-right font-bold pr-12 text-xs uppercase bg-zinc-50/50">SỐ THẺ: ....................</td>
-                    <td colSpan={2} className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50 italic border-r-0">HỌ VÀ TÊN: ...........................................</td>
-                    <td className="border border-black p-2 text-center border-l-0"></td>
+                    <td colSpan={5} className="border border-black p-2 text-left font-bold text-xs uppercase bg-zinc-50/50 italic">HỌ VÀ TÊN: ...........................................</td>
                   </tr>
                   {/* Headers */}
-                  <tr className="bg-zinc-100 font-bold text-[11px] uppercase tracking-tighter">
-                    <td className="border border-black p-3 text-center">KHÁCH HÀNG</td>
-                    <td className="border border-black p-3 text-center">ĐƠN HÀNG (PO)</td>
-                    <td className="border border-black p-3 text-center">NHÓM MÃ</td>
-                    <td className="border border-black p-3 text-center">MÃ HÀNG CHI TIẾT</td>
-                    <td className="border border-black p-3 text-center">CÔNG ĐOẠN</td>
-                    <td className="border border-black p-3 text-center">SẢN LƯỢNG<br />KẾ HOẠCH</td>
-                    <td className="border border-black p-3 text-center bg-zinc-200">KẾT QUẢ<br />THỰC TẾ</td>
+                  <tr className="bg-zinc-100 font-bold text-[10px] uppercase tracking-tighter">
+                    <td className="border border-black p-2 text-center">KHÁCH HÀNG</td>
+                    <td className="border border-black p-2 text-center">ĐƠN HÀNG (PO)</td>
+                    <td className="border border-black p-2 text-center">NHÓM MÃ</td>
+                    <td className="border border-black p-2 text-center">MÃ HÀNG CHI TIẾT</td>
+                    <td className="border border-black p-2 text-center">CÔNG ĐOẠN / GHI CHÚ</td>
+                    <td className="border border-black p-2 text-center">ĐỊNH MỨC</td>
+                    <td className="border border-black p-2 text-center">SỐ CÔNG</td>
+                    <td className="border border-black p-2 text-center">SẢN LƯỢNG<br />KẾ HOẠCH</td>
+                    <td className="border border-black p-2 text-center bg-zinc-200">KẾT QUẢ<br />THỰC TẾ</td>
                   </tr>
                   {/* Items */}
-                  {ticket?.items?.map((item, index) => (
-                    <tr key={index} className="h-14">
-                      <td className="border border-black p-2 text-center text-[11px] font-bold leading-tight">{item.customer_code || ""}</td>
-                      <td className="border border-black p-2 text-center text-[11px] tabular-nums">{item.po_customer || ""}</td>
-                      <td className="border border-black p-2 text-center text-[11px] italic">{item.product_group_name || ""}</td>
-                      <td className="border border-black p-2 text-left font-bold text-[13px] uppercase leading-tight tracking-tight">{item.product_name || ""}</td>
-                      <td className="border border-black p-2 text-center text-[11px] font-bold">{item.operation_name || item.pgo_operation_name}</td>
-                      <td className="border border-black p-2 text-center font-bold text-xl tabular-nums">
-                        {parseFloat(item.planned_quantity).toLocaleString()}
-                      </td>
-                      <td className="border border-black p-2 text-center bg-zinc-50/20"></td>
-                    </tr>
-                  ))}
+                  {ticket?.items?.map((item, index) => {
+                    const dinhMuc = parseFloat(item.dinh_muc) || 0;
+                    const plannedQty = parseFloat(item.planned_quantity) || 0;
+                    const soCong = dinhMuc > 0 ? (plannedQty / dinhMuc).toFixed(2) : "—";
+                    const opNote = item.operation_note || item.notes || "";
+                    const opName = item.operation_name || item.pgo_operation_name || "";
+                    return (
+                      <tr key={index} className="h-14">
+                        <td className="border border-black p-2 text-center text-[10px] font-bold leading-tight">{item.customer_code || ""}</td>
+                        <td className="border border-black p-2 text-center text-[10px] tabular-nums" style={{ wordBreak: "break-all" }}>{item.po_customer || ""}</td>
+                        <td className="border border-black p-2 text-center text-[10px] italic" style={{ wordBreak: "break-word" }}>{item.product_group_name || ""}</td>
+                        <td className="border border-black p-2 text-left font-bold text-[12px] uppercase leading-tight tracking-tight" style={{ wordBreak: "break-word" }}>{item.product_name || ""}</td>
+                        <td className="border border-black p-2 text-center text-[10px] font-bold align-top" style={{ wordBreak: "break-word" }}>
+                          <div>{opName}</div>
+                          {opNote && (
+                            <div className="mt-1 text-[9px] font-normal text-zinc-500 italic border-t border-zinc-300 pt-1" style={{ wordBreak: "break-word" }}>
+                              {opNote}
+                            </div>
+                          )}
+                        </td>
+                        <td className="border border-black p-2 text-center text-[11px] tabular-nums">
+                          {dinhMuc > 0 ? dinhMuc.toLocaleString() : ""}
+                        </td>
+                        <td className="border border-black p-2 text-center text-[11px] tabular-nums font-bold">
+                          {soCong}
+                        </td>
+                        <td className="border border-black p-2 text-center font-bold text-xl tabular-nums">
+                          {plannedQty.toLocaleString()}
+                        </td>
+                        <td className="border border-black p-2 text-center bg-zinc-50/20"></td>
+                      </tr>
+                    );
+                  })}
                   {/* Ghi chú */}
                   <tr>
-                    <td colSpan={7} className="border border-black p-2 text-left h-24 align-top">
+                    <td colSpan={9} className="border border-black p-2 text-left h-24 align-top">
                       <span className="font-bold text-[10px] uppercase tracking-widest text-zinc-400">GHI CHÚ SẢN XUẤT:</span>
                     </td>
                   </tr>
                   {/* Ký tên section */}
                   <tr>
-                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">CÔNG NHÂN KÝ TÊN</td>
-                    <td colSpan={2} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">QC KIỂM TRA</td>
+                    <td colSpan={3} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">CÔNG NHÂN KÝ TÊN</td>
+                    <td colSpan={3} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">QC KIỂM TRA</td>
                     <td colSpan={3} className="border border-black p-4 text-center font-bold text-[11px] uppercase bg-zinc-50 h-32 align-top">QUẢN LÝ XÁC NHẬN</td>
                   </tr>
                 </tbody>

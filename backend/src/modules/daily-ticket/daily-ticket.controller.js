@@ -181,15 +181,17 @@ export const getTicketById = async (req, res) => {
     const ticket = ticketRes.rows[0];
 
     const itemsRes = await pool.query(
-      `SELECT dti.*, 
+      `SELECT dti.*,
               o.order_code, o.name as order_name, o.po_customer,
               c.code as customer_code,
               c.name as customer_name,
               p.name as product_name,
               pg.name as product_group_name,
               op.name as pgo_operation_name,
+              op.description as operation_note,
               m.name as pgo_machine_name,
-              pp.remaining_quantity
+              pp.remaining_quantity,
+              COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc
        FROM daily_production_ticket_items dti
        LEFT JOIN orders o ON dti.order_id = o.id
        LEFT JOIN customers c ON o.customer_id = c.id

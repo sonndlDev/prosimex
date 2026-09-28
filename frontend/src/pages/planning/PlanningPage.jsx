@@ -862,6 +862,7 @@ export default function PlanningPage() {
                 const worksheetData = allPlans.map((plan, i) => {
                   const row = {
                     STT: i + 1,
+                    "Tên đơn hàng": plan.order_name,
                     "STT CĐ": plan.sequence_order,
                     "Tên mã hàng": plan.product_name,
                     "Nhóm mã": plan.product_group_name,
