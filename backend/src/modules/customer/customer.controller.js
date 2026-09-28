@@ -1,5 +1,6 @@
 import pool from '../../config/db.js'
 import { cascadeOnCustomerDelete } from '../../utils/cascade-delete.util.js'
+import { getUsersByIds, buildUserMap, userDisplayName } from '../../dal/users.dal.js'
 
 export const getCustomers = async (req, res) => {
   try {
@@ -19,17 +20,21 @@ export const getCustomers = async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT c.*, c.address as contact_info, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
-       FROM customers c
-       LEFT JOIN users cu ON c.created_by = cu.id
-       LEFT JOIN users mu ON c.modified_by = mu.id
-       ${whereClause.replace(/deleted_at/g, 'c.deleted_at').replace(/name/g, 'c.name').replace(/code/g, 'c.code')}
-       ORDER BY created_at DESC
-       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
+      `SELECT *, address as contact_info FROM customers ${whereClause} ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
       [...queryParams, limitInt, offsetInt]
     );
-    
-    res.json({ data: result.rows, total, page: pageInt, limit: limitInt });
+
+    const rows = result.rows;
+    if (rows.length > 0) {
+      const userIds = [...new Set([...rows.map(r => r.created_by), ...rows.map(r => r.modified_by)].filter(Boolean))];
+      const userMap = buildUserMap(await getUsersByIds(userIds));
+      rows.forEach(r => {
+        r.creator_name = userDisplayName(userMap[r.created_by]) ?? null;
+        r.modifier_name = userDisplayName(userMap[r.modified_by]) ?? null;
+      });
+    }
+
+    res.json({ data: rows, total, page: pageInt, limit: limitInt });
   } catch (error) {
     console.error("Get Customers Error:", error);
     res.status(500).json({ message: "Error retrieving customers", error });

@@ -1,5 +1,6 @@
 import pool from '../../config/db.js'
 import { cascadeOnFactoryDelete } from '../../utils/cascade-delete.util.js'
+import { getUsersByIds, buildUserMap, userDisplayName } from '../../dal/users.dal.js'
 
 export const getFactories = async (req, res) => {
   try {
@@ -8,28 +9,32 @@ export const getFactories = async (req, res) => {
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
 
-    let whereClause = "WHERE factories.deleted_at IS NULL";
+    let whereClause = "WHERE deleted_at IS NULL";
     const queryParams = [];
     if (search) {
       queryParams.push(`%${search}%`);
-      whereClause += ` AND (factories.name ILIKE $${queryParams.length} OR factories.location ILIKE $${queryParams.length})`;
+      whereClause += ` AND (name ILIKE ${queryParams.length} OR location ILIKE ${queryParams.length})`;
     }
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM factories ${whereClause}`, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT factories.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
-       FROM factories 
-       LEFT JOIN users cu ON factories.created_by = cu.id
-       LEFT JOIN users mu ON factories.modified_by = mu.id
-       ${whereClause}
-       ORDER BY factories.created_at DESC
-       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
+      `SELECT * FROM factories ${whereClause} ORDER BY created_at DESC LIMIT ${queryParams.length + 1} OFFSET ${queryParams.length + 2}`,
       [...queryParams, limitInt, offsetInt]
     );
-    
-    res.json({ data: result.rows, total, page: pageInt, limit: limitInt });
+
+    const rows = result.rows;
+    if (rows.length > 0) {
+      const userIds = [...new Set([...rows.map(r => r.created_by), ...rows.map(r => r.modified_by)].filter(Boolean))];
+      const userMap = buildUserMap(await getUsersByIds(userIds));
+      rows.forEach(r => {
+        r.creator_name = userDisplayName(userMap[r.created_by]) ?? null;
+        r.modifier_name = userDisplayName(userMap[r.modified_by]) ?? null;
+      });
+    }
+
+    res.json({ data: rows, total, page: pageInt, limit: limitInt });
   } catch (error) {
     console.error("Get Factories Error:", error);
     res.status(500).json({ message: "Error retrieving factories", error });

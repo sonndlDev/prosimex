@@ -1,34 +1,37 @@
 import pool from "../../config/db.js";
+import { getOrdersByIds, buildOrderMap }      from "../../dal/orders.dal.js";
+import { getProductsByIds, buildProductMap }  from "../../dal/products.dal.js";
+import { getPgosByIds, buildPgoMap }          from "../../dal/pgos.dal.js";
+import { getMachinesByIds, buildMachineMap }  from "../../dal/machines.dal.js";
+import { getFactoriesByIds, buildFactoryMap } from "../../dal/factories.dal.js";
+import { getUsersByIds, buildUserMap }        from "../../dal/users.dal.js";
+import { getOrderProductsMap }               from "../../dal/order-products.dal.js";
+import { getDaysByPlanIds, buildDaysMap }     from "../../dal/plan-days.dal.js";
+import { buildPlanResponse }                 from "../../builders/plan.builder.js";
+
+function normalizeIds(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : value.split(",");
+}
 
 export const getProductionPlans = async (req, res) => {
   try {
     const { page = 1, limit = 10, order_ids, product_ids, machine_ids, startDate, endDate } = req.query;
-    const pageInt = parseInt(page) || 1;
-    const limitInt = parseInt(limit) || 10;
+    const pageInt   = parseInt(page)  || 1;
+    const limitInt  = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
 
+    // ── Build WHERE clause (chỉ dùng cột của pp, không cần JOIN) ──
     let whereClause = "WHERE pp.deleted_at IS NULL";
     const queryParams = [];
 
-    // Normalize order_ids to array
-    const orderIdsArray = order_ids
-      ? Array.isArray(order_ids)
-        ? order_ids
-        : order_ids.split(",")
-      : [];
-
+    const orderIdsArray = normalizeIds(order_ids);
     if (orderIdsArray.length > 0) {
       queryParams.push(orderIdsArray);
       whereClause += ` AND pp.order_id = ANY($${queryParams.length})`;
     }
 
-    // Normalize product_ids to array
-    const productIdsArray = product_ids
-      ? Array.isArray(product_ids)
-        ? product_ids
-        : product_ids.split(",")
-      : [];
-
+    const productIdsArray = normalizeIds(product_ids);
     if (productIdsArray.length > 0) {
       queryParams.push(productIdsArray);
       whereClause += ` AND pp.product_id = ANY($${queryParams.length})`;
@@ -37,13 +40,7 @@ export const getProductionPlans = async (req, res) => {
       whereClause += ` AND pp.product_id = $${queryParams.length}`;
     }
 
-    // Normalize machine_ids to array
-    const machineIdsArray = machine_ids
-      ? Array.isArray(machine_ids)
-        ? machine_ids
-        : machine_ids.split(",")
-      : [];
-
+    const machineIdsArray = normalizeIds(machine_ids);
     if (machineIdsArray.length > 0) {
       queryParams.push(machineIdsArray);
       whereClause += ` AND pp.machine_id = ANY($${queryParams.length})`;
@@ -52,8 +49,6 @@ export const getProductionPlans = async (req, res) => {
       whereClause += ` AND pp.machine_id = $${queryParams.length}`;
     }
 
-    // Overlap filter: keep plans whose [planned_start_date, planned_end_date]
-    // intersects the requested [startDate, endDate] window.
     if (startDate) {
       queryParams.push(startDate);
       whereClause += ` AND pp.planned_end_date >= $${queryParams.length}`;
@@ -63,109 +58,72 @@ export const getProductionPlans = async (req, res) => {
       whereClause += ` AND pp.planned_start_date <= $${queryParams.length}`;
     }
 
-    // Get total count for pagination
+    // ── 1. Count (không cần JOIN) ──────────────────────────────────
     const countResult = await pool.query(
-      `
-      SELECT COUNT(*) 
-      FROM production_plans pp
-      LEFT JOIN orders o ON pp.order_id = o.id
-      ${whereClause}
-    `,
+      `SELECT COUNT(*) FROM production_plans pp ${whereClause}`,
       queryParams,
     );
-
     const total = parseInt(countResult.rows[0].count);
 
-    // Get paginated data
+    // ── 2. Primary query (2 JOIN chỉ để ORDER BY) ──────────────────
     const result = await pool.query(
-      `
-            SELECT 
-                pp.*, 
-                o.order_code, 
-                o.name as order_name,
-                o.po_customer,
-                COALESCE(op_qty.quantity, o.quantity, 0) as quantity,
-                COALESCE(op_qty.quantity, o.quantity, 0) as product_quantity,
-                COALESCE(op_qty.product_name, p.name) as product_name,
-                COALESCE(op_qty.product_group_name, pg.name) as product_group_name,
-                pgo.sequence_order, 
-                COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
-                op.name as operation_name, 
-                op.description as operation_note,
-                pp.machine_id as machine_id,
-                m.name as machine_name,
-                m.code as machine_code,
-                f.name as factory_name,
-                COALESCE(cu.full_name, cu.username) as creator_name,
-                COALESCE(mu.full_name, mu.username) as modifier_name
-            FROM production_plans pp
-            LEFT JOIN orders o ON pp.order_id = o.id
-            LEFT JOIN products p ON pp.product_id = p.id
-            LEFT JOIN order_products op_qty ON op_qty.order_id = pp.order_id AND op_qty.product_id = pp.product_id
-            LEFT JOIN product_groups pg ON pg.id = COALESCE(op_qty.product_group_id, p.product_group_id)
-            LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
-            LEFT JOIN operations op ON pgo.operation_id = op.id
-            LEFT JOIN machines m ON pp.machine_id = m.id
-            LEFT JOIN factories f ON pp.factory_id = f.id
-            LEFT JOIN users cu ON pp.created_by = cu.id
-            LEFT JOIN users mu ON pp.modified_by = mu.id
-            ${whereClause}
-            ORDER BY p.name ASC, pgo.sequence_order ASC, pp.created_at DESC
-            LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
-        `,
+      `SELECT pp.*
+       FROM production_plans pp
+       LEFT JOIN products                 p   ON pp.product_id                 = p.id
+       LEFT JOIN product_group_operations pgo ON pp.product_group_operation_id = pgo.id
+       ${whereClause}
+       ORDER BY p.name ASC, pgo.sequence_order ASC, pp.created_at DESC
+       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
       [...queryParams, limitInt, offsetInt],
     );
 
-    // Fix N+1: Fetch tất cả days của tất cả plans trong 1 query duy nhất
-    let plansWithDays = result.rows.map(plan => ({ ...plan, days: [] }));
-
-    if (result.rows.length > 0) {
-      const planIds = result.rows.map(r => r.id);
-      const allDaysRes = await pool.query(
-        `SELECT 
-              ppd.production_plan_id,
-              ppd.working_date, 
-              ppd.planned_work_quantity, 
-              ppd.is_overtime,
-              (SELECT COUNT(*) FROM worker_plan_assignments wpa 
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_count,
-              (SELECT string_agg(w.name, ', ') FROM worker_plan_assignments wpa 
-               JOIN workers w ON wpa.worker_id = w.id
-               WHERE wpa.production_plan_id = ppd.production_plan_id 
-               AND wpa.working_date = ppd.working_date) as worker_names
-           FROM production_plan_days ppd 
-           WHERE ppd.production_plan_id = ANY($1)
-           AND ppd.deleted_at IS NULL
-           ORDER BY ppd.working_date ASC`,
-        [planIds],
-      );
-
-      // Group days theo plan_id bằng JS (không cần thêm query)
-      const daysMap = {};
-      for (const day of allDaysRes.rows) {
-        if (!daysMap[day.production_plan_id]) daysMap[day.production_plan_id] = [];
-        daysMap[day.production_plan_id].push(day);
-      }
-
-      plansWithDays = result.rows.map(plan => ({
-        ...plan,
-        days: daysMap[plan.id] || [],
-      }));
+    if (result.rows.length === 0) {
+      return res.json({ data: [], total, page: pageInt, limit: limitInt, totalPages: 0 });
     }
 
-    res.json({
-      data: plansWithDays,
-      total,
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalPages: Math.ceil(total / limit),
-    });
+    const plans = result.rows;
+
+    // ── 3. Collect ID sets ──────────────────────────────────────────
+    const orderIds    = [...new Set(plans.map(p => p.order_id).filter(Boolean))];
+    const productIds  = [...new Set(plans.map(p => p.product_id).filter(Boolean))];
+    const pgoIds      = [...new Set(plans.map(p => p.product_group_operation_id).filter(Boolean))];
+    const machineIds  = [...new Set(plans.map(p => p.machine_id).filter(Boolean))];
+    const factoryIds  = [...new Set(plans.map(p => p.factory_id).filter(Boolean))];
+    const userIds     = [...new Set([...plans.map(p => p.created_by), ...plans.map(p => p.modified_by)].filter(Boolean))];
+    const planIds     = plans.map(p => p.id);
+
+    // ── 4. Batch-fetch tất cả related data song song ───────────────
+    const [orders, products, pgos, machines, factories, users, orderProductMap, days] =
+      await Promise.all([
+        getOrdersByIds(orderIds),
+        getProductsByIds(productIds),
+        getPgosByIds(pgoIds),
+        getMachinesByIds(machineIds),
+        getFactoriesByIds(factoryIds),
+        getUsersByIds(userIds),
+        getOrderProductsMap(orderIds, productIds),
+        getDaysByPlanIds(planIds),
+      ]);
+
+    // ── 5. Build maps ───────────────────────────────────────────────
+    const maps = {
+      orderMap:        buildOrderMap(orders),
+      productMap:      buildProductMap(products),
+      pgoMap:          buildPgoMap(pgos),
+      machineMap:      buildMachineMap(machines),
+      factoryMap:      buildFactoryMap(factories),
+      userMap:         buildUserMap(users),
+      orderProductMap,
+      daysMap:         buildDaysMap(days),
+    };
+
+    // ── 6. Merge trong JS (builder) ─────────────────────────────────
+    const data = plans.map(plan => buildPlanResponse(plan, maps));
+
+    res.json({ data, total, page: pageInt, limit: limitInt, totalPages: Math.ceil(total / limitInt) });
   } catch (error) {
     console.error("Get Plans Error:", error);
-    res
-      .status(500)
-      .json({ message: "Error retrieving production plans", error });
+    res.status(500).json({ message: "Error retrieving production plans", error });
   }
 };
 

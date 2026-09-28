@@ -1,5 +1,7 @@
 import pool from '../../config/db.js'
 import { cascadeOnMachineDelete } from '../../utils/cascade-delete.util.js'
+import { getFactoriesByIds, buildFactoryMap } from '../../dal/factories.dal.js'
+import { getUsersByIds, buildUserMap, userDisplayName } from '../../dal/users.dal.js'
 
 export const getMachines = async (req, res) => {
   try {
@@ -21,24 +23,31 @@ export const getMachines = async (req, res) => {
     }
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM machines m LEFT JOIN factories f ON m.factory_id = f.id ${whereClause}`,
+      `SELECT COUNT(*) FROM machines m ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT m.*, f.name as factory_name, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
-       FROM machines m 
-       LEFT JOIN factories f ON m.factory_id = f.id
-       LEFT JOIN users cu ON m.created_by = cu.id
-       LEFT JOIN users mu ON m.modified_by = mu.id
-       ${whereClause}
-       ORDER BY m.sort_order ASC, m.name ASC
-       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
+      `SELECT * FROM machines m ${whereClause} ORDER BY sort_order ASC, name ASC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
       [...queryParams, limitInt, offsetInt]
     );
-    
-    res.json({ data: result.rows, total, page: pageInt, limit: limitInt });
+
+    const rows = result.rows;
+    if (rows.length > 0) {
+      const factoryIds = [...new Set(rows.map(r => r.factory_id).filter(Boolean))];
+      const userIds = [...new Set([...rows.map(r => r.created_by), ...rows.map(r => r.modified_by)].filter(Boolean))];
+      const [factories, users] = await Promise.all([getFactoriesByIds(factoryIds), getUsersByIds(userIds)]);
+      const factoryMap = buildFactoryMap(factories);
+      const userMap = buildUserMap(users);
+      rows.forEach(r => {
+        r.factory_name = factoryMap[r.factory_id]?.name ?? null;
+        r.creator_name = userDisplayName(userMap[r.created_by]) ?? null;
+        r.modifier_name = userDisplayName(userMap[r.modified_by]) ?? null;
+      });
+    }
+
+    res.json({ data: rows, total, page: pageInt, limit: limitInt });
   } catch (error) {
     console.error("Get Machines Error:", error);
     res.status(500).json({ message: "Error retrieving machines", error });

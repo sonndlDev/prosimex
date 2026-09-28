@@ -1,6 +1,12 @@
 import pool from "../../config/db.js";
 import { generateDailyTickets } from "../../workers/dailyTicketWorker.js";
 import { getIo } from "../../sockets/index.js";
+import { getOrdersByIds, buildOrderMap }      from "../../dal/orders.dal.js";
+import { getCustomersByIds, buildCustomerMap } from "../../dal/customers.dal.js";
+import { getProductsByIds, buildProductMap }  from "../../dal/products.dal.js";
+import { getPgosByIds, buildPgoMap }          from "../../dal/pgos.dal.js";
+import { getPlanDataForItems, buildPlanIdMap, buildPlanComboMap } from "../../dal/production-plans.dal.js";
+import { buildTicketItemResponse }            from "../../builders/ticket-item.builder.js";
 const toIntOrNull = (v) => (v === null || v === undefined || v === "null" || v === "") ? null : parseInt(v);
 // GET /api/daily-tickets
 export const getTickets = async (req, res) => {
@@ -180,40 +186,42 @@ export const getTicketById = async (req, res) => {
 
     const ticket = ticketRes.rows[0];
 
+    // ── Items: simple query + batch enrichment ────────────────────
     const itemsRes = await pool.query(
-      `SELECT dti.*,
-              o.order_code, o.name as order_name, o.po_customer,
-              c.code as customer_code,
-              c.name as customer_name,
-              p.name as product_name,
-              pg.name as product_group_name,
-              op.name as pgo_operation_name,
-              op.description as operation_note,
-              m.name as pgo_machine_name,
-              pp.remaining_quantity,
-              COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc
-       FROM daily_production_ticket_items dti
-       LEFT JOIN orders o ON dti.order_id = o.id
-       LEFT JOIN customers c ON o.customer_id = c.id
-       LEFT JOIN products p ON dti.product_id = p.id
-       LEFT JOIN product_groups pg ON p.product_group_id = pg.id
-       LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
-       LEFT JOIN operations op ON pgo.operation_id = op.id
-       LEFT JOIN machines m ON pgo.machine_id = m.id
-       LEFT JOIN production_plans pp ON pp.id = COALESCE(
-            dti.production_plan_id,
-            (SELECT id FROM production_plans 
-             WHERE order_id = dti.order_id 
-               AND product_id = dti.product_id 
-               AND product_group_operation_id = dti.product_group_operation_id 
-               AND deleted_at IS NULL 
-             LIMIT 1)
-        )
-       WHERE dti.ticket_id = $1`,
+      `SELECT * FROM daily_production_ticket_items WHERE ticket_id = $1`,
       [id]
     );
+    const rawItems = itemsRes.rows;
 
-    ticket.items = itemsRes.rows;
+    if (rawItems.length > 0) {
+      const orderIds   = [...new Set(rawItems.map(i => i.order_id).filter(Boolean))];
+      const productIds = [...new Set(rawItems.map(i => i.product_id).filter(Boolean))];
+      const pgoIds     = [...new Set(rawItems.map(i => i.product_group_operation_id).filter(Boolean))];
+
+      const [orders, products, pgos, plans] = await Promise.all([
+        getOrdersByIds(orderIds),
+        getProductsByIds(productIds),
+        getPgosByIds(pgoIds),
+        getPlanDataForItems(rawItems),
+      ]);
+
+      const orderMap   = buildOrderMap(orders);
+      const customerIds = [...new Set(orders.map(o => o.customer_id).filter(Boolean))];
+      const customers  = await getCustomersByIds(customerIds);
+
+      const maps = {
+        orderMap,
+        customerMap:  buildCustomerMap(customers),
+        productMap:   buildProductMap(products),
+        pgoMap:       buildPgoMap(pgos),
+        planIdMap:    buildPlanIdMap(plans),
+        planComboMap: buildPlanComboMap(plans),
+      };
+
+      ticket.items = rawItems.map(item => buildTicketItemResponse(item, maps));
+    } else {
+      ticket.items = [];
+    }
 
     res.json(ticket);
   } catch (error) {

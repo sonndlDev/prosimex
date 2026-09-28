@@ -1,5 +1,6 @@
 import pool from '../../config/db.js'
 import { cascadeOnProductGroupDelete } from '../../utils/cascade-delete.util.js'
+import { getUsersByIds, buildUserMap, userDisplayName } from '../../dal/users.dal.js'
 
 export const getProductGroups = async (req, res) => {
   try {
@@ -26,24 +27,22 @@ export const getProductGroups = async (req, res) => {
     const countResult = await pool.query(countQuery, queryParams);
     const total = parseInt(countResult.rows[0].count);
 
-    // Get data
-    const dataQuery = `
-      SELECT pg.*, COALESCE(cu.full_name, cu.username) as creator_name, COALESCE(mu.full_name, mu.username) as modifier_name
-      FROM product_groups pg
-      LEFT JOIN users cu ON pg.created_by = cu.id
-      LEFT JOIN users mu ON pg.modified_by = mu.id
-      ${whereClause.replace(/deleted_at/g, 'pg.deleted_at').replace(/factory_id/g, 'pg.factory_id').replace(/name/g, 'pg.name')}
-      ORDER BY created_at DESC
-      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
-    `;
-    const result = await pool.query(dataQuery, [...queryParams, limitInt, offsetInt]);
-    
-    res.json({
-      data: result.rows,
-      total,
-      page: pageInt,
-      limit: limitInt
-    });
+    const result = await pool.query(
+      `SELECT * FROM product_groups ${whereClause} ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
+      [...queryParams, limitInt, offsetInt]
+    );
+
+    const rows = result.rows;
+    if (rows.length > 0) {
+      const userIds = [...new Set([...rows.map(r => r.created_by), ...rows.map(r => r.modified_by)].filter(Boolean))];
+      const userMap = buildUserMap(await getUsersByIds(userIds));
+      rows.forEach(r => {
+        r.creator_name = userDisplayName(userMap[r.created_by]) ?? null;
+        r.modifier_name = userDisplayName(userMap[r.modified_by]) ?? null;
+      });
+    }
+
+    res.json({ data: rows, total, page: pageInt, limit: limitInt });
   } catch (error) {
     console.error("Get Product Groups Error:", error);
     res.status(500).json({ message: "Error retrieving product groups", error });

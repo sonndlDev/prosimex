@@ -1,4 +1,7 @@
 import pool from "../../config/db.js";
+import { getProductsByIds, buildProductMap } from "../../dal/products.dal.js";
+import { getOrdersByIds, buildOrderMap }     from "../../dal/orders.dal.js";
+import { getUsersByIds, buildUserMap, userDisplayName } from "../../dal/users.dal.js";
 
 // Lấy chi tiết từng item (Dành cho Export Excel)
 export const exportDetailedItems = async (req, res) => {
@@ -253,100 +256,86 @@ export const getTickets = async (req, res) => {
 export const getTicketByCode = async (req, res) => {
   try {
     const { ticket_code } = req.params;
-    const dataQuery = `
-      WITH ticket_match AS (
-        SELECT *
-        FROM outsourcing_tickets
-        WHERE ticket_code = $1 AND deleted_at IS NULL
-        LIMIT 1
-      ),
-      ticket_items_agg AS (
-        SELECT
-          i.ticket_id,
-          SUM(i.quantity_out) AS quantity_out,
-          SUM(i.accessory_quantity) AS accessory_quantity,
-          string_agg(DISTINCT p.name, ', ' ORDER BY p.name) AS product_name,
-          string_agg(
-            DISTINCT NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), ''),
-            ', '
-            ORDER BY NULLIF(BTRIM(CONCAT_WS(' - ', NULLIF(o.order_code, ''), o.name)), '')
-          ) AS order_name
-        FROM outsourcing_ticket_items i
-        LEFT JOIN products p ON i.product_id = p.id
-        LEFT JOIN orders o ON i.order_id = o.id
-        WHERE i.ticket_id IN (SELECT id FROM ticket_match)
-        GROUP BY i.ticket_id
-      ),
-      ticket_returns_agg AS (
-        SELECT
-          i.ticket_id,
-          SUM(r.quantity_returned) AS total_returned
-        FROM outsourcing_returns r
-        JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
-        WHERE i.ticket_id IN (SELECT id FROM ticket_match)
-        GROUP BY i.ticket_id
-      )
-      SELECT
-        t.*,
-        s.name as supplier,
-        COALESCE(cu.full_name, cu.username) as creator_name,
-        COALESCE(mu.full_name, mu.username) as modifier_name,
-        COALESCE(tia.quantity_out, 0) as quantity_out,
-        COALESCE(tia.accessory_quantity, 0) as accessory_quantity,
-        COALESCE(tra.total_returned, 0) as total_returned,
-        tia.product_name,
-        tia.order_name
-      FROM ticket_match t
-      LEFT JOIN suppliers s ON t.supplier_id = s.id
-      LEFT JOIN users cu ON t.created_by = cu.id
-      LEFT JOIN users mu ON t.modified_by = mu.id
-      LEFT JOIN ticket_items_agg tia ON tia.ticket_id = t.id
-      LEFT JOIN ticket_returns_agg tra ON tra.ticket_id = t.id
-    `;
-    const result = await pool.query(dataQuery, [ticket_code]);
-    if (result.rowCount === 0) {
+
+    // ── 1. Primary ticket fetch ────────────────────────────────────
+    const ticketRes = await pool.query(
+      `SELECT * FROM outsourcing_tickets WHERE ticket_code = $1 AND deleted_at IS NULL LIMIT 1`,
+      [ticket_code]
+    );
+    if (ticketRes.rowCount === 0) {
       return res.status(404).json({ message: "Ticket not found" });
     }
-    const ticket = result.rows[0];
+    const ticket = ticketRes.rows[0];
 
-    // Get items
-    const itemsQuery = `
-        WITH returns_agg AS (
-          SELECT ticket_item_id, SUM(quantity_returned) AS total_returned
-          FROM outsourcing_returns
-          GROUP BY ticket_item_id
-        )
-        SELECT
-          i.*,
-          p.name as product_name,
-          o.order_code,
-          o.name as order_name,
-          COALESCE(ra.total_returned, 0) as total_returned
-        FROM outsourcing_ticket_items i
-        JOIN products p ON i.product_id = p.id
-        JOIN orders o ON i.order_id = o.id
-        LEFT JOIN returns_agg ra ON ra.ticket_item_id = i.id
-        WHERE i.ticket_id = $1
-    `;
-    const itemsResult = await pool.query(itemsQuery, [ticket.id]);
-    ticket.items = itemsResult.rows;
+    // ── 2. Fetch items + supplier + ticket users in parallel ───────
+    const [rawItems, supplierRows, ticketUsers] = await Promise.all([
+      pool.query(`SELECT * FROM outsourcing_ticket_items WHERE ticket_id = $1`, [ticket.id]).then(r => r.rows),
+      ticket.supplier_id
+        ? pool.query(`SELECT id, name FROM suppliers WHERE id = $1`, [ticket.supplier_id]).then(r => r.rows)
+        : Promise.resolve([]),
+      getUsersByIds([ticket.created_by, ticket.modified_by].filter(Boolean)),
+    ]);
 
-    // Get return history
-    const historyQuery = `
-      SELECT r.*, u.username as created_by_username, p.name as product_name
-      FROM outsourcing_returns r
-      LEFT JOIN users u ON r.created_by = u.id
-      JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id
-      JOIN products p ON i.product_id = p.id
-      WHERE i.ticket_id = $1
-      ORDER BY r.returned_at DESC
-    `;
-    const historyResult = await pool.query(historyQuery, [ticket.id]);
+    // ── 3. Collect IDs from items ──────────────────────────────────
+    const itemIds    = rawItems.map(i => i.id);
+    const productIds = [...new Set(rawItems.map(i => i.product_id).filter(Boolean))];
+    const orderIds   = [...new Set(rawItems.map(i => i.order_id).filter(Boolean))];
 
-    res.json({
-      ticket,
-      history: historyResult.rows
-    });
+    // ── 4. Batch-fetch item enrichment + returns in parallel ───────
+    const [products, orders, returnsAggRows, historyRows] = await Promise.all([
+      getProductsByIds(productIds),
+      getOrdersByIds(orderIds),
+      itemIds.length > 0
+        ? pool.query(`SELECT ticket_item_id, SUM(quantity_returned) as total_returned FROM outsourcing_returns WHERE ticket_item_id = ANY($1) GROUP BY ticket_item_id`, [itemIds]).then(r => r.rows)
+        : Promise.resolve([]),
+      pool.query(
+        `SELECT r.*, i.product_id FROM outsourcing_returns r JOIN outsourcing_ticket_items i ON r.ticket_item_id = i.id WHERE i.ticket_id = $1 ORDER BY r.returned_at DESC`,
+        [ticket.id]
+      ).then(r => r.rows),
+    ]);
+
+    // ── 5. Build maps ──────────────────────────────────────────────
+    const productMap  = buildProductMap(products);
+    const orderMap    = buildOrderMap(orders);
+    const returnsMap  = Object.fromEntries(returnsAggRows.map(r => [r.ticket_item_id, parseFloat(r.total_returned)]));
+    const ticketUserMap = buildUserMap(ticketUsers);
+
+    // ── 6. Enrich ticket ───────────────────────────────────────────
+    ticket.supplier      = supplierRows[0]?.name ?? null;
+    ticket.creator_name  = userDisplayName(ticketUserMap[ticket.created_by]) ?? null;
+    ticket.modifier_name = userDisplayName(ticketUserMap[ticket.modified_by]) ?? null;
+    ticket.quantity_out       = rawItems.reduce((s, i) => s + parseFloat(i.quantity_out ?? 0), 0);
+    ticket.accessory_quantity = rawItems.reduce((s, i) => s + parseFloat(i.accessory_quantity ?? 0), 0);
+    ticket.total_returned     = historyRows.reduce((s, r) => s + parseFloat(r.quantity_returned ?? 0), 0);
+    ticket.product_name = [...new Set(rawItems.map(i => productMap[i.product_id]?.name).filter(Boolean))].sort().join(", ");
+    ticket.order_name   = [...new Set(rawItems.map(i => {
+      const o = orderMap[i.order_id];
+      if (!o) return null;
+      const parts = [o.order_code, o.name].filter(Boolean);
+      return parts.length > 1 ? parts.join(" - ") : parts[0] ?? null;
+    }).filter(Boolean))].sort().join(", ");
+
+    // ── 7. Enrich items ────────────────────────────────────────────
+    ticket.items = rawItems.map(i => ({
+      ...i,
+      product_name:  productMap[i.product_id]?.name ?? null,
+      order_code:    orderMap[i.order_id]?.order_code ?? null,
+      order_name:    orderMap[i.order_id]?.name ?? null,
+      total_returned: returnsMap[i.id] ?? 0,
+    }));
+
+    // ── 8. Enrich history ──────────────────────────────────────────
+    const historyUserIds = [...new Set(historyRows.map(r => r.created_by).filter(Boolean))];
+    const historyUsers   = await getUsersByIds(historyUserIds);
+    const historyUserMap = buildUserMap(historyUsers);
+
+    const history = historyRows.map(r => ({
+      ...r,
+      created_by_username: historyUserMap[r.created_by]?.username ?? null,
+      product_name:        productMap[r.product_id]?.name ?? null,
+    }));
+
+    res.json({ ticket, history });
   } catch (error) {
     console.error("Get Ticket by Code Error:", error);
     res.status(500).json({ message: "Error retrieving ticket", error });
