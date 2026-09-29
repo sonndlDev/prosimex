@@ -52,15 +52,24 @@ export const getProductionPlans = async (req, res) => {
       whereClause += ` AND pp.machine_id = $${queryParams.length}`;
     }
 
-    // Overlap filter: keep plans whose [planned_start_date, planned_end_date]
-    // intersects the requested [startDate, endDate] window.
-    if (startDate) {
-      queryParams.push(startDate);
-      whereClause += ` AND pp.planned_end_date >= $${queryParams.length}`;
-    }
-    if (endDate) {
-      queryParams.push(endDate);
-      whereClause += ` AND pp.planned_start_date <= $${queryParams.length}`;
+    // Filter: keep plans that have actual working days in the requested date window.
+    // Uses EXISTS on production_plan_days so inclusive date matching is exact
+    // and avoids TIMESTAMP vs DATE ambiguity that broke single-day filters.
+    if (startDate || endDate) {
+      let existsCond = `EXISTS (
+        SELECT 1 FROM production_plan_days ppd_filter
+        WHERE ppd_filter.production_plan_id = pp.id
+        AND ppd_filter.deleted_at IS NULL`;
+      if (startDate) {
+        queryParams.push(startDate);
+        existsCond += ` AND ppd_filter.working_date::DATE >= $${queryParams.length}`;
+      }
+      if (endDate) {
+        queryParams.push(endDate);
+        existsCond += ` AND ppd_filter.working_date::DATE <= $${queryParams.length}`;
+      }
+      existsCond += `)`;
+      whereClause += ` AND ${existsCond}`;
     }
 
     // Get total count for pagination
