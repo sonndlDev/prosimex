@@ -115,151 +115,145 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
     return Array.from(map.values());
   }, [plans, watchItems, index, isManualMode, manualOrders]);
 
+  const comboboxBtn = (icon, label, isSet, disabled) => (
+    <Button variant="outline" role="combobox" disabled={disabled}
+      className="w-full h-9 justify-between text-xs font-semibold bg-zinc-50 border-zinc-200 hover:bg-white hover:border-indigo-300 transition-all disabled:opacity-50 overflow-hidden px-2.5">
+      <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+        {React.cloneElement(icon, { className: cn("h-3 w-3 shrink-0", isSet ? "text-indigo-500" : "text-zinc-300") })}
+        <span className="truncate text-left">{label}</span>
+      </div>
+      <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40 ml-1" />
+    </Button>
+  );
+
   return (
-    <div className="group relative bg-white rounded-xl border border-zinc-100 hover:border-indigo-200 hover:shadow-sm transition-all p-3 pl-8">
-      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-300 group-hover:text-indigo-400 tabular-nums transition-colors select-none">
+    <div className="group relative bg-white rounded-xl border border-zinc-100 hover:border-indigo-200 hover:shadow-sm transition-all p-2.5 pl-7">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-300 group-hover:text-indigo-400 tabular-nums transition-colors select-none">
         {String(index + 1).padStart(2, "0")}
       </span>
 
-      <div className="grid grid-cols-[1fr_1fr_1fr_90px_1fr_28px] gap-2 items-center">
+      {/* minmax(0,Xfr) prevents 1fr columns from overflowing their track */}
+      <div className="grid gap-2 items-center" style={{ gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 76px minmax(0,0.8fr) 28px" }}>
+
         {/* Order */}
-        <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" disabled={isCompleted}
-                className="w-full h-9 justify-between text-xs font-semibold bg-zinc-50 border-zinc-200 hover:bg-white hover:border-indigo-300 transition-all">
-                <div className="flex items-center gap-1.5 truncate min-w-0">
-                  <ShoppingCart className={cn("h-3 w-3 shrink-0", field.value ? "text-indigo-500" : "text-zinc-300")} />
-                  <span className="truncate">
-                    {uniqueOrders.find(o => String(o.id) === String(field.value))?.name || <span className="text-zinc-400 font-normal">Đơn hàng</span>}
-                  </span>
-                </div>
-                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40 ml-1" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-              <Command>
-                <CommandInput placeholder="Tìm đơn hàng..." className="h-9" />
-                <CommandList className="max-h-[260px] p-1">
-                  <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                  <CommandGroup>
-                    {uniqueOrders.map(o => (
-                      <CommandItem key={o.id} value={o.name}
-                        onSelect={() => {
-                          field.onChange(String(o.id));
-                          setValue(`items.${index}.product_id`, "");
-                          setValue(`items.${index}.product_group_operation_id`, "");
-                          setValue(`items.${index}.planned_quantity`, "");
-                        }}
-                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                        <span className="text-xs font-semibold">{o.name}</span>
-                        <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )} />
+        <div className="min-w-0">
+          <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
+            <Popover>
+              <PopoverTrigger asChild>
+                {comboboxBtn(<ShoppingCart />, uniqueOrders.find(o => String(o.id) === String(field.value))?.name || "Đơn hàng", !!field.value, isCompleted)}
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                <Command>
+                  <CommandInput placeholder="Tìm đơn hàng..." className="h-9" />
+                  <CommandList className="max-h-[260px] p-1">
+                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                    <CommandGroup>
+                      {uniqueOrders.map(o => (
+                        <CommandItem key={o.id} value={o.name}
+                          onSelect={() => {
+                            field.onChange(String(o.id));
+                            setValue(`items.${index}.product_id`, "");
+                            setValue(`items.${index}.product_group_operation_id`, "");
+                            setValue(`items.${index}.planned_quantity`, "");
+                          }}
+                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                          <span className="text-xs font-semibold">{o.name}</span>
+                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )} />
+        </div>
 
         {/* Product */}
-        <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" disabled={!selectedOrderId || isCompleted}
-                className="w-full h-9 justify-between text-xs font-semibold bg-zinc-50 border-zinc-200 hover:bg-white hover:border-indigo-300 transition-all disabled:opacity-50">
-                <div className="flex items-center gap-1.5 truncate min-w-0">
-                  <Package className={cn("h-3 w-3 shrink-0", field.value ? "text-indigo-500" : "text-zinc-300")} />
-                  <span className="truncate">
-                    {availableProducts.find(p => String(p.id) === String(field.value))?.name || <span className="text-zinc-400 font-normal">Sản phẩm</span>}
-                  </span>
-                </div>
-                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40 ml-1" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-              <Command>
-                <CommandInput placeholder="Tìm mã hàng..." className="h-9" />
-                <CommandList className="max-h-[260px] p-1">
-                  <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                  <CommandGroup>
-                    {availableProducts.map(p => (
-                      <CommandItem key={p.id} value={p.name}
-                        onSelect={() => {
-                          field.onChange(String(p.id));
-                          setValue(`items.${index}.product_group_operation_id`, "");
-                          setValue(`items.${index}.planned_quantity`, "");
-                        }}
-                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                        <span className="text-xs font-semibold">{p.name}</span>
-                        <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )} />
+        <div className="min-w-0">
+          <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
+            <Popover>
+              <PopoverTrigger asChild>
+                {comboboxBtn(<Package />, availableProducts.find(p => String(p.id) === String(field.value))?.name || "Sản phẩm", !!field.value, !selectedOrderId || isCompleted)}
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                <Command>
+                  <CommandInput placeholder="Tìm mã hàng..." className="h-9" />
+                  <CommandList className="max-h-[260px] p-1">
+                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                    <CommandGroup>
+                      {availableProducts.map(p => (
+                        <CommandItem key={p.id} value={p.name}
+                          onSelect={() => {
+                            field.onChange(String(p.id));
+                            setValue(`items.${index}.product_group_operation_id`, "");
+                            setValue(`items.${index}.planned_quantity`, "");
+                          }}
+                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                          <span className="text-xs font-semibold">{p.name}</span>
+                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )} />
+        </div>
 
         {/* Operation */}
-        <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" disabled={!selectedProductId || isCompleted}
-                className="w-full h-9 justify-between text-xs font-semibold bg-zinc-50 border-zinc-200 hover:bg-white hover:border-indigo-300 transition-all disabled:opacity-50">
-                <div className="flex items-center gap-1.5 truncate min-w-0">
-                  <Settings className={cn("h-3 w-3 shrink-0", field.value ? "text-indigo-500" : "text-zinc-300")} />
-                  <span className="truncate">
-                    {availableOperations.find(o => String(o.id) === String(field.value))?.name || <span className="text-zinc-400 font-normal">Công đoạn</span>}
-                  </span>
-                </div>
-                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-40 ml-1" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[280px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-              <Command>
-                <CommandInput placeholder="Tìm công đoạn..." className="h-9" />
-                <CommandList className="max-h-[260px] p-1">
-                  <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                  <CommandGroup>
-                    {availableOperations.map(op => (
-                      <CommandItem key={op.id} value={op.name}
-                        onSelect={() => {
-                          field.onChange(String(op.id));
-                          const found = availableOperations.find(o => String(o.id) === String(op.id));
-                          if (found) setValue(`items.${index}.operation_name`, found.name);
-                        }}
-                        className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                        <span className="text-xs font-semibold">{op.name}</span>
-                        <Check className={cn("ml-auto h-3 w-3 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        )} />
+        <div className="min-w-0">
+          <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
+            <Popover>
+              <PopoverTrigger asChild>
+                {comboboxBtn(<Settings />, availableOperations.find(o => String(o.id) === String(field.value))?.name || "Công đoạn", !!field.value, !selectedProductId || isCompleted)}
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+                <Command>
+                  <CommandInput placeholder="Tìm công đoạn..." className="h-9" />
+                  <CommandList className="max-h-[260px] p-1">
+                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                    <CommandGroup>
+                      {availableOperations.map(op => (
+                        <CommandItem key={op.id} value={op.name}
+                          onSelect={() => {
+                            field.onChange(String(op.id));
+                            const found = availableOperations.find(o => String(o.id) === String(op.id));
+                            if (found) setValue(`items.${index}.operation_name`, found.name);
+                          }}
+                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                          <span className="text-xs font-semibold">{op.name}</span>
+                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          )} />
+        </div>
 
         {/* Quantity */}
         <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
-          <Input {...field} type="number" placeholder="SL KH"
-            className="h-9 text-sm font-black text-right tabular-nums bg-zinc-50 border-zinc-200 focus:bg-white"
+          <Input {...field} type="number" placeholder="SL"
+            className="h-9 text-sm font-black text-right tabular-nums bg-zinc-50 border-zinc-200 focus:bg-white px-2"
             disabled={isCompleted} />
         )} />
 
         {/* Notes */}
-        <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
-          <Input {...field} placeholder="Ghi chú..." value={field.value || ''}
-            className="h-9 text-xs bg-zinc-50 border-zinc-200 focus:bg-white"
-            disabled={isCompleted} />
-        )} />
+        <div className="min-w-0">
+          <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
+            <Input {...field} placeholder="Ghi chú" value={field.value || ''}
+              className="h-9 text-xs bg-zinc-50 border-zinc-200 focus:bg-white"
+              disabled={isCompleted} />
+          )} />
+        </div>
 
         {/* Delete */}
         <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20">
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20 shrink-0">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
