@@ -143,23 +143,31 @@ export default function DailyTicketPage() {
         return;
       }
 
-      const formattedData = data.map((item, index) => ({
-        "STT": index + 1,
-        "Mã Phiếu": `${DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}${item.master_id}`,
-        "Ngày": DateTime.fromISO(item.ticket_date).toFormat("dd/MM/yyyy"),
-        "Máy": item.machine_name || "",
-        "Đơn hàng": item.order_name || "",
-        "Mã đơn (PO)": item.order_code || item.po_customer || "",
-        "Mã SP": item.product_name || "",
-        "Công đoạn": item.operation_name || "",
-        "SL Kế hoạch": parseFloat(item.planned_quantity) || 0,
-        "SL Thực tế": parseFloat(item.actual_quantity) || 0,
-        "Chênh lệch": (parseFloat(item.actual_quantity) || 0) - (parseFloat(item.planned_quantity) || 0),
-        "Ghi chú": item.notes || "",
-        "Trạng thái duyệt": item.ticket_status === 'COMPLETED' ? 'Xong' : item.ticket_status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : item.ticket_status === 'APPROVED' ? 'Đã duyệt' : 'Nháp',
-        "Người tạo": item.creator_name || "Hệ thống",
-        "Ngày tạo": DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm")
-      }));
+      const formattedData = data.map((item, index) => {
+        const dinhMuc = parseFloat(item.dinh_muc) || 0;
+        const plannedQty = parseFloat(item.planned_quantity) || 0;
+        const actualQty = parseFloat(item.actual_quantity) || 0;
+        return {
+          "STT": index + 1,
+          "Mã Phiếu": `${DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}${item.master_id}`,
+          "Ngày": DateTime.fromISO(item.ticket_date).toFormat("dd/MM/yyyy"),
+          "Máy": item.machine_name || "",
+          "Đơn hàng": item.order_name || "",
+          "Mã đơn (PO)": item.order_code || item.po_customer || "",
+          "Mã SP": item.product_name || "",
+          "Công đoạn": item.operation_name || "",
+          "Định mức": dinhMuc || "",
+          "SL Kế hoạch": plannedQty,
+          "Số công (KH)": dinhMuc > 0 ? Math.round((plannedQty / dinhMuc) * 100) / 100 : "",
+          "SL Thực tế": actualQty,
+          "Số công (TT)": dinhMuc > 0 ? Math.round((actualQty / dinhMuc) * 100) / 100 : "",
+          "Chênh lệch": actualQty - plannedQty,
+          "Ghi chú": item.notes || "",
+          "Trạng thái": item.ticket_status === 'COMPLETED' ? 'Xong' : item.ticket_status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : item.ticket_status === 'APPROVED' ? 'Đã duyệt' : 'Nháp',
+          "Người tạo": item.creator_name || "Hệ thống",
+          "Ngày tạo": DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm"),
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(formattedData);
       const workbook = XLSX.utils.book_new();
@@ -167,8 +175,9 @@ export default function DailyTicketPage() {
 
       const wscols = [
         { wch: 5 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
-        { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, { wch: 20 }
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 12 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+        { wch: 12 }, { wch: 15 }, { wch: 20 },
       ];
       worksheet['!cols'] = wscols;
 

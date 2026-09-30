@@ -1040,7 +1040,7 @@ export const exportDetailedTickets = async (req, res) => {
 
     const result = await pool.query(
       `
-            SELECT 
+            SELECT
                 dt.id as master_id,
                 dt.status as ticket_status,
                 dt.ticket_date,
@@ -1054,6 +1054,7 @@ export const exportDetailedTickets = async (req, res) => {
                 dti.planned_quantity,
                 dti.actual_quantity,
                 dti.notes,
+                pgo.dinh_muc,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 dt.created_at
             FROM daily_production_tickets dt

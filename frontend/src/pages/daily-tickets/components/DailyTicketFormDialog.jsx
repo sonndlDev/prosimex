@@ -127,135 +127,132 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
   );
 
   return (
-    <div className="group relative bg-white rounded-xl border border-zinc-100 hover:border-indigo-200 hover:shadow-sm transition-all p-2.5 pl-7">
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-300 group-hover:text-indigo-400 tabular-nums transition-colors select-none">
+    <div className="group relative bg-white rounded-xl border border-zinc-100 hover:border-indigo-200 hover:shadow-sm transition-all p-3 pl-8">
+      <span className="absolute left-2 top-3.5 text-[10px] font-black text-zinc-300 group-hover:text-indigo-400 tabular-nums transition-colors select-none">
         {String(index + 1).padStart(2, "0")}
       </span>
 
-      {/* minmax(0,Xfr) prevents 1fr columns from overflowing their track */}
-      <div className="grid gap-2 items-center" style={{ gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) 76px minmax(0,0.8fr) 28px" }}>
+      <div className="space-y-2">
+        {/* Hàng 1: Đơn hàng | Sản phẩm | Công đoạn | SL KH | Xóa */}
+        <div className="flex items-center gap-2">
 
-        {/* Order */}
-        <div className="min-w-0">
-          <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
-            <Popover>
-              <PopoverTrigger asChild>
-                {comboboxBtn(<ShoppingCart />, uniqueOrders.find(o => String(o.id) === String(field.value))?.name || "Đơn hàng", !!field.value, isCompleted)}
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                <Command>
-                  <CommandInput placeholder="Tìm đơn hàng..." className="h-9" />
-                  <CommandList className="max-h-[260px] p-1">
-                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                    <CommandGroup>
-                      {uniqueOrders.map(o => (
-                        <CommandItem key={o.id} value={o.name}
-                          onSelect={() => {
-                            field.onChange(String(o.id));
-                            setValue(`items.${index}.product_id`, "");
-                            setValue(`items.${index}.product_group_operation_id`, "");
-                            setValue(`items.${index}.planned_quantity`, "");
-                          }}
-                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                          <span className="text-xs font-semibold">{o.name}</span>
-                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )} />
+          <div className="min-w-0 flex-[2]">
+            <Controller name={`items.${index}.order_id`} control={control} render={({ field }) => (
+              <Popover>
+                <PopoverTrigger asChild>
+                  {comboboxBtn(<ShoppingCart />, uniqueOrders.find(o => String(o.id) === String(field.value))?.name || "Đơn hàng", !!field.value, isCompleted)}
+                </PopoverTrigger>
+                <PopoverContent className="w-[320px] p-0 shadow-2xl rounded-xl overflow-hidden" align="start">
+                  <Command>
+                    <CommandInput placeholder="Tìm đơn hàng..." className="h-9" />
+                    <CommandList className="max-h-[260px] p-1">
+                      <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                      <CommandGroup>
+                        {uniqueOrders.map(o => (
+                          <CommandItem key={o.id} value={o.name}
+                            onSelect={() => {
+                              field.onChange(String(o.id));
+                              setValue(`items.${index}.product_id`, "");
+                              setValue(`items.${index}.product_group_operation_id`, "");
+                              setValue(`items.${index}.planned_quantity`, "");
+                            }}
+                            className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                            <span className="text-xs font-semibold">{o.name}</span>
+                            <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(o.id) ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )} />
+          </div>
+
+          <div className="min-w-0 flex-[1.5]">
+            <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
+              <Popover>
+                <PopoverTrigger asChild>
+                  {comboboxBtn(<Package />, availableProducts.find(p => String(p.id) === String(field.value))?.name || "Sản phẩm", !!field.value, !selectedOrderId || isCompleted)}
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 shadow-2xl rounded-xl overflow-hidden" align="start">
+                  <Command>
+                    <CommandInput placeholder="Tìm mã hàng..." className="h-9" />
+                    <CommandList className="max-h-[260px] p-1">
+                      <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                      <CommandGroup>
+                        {availableProducts.map(p => (
+                          <CommandItem key={p.id} value={p.name}
+                            onSelect={() => {
+                              field.onChange(String(p.id));
+                              setValue(`items.${index}.product_group_operation_id`, "");
+                              setValue(`items.${index}.planned_quantity`, "");
+                            }}
+                            className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                            <span className="text-xs font-semibold">{p.name}</span>
+                            <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )} />
+          </div>
+
+          <div className="min-w-0 flex-[1.5]">
+            <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
+              <Popover>
+                <PopoverTrigger asChild>
+                  {comboboxBtn(<Settings />, availableOperations.find(o => String(o.id) === String(field.value))?.name || "Công đoạn", !!field.value, !selectedProductId || isCompleted)}
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0 shadow-2xl rounded-xl overflow-hidden" align="start">
+                  <Command>
+                    <CommandInput placeholder="Tìm công đoạn..." className="h-9" />
+                    <CommandList className="max-h-[260px] p-1">
+                      <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
+                      <CommandGroup>
+                        {availableOperations.map(op => (
+                          <CommandItem key={op.id} value={op.name}
+                            onSelect={() => {
+                              field.onChange(String(op.id));
+                              const found = availableOperations.find(o => String(o.id) === String(op.id));
+                              if (found) setValue(`items.${index}.operation_name`, found.name);
+                            }}
+                            className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
+                            <span className="text-xs font-semibold">{op.name}</span>
+                            <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )} />
+          </div>
+
+          <div className="w-[80px] shrink-0">
+            <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
+              <Input {...field} type="number" placeholder="SL"
+                className="h-9 text-sm font-black text-right tabular-nums bg-zinc-50 border-zinc-200 focus:bg-white px-2"
+                disabled={isCompleted} />
+            )} />
+          </div>
+
+          <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-200 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20 shrink-0">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* Product */}
-        <div className="min-w-0">
-          <Controller name={`items.${index}.product_id`} control={control} render={({ field }) => (
-            <Popover>
-              <PopoverTrigger asChild>
-                {comboboxBtn(<Package />, availableProducts.find(p => String(p.id) === String(field.value))?.name || "Sản phẩm", !!field.value, !selectedOrderId || isCompleted)}
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                <Command>
-                  <CommandInput placeholder="Tìm mã hàng..." className="h-9" />
-                  <CommandList className="max-h-[260px] p-1">
-                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                    <CommandGroup>
-                      {availableProducts.map(p => (
-                        <CommandItem key={p.id} value={p.name}
-                          onSelect={() => {
-                            field.onChange(String(p.id));
-                            setValue(`items.${index}.product_group_operation_id`, "");
-                            setValue(`items.${index}.planned_quantity`, "");
-                          }}
-                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                          <span className="text-xs font-semibold">{p.name}</span>
-                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(p.id) ? "opacity-100" : "opacity-0")} />
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )} />
-        </div>
-
-        {/* Operation */}
-        <div className="min-w-0">
-          <Controller name={`items.${index}.product_group_operation_id`} control={control} render={({ field }) => (
-            <Popover>
-              <PopoverTrigger asChild>
-                {comboboxBtn(<Settings />, availableOperations.find(o => String(o.id) === String(field.value))?.name || "Công đoạn", !!field.value, !selectedProductId || isCompleted)}
-              </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
-                <Command>
-                  <CommandInput placeholder="Tìm công đoạn..." className="h-9" />
-                  <CommandList className="max-h-[260px] p-1">
-                    <CommandEmpty className="py-5 text-center text-[10px] font-bold text-zinc-400">Không tìm thấy</CommandEmpty>
-                    <CommandGroup>
-                      {availableOperations.map(op => (
-                        <CommandItem key={op.id} value={op.name}
-                          onSelect={() => {
-                            field.onChange(String(op.id));
-                            const found = availableOperations.find(o => String(o.id) === String(op.id));
-                            if (found) setValue(`items.${index}.operation_name`, found.name);
-                          }}
-                          className="px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 transition-colors mb-0.5">
-                          <span className="text-xs font-semibold">{op.name}</span>
-                          <Check className={cn("ml-auto h-3 w-3 shrink-0 text-indigo-600", String(field.value) === String(op.id) ? "opacity-100" : "opacity-0")} />
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          )} />
-        </div>
-
-        {/* Quantity */}
-        <Controller name={`items.${index}.planned_quantity`} control={control} render={({ field }) => (
-          <Input {...field} type="number" placeholder="SL"
-            className="h-9 text-sm font-black text-right tabular-nums bg-zinc-50 border-zinc-200 focus:bg-white px-2"
+        {/* Hàng 2: Ghi chú */}
+        <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
+          <Input {...field} placeholder="Ghi chú..." value={field.value || ''}
+            className="h-8 text-xs bg-zinc-50/70 border-zinc-100 focus:bg-white text-zinc-500 placeholder:text-zinc-300"
             disabled={isCompleted} />
         )} />
-
-        {/* Notes */}
-        <div className="min-w-0">
-          <Controller name={`items.${index}.notes`} control={control} render={({ field }) => (
-            <Input {...field} placeholder="Ghi chú" value={field.value || ''}
-              className="h-9 text-xs bg-zinc-50 border-zinc-200 focus:bg-white"
-              disabled={isCompleted} />
-          )} />
-        </div>
-
-        {/* Delete */}
-        <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20 shrink-0">
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );
@@ -428,13 +425,12 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
           {/* Items list */}
           <div className="p-6 space-y-2">
             {/* Column headers */}
-            <div className="grid grid-cols-[1fr_1fr_1fr_90px_1fr_28px] gap-2 pl-8 mb-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Đơn hàng</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Sản phẩm</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Công đoạn</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 text-right">SL KH</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Ghi chú</span>
-              <div />
+            <div className="flex items-center gap-2 pl-8 pr-3 mb-1">
+              <span className="min-w-0 flex-[2] text-[10px] font-black uppercase tracking-wider text-zinc-400">Đơn hàng</span>
+              <span className="min-w-0 flex-[1.5] text-[10px] font-black uppercase tracking-wider text-zinc-400">Sản phẩm</span>
+              <span className="min-w-0 flex-[1.5] text-[10px] font-black uppercase tracking-wider text-zinc-400">Công đoạn</span>
+              <span className="w-[80px] shrink-0 text-[10px] font-black uppercase tracking-wider text-zinc-400 text-right">SL KH</span>
+              <div className="w-7 shrink-0" />
             </div>
 
             {fields.length === 0 ? (
