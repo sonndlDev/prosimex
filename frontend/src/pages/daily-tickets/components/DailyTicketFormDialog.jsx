@@ -368,10 +368,18 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
             <div className="flex items-center gap-3">
               {!isCompleted && (
                 <Controller name="is_manual" control={control} render={({ field }) => (
-                  <label className="flex items-center gap-2 cursor-pointer select-none bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-1.5">
-                    <Pencil className="w-3 h-3 text-zinc-400" />
-                    <span className="text-[11px] font-bold text-zinc-500">Thủ công</span>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-indigo-600 h-4 w-7" />
+                  <label className={cn(
+                    "flex items-center gap-2 cursor-pointer select-none rounded-lg px-3 py-1.5 border transition-all duration-200",
+                    field.value
+                      ? "bg-amber-50 border-amber-300 shadow-sm shadow-amber-100"
+                      : "bg-zinc-50 border-zinc-200 hover:border-zinc-300"
+                  )}>
+                    <Pencil className={cn("w-3 h-3 transition-colors", field.value ? "text-amber-500" : "text-zinc-400")} />
+                    <span className={cn("text-[11px] font-bold transition-colors", field.value ? "text-amber-700" : "text-zinc-500")}>
+                      Thủ công
+                    </span>
+                    <Switch checked={field.value} onCheckedChange={field.onChange}
+                      className="data-[state=checked]:bg-amber-500 h-4 w-7" />
                   </label>
                 )} />
               )}
