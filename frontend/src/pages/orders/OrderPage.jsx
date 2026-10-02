@@ -85,6 +85,7 @@ import {
   Camera,
 } from "lucide-react";
 import { DateTime } from "luxon";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as XLSX from "xlsx";
@@ -1947,23 +1948,12 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
             className="h-10 text-sm font-medium border-zinc-200/80 rounded-xl bg-zinc-50/50 hover:bg-white focus:bg-white transition-all focus-visible:ring-indigo-500/30 shadow-sm"
           />
 
-          {/* Date Picker Range - Tối ưu padding và font để không bị vỡ */}
-          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
-            <Input
-              type="date"
-              value={tempFilters.startDate}
-              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value, dateType: "received" }))}
-              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-            />
-            <span className="text-zinc-300 mx-0.5">—</span>
-            <Input
-              type="date"
-              value={tempFilters.endDate}
-              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value, dateType: "received" }))}
-              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-            />
-          </div>
+          {/* Date Picker Range */}
+          <DateRangeFilter
+            startDate={tempFilters.startDate}
+            endDate={tempFilters.endDate}
+            onChange={(start, end) => setTempFilters(prev => ({ ...prev, startDate: start, endDate: end, dateType: "received" }))}
+          />
         </div>
 
         {/* Buttons - Cố định bên phải */}

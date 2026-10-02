@@ -26,28 +26,36 @@ export default function DailyTicketPrintView({ open, ticketId, onClose }) {
     const printContent = printRef.current;
     if (!printContent) return;
 
-    const originalContents = document.body.innerHTML;
+    const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map(link => link.outerHTML)
+      .join('\n');
 
-    // Add some print-specific styles temporarily
-    const printStyle = document.createElement('style');
-    printStyle.innerHTML = `
-      @media print {
-        body { margin: 0; padding: 0; background: white; font-family: 'Times New Roman', serif; font-size: 11pt; }
-        @page { size: A4 landscape; margin: 10mm; }
-        .no-print { display: none !important; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { border: 1px solid #000 !important; padding: 4px; text-align: center; vertical-align: middle; }
-      }
-    `;
-    document.head.appendChild(printStyle);
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-    document.body.innerHTML = printContent.innerHTML;
-    window.print();
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+${styleLinks}
+<style>
+  body { margin: 0; padding: 0; background: white; font-family: 'Times New Roman', serif; font-size: 11pt; }
+  @page { size: A4 landscape; margin: 10mm; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #000 !important; padding: 4px; text-align: center; vertical-align: middle; }
+</style>
+</head>
+<body>
+${printContent.innerHTML}
+</body>
+</html>`);
+    printWindow.document.close();
 
-    // Restore original contents
-    document.body.innerHTML = originalContents;
-    document.head.removeChild(printStyle);
-    window.location.reload(); // Reload to re-mount React tree properly
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    };
   };
 
   if (isLoading) {

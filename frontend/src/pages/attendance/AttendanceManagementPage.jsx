@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, FilterX, User, Calendar as CalendarIcon, Check, ChevronsUpDown, RotateCcw } from "lucide-react";
@@ -193,26 +194,15 @@ export default function AttendanceManagementPage() {
           </div>
 
           {/* Date Picker Range */}
-          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Từ:</span>
-              <Input
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-              />
-            </div>
-            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-3 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap tracking-tighter">Đến:</span>
-              <Input
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-              />
-            </div>
-          </div>
+          <DateRangeFilter
+            startDate={filters.startDate}
+            endDate={filters.endDate}
+            onChange={(start, end) => {
+              handleFilterChange('startDate', start);
+              handleFilterChange('endDate', end);
+            }}
+            className="flex-1 w-full"
+          />
 
           <div className="flex items-center gap-2 shrink-0">
             <TooltipProvider>

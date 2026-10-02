@@ -27,6 +27,7 @@ import {
 // Shadcn UI
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -1220,30 +1221,16 @@ export default function PlanningPage() {
         </Button>
 
         {/* Khoảng ngày */}
-        <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-          <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">
-            Ngày:
-          </span>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(0);
-            }}
-            className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[110px]"
-          />
-          <span className="text-zinc-300 mx-0.5">—</span>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(0);
-            }}
-            className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[110px]"
-          />
-        </div>
+        <DateRangeFilter
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(start, end) => {
+            setStartDate(start);
+            setEndDate(end);
+            setPage(0);
+          }}
+          className="shrink-0 min-w-[200px]"
+        />
 
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||

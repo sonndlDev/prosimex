@@ -26,6 +26,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
 import GenericTable from "@/components/GenericTable";
@@ -163,6 +164,7 @@ export default function DailyTicketPage() {
           "Số công (TT)": dinhMuc > 0 ? Math.round((actualQty / dinhMuc) * 100) / 100 : "",
           "Chênh lệch": actualQty - plannedQty,
           "Ghi chú": item.notes || "",
+          "Ghi chú TT": item.actual_notes || "",
           "Trạng thái": item.ticket_status === 'COMPLETED' ? 'Xong' : item.ticket_status === 'PENDING_APPROVAL' ? 'Chờ duyệt' : item.ticket_status === 'APPROVED' ? 'Đã duyệt' : 'Nháp',
           "Người tạo": item.creator_name || "Hệ thống",
           "Ngày tạo": DateTime.fromISO(item.created_at).toFormat("dd/MM/yyyy HH:mm"),
@@ -244,6 +246,11 @@ export default function DailyTicketPage() {
       id: "notes",
       label: "Ghi chú",
       className: "text-zinc-500 italic text-xs max-w-[100px] truncate",
+    },
+    {
+      id: "actual_notes",
+      label: "Ghi chú TT",
+      className: "text-blue-600 italic text-xs max-w-[100px] truncate",
     },
     {
       id: "ticket_status",
@@ -573,22 +580,12 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, users = 
           </Popover>
 
           {/* Khoảng ngày */}
-          <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-200/80 rounded-xl px-2.5 h-10 group focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden">
-            <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">Ngày:</span>
-            <Input
-              type="date"
-              value={tempFilters.startDate}
-              onChange={e => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
-              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-            />
-            <span className="text-zinc-300 mx-0.5">—</span>
-            <Input
-              type="date"
-              value={tempFilters.endDate}
-              onChange={e => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
-              className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-            />
-          </div>
+          <DateRangeFilter
+            startDate={tempFilters.startDate}
+            endDate={tempFilters.endDate}
+            onChange={(start, end) => setTempFilters(prev => ({ ...prev, startDate: start, endDate: end }))}
+            className="sm:col-span-2 lg:col-span-2"
+          />
         </div>
 
         {/* Buttons */}

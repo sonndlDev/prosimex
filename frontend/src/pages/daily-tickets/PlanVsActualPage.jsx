@@ -20,6 +20,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -452,24 +453,12 @@ const FilterBar = memo(
               </PopoverContent>
             </Popover>
 
-            <div className="flex items-center gap-1 bg-zinc-50/50 border border-zinc-300/80 rounded-xl px-2.5 h-10 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all shadow-sm overflow-hidden shrink-0">
-              <span className="text-[10px] font-black text-zinc-400 uppercase whitespace-nowrap mr-1 tracking-tighter">
-                Ngày:
-              </span>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-              />
-              <span className="text-zinc-300 mx-0.5">—</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-8 border-none bg-transparent text-[10px] font-extrabold focus-visible:ring-0 p-0 w-full min-w-[90px]"
-              />
-            </div>
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onChange={(start, end) => { setStartDate(start); setEndDate(end); }}
+              className="shrink-0 min-w-[200px]"
+            />
 
             <div className="flex items-center gap-2 shrink-0 ml-auto">
               <Button

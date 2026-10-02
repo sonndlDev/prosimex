@@ -511,6 +511,7 @@ export default function ProductionOutputPage() {
             planned_quantity: parseFloat(item.planned_quantity),
             actual_quantity: parseFloat(item.actual_quantity) || "",
             notes: item.notes || "",
+            actual_notes: item.actual_notes || "",
           })),
         );
       }
@@ -567,7 +568,7 @@ export default function ProductionOutputPage() {
     const payload = data.items.map((item) => ({
       id: item.id,
       actual_quantity: parseFloat(item.actual_quantity) || 0,
-      notes: item.notes || null,
+      actual_notes: item.actual_notes || null,
     }));
     updateMutation.mutate(payload);
   };
@@ -908,7 +909,7 @@ export default function ProductionOutputPage() {
                       <TableHead className="text-right w-[180px]">
                         SL Thực Tế
                       </TableHead>
-                      <TableHead className="w-[200px]">Ghi chú</TableHead>
+                      <TableHead className="w-[200px]">Ghi chú TT</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -950,12 +951,12 @@ export default function ProductionOutputPage() {
                         </TableCell>
                         <TableCell>
                           <Controller
-                            name={`items.${index}.notes`}
+                            name={`items.${index}.actual_notes`}
                             control={ticketControl}
                             render={({ field: inputField }) => (
                               <Input
                                 {...inputField}
-                                placeholder="Ghi chú nếu có..."
+                                placeholder="Ghi chú TT..."
                                 disabled={
                                   (isCompleted && user?.role !== "ADMIN") ||
                                   updateMutation.isPending

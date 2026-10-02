@@ -91,6 +91,7 @@ export const getTickets = async (req, res) => {
                 SUM(dti.planned_quantity) as planned_quantity,
                 SUM(dti.actual_quantity) as actual_quantity,
                 STRING_AGG(DISTINCT dti.notes, '; ') as notes,
+                STRING_AGG(DISTINCT dti.actual_notes, '; ') as actual_notes,
                 -- FIX #2: Nếu không có production_plan thì tính remaining = planned - actual từ items
                 COALESCE(
                   MAX(pp.remaining_quantity),
@@ -376,13 +377,13 @@ export const updateTicketResults = async (req, res) => {
     if (items && items.length > 0) {
       const itemIds = items.map(i => parseInt(i.id));
       const actualQtys = items.map(i => parseFloat(i.actual_quantity) || 0);
-      const notesArr = items.map(i => i.notes ? String(i.notes) : null);
+      const actualNotesArr = items.map(i => i.actual_notes ? String(i.actual_notes) : null);
       await client.query(
         `UPDATE daily_production_ticket_items AS dti
-         SET actual_quantity = v.qty, notes = v.note, updated_at = CURRENT_TIMESTAMP
-         FROM (SELECT unnest($1::int[]) AS id, unnest($2::numeric[]) AS qty, unnest($4::text[]) AS note) AS v
+         SET actual_quantity = v.qty, actual_notes = v.actual_note, updated_at = CURRENT_TIMESTAMP
+         FROM (SELECT unnest($1::int[]) AS id, unnest($2::numeric[]) AS qty, unnest($4::text[]) AS actual_note) AS v
          WHERE dti.id = v.id AND dti.ticket_id = $3`,
-        [itemIds, actualQtys, id, notesArr],
+        [itemIds, actualQtys, id, actualNotesArr],
       );
     }
 
@@ -1054,6 +1055,7 @@ export const exportDetailedTickets = async (req, res) => {
                 dti.planned_quantity,
                 dti.actual_quantity,
                 dti.notes,
+                dti.actual_notes,
                 pgo.dinh_muc,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 dt.created_at
