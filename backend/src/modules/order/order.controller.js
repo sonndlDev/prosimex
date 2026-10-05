@@ -735,7 +735,15 @@ export const getOrderSummaryReport = async (req, res) => {
           (
             SELECT json_agg(json_build_object(
               'operation_name', op_name.name,
-              'actual_quantity', COALESCE(op_totals.qty, 0)
+              'actual_quantity', COALESCE(op_totals.qty, 0),
+              'inventory_input', COALESCE((
+                SELECT MAX(pp_inv.inventory_input)
+                FROM production_plans pp_inv
+                WHERE pp_inv.order_id = $1
+                  AND pp_inv.product_id = p.id
+                  AND pp_inv.product_group_operation_id = pgo.id
+                  AND pp_inv.deleted_at IS NULL
+              ), 0)
             ) ORDER BY pgo.sequence_order ASC)
             FROM product_group_operations pgo
             JOIN operations op_name ON pgo.operation_id = op_name.id
