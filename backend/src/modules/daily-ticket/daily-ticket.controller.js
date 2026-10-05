@@ -1056,7 +1056,7 @@ export const exportDetailedTickets = async (req, res) => {
                 dti.actual_quantity,
                 dti.notes,
                 dti.actual_notes,
-                pgo.dinh_muc,
+                COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 dt.created_at
             FROM daily_production_tickets dt
@@ -1067,6 +1067,15 @@ export const exportDetailedTickets = async (req, res) => {
             LEFT JOIN operations op ON pgo.operation_id = op.id
             LEFT JOIN machines m ON dt.machine_id = m.id
             LEFT JOIN users cu ON dt.created_by = cu.id
+            LEFT JOIN production_plans pp ON pp.id = COALESCE(
+                dti.production_plan_id,
+                (SELECT id FROM production_plans
+                 WHERE order_id = dti.order_id
+                   AND product_id = dti.product_id
+                   AND product_group_operation_id = dti.product_group_operation_id
+                   AND deleted_at IS NULL
+                 LIMIT 1)
+            )
             ${whereClause}
             ORDER BY dt.ticket_date DESC, dt.id DESC, dti.id ASC
         `,
