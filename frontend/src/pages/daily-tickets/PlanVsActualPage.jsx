@@ -1127,15 +1127,6 @@ export default function PlanVsActualPage() {
                       Còn lại
                       <ResizeHandle onMouseDown={(e) => startResize(e, "remaining")} />
                     </TableHead>
-                    {/* Tiến độ % */}
-                    <TableHead
-                      rowSpan={2}
-                      className="sticky z-40 bg-zinc-50 border-r border-zinc-300 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] font-black text-[9px] uppercase text-indigo-600 whitespace-nowrap"
-                      style={{ width: colWidths.progress, minWidth: colWidths.progress, left: sl.progress }}
-                    >
-                      Tiến độ %
-                      <ResizeHandle onMouseDown={(e) => startResize(e, "progress")} />
-                    </TableHead>
                     {/* Date columns */}
                     {dateColumns.map((date) => (
                       <TableHead
@@ -1295,14 +1286,6 @@ export default function PlanVsActualPage() {
                         style={{ width: colWidths.remaining, minWidth: colWidths.remaining, left: sl.remaining }}
                       >
                         {row.remaining.toLocaleString()}
-                      </TCell>
-                      {/* Tiến độ */}
-                      <TCell
-                        value={`${row.percentage.toFixed(1)}%`}
-                        className="sticky z-30 bg-white group-hover:bg-indigo-50 border-r border-zinc-200 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]"
-                        style={{ width: colWidths.progress, minWidth: colWidths.progress, left: sl.progress }}
-                      >
-                        <ProgressBar pct={row.percentage} />
                       </TCell>
 
                       {/* Date columns */}
