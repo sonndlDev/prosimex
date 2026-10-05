@@ -844,7 +844,7 @@ export default function PlanVsActualPage() {
       const qtyToProduce = Math.max(0, planQty - inventory);
       const remaining = Math.max(0, qtyToProduce - totalActual);
       const percentage =
-        qtyToProduce > 0 ? (totalActual / qtyToProduce) * 100 : 0;
+        planQty > 0 ? ((inventory + totalActual) / planQty) * 100 : 0;
 
       return {
         ...row,
