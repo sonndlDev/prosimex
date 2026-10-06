@@ -65,6 +65,7 @@ function CompletionBadge({ value, className }) {
 const COLUMNS = [
   { label: "Mã mặt hàng",        key: "product_code",              align: "left"  },
   { label: "Số lượng yêu cầu",   key: "required_quantity",         align: "right" },
+  { label: "Tồn kho",            key: "inventory_input",           align: "right", isRaw: true },
   { label: "SX",                  key: "sx_quantity",               align: "right" },
   { label: "ĐI XMS",             key: "plating_out_quantity",      align: "right" },
   { label: "XMS VỀ",             key: "plating_returned_quantity", align: "right" },
@@ -136,10 +137,10 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
               <TableHeader className="bg-[#8ec28b] border-b-2 border-zinc-300">
                 <TableRow className="hover:bg-transparent border-b-zinc-400">
                   <TableHead className={`w-[50px] text-center ${HEAD_CLS}`}>STT</TableHead>
-                  {COLUMNS.map(({ label, key }) => (
+                  {COLUMNS.map(({ label, key, isRaw }) => (
                     <TableHead
                       key={key}
-                      className={`${HEAD_CLS} ${label === "Mã mặt hàng" ? "w-[180px]" : "w-[120px] text-right"}`}
+                      className={`${HEAD_CLS} ${label === "Mã mặt hàng" ? "w-[180px]" : "w-[120px] text-right"} ${isRaw ? "text-amber-700" : ""}`}
                     >
                       {label}
                     </TableHead>
@@ -170,6 +171,11 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
                       {row.required_quantity > 0
                         ? parseFloat(row.required_quantity).toLocaleString()
                         : "-"}
+                    </TableCell>
+
+                    {/* Tồn kho */}
+                    <TableCell className="text-right text-[12px] font-bold tabular-nums border-r border-zinc-200 text-amber-600">
+                      {Number(row.inventory_input) > 0 ? Number(row.inventory_input).toLocaleString() : "-"}
                     </TableCell>
 
                     {/* SX / ĐI XMS / XMS VỀ / ĐÓNG GÓI */}

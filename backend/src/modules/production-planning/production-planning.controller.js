@@ -2,7 +2,7 @@ import pool from "../../config/db.js";
 
 export const getProductionPlans = async (req, res) => {
   try {
-    const { page = 1, limit = 10, order_ids, product_ids, machine_ids, startDate, endDate } = req.query;
+    const { page = 1, limit = 10, order_ids, product_ids, machine_ids, operation_ids, startDate, endDate } = req.query;
     const pageInt = parseInt(page) || 1;
     const limitInt = parseInt(limit) || 10;
     const offsetInt = (pageInt - 1) * limitInt;
@@ -50,6 +50,18 @@ export const getProductionPlans = async (req, res) => {
     } else if (req.query.machine_id) {
       queryParams.push(req.query.machine_id);
       whereClause += ` AND pp.machine_id = $${queryParams.length}`;
+    }
+
+    // Normalize operation_ids to array
+    const operationIdsArray = operation_ids
+      ? Array.isArray(operation_ids)
+        ? operation_ids
+        : operation_ids.split(",").filter(Boolean)
+      : [];
+
+    if (operationIdsArray.length > 0) {
+      queryParams.push(operationIdsArray);
+      whereClause += ` AND pp.product_group_operation_id IN (SELECT pgo_f.id FROM product_group_operations pgo_f WHERE pgo_f.operation_id = ANY($${queryParams.length}) AND pgo_f.deleted_at IS NULL)`;
     }
 
     // Filter: keep plans that have actual working days in the requested date window.

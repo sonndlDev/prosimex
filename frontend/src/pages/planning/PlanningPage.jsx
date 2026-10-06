@@ -4,6 +4,7 @@ import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
 import { machineService } from "../../services/machine.service";
+import { operationService } from "../../services/operation.service";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
 import {
@@ -102,9 +103,11 @@ export default function PlanningPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [selectedMachineIds, setSelectedMachineIds] = useState([]);
+  const [selectedOperationIds, setSelectedOperationIds] = useState([]);
   const [openFilter, setOpenFilter] = useState(false);
   const [openProductFilter, setOpenProductFilter] = useState(false);
   const [openMachineFilter, setOpenMachineFilter] = useState(false);
+  const [openOperationFilter, setOpenOperationFilter] = useState(false);
   const [showPastDays, setShowPastDays] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -171,6 +174,7 @@ export default function PlanningPage() {
       selectedOrderIds,
       selectedProductIds,
       selectedMachineIds,
+      selectedOperationIds,
       startDate,
       endDate,
     ],
@@ -181,6 +185,7 @@ export default function PlanningPage() {
         order_ids: selectedOrderIds.join(","),
         product_ids: selectedProductIds.join(","),
         machine_ids: selectedMachineIds.join(","),
+        operation_ids: selectedOperationIds.join(","),
         ...(startDate ? { startDate } : {}),
         ...(endDate ? { endDate } : {}),
       }),
@@ -215,6 +220,12 @@ export default function PlanningPage() {
     queryFn: () => machineService.getAll({ limit: 1000 }),
   });
   const filterMachines = machinesData?.data || [];
+
+  const { data: operationsData } = useQuery({
+    queryKey: ["operations"],
+    queryFn: () => operationService.getAll({ limit: 1000 }),
+  });
+  const filterOperations = operationsData?.data || [];
 
   const dailyMachineMetrics = useMemo(
     () =>
@@ -760,6 +771,13 @@ export default function PlanningPage() {
     setPage(0);
   };
 
+  const toggleOperationSelection = (id) => {
+    setSelectedOperationIds((prev) =>
+      prev.includes(id) ? prev.filter((oid) => oid !== id) : [...prev, id],
+    );
+    setPage(0);
+  };
+
   const selectedOrdersDisplay = orders?.filter((o) =>
     selectedOrderIds.includes(o.id),
   );
@@ -768,6 +786,9 @@ export default function PlanningPage() {
   );
   const selectedMachinesDisplay = filterMachines?.filter((m) =>
     selectedMachineIds.includes(m.id),
+  );
+  const selectedOperationsDisplay = filterOperations?.filter((o) =>
+    selectedOperationIds.includes(o.id),
   );
 
   // ─── Render ────────────────────────────────────────────
@@ -820,6 +841,7 @@ export default function PlanningPage() {
                   order_ids: selectedOrderIds.join(","),
                   product_ids: selectedProductIds.join(","),
                   machine_ids: selectedMachineIds.join(","),
+                  operation_ids: selectedOperationIds.join(","),
                   ...(startDate ? { startDate } : {}),
                   ...(endDate ? { endDate } : {}),
                 });
@@ -1121,6 +1143,88 @@ export default function PlanningPage() {
           </PopoverContent>
         </Popover>
 
+        {/* Operation Filter */}
+        <Popover open={openOperationFilter} onOpenChange={setOpenOperationFilter}>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                className="h-10 gap-2 font-bold px-4 bg-zinc-50 hover:bg-white shadow-sm border-zinc-200 rounded-xl text-xs text-zinc-700 transition-all"
+              >
+                <Filter className="w-3.5 h-3.5 text-indigo-600" />
+                {selectedOperationIds.length > 0
+                  ? `Đã chọn ${selectedOperationIds.length} công đoạn`
+                  : "Lọc công đoạn"}
+                <ChevronsUpDown className="w-3.5 h-3.5 opacity-50 ml-1" />
+              </Button>
+            }
+          />
+          <PopoverContent
+            className="w-[280px] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden"
+            align="start"
+          >
+            <Command className="w-full">
+              <CommandInput placeholder="Tìm kiếm công đoạn..." />
+              <CommandList className="max-h-[300px] p-1">
+                <CommandEmpty className="py-6 text-center">
+                  <Layers className="h-8 w-8 text-zinc-200 mx-auto mb-2" />
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                    Không thấy công đoạn
+                  </p>
+                </CommandEmpty>
+                <CommandGroup>
+                  {filterOperations.map((op) => (
+                    <CommandItem
+                      key={op.id}
+                      value={op.name || ""}
+                      onSelect={() => toggleOperationSelection(op.id)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-1 last:mb-0"
+                    >
+                      <div
+                        className={cn(
+                          "w-4 h-4 border border-zinc-300 rounded flex items-center justify-center transition-colors shrink-0",
+                          selectedOperationIds.includes(op.id)
+                            ? "bg-indigo-600 border-indigo-600"
+                            : "bg-white",
+                        )}
+                      >
+                        {selectedOperationIds.includes(op.id) && (
+                          <Check className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                      <span className="font-bold text-xs break-all leading-tight">
+                        {op.name}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+              {selectedOperationIds.length > 0 && (
+                <div className="p-2 border-t border-zinc-100 flex justify-between bg-zinc-50/50">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      setSelectedOperationIds([]);
+                      setPage(0);
+                    }}
+                    className="text-[10px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50"
+                  >
+                    Xóa tất cả
+                  </Button>
+                  <Button
+                    size="xs"
+                    onClick={() => setOpenOperationFilter(false)}
+                    className="text-[10px] h-7 px-3 bg-zinc-950 text-white font-bold"
+                  >
+                    Xong
+                  </Button>
+                </div>
+              )}
+            </Command>
+          </PopoverContent>
+        </Popover>
+
         {/* Order Filter */}
         <Popover open={openFilter} onOpenChange={setOpenFilter}>
           <PopoverTrigger
@@ -1235,6 +1339,7 @@ export default function PlanningPage() {
         {(selectedProductIds.length > 0 ||
           selectedMachineIds.length > 0 ||
           selectedOrderIds.length > 0 ||
+          selectedOperationIds.length > 0 ||
           startDate ||
           endDate) && (
           <Button
@@ -1243,6 +1348,7 @@ export default function PlanningPage() {
               setSelectedProductIds([]);
               setSelectedMachineIds([]);
               setSelectedOrderIds([]);
+              setSelectedOperationIds([]);
               setStartDate("");
               setEndDate("");
               setPage(0);
@@ -1281,7 +1387,8 @@ export default function PlanningPage() {
       {/* Selected Filters View */}
       {(selectedOrderIds.length > 0 ||
         selectedProductIds.length > 0 ||
-        selectedMachineIds.length > 0) && (
+        selectedMachineIds.length > 0 ||
+        selectedOperationIds.length > 0) && (
         <div className="flex flex-wrap gap-2 items-center px-1">
           <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">
             ĐANG LỌC:
@@ -1361,6 +1468,31 @@ export default function PlanningPage() {
               className="h-6 text-[10px] font-bold bg-white border-dashed"
             >
               +{selectedMachineIds.length - 5} máy khác
+            </Badge>
+          )}
+
+          {selectedOperationsDisplay.slice(0, 5).map((op) => (
+            <Badge
+              key={op.id}
+              variant="secondary"
+              className="gap-1 pl-2 pr-1 h-6 text-[10px] font-bold bg-white border-zinc-200"
+            >
+              CĐ: {op.name.substring(0, 24)}
+              {op.name.length > 24 ? "..." : ""}
+              <button
+                onClick={() => toggleOperationSelection(op.id)}
+                className="hover:text-red-500 rounded-full p-0.5 ml-1"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedOperationIds.length > 5 && (
+            <Badge
+              variant="outline"
+              className="h-6 text-[10px] font-bold bg-white border-dashed"
+            >
+              +{selectedOperationIds.length - 5} công đoạn khác
             </Badge>
           )}
         </div>

@@ -446,6 +446,7 @@ export const getOrderCompletionReport = async (req, res) => {
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
         COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
         COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL) as inventory_input,
         (
           SELECT json_agg(json_build_object(
             'operation_name', snap_op->>'operation_name',
@@ -536,6 +537,7 @@ export const getOrderCompletionReport = async (req, res) => {
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
         COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
         COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
+        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL) as inventory_input,
         (
           SELECT json_agg(json_build_object(
             'operation_name', op_name.name,
