@@ -570,7 +570,9 @@ export const getOrderCompletionReport = async (req, res) => {
 
     const data = result.rows.map(row => {
       const required = parseFloat(row.required_quantity) || 0;
-      const sx = parseFloat(row.sx_quantity) || 0;
+      const sxRaw = parseFloat(row.sx_quantity) || 0;
+      const inventory = parseFloat(row.inventory_input) || 0;
+      const sx = sxRaw + inventory;
       const platingOut = parseFloat(row.plating_out_quantity) || 0;
       const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
       const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
