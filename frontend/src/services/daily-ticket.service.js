@@ -112,6 +112,16 @@ export const dailyTicketService = {
             console.error('Error exporting daily tickets:', error);
             throw error;
         }
-    }
+    },
+
+    importResults: async (rows) => {
+        try {
+            const { data } = await api.post('/daily-tickets/import-results', { rows });
+            return data;
+        } catch (error) {
+            console.error('Error importing results:', error);
+            throw error;
+        }
+    },
 };
 

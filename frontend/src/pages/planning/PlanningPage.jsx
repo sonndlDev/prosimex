@@ -154,6 +154,8 @@ export default function PlanningPage() {
   }, [colWidths]);
 
   // Delete confirmation
+  const [isManualPending, setIsManualPending] = useState(false);
+
   const [deleteConfirm, setDeleteConfirm] = useState({
     open: false,
     planId: null,
@@ -470,6 +472,7 @@ export default function PlanningPage() {
         const toastId = toast.loading(
           `Đang tạo ${payload.multiMachineDays.length} kế hoạch...`,
         );
+        setIsManualPending(true);
         try {
           await Promise.all(
             payload.multiMachineDays.map(({ machine_id, days }) =>
@@ -498,6 +501,8 @@ export default function PlanningPage() {
             err.response?.data?.message || "Lỗi khi tạo kế hoạch đa máy",
             { id: toastId },
           );
+        } finally {
+          setIsManualPending(false);
         }
         return;
       }
@@ -505,6 +510,7 @@ export default function PlanningPage() {
       // ── Case 3 & 4: Cập nhật kế hoạch ──
       if (editingPlan) {
         const toastId = toast.loading("Đang cập nhật kế hoạch...");
+        setIsManualPending(true);
         try {
           const payloadMachineIds = payload.machine_ids || [];
           // Nếu planGroup không tồn tại (chỉ 1 máy), tạo mảng chuẩn để xử lý
@@ -603,6 +609,8 @@ export default function PlanningPage() {
           toast.success("Cập nhật thành công!", { id: toastId });
         } catch (err) {
           toast.error(err.response?.data?.message || "Lỗi khi cập nhật kế hoạch", { id: toastId });
+        } finally {
+          setIsManualPending(false);
         }
         return;
       } else {
@@ -1791,9 +1799,9 @@ export default function PlanningPage() {
         open={openModal}
         editingPlan={editingPlan}
         isCreatePending={
-          createMutation.isPending || batchOrderMutation.isPending
+          createMutation.isPending || batchOrderMutation.isPending || isManualPending
         }
-        isUpdatePending={updateMutation.isPending}
+        isUpdatePending={updateMutation.isPending || isManualPending}
         onClose={handleCloseModal}
         onSubmit={handleFormSubmit}
       />

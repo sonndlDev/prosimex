@@ -13,7 +13,8 @@ import {
   manualOutputEntry,
   exportDetailedTickets,
   approveTicket,
-  rejectTicket
+  rejectTicket,
+  importResults,
 } from "./daily-ticket.controller.js";
 
 
@@ -25,6 +26,7 @@ router.get("/", authorize([], "daily_tickets:read"), getTickets);
 router.get("/report/plan-vs-actual", authorize([], "plan_vs_actual:read"), getPlanVsActualReport);
 router.post("/auto-generate", authorize([], "daily_tickets:read"), triggerAutoGenerate);
 router.post("/manual-output", authorize([], "production_output:create"), manualOutputEntry);
+router.post("/import-results", authorize([], "daily_tickets:update"), importResults);
 router.get("/export/detailed", authorize([], "daily_tickets:read"), exportDetailedTickets);
 
 router.get("/:id", authorize([], "daily_tickets:read"), getTicketById);

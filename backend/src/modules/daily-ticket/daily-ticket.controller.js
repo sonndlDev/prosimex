@@ -550,6 +550,126 @@ export const rejectTicket = async (req, res) => {
   }
 };
 
+// POST /api/daily-tickets/import-results
+// Body: { rows: [{ ma_phieu, ma_sp, cong_doan, sl_thuc_te, ghi_chu_tt }] }
+export const importResults = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = req.body;
+    const user_id = req.user.id;
+
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({ message: "Không có dữ liệu để import" });
+    }
+
+    const results = [];
+    const updatedTicketIds = new Set();
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+      const { ma_phieu, ma_sp, cong_doan, sl_thuc_te, ghi_chu_tt } = row;
+
+      if (!ma_phieu || String(ma_phieu).trim().length <= 8) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Mã Phiếu không hợp lệ" });
+        continue;
+      }
+
+      const ticketId = parseInt(String(ma_phieu).trim().slice(8), 10);
+      if (isNaN(ticketId)) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Không thể đọc ID phiếu từ Mã Phiếu" });
+        continue;
+      }
+
+      const actualQty = parseFloat(String(sl_thuc_te ?? "").replace(",", "."));
+      if (isNaN(actualQty) || actualQty < 0) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "SL Thực tế không hợp lệ" });
+        continue;
+      }
+
+      const ticketRes = await client.query(
+        "SELECT id, status FROM daily_production_tickets WHERE id = $1 AND deleted_at IS NULL",
+        [ticketId]
+      );
+      if (ticketRes.rowCount === 0) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: `Không tìm thấy phiếu #${ticketId}` });
+        continue;
+      }
+      if (ticketRes.rows[0].status === "COMPLETED") {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Phiếu đã chốt (COMPLETED), không thể cập nhật" });
+        continue;
+      }
+
+      // Tìm item theo tên mã hàng + tên công đoạn
+      const itemRes = await client.query(
+        `SELECT dti.id
+         FROM daily_production_ticket_items dti
+         LEFT JOIN products p ON dti.product_id = p.id
+         LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
+         LEFT JOIN operations op ON pgo.operation_id = op.id
+         WHERE dti.ticket_id = $1
+           AND LOWER(TRIM(COALESCE(p.name, ''))) = LOWER(TRIM($2))
+           AND LOWER(TRIM(COALESCE(op.name, dti.operation_name, ''))) = LOWER(TRIM($3))
+         LIMIT 1`,
+        [ticketId, String(ma_sp || "").trim(), String(cong_doan || "").trim()]
+      );
+
+      if (itemRes.rowCount === 0) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: `Không tìm thấy dòng "${ma_sp} / ${cong_doan}" trong phiếu #${ticketId}` });
+        continue;
+      }
+
+      await client.query(
+        `UPDATE daily_production_ticket_items
+         SET actual_quantity = $1, actual_notes = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [actualQty, ghi_chu_tt ? String(ghi_chu_tt) : null, itemRes.rows[0].id]
+      );
+
+      updatedTicketIds.add(ticketId);
+      results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: true, message: "Cập nhật thành công" });
+    }
+
+    // Nếu tất cả items của phiếu đã có actual_quantity → mark COMPLETED
+    for (const ticketId of updatedTicketIds) {
+      const checkRes = await client.query(
+        `SELECT COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE actual_quantity IS NOT NULL AND actual_quantity > 0) AS filled
+         FROM daily_production_ticket_items WHERE ticket_id = $1`,
+        [ticketId]
+      );
+      const { total, filled } = checkRes.rows[0];
+      if (parseInt(total) > 0 && parseInt(total) === parseInt(filled)) {
+        await client.query(
+          "UPDATE daily_production_tickets SET status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP, modified_by = $2, modified_time = CURRENT_TIMESTAMP WHERE id = $1",
+          [ticketId, user_id]
+        );
+      }
+    }
+
+    await client.query(
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, after_data)
+       VALUES ($1, 'IMPORT_RESULTS', 'DailyProductionTicket', 0, $2)`,
+      [user_id, JSON.stringify({ total: rows.length, success: results.filter(r => r.success).length })]
+    );
+
+    await client.query("COMMIT");
+
+    const successCount = results.filter(r => r.success).length;
+    res.json({
+      results,
+      summary: { total: rows.length, success: successCount, failed: rows.length - successCount },
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Import Results Error:", error);
+    res.status(500).json({ message: "Lỗi import: " + error.message });
+  } finally {
+    client.release();
+  }
+};
+
 // GET /api/v1/daily-tickets/report/plan-vs-actual
 export const getPlanVsActualReport = async (req, res) => {
   try {

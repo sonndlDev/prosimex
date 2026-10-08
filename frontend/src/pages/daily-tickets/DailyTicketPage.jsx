@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check, ChevronsUpDown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -29,6 +29,7 @@ import {
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import DailyTicketFormDialog from "./components/DailyTicketFormDialog";
 import DailyTicketPrintView from "./components/DailyTicketPrintView";
+import DailyTicketImportDialog from "./components/DailyTicketImportDialog";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { useNavigate } from "react-router-dom";
@@ -52,6 +53,7 @@ export default function DailyTicketPage() {
   const [pageSize, setPageSize] = useState(10);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const initialFilters = {
@@ -291,6 +293,14 @@ export default function DailyTicketPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button
+            onClick={() => setIsImportOpen(true)}
+            variant="outline"
+            className="h-11 px-6 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl font-bold gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Import SL TT
+          </Button>
+          <Button
             onClick={handleExportExcel}
             variant="outline"
             className="h-11 px-6 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
@@ -407,6 +417,12 @@ export default function DailyTicketPage() {
           open={isPrintOpen}
           ticketId={selectedTicketId}
           onClose={() => { setIsPrintOpen(false); setSelectedTicketId(null); }}
+        />
+      )}
+      {isImportOpen && (
+        <DailyTicketImportDialog
+          open={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
         />
       )}
     </div>
