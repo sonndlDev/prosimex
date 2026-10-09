@@ -547,7 +547,7 @@ export default function ProductGroupPage() {
       <DeleteImpactDialog {...deleteDialogProps} onClose={closeDelete} onConfirm={confirmDelete} />
 
       <Dialog open={stageConfigModal} onOpenChange={(v) => { if (!v) { setStageConfigModal(false); setStageConfigGroup(null); } }}>
-        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] flex flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 px-6 pt-6 pb-4">
             <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-2.5">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-indigo-50">

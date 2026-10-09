@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  GripVertical,
   Trash2,
   Edit3,
   Check,
@@ -12,7 +10,6 @@ import {
   Cpu,
   Hash,
   Activity,
-  Search,
   Layers
 } from "lucide-react";
 
@@ -31,23 +28,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -55,7 +43,6 @@ import { Card } from "@/components/ui/card";
 export default function DraggableSequenceTable({
   data = [],
   machinesList = [],
-  onReorder,
   onDelete,
   onUpdate,
   isLoading,
@@ -78,20 +65,6 @@ export default function DraggableSequenceTable({
     );
   }
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const reordered = Array.from(data);
-    const [removed] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, removed);
-
-    const updated = reordered.map((item, index) => ({
-      ...item,
-      sequence_order: index + 1,
-    }));
-
-    onReorder(updated);
-  };
-
   const startEdit = (row) => {
     setEditingId(row.id);
     resetEdit({
@@ -112,11 +85,9 @@ export default function DraggableSequenceTable({
 
   return (
     <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white rounded-2xl">
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Table>
-          <TableHeader className="bg-zinc-50/50">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[50px]"></TableHead>
+      <Table>
+        <TableHeader className="bg-zinc-50/50">
+          <TableRow className="hover:bg-transparent">
               <TableHead className="w-[80px] text-[10px] font-black text-zinc-400 uppercase tracking-widest">
                 <div className="flex items-center gap-1.5"><Hash className="w-3 h-3" /> STT</div>
               </TableHead>
@@ -132,33 +103,17 @@ export default function DraggableSequenceTable({
               <TableHead className="w-[140px] text-center text-[10px] font-black text-zinc-400 uppercase tracking-widest">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
-          <Droppable droppableId="sequences">
-            {(provided) => (
-              <TableBody {...provided.droppableProps} ref={provided.innerRef}>
+          <TableBody>
                 {data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-zinc-400 font-bold uppercase text-xs tracking-widest opacity-30">Chưa có công đoạn nào</TableCell>
+                    <TableCell colSpan={5} className="h-32 text-center text-zinc-400 font-bold uppercase text-xs tracking-widest opacity-30">Chưa có công đoạn nào</TableCell>
                   </TableRow>
                 ) : (
-                  data.map((row, index) => (
-                    <Draggable
-                      key={String(row.id)}
-                      draggableId={String(row.id)}
-                      index={index}
+                  data.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="group transition-all duration-200 bg-white hover:bg-zinc-50/50"
                     >
-                      {(provided, snapshot) => (
-                        <TableRow
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          className={`group transition-all duration-200 ${snapshot.isDragging ? "bg-white shadow-2xl scale-[1.01] z-50 border-y-indigo-200" : "bg-white"} hover:bg-zinc-50/50`}
-                          style={{
-                            ...provided.draggableProps.style,
-                            display: snapshot.isDragging ? "table" : "table-row",
-                          }}
-                        >
-                          <TableCell {...provided.dragHandleProps} className="w-[50px] text-center">
-                            <GripVertical className="h-4 w-4 text-zinc-300 group-hover:text-zinc-500 transition-colors mx-auto cursor-grab active:cursor-grabbing" />
-                          </TableCell>
                           <TableCell className="w-[80px]">
                             {editingId === row.id ? (
                               <Controller
@@ -368,16 +323,10 @@ export default function DraggableSequenceTable({
                             </>
                           )}
                         </TableRow>
-                      )}
-                    </Draggable>
                   ))
                 )}
-                {provided.placeholder}
-              </TableBody>
-            )}
-          </Droppable>
+          </TableBody>
         </Table>
-      </DragDropContext>
     </Card>
   );
 }
