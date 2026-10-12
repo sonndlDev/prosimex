@@ -65,7 +65,6 @@ function CompletionBadge({ value, className }) {
 const COLUMNS = [
   { label: "Mã mặt hàng",        key: "product_code",              align: "left"  },
   { label: "Số lượng yêu cầu",   key: "required_quantity",         align: "right" },
-  { label: "Tồn kho",            key: "inventory_input",           align: "right", isRaw: true },
   { label: "SX",                  key: "sx_quantity",               align: "right" },
   { label: "ĐI XMS",             key: "plating_out_quantity",      align: "right" },
   { label: "XMS VỀ",             key: "plating_returned_quantity", align: "right" },
@@ -173,13 +172,8 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
                         : "-"}
                     </TableCell>
 
-                    {/* Tồn kho */}
-                    <TableCell className="text-right text-[12px] font-bold tabular-nums border-r border-zinc-200 text-amber-600">
-                      {Number(row.inventory_input) > 0 ? Number(row.inventory_input).toLocaleString() : "-"}
-                    </TableCell>
-
                     {/* SX / ĐI XMS / XMS VỀ / ĐÓNG GÓI */}
-                    <PercentCell quantity={Number(row.sx_quantity) + Number(row.inventory_input || 0)} required={row.required_quantity} disabled={false} />
+                    <PercentCell quantity={Number(row.sx_quantity)} required={row.required_quantity} disabled={false} />
                     <PercentCell quantity={row.plating_out_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
                     <PercentCell quantity={row.plating_returned_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
                     <PercentCell quantity={row.packaging_out_quantity} required={row.required_quantity} disabled={!row.has_dong_goi} />
