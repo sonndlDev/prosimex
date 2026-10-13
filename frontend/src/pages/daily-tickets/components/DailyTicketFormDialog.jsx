@@ -241,7 +241,10 @@ const TicketRow = ({ index, control, setValue, remove, plans, isCompleted, watch
             )} />
           </div>
 
-          <button type="button" onClick={() => !isCompleted && remove(index)} disabled={isCompleted}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); if (!isCompleted) remove(index); }}
+            disabled={isCompleted}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-200 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-20 shrink-0">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -332,7 +335,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[95vw] w-[1000px] max-h-[92vh] flex flex-col p-0 border-zinc-200 shadow-2xl">
+      <DialogContent className="max-w-[95vw] w-[1000px] max-h-[92vh] flex flex-col p-0 border-zinc-200 shadow-2xl" showCloseButton={false}>
 
         {/* ── HEADER ── */}
         <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200 shrink-0">

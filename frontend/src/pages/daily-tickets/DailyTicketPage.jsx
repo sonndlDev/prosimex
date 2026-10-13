@@ -119,6 +119,7 @@ export default function DailyTicketPage() {
   });
 
   const handleDelete = (id) => {
+    if (isFormOpen) return;
     Swal.fire({
       title: "Xác nhận xoá?",
       text: "Bạn có chắc chắn muốn xoá phiếu sản xuất này?",
@@ -369,8 +370,8 @@ export default function DailyTicketPage() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger
-                    onClick={() => handleDelete(item.master_id)}
-                    disabled={item.ticket_status === "COMPLETED"}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.master_id); }}
+                    disabled={item.ticket_status === "COMPLETED" || isFormOpen}
                     className="p-2 rounded-xl text-zinc-400 hover:text-red-600 hover:bg-white hover:shadow-md transition-all active:scale-95 border border-transparent hover:border-red-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:border-transparent"
                   >
                     <Trash2 className="w-4 h-4" />
