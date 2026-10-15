@@ -182,9 +182,9 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
 
                     {/* SX / ĐI XMS / XMS VỀ / ĐÓNG GÓI */}
                     <PercentCell quantity={Number(row.sx_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={false} />
-                    <PercentCell quantity={row.plating_out_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
-                    <PercentCell quantity={row.plating_returned_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
-                    <PercentCell quantity={row.packaging_out_quantity} required={row.required_quantity} disabled={!row.has_dong_goi} />
+                    <PercentCell quantity={Number(row.plating_out_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={Number(row.plating_returned_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={Number(row.packaging_out_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_dong_goi} />
 
                     {/* % Hoàn thành */}
                     <TableCell className="text-right border-l-2 border-zinc-400 bg-zinc-50/80">

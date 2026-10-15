@@ -577,6 +577,9 @@ export const getOrderCompletionReport = async (req, res) => {
       const platingOut = parseFloat(row.plating_out_quantity) || 0;
       const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
       const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
+      const platingOutEffective = platingOut + inventory;
+      const platingReturnedEffective = platingReturned + inventory;
+      const packagingOutEffective = packagingOut + inventory;
       const stageCount = parseInt(row.stage_count) || 0;
       const hasXiMa = row.has_xi_ma;
       const hasDongGoi = row.has_dong_goi;
@@ -584,12 +587,12 @@ export const getOrderCompletionReport = async (req, res) => {
 
       let percentage = 0;
       if (stageCount === 4 && required > 0) {
-        percentage = (Math.min(platingOut, required) * 100 / required
-                    + Math.min(platingReturned, required) * 100 / required
-                    + Math.min(packagingOut, required) * 100 / required
+        percentage = (Math.min(platingOutEffective, required) * 100 / required
+                    + Math.min(platingReturnedEffective, required) * 100 / required
+                    + Math.min(packagingOutEffective, required) * 100 / required
                     + Math.min(sxEffective, required) * 100 / required) / 4;
       } else if (stageCount === 2 && required > 0) {
-        percentage = (Math.min(packagingOut, required) * 100 / required
+        percentage = (Math.min(packagingOutEffective, required) * 100 / required
                     + Math.min(sxEffective, required) * 100 / required) / 2;
       } else if (stageCount === 0 && required > 0) {
         percentage = Math.min(sxEffective, required) * 100 / required;
