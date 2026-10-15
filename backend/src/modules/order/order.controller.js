@@ -446,7 +446,7 @@ export const getOrderCompletionReport = async (req, res) => {
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
         COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
         COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
-        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL) as inventory_input,
+        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL AND (ps.final_pgo_id IS NULL OR pp2.product_group_operation_id = ps.final_pgo_id)) as inventory_input,
         (
           SELECT json_agg(json_build_object(
             'operation_name', snap_op->>'operation_name',
@@ -537,7 +537,7 @@ export const getOrderCompletionReport = async (req, res) => {
         COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
         COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
         COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
-        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL) as inventory_input,
+        (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2 WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL AND (ps.final_pgo_id IS NULL OR pp2.product_group_operation_id = ps.final_pgo_id)) as inventory_input,
         (
           SELECT json_agg(json_build_object(
             'operation_name', op_name.name,
@@ -572,7 +572,8 @@ export const getOrderCompletionReport = async (req, res) => {
       const required = parseFloat(row.required_quantity) || 0;
       const sxRaw = parseFloat(row.sx_quantity) || 0;
       const inventory = parseFloat(row.inventory_input) || 0;
-      const sx = sxRaw;
+      // Tồn kho công đoạn cuối cộng vào SX để tính hoàn thành
+      const sxEffective = sxRaw + inventory;
       const platingOut = parseFloat(row.plating_out_quantity) || 0;
       const platingReturned = parseFloat(row.plating_returned_quantity) || 0;
       const packagingOut = parseFloat(row.packaging_out_quantity) || 0;
@@ -581,36 +582,27 @@ export const getOrderCompletionReport = async (req, res) => {
       const hasDongGoi = row.has_dong_goi;
       const operationsDetail = row.operations_detail || [];
 
-      const items = [];
-      if (sx > 0) items.push(sx);
-      if (platingOut > 0) items.push(platingOut);
-      if (platingReturned > 0) items.push(platingReturned);
-      if (packagingOut > 0) items.push(packagingOut);
-
-      const completedQty = items.length > 0 ? items.reduce((a, b) => a + b, 0) / items.length : 0;
-
       let percentage = 0;
       if (stageCount === 4 && required > 0) {
         percentage = (Math.min(platingOut, required) * 100 / required
                     + Math.min(platingReturned, required) * 100 / required
                     + Math.min(packagingOut, required) * 100 / required
-                    + Math.min(sx, required) * 100 / required) / 4;
+                    + Math.min(sxEffective, required) * 100 / required) / 4;
       } else if (stageCount === 2 && required > 0) {
         percentage = (Math.min(packagingOut, required) * 100 / required
-                    + Math.min(sx, required) * 100 / required) / 2;
+                    + Math.min(sxEffective, required) * 100 / required) / 2;
       } else if (stageCount === 0 && required > 0) {
-        percentage = Math.min(sx, required) * 100 / required;
+        percentage = Math.min(sxEffective, required) * 100 / required;
       }
       percentage = Math.round(percentage * 100) / 100;
 
       return {
         ...row,
-        sx_quantity: sx,
+        sx_quantity: sxRaw,
         plating_out_quantity: platingOut,
         plating_returned_quantity: platingReturned,
         packaging_out_quantity: packagingOut,
         completion_percentage: percentage,
-        completed_quantity: completedQty
       };
     });
 

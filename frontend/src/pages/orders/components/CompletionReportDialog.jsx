@@ -65,6 +65,7 @@ function CompletionBadge({ value, className }) {
 const COLUMNS = [
   { label: "Mã mặt hàng",        key: "product_code",              align: "left"  },
   { label: "Số lượng yêu cầu",   key: "required_quantity",         align: "right" },
+  { label: "Tồn kho",            key: "inventory_input",           align: "right" },
   { label: "SX",                  key: "sx_quantity",               align: "right" },
   { label: "ĐI XMS",             key: "plating_out_quantity",      align: "right" },
   { label: "XMS VỀ",             key: "plating_returned_quantity", align: "right" },
@@ -169,6 +170,13 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
                     <TableCell className="text-right text-[12px] font-bold tabular-nums border-r border-zinc-200 text-zinc-900 bg-zinc-50">
                       {row.required_quantity > 0
                         ? parseFloat(row.required_quantity).toLocaleString()
+                        : "-"}
+                    </TableCell>
+
+                    {/* Tồn kho (công đoạn cuối) */}
+                    <TableCell className="text-right text-[12px] font-bold tabular-nums border-r border-zinc-200 text-emerald-700 bg-emerald-50/40">
+                      {parseFloat(row.inventory_input) > 0
+                        ? parseFloat(row.inventory_input).toLocaleString()
                         : "-"}
                     </TableCell>
 

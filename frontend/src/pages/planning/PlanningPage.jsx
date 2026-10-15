@@ -389,9 +389,11 @@ export default function PlanningPage() {
     // Luôn build dữ liệu dạng multi-machine (_mergedPlannedDays) để form dễ dàng thêm/bớt máy
 
     const allPlans = [plan, ...siblings];
-    const machineIds = allPlans
-      .map((p) => (p.machine_id ? String(p.machine_id) : null))
-      .filter(Boolean);
+    const machineIds = [...new Set(
+      allPlans
+        .map((p) => (p.machine_id ? String(p.machine_id) : null))
+        .filter(Boolean)
+    )];
     const daysByDate = {};
 
     for (const p of allPlans) {
