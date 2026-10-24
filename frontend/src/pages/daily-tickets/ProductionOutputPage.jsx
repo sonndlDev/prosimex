@@ -53,6 +53,31 @@ import {
   Pencil,
 } from "lucide-react";
 
+const BREAK_PERIODS_FE = [
+  { start: 11 * 60 + 30, end: 13 * 60 },
+  { start: 16 * 60 + 30, end: 17 * 60 },
+];
+
+function calcValidWorkMinutesFE(startTime, endTime, ticketDate) {
+  if (!startTime || !endTime || !ticketDate) return null;
+  const start = new Date(`${ticketDate}T${startTime}:00`);
+  const end = new Date(`${ticketDate}T${endTime}:00`);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  const totalMin = (end - start) / 60000;
+  if (totalMin <= 0) return null;
+  const startMin = start.getHours() * 60 + start.getMinutes();
+  const endMin = end.getHours() * 60 + end.getMinutes();
+  const breakMin = BREAK_PERIODS_FE.reduce((sum, bp) => (
+    sum + Math.max(0, Math.min(endMin, bp.end) - Math.max(startMin, bp.start))
+  ), 0);
+  return Math.max(0, totalMin - breakMin);
+}
+
+function calcActualLaborFE(validWorkMinutes, workerCount) {
+  if (!validWorkMinutes || !workerCount || workerCount <= 0) return null;
+  return (validWorkMinutes * workerCount) / 480;
+}
+
 // ─── Combobox helper ────────────────────────────────────────────────────────
 function Combobox({
   value,
@@ -277,7 +302,7 @@ function ManualRow({
   }, [selectedPgo, selectedProduct, isNoOperation]);
 
   return (
-    <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 items-center">
+    <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_90px_90px_60px_80px_36px] gap-2 items-center">
       {/* Đơn hàng */}
       <Controller
         name={`items.${index}.order_id`}
@@ -287,7 +312,6 @@ function ManualRow({
             value={field.value}
             onChange={(v) => {
               field.onChange(v);
-              // Reset mã hàng và công đoạn khi đổi đơn hàng
               setValue(`items.${index}.product_id`, "");
               setValue(`items.${index}.product_group_operation_id`, "");
               setValue(`items.${index}.operation_name`, "");
@@ -308,7 +332,6 @@ function ManualRow({
             value={field.value}
             onChange={(v) => {
               field.onChange(v);
-              // Reset công đoạn khi đổi mã hàng
               setValue(`items.${index}.product_group_operation_id`, "");
               setValue(`items.${index}.operation_name`, "");
             }}
@@ -424,6 +447,59 @@ function ManualRow({
           />
         )}
       />
+
+      {/* Bắt đầu */}
+      <Controller
+        name={`items.${index}.start_time`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            type="time"
+            className="h-9 text-xs border-zinc-300"
+          />
+        )}
+      />
+
+      {/* Kết thúc */}
+      <Controller
+        name={`items.${index}.end_time`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            type="time"
+            className="h-9 text-xs border-zinc-300"
+          />
+        )}
+      />
+
+      {/* Số nhân công */}
+      <Controller
+        name={`items.${index}.worker_count`}
+        control={control}
+        render={({ field }) => (
+          <Input
+            {...field}
+            type="number"
+            min="1"
+            step="1"
+            placeholder="SNC"
+            className="h-9 text-xs text-center border-zinc-300"
+          />
+        )}
+      />
+
+      {/* Công TT auto-computed */}
+      <div className="text-right text-xs tabular-nums font-medium text-blue-700">
+        {(() => {
+          const item = watchItems[index] || {};
+          const mins = calcValidWorkMinutesFE(item.start_time, item.end_time, null);
+          const labor = calcActualLaborFE(mins, parseInt(item.worker_count));
+          if (labor === null) return <span className="text-zinc-400">—</span>;
+          return labor.toFixed(3);
+        })()}
+      </div>
 
       {/* Xóa */}
       <button
@@ -652,6 +728,13 @@ export default function ProductionOutputPage() {
           planned_quantity: parseFloat(item.planned_quantity) || "",
           actual_quantity: parseFloat(item.actual_quantity) || "",
           notes: item.notes || "",
+          start_time: item.start_time
+            ? DateTime.fromISO(item.start_time).toFormat("HH:mm")
+            : "",
+          end_time: item.end_time
+            ? DateTime.fromISO(item.end_time).toFormat("HH:mm")
+            : "",
+          worker_count: item.worker_count ? String(item.worker_count) : "",
         })),
       });
       toast.success(
@@ -708,6 +791,9 @@ export default function ProductionOutputPage() {
     planned_quantity: parseFloat(i.planned_quantity) || 0,
     actual_quantity: parseFloat(i.actual_quantity) || 0,
     notes: i.notes || null,
+    start_time: i.start_time ? `${manualDate}T${i.start_time}:00` : null,
+    end_time: i.end_time ? `${manualDate}T${i.end_time}:00` : null,
+    worker_count: i.worker_count ? parseInt(i.worker_count) : null,
   });
 
   const onManualSubmit = async (data) => {
@@ -726,6 +812,9 @@ export default function ProductionOutputPage() {
           id: i.id,
           actual_quantity: parseFloat(i.actual_quantity) || 0,
           notes: i.notes || null,
+          start_time: i.start_time ? `${manualDate}T${i.start_time}:00` : null,
+          end_time: i.end_time ? `${manualDate}T${i.end_time}:00` : null,
+          worker_count: i.worker_count ? parseInt(i.worker_count) : null,
         })),
       });
     }
@@ -1110,7 +1199,7 @@ export default function ProductionOutputPage() {
 
           <div className="p-6 space-y-3">
             {/* Column headers */}
-            <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_36px] gap-2 px-0 mb-1">
+            <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_90px_90px_60px_80px_36px] gap-2 px-0 mb-1">
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 Đơn hàng
               </p>
@@ -1131,6 +1220,18 @@ export default function ProductionOutputPage() {
               </p>
               <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 Ghi chú
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Bắt đầu
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                Kết thúc
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-center">
+                SNC
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">
+                Công TT
               </p>
               <div />
             </div>
@@ -1172,6 +1273,9 @@ export default function ProductionOutputPage() {
                   planned_quantity: "",
                   actual_quantity: "",
                   notes: "",
+                  start_time: "",
+                  end_time: "",
+                  worker_count: "",
                 })
               }
             >

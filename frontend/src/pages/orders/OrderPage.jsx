@@ -83,6 +83,7 @@ import {
   Upload,
   Download,
   Camera,
+  FileBarChart,
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
@@ -294,10 +295,10 @@ function OrderPageCore({
   {
     id: "report_action",
     label: "Báo cáo",
-    className: "min-w-[80px] w-[80px] max-w-[80px] text-center bg-white font-bold text-red",
+    className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white font-bold text-red",
     isSticky: true,
     stickyLeft: "250px",
-    width: "80px",
+    width: "110px",
     format: (_, row) => (
       <div className="flex items-center justify-center gap-1">
         <TooltipProvider>
@@ -337,6 +338,26 @@ function OrderPageCore({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              onClick={(e) => {
+                e.stopPropagation();
+                setReportOrderId(row.id);
+                setReportProducts(row);
+                setOpenCompletionReport(true);
+              }}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 hover:shadow-sm transition-all active:scale-95 border border-transparent"
+            >
+              <FileBarChart className="w-4 h-4" />
+            </TooltipTrigger>
+
+            <TooltipContent className="bg-zinc-900 text-white border-none font-bold text-[10px]">
+              <p>Báo cáo công lao động</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     )
   },
@@ -346,7 +367,7 @@ function OrderPageCore({
     label: "PO KH",
     className: "min-w-[120px] w-[120px] max-w-[120px] font-bold text-blue-600 bg-white",
     isSticky: true,
-    stickyLeft: "330px",
+    stickyLeft: "360px",
     width: "120px",
     format: (value, row) => (
       <TooltipProvider>
@@ -374,7 +395,7 @@ function OrderPageCore({
     label: "Tên đơn hàng",
     className: "min-w-[250px] w-[250px] max-w-[250px] font-semibold text-zinc-900 bg-white",
     isSticky: true,
-    stickyLeft: "450px",
+    stickyLeft: "480px",
     width: "250px"
   },
 
@@ -383,7 +404,7 @@ function OrderPageCore({
     label: "Tên khách",
     className: "min-w-[150px] w-[150px] max-w-[150px] font-medium truncate bg-white",
     isSticky: true,
-    stickyLeft: "700px",
+    stickyLeft: "730px",
     width: "150px"
   },
 
@@ -392,7 +413,7 @@ function OrderPageCore({
     label: "Người phụ trách",
     className: "min-w-[150px] w-[150px] max-w-[150px] truncate bg-white",
     isSticky: true,
-    stickyLeft: "850px",
+    stickyLeft: "880px",
     width: "150px"
   },
 
@@ -401,7 +422,7 @@ function OrderPageCore({
     label: "Ngày nhận đơn",
     className: "min-w-[110px] w-[110px] max-w-[110px] text-center bg-white",
     isSticky: true,
-    stickyLeft: "1000px",
+    stickyLeft: "1030px",
     isLastSticky: true,
     width: "110px",
     format: (value) =>

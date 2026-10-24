@@ -38,6 +38,17 @@ function badgeVariant(pct) {
   return "outline";
 }
 
+function formatLabor(value) {
+  if (value === null || value === undefined) return "—";
+  return Number(value).toFixed(3);
+}
+
+function formatLaborDiffPct(pct) {
+  if (pct === null || pct === undefined) return "—";
+  const sign = pct > 0 ? "+" : "";
+  return `${sign}${Number(pct).toFixed(2)}%`;
+}
+
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function PercentCell({ quantity, required, disabled }) {
@@ -57,6 +68,46 @@ function CompletionBadge({ value, className }) {
     >
       {value.toFixed(2)}%
     </Badge>
+  );
+}
+
+function LaborSummaryPanel({ planned_labor, actual_labor, labor_diff, labor_diff_pct }) {
+  return (
+    <div className="mb-4 p-3 rounded-lg border border-zinc-200 bg-zinc-50">
+      <p className="text-[12px] font-semibold text-zinc-600 mb-2 uppercase tracking-wide">
+        Đối chiếu công lao động
+      </p>
+      <div className="grid grid-cols-4 gap-2">
+        <div className="text-center p-2 bg-white rounded border border-zinc-100">
+          <p className="text-[11px] text-zinc-500 mb-0.5">Công kế hoạch</p>
+          <p className="text-[15px] font-bold text-zinc-700 tabular-nums">
+            {formatLabor(planned_labor)}
+          </p>
+        </div>
+        <div className="text-center p-2 bg-white rounded border border-zinc-100">
+          <p className="text-[11px] text-zinc-500 mb-0.5">Công thực tế</p>
+          <p className="text-[15px] font-bold text-zinc-700 tabular-nums">
+            {formatLabor(actual_labor)}
+          </p>
+        </div>
+        <div className="text-center p-2 bg-white rounded border border-zinc-100">
+          <p className="text-[11px] text-zinc-500 mb-0.5">Chênh lệch</p>
+          <p className={`text-[15px] font-bold tabular-nums ${
+            labor_diff > 0 ? "text-red-600" : labor_diff < 0 ? "text-green-600" : "text-zinc-600"
+          }`}>
+            {labor_diff > 0 ? "+" : ""}{formatLabor(labor_diff)}
+          </p>
+        </div>
+        <div className="text-center p-2 bg-white rounded border border-zinc-100">
+          <p className="text-[11px] text-zinc-500 mb-0.5">Tỷ lệ CL</p>
+          <p className={`text-[15px] font-bold tabular-nums ${
+            labor_diff > 0 ? "text-red-600" : labor_diff < 0 ? "text-green-600" : "text-zinc-600"
+          }`}>
+            {formatLaborDiffPct(labor_diff_pct)}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -88,6 +139,10 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
   const rows = response?.data ?? [];
   console.log("Báo cáo hoàn thành:", rows);
   const overallPercentage = response?.overall_completion_percentage ?? 0;
+  const plannedLabor = response?.planned_labor ?? 0;
+  const actualLabor = response?.actual_labor ?? 0;
+  const laborDiff = response?.labor_diff ?? 0;
+  const laborDiffPct = response?.labor_diff_pct ?? null;
 
   function renderContent() {
     if (isLoading) {
@@ -181,10 +236,10 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
                     </TableCell>
 
                     {/* SX / ĐI XMS / XMS VỀ / ĐÓNG GÓI */}
-                    <PercentCell quantity={Number(row.sx_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={false} />
-                    <PercentCell quantity={Number(row.plating_out_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_xi_ma} />
-                    <PercentCell quantity={Number(row.plating_returned_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_xi_ma} />
-                    <PercentCell quantity={Number(row.packaging_out_quantity) + (Number(row.inventory_input) || 0)} required={row.required_quantity} disabled={!row.has_dong_goi} />
+                    <PercentCell quantity={Number(row.sx_quantity)} required={row.required_quantity} disabled={false} />
+                    <PercentCell quantity={row.plating_out_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={row.plating_returned_quantity} required={row.required_quantity} disabled={!row.has_xi_ma} />
+                    <PercentCell quantity={row.packaging_out_quantity} required={row.required_quantity} disabled={!row.has_dong_goi} />
 
                     {/* % Hoàn thành */}
                     <TableCell className="text-right border-l-2 border-zinc-400 bg-zinc-50/80">
@@ -236,6 +291,14 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
 
         {/* Body */}
         <div className="flex-1 overflow-auto bg-zinc-50/50">
+          <div className="p-6">
+            <LaborSummaryPanel
+              planned_labor={plannedLabor}
+              actual_labor={actualLabor}
+              labor_diff={laborDiff}
+              labor_diff_pct={laborDiffPct}
+            />
+          </div>
           {renderContent()}
         </div>
 
