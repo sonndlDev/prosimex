@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scheduleService } from '../../services/schedule.service';
 import { planningService } from '../../services/planning.service';
@@ -15,7 +15,8 @@ import {
     Filter,
     Check,
     ChevronsUpDown,
-    Factory
+    Factory,
+    FileSpreadsheet
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import {
@@ -46,6 +47,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSchedule from './components/CustomSchedule';
 import { useUrlState } from '@/hooks/useUrlFilters';
+import { useAuth } from '../../context/AuthContext';
+import { exportTimelineExcel } from './utils/exportTimelineExcel';
 
 // rangeStart is stored in the URL as 'YYYY-MM-DD'; convert to a Luxon DateTime where used
 const parseRangeStart = (value) => {
@@ -55,6 +58,8 @@ const parseRangeStart = (value) => {
 
 export default function SchedulePage() {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const [isExporting, setIsExporting] = useState(false);
     const [factoryId, setFactoryId] = useUrlState('factoryId', 'all');
     const [activeTab, setActiveTab] = useUrlState('activeTab', 'assigned'); // assigned, unassigned
     const [rangeStart, setRangeStart] = useUrlState('rangeStart', DateTime.now().startOf('day').toISODate());
@@ -91,6 +96,28 @@ export default function SchedulePage() {
 
     const handleStop = (id, date) => {
         stopMutation.mutate({ id, stopped_at: date });
+    };
+
+    const handleExportExcel = async () => {
+        setIsExporting(true);
+        try {
+            const factoryName = factoryId === 'all'
+                ? 'Tất cả nhà máy'
+                : (factoriesArray.find((f) => String(f.id) === String(factoryId))?.name || '');
+            await exportTimelineExcel({
+                machines: scheduleData?.machines || [],
+                events: scheduleData?.events || [],
+                dateRange,
+                factoryName,
+                tabLabel: activeTab === 'unassigned' ? 'Chưa gán máy' : 'Theo máy',
+                exportedBy: user?.username,
+            });
+        } catch (err) {
+            console.error('Export timeline error:', err);
+            toast.error('Lỗi khi xuất file Excel');
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const handlePrev = () => {
@@ -247,8 +274,22 @@ export default function SchedulePage() {
                         {title}
                     </CardTitle>
 
-                    <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-2">
-                        {DateTime.fromISO(dateRange.end).diff(DateTime.fromISO(dateRange.start), 'days').days + 1} ngày
+                    <div className="flex items-center gap-4">
+                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-2">
+                            {DateTime.fromISO(dateRange.end).diff(DateTime.fromISO(dateRange.start), 'days').days + 1} ngày
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleExportExcel}
+                            disabled={isLoading || isExporting || !scheduleData?.machines?.length}
+                            className="h-9 gap-2 font-bold px-4 border-zinc-200 bg-white hover:bg-zinc-50"
+                        >
+                            {isExporting
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <FileSpreadsheet className="h-4 w-4 text-emerald-600" />}
+                            Xuất Excel
+                        </Button>
                     </div>
                 </CardHeader>
 

@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import AppPagination from "@/components/AppPagination";
 import {
   Select,
   SelectContent,
@@ -563,112 +564,33 @@ function Pagination({
   onPageChange,
   onPageSizeChange,
 }) {
-  const pages = useMemo(() => {
-    if (totalPages <= 7)
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    if (page <= 4) return [1, 2, 3, 4, 5, "...", totalPages];
-    if (page >= totalPages - 3)
-      return [
-        1,
-        "...",
-        totalPages - 4,
-        totalPages - 3,
-        totalPages - 2,
-        totalPages - 1,
-        totalPages,
-      ];
-    return [1, "...", page - 1, page, page + 1, "...", totalPages];
-  }, [page, totalPages]);
-
   const from = (page - 1) * limit + 1;
   const to = Math.min(page * limit, total);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-200">
-      <div className="flex items-center gap-3">
-        <p className="text-[11px] text-zinc-400 font-medium">
-          Hiển thị{" "}
-          <span className="font-black text-zinc-700">
-            {from}-{to}
-          </span>{" "}
-          /{" "}
-          <span className="font-black text-zinc-700">
-            {total.toLocaleString()}
-          </span>{" "}
-          kế hoạch
-        </p>
-        <Select
-          value={String(limit)}
-          onValueChange={(v) => {
-            onPageSizeChange(Number(v));
-            onPageChange(1);
-          }}
-        >
-          <SelectTrigger className="h-7 w-[80px] text-[11px] font-bold border-zinc-300 rounded-lg">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {[10, 20, 50, 100].map((s) => (
-              <SelectItem key={s} value={String(s)} className="text-xs">
-                {s} / trang
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(1)}
-          disabled={page === 1}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronsLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(page - 1)}
-          disabled={page === 1}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        {pages.map((p, i) =>
-          p === "..." ? (
-            <span
-              key={`dot-${i}`}
-              className="px-2 text-zinc-400 text-xs font-bold"
-            >
-              ...
-            </span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPageChange(p)}
-              className={cn(
-                "w-8 h-8 rounded-lg text-xs font-black transition-all",
-                p === page
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
-                  : "text-zinc-600 hover:bg-indigo-50 hover:text-indigo-700",
-              )}
-            >
-              {p}
-            </button>
-          ),
-        )}
-        <button
-          onClick={() => onPageChange(page + 1)}
-          disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onPageChange(totalPages)}
-          disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronsRight className="w-4 h-4" />
-        </button>
-      </div>
+    <div className="flex flex-col lg:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-200">
+      <p className="text-[11px] text-zinc-400 font-medium">
+        Hiển thị{" "}
+        <span className="font-black text-zinc-700">
+          {from}-{to}
+        </span>{" "}
+        /{" "}
+        <span className="font-black text-zinc-700">
+          {total.toLocaleString()}
+        </span>{" "}
+        kế hoạch
+      </p>
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        pageSize={limit}
+        pageSizeOptions={[10, 20, 50, 100]}
+        onPageSizeChange={(s) => {
+          onPageSizeChange(s);
+          onPageChange(1);
+        }}
+      />
     </div>
   );
 }

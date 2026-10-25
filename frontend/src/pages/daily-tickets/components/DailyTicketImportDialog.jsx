@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import AppPagination from "@/components/AppPagination";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
@@ -23,51 +24,16 @@ function TablePagination({ page, totalItems, onPageChange }) {
   const from = (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(page * PAGE_SIZE, totalItems);
   return (
-    <div className="flex items-center justify-between px-6 py-3 border-t border-zinc-100 bg-white shrink-0">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-t border-zinc-100 bg-white shrink-0">
       <span className="text-xs text-zinc-400 font-semibold tabular-nums">
         {from}–{to} / <span className="text-zinc-600 font-black">{totalItems}</span> dòng
       </span>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(page - 1)}
-          disabled={page === 1}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        {Array.from({ length: totalPages }, (_, i) => i + 1)
-          .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-          .reduce((acc, p, idx, arr) => {
-            if (idx > 0 && arr[idx - 1] !== p - 1) acc.push("…");
-            acc.push(p);
-            return acc;
-          }, [])
-          .map((p, idx) =>
-            p === "…" ? (
-              <span key={`ellipsis-${idx}`} className="w-7 h-7 flex items-center justify-center text-xs text-zinc-400">…</span>
-            ) : (
-              <button
-                key={p}
-                onClick={() => onPageChange(p)}
-                className={cn(
-                  "w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-colors",
-                  p === page
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:bg-zinc-100"
-                )}
-              >
-                {p}
-              </button>
-            )
-          )}
-        <button
-          onClick={() => onPageChange(page + 1)}
-          disabled={page === totalPages}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+      <AppPagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import AppPagination from '@/components/AppPagination';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -216,14 +217,6 @@ function ActivitiesModal({ open, onClose, onView }) {
   if (!open) return null;
   const totalPages = data?.totalPages ?? 1;
 
-  const pageNums = () => {
-    const t = totalPages;
-    if (t <= 5) return Array.from({ length: t }, (_, i) => i + 1);
-    if (page <= 3) return [1, 2, 3, 4, 5];
-    if (page >= t - 2) return [t - 4, t - 3, t - 2, t - 1, t];
-    return [page - 2, page - 1, page, page + 1, page + 2];
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
@@ -252,24 +245,13 @@ function ActivitiesModal({ open, onClose, onView }) {
               : <div className="py-16 text-center text-zinc-400 text-sm">Không có hoạt động nào.</div>
           }
         </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 bg-zinc-50 rounded-b-2xl">
-          <p className="text-xs text-zinc-400">Trang {page} / {totalPages}</p>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="w-7 h-7 rounded-md border border-zinc-200 flex items-center justify-center hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
-            </button>
-            {pageNums().map(p => (
-              <button key={p} onClick={() => setPage(p)}
-                className={`w-7 h-7 rounded-md text-xs font-semibold transition-colors ${page === p ? 'bg-zinc-900 text-white' : 'border border-zinc-200 text-zinc-600 hover:bg-zinc-100'}`}>
-                {p}
-              </button>
-            ))}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="w-7 h-7 rounded-md border border-zinc-200 flex items-center justify-center hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-            </button>
-          </div>
+        <div className="flex items-center justify-end px-5 py-3 border-t border-zinc-100 bg-white rounded-b-2xl overflow-x-auto">
+          <AppPagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            showJumper={false}
+          />
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import AppPagination from '@/components/AppPagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -439,48 +440,18 @@ export default function GenericTable({
         </div>
 
         {/* Pagination Controls */}
-        <div className="px-6 py-3 bg-white border-t border-black-700 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-6">
-            <p className="text-xs font-bold text-zinc-500">
-              Tổng cộng: <span className="text-zinc-950 font-black">{effectiveTotal}</span> bản ghi
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Hiển thị</span>
-              <select
-                value={effectivePageSize}
-                onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
-                className="text-xs font-bold bg-zinc-50 border border-black-400 rounded-lg px-2 py-1 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none focus:border-indigo-300 transition-all"
-              >
-                {[5, 10, 25, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-zinc-500">
-              Trang <span className="text-zinc-950 font-black">{effectivePage}</span> / {totalPages || 1}
-            </span>
-            <div className="flex gap-1.5">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-lg border-black-400 hover:bg-zinc-50 transition-all font-bold"
-                disabled={effectivePage === 1}
-                onClick={() => handlePageChange(effectivePage - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 rounded-lg border-black-400 hover:bg-zinc-50 transition-all font-bold"
-                disabled={effectivePage >= totalPages}
-                onClick={() => handlePageChange(effectivePage + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+        <div className="px-6 py-3 bg-white border-t border-black-700 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+          <p className="text-xs font-bold text-zinc-500">
+            Tổng cộng: <span className="text-zinc-950 font-black">{effectiveTotal}</span> bản ghi
+          </p>
+          <AppPagination
+            page={effectivePage}
+            totalPages={totalPages || 1}
+            onPageChange={handlePageChange}
+            pageSize={effectivePageSize}
+            pageSizeOptions={[5, 10, 25, 50, 100]}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </div>
       </div>
     </div>

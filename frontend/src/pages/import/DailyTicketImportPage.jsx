@@ -9,6 +9,7 @@ import {
 import { format } from "date-fns";
 import { importExcelService } from "../../services/import-excel.service";
 import { Button } from "@/components/ui/button";
+import AppPagination from "@/components/AppPagination";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
@@ -333,32 +334,16 @@ export default function ImportExcelPage() {
                       <div className="p-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0">
                         <div className="flex flex-col gap-0.5">
                           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                             Trang {historyPage} / {totalPages}
-                          </p>
-                          <p className="text-[9px] font-bold text-zinc-300">
                              Tổng cộng: {historyRes.total} lượt
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            disabled={historyPage <= 1 || historyLoading}
-                            onClick={() => setHistoryPage(p => p - 1)}
-                            className="h-8 w-8 rounded-xl border-zinc-200"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            disabled={historyPage >= totalPages || historyLoading}
-                            onClick={() => setHistoryPage(p => p + 1)}
-                            className="h-8 w-8 rounded-xl border-zinc-200"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <AppPagination
+                          page={historyPage}
+                          totalPages={totalPages}
+                          onPageChange={setHistoryPage}
+                          showJumper={false}
+                          disabled={historyLoading}
+                        />
                       </div>
                     )}
                   </>

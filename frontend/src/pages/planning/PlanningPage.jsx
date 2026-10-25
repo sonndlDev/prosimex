@@ -1,5 +1,10 @@
 import React, { useState, useMemo, useCallback, startTransition } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { planningService } from "../../services/planning.service";
 import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
@@ -29,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
+import AppPagination from "@/components/AppPagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -183,6 +189,7 @@ export default function PlanningPage() {
   const {
     data: plansData,
     isLoading,
+    isFetching,
     error,
   } = useQuery({
     queryKey: [
@@ -207,6 +214,8 @@ export default function PlanningPage() {
         ...(startDate ? { startDate } : {}),
         ...(endDate ? { endDate } : {}),
       }),
+    // Keep current rows visible while the next page loads (no full-page spinner)
+    placeholderData: keepPreviousData,
   });
 
   const plans = plansData?.data || [];
@@ -1526,6 +1535,12 @@ export default function PlanningPage() {
 
       {/* Main Table */}
       <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
+        <div className="relative">
+        {isFetching && !isLoading && (
+          <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        )}
         <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
           <table className="w-full border-separate  border-spacing-0">
             <thead className="sticky top-0 z-40 shadow-sm">
@@ -1753,62 +1768,26 @@ export default function PlanningPage() {
             </tbody>
           </table>
         </div>
+        </div>
 
         {/* Pagination */}
-        <div className="px-6 py-3 bg-white border-t border-zinc-200 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <p className="text-xs font-bold text-zinc-500">
-              Tổng cộng:{" "}
-              <span className="text-zinc-950 font-black">{totalCount}</span> kế
-              hoạch
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">
-                Hiển thị
-              </span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(parseInt(e.target.value));
-                  setPage(0);
-                }}
-                className="text-xs font-bold bg-zinc-50 border border-zinc-200 rounded px-1.5 py-1 focus:ring-0 focus:border-zinc-300"
-              >
-                {[5, 10, 25, 50].map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-zinc-500">
-              Trang <span className="text-zinc-950">{page + 1}</span> /{" "}
-              {totalPages || 1}
-            </span>
-            <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-zinc-200"
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-zinc-200"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+        <div className="px-6 py-3 bg-white border-t border-zinc-200 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs font-bold text-zinc-500">
+            Tổng cộng:{" "}
+            <span className="text-zinc-950 font-black">{totalCount}</span> kế
+            hoạch
+          </p>
+          <AppPagination
+            page={page + 1}
+            totalPages={totalPages || 1}
+            onPageChange={(p) => setPage(p - 1)}
+            pageSize={rowsPerPage}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageSizeChange={(s) => {
+              setRowsPerPage(s);
+              setPage(0);
+            }}
+          />
         </div>
       </Card>
 
