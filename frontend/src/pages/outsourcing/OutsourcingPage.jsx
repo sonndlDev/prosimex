@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit } from "lucide-react";
+import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit, ChevronDown, ChevronUp, LayoutGrid, ClipboardPaste, Table as TableIcon, Truck, PackageCheck, ListChecks, History as HistoryIcon, Scale, RotateCcw, Filter } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,44 +127,34 @@ function OutsourcingContent({ type }) {
   return (
     <Card className="border-zinc-200 shadow-sm bg-white rounded-2xl overflow-visible">
       <CardHeader className="p-0 border-b border-zinc-100 bg-white">
-        <div className="px-6 pt-6">
+        <div className="px-6 pt-5 pb-0">
           <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
-            <TabsList className="flex w-full bg-zinc-100 p-1 rounded-full border border-zinc-200 max-w-md h-10 shadow-inner">
-              <TabsTrigger
-                value="history"
-                className={cn(
-                  "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
-                  subTab === "history"
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-zinc-400 hover:text-zinc-600"
-                )}
-              >
-                Danh sách
-              </TabsTrigger>
-              <TabsTrigger
-                value="out"
-                className={cn(
-                  "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
-                  subTab === "out"
-                    ? "bg-white text-indigo-600 shadow-md"
-                    : "text-zinc-400 hover:text-zinc-600"
-                )}
-              >
-                {type === 'PACKAGING' ? 'SL Đóng gói' : 'Phiếu ĐI'}
-              </TabsTrigger>
-              {type !== 'PACKAGING' && (
-                <TabsTrigger
-                  value="in"
-                  className={cn(
-                    "flex-1 font-black rounded-full h-full transition-all text-[10px] uppercase tracking-widest",
-                    subTab === "in"
-                      ? "bg-white text-indigo-600 shadow-md"
-                      : "text-zinc-400 hover:text-zinc-600"
-                  )}
-                >
-                  Phiếu VỀ
-                </TabsTrigger>
-              )}
+            <TabsList className="flex h-auto w-full justify-start gap-6 bg-transparent p-0 border-0 rounded-none shadow-none">
+              {[
+                { value: "history", label: "Danh sách", Icon: ListChecks, show: true },
+                { value: "out", label: type === "PACKAGING" ? "SL Đóng gói" : "Phiếu đi", Icon: Truck, show: true },
+                { value: "in", label: "Phiếu về", Icon: PackageCheck, show: type !== "PACKAGING" },
+              ].filter(t => t.show).map(({ value, label, Icon }) => {
+                const active = subTab === value;
+                return (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className={cn(
+                      "relative h-11 gap-2 rounded-none border-0 bg-transparent px-1 text-xs font-black uppercase tracking-widest shadow-none transition-colors",
+                      "data-[state=active]:bg-transparent data-[state=active]:shadow-none",
+                      active ? "text-indigo-600" : "text-zinc-400 hover:text-zinc-700"
+                    )}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                    <span className={cn(
+                      "absolute inset-x-0 -bottom-px h-0.5 rounded-full transition-all",
+                      active ? "bg-indigo-600" : "bg-transparent"
+                    )} />
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
           </Tabs>
         </div>
@@ -335,21 +326,87 @@ const getProductOrderQty = (orders, orderId, productId) => {
   return product?.quantity ? parseFloat(product.quantity) : null;
 };
 
+const PROCESSING_TYPES = ["Xi", "Mạ", "Sơn", "Ly tâm"];
+const QTY_TOLERANCE = 1.03;
+
+const createEmptyItem = () => ({
+  id: Date.now() + Math.floor(Math.random() * 100000),
+  order_id: "",
+  product_id: "",
+  order_quantity: "",
+  processing_type: "",
+  output_kind: "main",
+  quantity_out: "",
+  accessory_quantity: "",
+  gross_weight: "",
+  pallet_weight: "",
+  net_weight: "",
+  notes: "",
+  packing_specification: "",
+  package_count: "",
+  unit_net_weight: "",
+});
+
+const createDefaultForm = () => ({
+  supplier_id: "",
+  dispatch_date: DateTime.now().toFormat("yyyy-MM-dd"),
+  expected_return_date: DateTime.now().plus({ days: 3 }).toFormat("yyyy-MM-dd"),
+});
+
+const getOutputValue = (item) => (item.output_kind === "accessory" ? item.accessory_quantity : item.quantity_out);
+const isItemFilled = (item) => !!(item.order_id || item.product_id || item.order_quantity || item.quantity_out || item.accessory_quantity || item.gross_weight || item.notes);
+const sumField = (items, key) => items.reduce((s, i) => s + (parseFloat(i[key]) || 0), 0);
+const fmtNum = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+const fmtDateVN = (iso) => (iso ? DateTime.fromFormat(iso, "yyyy-MM-dd").toFormat("dd/MM/yyyy") : "—");
+
+const findOrderById = (orders, id) => orders.find(o => String(o.id) === String(id));
+const findOrderLabel = (orders, id) => {
+  const o = findOrderById(orders, id);
+  return o ? (o.order_code || o.name || "") : "";
+};
+const findProductName = (orders, products, item) =>
+  findOrderById(orders, item.order_id)?.products?.find(p => String(p.id) === String(item.product_id))?.name
+  || products.find(p => String(p.id) === String(item.product_id))?.name
+  || "";
+
+function SectionLabel({ children }) {
+  return <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">{children}</p>;
+}
+
+function SummaryRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-zinc-100 last:border-0">
+      <span className="text-zinc-500 font-medium">{label}</span>
+      <span className="font-bold text-zinc-900">{value}</span>
+    </div>
+  );
+}
+
 function OutboundTicketForm({ type, orders, products, suppliers }) {
-  const [formData, setFormData] = useState({
-    supplier_id: "",
-    dispatch_date: DateTime.now().toFormat("yyyy-MM-dd"),
-    expected_return_date: DateTime.now().plus({ days: 3 }).toFormat("yyyy-MM-dd")
+  const isPackaging = type === "PACKAGING";
+  const draftKey = `outsourcing_draft_${type}`;
+  const formRef = useRef(null);
+
+  const [savedDraft] = useState(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+      return draft && Array.isArray(draft.items) && draft.items.length > 0 ? draft : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [items, setItems] = useState([
-    { id: Date.now(), order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }
-  ]);
-
+  const [formData, setFormData] = useState(() => savedDraft?.formData || createDefaultForm());
+  const [items, setItems] = useState(() => savedDraft?.items || [createEmptyItem()]);
   const [loading, setLoading] = useState(false);
   const [createdTicket, setCreatedTicket] = useState(null);
   const [remainingQuantities, setRemainingQuantities] = useState({});
   const [invalidItemIds, setInvalidItemIds] = useState([]);
+  const [collapsedIds, setCollapsedIds] = useState({});
+  const [viewMode, setViewMode] = useState("cards");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const isDirty = !!formData.supplier_id || items.some(isItemFilled);
 
   const fetchRemainingQuantity = async (itemId, orderId, productId) => {
     if (!orderId || !productId) {
@@ -367,87 +424,183 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   const handleItemChange = (id, field, value) => {
     setInvalidItemIds(prev => prev.filter(x => x !== id));
     setItems(prev => prev.map(item => {
-      if (item.id === id) {
-        const newItem = { ...item, [field]: value };
-        if (field === 'gross_weight' || field === 'pallet_weight') {
-          const g = parseFloat(newItem.gross_weight || 0);
-          const p = parseFloat(newItem.pallet_weight || 0);
-          newItem.net_weight = (g - p).toFixed(2);
-        }
-        if (field === 'quantity_out' && value) {
-          newItem.accessory_quantity = "";
-        }
-        if (field === 'accessory_quantity' && value) {
-          newItem.quantity_out = "";
-        }
-        if (field === 'quantity_out' && newItem.order_quantity) {
-          const maxAllowed = Math.floor(parseFloat(newItem.order_quantity) * 1.03);
-          if (parseFloat(value) > maxAllowed) {
-            toast.warning(`SL Xuất BP chính tối đa là ${maxAllowed} (SL Order ${newItem.order_quantity} + 3%)`);
-            newItem.quantity_out = String(maxAllowed);
-          }
-        }
-        return newItem;
+      if (item.id !== id) return item;
+      const next = { ...item, [field]: value };
+      if (field === "gross_weight" || field === "pallet_weight") {
+        const g = parseFloat(next.gross_weight || 0);
+        const p = parseFloat(next.pallet_weight || 0);
+        next.net_weight = (g - p).toFixed(2);
       }
-      return item;
+      if (field === "quantity_out" && value) {
+        next.accessory_quantity = "";
+        next.output_kind = "main";
+      }
+      if (field === "accessory_quantity" && value) {
+        next.quantity_out = "";
+        next.output_kind = "accessory";
+      }
+      if (field === "quantity_out" && value && next.order_quantity) {
+        const maxAllowed = Math.floor(parseFloat(next.order_quantity) * QTY_TOLERANCE);
+        if (parseFloat(value) > maxAllowed) {
+          toast.warning(`SL Xuất BP chính tối đa là ${maxAllowed} (SL Order ${next.order_quantity} + 3%)`);
+          next.quantity_out = String(maxAllowed);
+        }
+      }
+      return next;
     }));
   };
 
-  const addItem = () => {
-    const newId = Date.now();
-    setItems(prev => [...prev, { id: newId, order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
-    setRemainingQuantities(prev => ({ ...prev, [newId]: null }));
+  const setOutputKind = (id, kind) => {
+    setItems(prev => prev.map(item => item.id === id ? {
+      ...item,
+      output_kind: kind,
+      quantity_out: kind === "main" ? item.quantity_out : "",
+      accessory_quantity: kind === "accessory" ? item.accessory_quantity : "",
+    } : item));
   };
 
-  const removeItem = (id) => {
-    if (items.length > 1) {
-      setItems(prev => prev.filter(item => item.id !== id));
+  const handleOrderChange = (item, v) => {
+    handleItemChange(item.id, "order_id", v);
+    const selectedOrder = findOrderById(orders, v);
+    if (selectedOrder?.products && item.product_id) {
+      const matched = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
+      if (matched?.quantity) handleItemChange(item.id, "order_quantity", parseFloat(matched.quantity));
     }
+    fetchRemainingQuantity(item.id, v, item.product_id);
   };
 
-  const handleSubmit = async (e) => {
+  const handleProductChange = (item, v) => {
+    handleItemChange(item.id, "product_id", v);
+    if (item.order_id) {
+      const selectedOrder = findOrderById(orders, item.order_id);
+      const matched = selectedOrder?.products?.find(p => String(p.id) === String(v));
+      if (matched?.quantity) handleItemChange(item.id, "order_quantity", parseFloat(matched.quantity));
+    }
+    fetchRemainingQuantity(item.id, item.order_id, v);
+  };
+
+  const addItem = () => setItems(prev => [...prev, createEmptyItem()]);
+
+  const removeItem = (id) => setItems(prev => (prev.length > 1 ? prev.filter(i => i.id !== id) : prev));
+
+  const duplicateItem = (item) => {
+    const copy = { ...item, id: Date.now() + Math.floor(Math.random() * 100000) };
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.id === item.id);
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+    if (copy.order_id && copy.product_id) fetchRemainingQuantity(copy.id, copy.order_id, copy.product_id);
+  };
+
+  const toggleCollapse = (id) => setCollapsedIds(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const itemSummary = (item) => {
+    const parts = [findOrderLabel(orders, item.order_id), findProductName(orders, products, item)];
+    const out = parseFloat(getOutputValue(item));
+    if (out) parts.push(`SL ${fmtNum(out)}`);
+    return parts.filter(Boolean).join(" · ") || "Chưa nhập";
+  };
+
+  const handlePasteRows = (e) => {
+    if (isPackaging) return;
+    const text = e.clipboardData?.getData("text") || "";
+    if (!text.includes("\t") && !text.includes("\n")) return;
     e.preventDefault();
-    if (type !== 'PACKAGING' && !formData.supplier_id) {
+    const rows = text.split(/\r?\n/).filter(r => r.trim() !== "").map(r => r.split("\t"));
+    if (rows.length === 0) return;
+    let unmatched = 0;
+    const newItems = rows.map(cols => {
+      const cell = (i) => (cols[i] ?? "").trim();
+      const orderKey = cell(0).toLowerCase();
+      const order = orders.find(o => (o.order_code || "").toLowerCase() === orderKey || (o.name || "").toLowerCase() === orderKey);
+      const productKey = cell(1).toLowerCase();
+      const product = (order?.products || []).find(p => (p.name || "").toLowerCase() === productKey)
+        || products.find(p => (p.name || "").toLowerCase() === productKey);
+      if (!order || !product) unmatched += 1;
+      const autoQty = order && product?.quantity ? String(parseFloat(product.quantity)) : "";
+      const item = {
+        ...createEmptyItem(),
+        order_id: order ? String(order.id) : "",
+        product_id: product ? String(product.id) : "",
+        order_quantity: cell(2) || autoQty,
+        processing_type: PROCESSING_TYPES.includes(cell(3)) ? cell(3) : "",
+        quantity_out: cell(4),
+        accessory_quantity: cell(5),
+        package_count: cell(6),
+        gross_weight: cell(7),
+        pallet_weight: cell(8),
+        unit_net_weight: cell(9),
+        notes: cell(10),
+      };
+      item.output_kind = item.accessory_quantity && !item.quantity_out ? "accessory" : "main";
+      item.net_weight = ((parseFloat(item.gross_weight) || 0) - (parseFloat(item.pallet_weight) || 0)).toFixed(2);
+      return item;
+    });
+    setItems(prev => {
+      const base = prev.length === 1 && !isItemFilled(prev[0]) ? [] : prev;
+      return [...base, ...newItems];
+    });
+    newItems.forEach(item => {
+      if (item.order_id && item.product_id) fetchRemainingQuantity(item.id, item.order_id, item.product_id);
+    });
+    toast.success(`Đã dán ${newItems.length} dòng`);
+    if (unmatched > 0) toast.warning(`${unmatched} dòng không khớp Đơn hàng/Mã hàng, vui lòng chọn lại`);
+  };
+
+  const validate = () => {
+    if (!isPackaging && !formData.supplier_id) {
       toast.error("Vui lòng chọn Nhà cung cấp");
-      return;
+      return false;
     }
     const badIds = items
-      .filter(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out && !i.accessory_quantity))
+      .filter(i => !i.order_id || !i.product_id || (!isPackaging && !getOutputValue(i)))
       .map(i => i.id);
     setInvalidItemIds(badIds);
     if (badIds.length > 0) {
-      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và SL Xuất (BP chính hoặc Phụ kiện)" : "") + " cho tất cả các phần!");
-      return;
+      toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (!isPackaging ? " và SL Xuất (BP chính hoặc Phụ kiện)" : "") + " cho tất cả các phần!");
+      return false;
     }
-    if (type !== 'PACKAGING' && !formData.expected_return_date) {
+    if (!isPackaging && !formData.expected_return_date) {
       toast.error("Vui lòng nhập Ngày dự kiến về");
-      return;
+      return false;
     }
-    if (type !== 'PACKAGING' && formData.dispatch_date && formData.expected_return_date < formData.dispatch_date) {
+    if (!isPackaging && formData.dispatch_date && formData.expected_return_date < formData.dispatch_date) {
       toast.error("Ngày dự kiến về không được trước Ngày xuất đi");
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validate()) setConfirmOpen(true);
+  };
+
+  const createTicket = async () => {
+    setConfirmOpen(false);
     setLoading(true);
     setCreatedTicket(null);
     try {
       const payload = {
         ...formData,
         type,
-        dispatch_date: formData.dispatch_date && type !== 'PACKAGING' ? DateTime.fromFormat(formData.dispatch_date, 'yyyy-MM-dd').toISO() : null,
-        expected_return_date: formData.expected_return_date && type !== 'PACKAGING' ? DateTime.fromFormat(formData.expected_return_date, 'yyyy-MM-dd').toISO() : null,
-        items: items
+        dispatch_date: formData.dispatch_date && !isPackaging ? DateTime.fromFormat(formData.dispatch_date, "yyyy-MM-dd").toISO() : null,
+        expected_return_date: formData.expected_return_date && !isPackaging ? DateTime.fromFormat(formData.expected_return_date, "yyyy-MM-dd").toISO() : null,
+        items: items.map(item => {
+          const { output_kind: _outputKind, ...rest } = item;
+          return rest;
+        }),
       };
-      if (type === 'PACKAGING') {
-        payload.supplier_id = null;
-      }
+      if (isPackaging) payload.supplier_id = null;
       const res = await outsourcingService.create(payload);
       setCreatedTicket(res);
-      toast.success(type === 'PACKAGING' ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
-      const resetId = Date.now();
-      setItems([{ id: resetId, order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
-      setRemainingQuantities({ [resetId]: null });
+      toast.success(isPackaging ? "Lưu số lượng đóng gói thành công!" : "Tạo phiếu đi thành công!");
+      setItems([createEmptyItem()]);
+      setRemainingQuantities({});
       setInvalidItemIds([]);
+      setCollapsedIds({});
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -455,238 +608,453 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
     }
   };
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 pb-6 border-b border-zinc-100">
-          {type !== 'PACKAGING' && (
-            <>
-              <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Nhà cung cấp <span className="text-red-500">*</span></Label>
-                <SupplierSelect
-                  value={formData.supplier_id}
-                  onChange={v => setFormData(f => ({ ...f, supplier_id: v }))}
-                  suppliers={suppliers}
-                />
-              </div>
+  const clearDraft = () => {
+    if (!window.confirm("Xóa toàn bộ nội dung đang nhập?")) return;
+    setFormData(createDefaultForm());
+    setItems([createEmptyItem()]);
+    setRemainingQuantities({});
+    setInvalidItemIds([]);
+    setCollapsedIds({});
+    localStorage.removeItem(draftKey);
+    toast.success("Đã xóa nháp");
+  };
 
-              <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày xuất đi</Label>
-                <PremiumDatePicker
-                  date={formData.dispatch_date}
-                  onSelect={d => setFormData({ ...formData, dispatch_date: d })}
-                  placeholder="Chọn ngày xuất"
-                />
-              </div>
+  // Enter moves focus to the next field instead of submitting the form
+  const handleFormKeyDown = (e) => {
+    if (e.key !== "Enter" || e.shiftKey || e.target.tagName !== "INPUT") return;
+    if (["button", "submit", "checkbox"].includes(e.target.type)) return;
+    // Ignore inputs inside portaled popovers (command search, date picker): they bubble up through React
+    if (e.target.closest("[cmdk-root], [data-radix-popper-content-wrapper], [role='dialog']")) return;
+    e.preventDefault();
+    const fields = Array.from(
+      formRef.current.querySelectorAll('input:not([disabled]):not([readonly]), [role="combobox"]')
+    ).filter(el => el.offsetParent !== null);
+    const next = fields[fields.indexOf(e.target) + 1];
+    if (next) next.focus();
+  };
 
-              <div className="space-y-2">
-                <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày dự kiến về <span className="text-red-500">*</span></Label>
-                <PremiumDatePicker
-                  date={formData.expected_return_date}
-                  onSelect={d => setFormData({ ...formData, expected_return_date: d })}
-                  placeholder="Chọn ngày về"
-                />
-              </div>
-            </>
+  // Restore remaining-quantity badges for a restored draft
+  useEffect(() => {
+    items.forEach(i => {
+      if (i.order_id && i.product_id) fetchRemainingQuantity(i.id, i.order_id, i.product_id);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isDirty) localStorage.setItem(draftKey, JSON.stringify({ formData, items }));
+    else localStorage.removeItem(draftKey);
+  }, [formData, items, isDirty, draftKey]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  const totalOut = items.reduce((s, i) => s + (parseFloat(getOutputValue(i)) || 0), 0);
+  const totalPackages = sumField(items, "package_count");
+  const totalGross = sumField(items, "gross_weight");
+  const totalNet = sumField(items, "net_weight");
+  const supplierName = suppliers.find(s => String(s.id) === String(formData.supplier_id))?.name || "—";
+
+  const renderCard = (item, index) => {
+    const invalid = invalidItemIds.includes(item.id);
+    const isCollapsed = !!collapsedIds[item.id];
+    const remaining = remainingQuantities[item.id];
+    const remainingNum = remaining == null ? null : Number(remaining);
+    const outputKey = item.output_kind === "accessory" ? "accessory_quantity" : "quantity_out";
+    const orderQty = parseFloat(item.order_quantity) || 0;
+    const outQty = parseFloat(getOutputValue(item)) || 0;
+    const ratio = orderQty > 0 ? outQty / orderQty : 0;
+    const toneClass = ratio > QTY_TOLERANCE ? "bg-red-500" : ratio > 1 ? "bg-amber-500" : "bg-emerald-500";
+    const hasAutoQty = !!item.order_id && !!item.product_id && getProductOrderQty(orders, item.order_id, item.product_id) != null;
+    const productOptions = item.order_id ? (findOrderById(orders, item.order_id)?.products || []) : products;
+
+    return (
+      <div
+        key={item.id}
+        className={cn(
+          "rounded-2xl border bg-zinc-50/60 transition-colors",
+          invalid ? "border-red-400 ring-1 ring-red-200" : "border-zinc-200"
+        )}
+      >
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-200/70">
+          <button
+            type="button"
+            onClick={() => toggleCollapse(item.id)}
+            className="flex items-center gap-2 min-w-0 flex-1 text-left"
+          >
+            {isCollapsed ? <ChevronDown className="w-4 h-4 text-zinc-400 shrink-0" /> : <ChevronUp className="w-4 h-4 text-zinc-400 shrink-0" />}
+            <span className="text-xs font-black text-zinc-700 uppercase tracking-widest whitespace-nowrap">Phần {index + 1}</span>
+            {isCollapsed && <span className="text-xs font-semibold text-zinc-500 truncate">{itemSummary(item)}</span>}
+          </button>
+          <Button type="button" variant="ghost" size="icon" title="Nhân bản phần" onClick={() => duplicateItem(item)} className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
+            <Copy className="w-4 h-4" />
+          </Button>
+          {items.length > 1 && (
+            <Button type="button" variant="ghost" size="icon" title="Xóa phần" onClick={() => removeItem(item.id)} className="h-8 w-8 text-zinc-400 hover:text-red-500">
+              <Trash2 className="w-4 h-4" />
+            </Button>
           )}
         </div>
 
-        <div className="pt-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-              <Package className="w-5 h-5 text-indigo-600" />
-              Danh sách hàng hóa
-            </Label>
-          </div>
-
-          {items.map((item, index) => (
-            <div key={item.id} className={cn("relative p-5 bg-zinc-50/80 border rounded-2xl group", invalidItemIds.includes(item.id) ? "border-red-400 ring-1 ring-red-200" : "border-zinc-200")}>
-              {items.length > 1 && (
-                <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors">
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              )}
-              <h4 className="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest">Phần {index + 1}</h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="space-y-1.5 lg:col-span-1">
+        {!isCollapsed && (
+          <div className="p-5 space-y-6">
+            {/* Khối 1: Hàng hóa */}
+            <div>
+              <SectionLabel>Hàng hóa</SectionLabel>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-zinc-500 uppercase">Đơn hàng *</Label>
-                  <OrderSelect
-                    value={item.order_id}
-                    onChange={v => {
-                      handleItemChange(item.id, 'order_id', v);
-                      const selectedOrder = orders.find(o => String(o.id) === String(v));
-                      if (selectedOrder && selectedOrder.products && item.product_id) {
-                        const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(item.product_id));
-                        if (matchedProduct && matchedProduct.quantity) {
-                          handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
-                        }
-                      }
-                      fetchRemainingQuantity(item.id, v, item.product_id);
-                    }}
-                    orders={orders}
-                  />
+                  <OrderSelect value={item.order_id} onChange={v => handleOrderChange(item, v)} orders={orders} />
                 </div>
-                <div className="space-y-1.5 lg:col-span-1">
+                <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng *</Label>
-                  <ProductSelect
-                    value={item.product_id}
-                    onChange={v => {
-                      handleItemChange(item.id, 'product_id', v);
-                      if (item.order_id) {
-                        const selectedOrder = orders.find(o => String(o.id) === String(item.order_id));
-                        if (selectedOrder && selectedOrder.products) {
-                          const matchedProduct = selectedOrder.products.find(p => String(p.id) === String(v));
-                          if (matchedProduct && matchedProduct.quantity) {
-                            handleItemChange(item.id, 'order_quantity', parseFloat(matchedProduct.quantity));
-                          }
-                        }
-                      }
-                      fetchRemainingQuantity(item.id, item.order_id, v);
-                    }}
-                    products={item.order_id ? (orders.find(o => String(o.id) === String(item.order_id))?.products || []) : products}
-                  />
+                  <ProductSelect value={item.product_id} onChange={v => handleProductChange(item, v)} products={productOptions} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                  <Input type="number" min="0" placeholder="0" className="h-10 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
-                  {item.order_id && item.product_id && getProductOrderQty(orders, item.order_id, item.product_id) != null && (
-                    <p className="text-[10px] text-zinc-400 font-medium">Tự lấy từ ĐH khi chọn MH, có thể sửa</p>
-                  )}
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="h-10 font-medium bg-white"
+                    value={item.order_quantity}
+                    onChange={e => handleItemChange(item.id, "order_quantity", e.target.value)}
+                  />
+                  {hasAutoQty && <p className="text-[10px] text-zinc-400 font-medium">Tự lấy từ ĐH khi chọn MH, có thể sửa</p>}
                 </div>
-                {item.order_id && item.product_id && remainingQuantities[item.id] != null && (
-                  <div className={cn(
-                    "space-y-1.5 p-2 rounded-lg border",
-                    remainingQuantities[item.id] > 0
-                      ? "bg-orange-50/50 border-orange-200"
-                      : "bg-emerald-50/50 border-emerald-200"
-                  )}>
-                    <Label className={cn(
-                      "text-[10px] font-bold uppercase",
-                      remainingQuantities[item.id] > 0 ? "text-orange-700" : "text-emerald-700"
-                    )}>
-                      SL Còn thiếu
-                    </Label>
-                    <Input
-                      type="number"
-                      readOnly
-                      className={cn(
-                        "h-9 font-black",
-                        remainingQuantities[item.id] > 0 ? "text-orange-900 border-orange-200" : "text-emerald-900 border-emerald-200"
-                      )}
-                      value={remainingQuantities[item.id]}
-                    />
-                  </div>
-                )}
-                {type === 'PACKAGING' && (
-                  <div className="space-y-1.5 bg-zinc-100/30 p-2 rounded-lg border border-zinc-200/50">
+                {isPackaging ? (
+                  <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Quy cách đóng thùng</Label>
                     <Input
                       placeholder="VD: 24 cái/thùng"
-                      className="h-9 font-bold bg-white text-zinc-900 border-zinc-200"
+                      className="h-10 font-bold bg-white"
                       value={item.packing_specification || ""}
-                      onChange={e => handleItemChange(item.id, 'packing_specification', e.target.value)}
+                      onChange={e => handleItemChange(item.id, "packing_specification", e.target.value)}
                     />
                   </div>
-                )}
-                {type !== 'PACKAGING' && (
+                ) : (
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
-                    <Select
-                      value={item.processing_type || undefined}
-                      onValueChange={v => handleItemChange(item.id, 'processing_type', v)}
-                    >
+                    <Select value={item.processing_type || undefined} onValueChange={v => handleItemChange(item.id, "processing_type", v)}>
                       <SelectTrigger className="h-10 font-medium w-full bg-white">
                         <SelectValue placeholder="Chọn loại" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["Xi", "Mạ", "Sơn", "Ly tâm"].map(t => (
-                          <SelectItem key={t} value={t}>{t}</SelectItem>
-                        ))}
+                        {PROCESSING_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                 )}
-                {type === 'PACKAGING' ? (
-                  <div className={cn(
-                    "space-y-1.5 p-2 rounded-lg border",
-                    "bg-emerald-50/50 border-emerald-100"
-                  )}>
-                    <Label className={cn("text-[10px] font-bold uppercase", "text-emerald-700")}>
-                      {'SL Đóng gói *'}
-                    </Label>
+              </div>
+              {item.order_id && item.product_id && remainingNum != null && (
+                <p className={cn("mt-3 text-xs font-bold", remainingNum > 0 ? "text-orange-700" : "text-emerald-700")}>
+                  {remainingNum > 0 ? `Còn thiếu: ${fmtNum(remainingNum)}` : "Đã đủ số lượng đơn hàng"}
+                </p>
+              )}
+            </div>
+
+            {/* Khối 2: Số lượng xuất / đóng gói */}
+            {isPackaging ? (
+              <div>
+                <SectionLabel>SL Đóng gói *</SectionLabel>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  className="h-10 font-bold max-w-xs"
+                  value={item.quantity_out}
+                  onChange={e => handleItemChange(item.id, "quantity_out", e.target.value)}
+                />
+              </div>
+            ) : (
+              <div>
+                <SectionLabel>Số lượng xuất</SectionLabel>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  <div className="space-y-2">
+                    <div className="inline-flex rounded-xl border border-zinc-200 bg-white p-1">
+                      {[
+                        { key: "main", label: "BP chính", active: "bg-blue-600 text-white shadow-sm" },
+                        { key: "accessory", label: "PK / Hàng lỗi", active: "bg-amber-500 text-white shadow-sm" },
+                      ].map(opt => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setOutputKind(item.id, opt.key)}
+                          className={cn(
+                            "h-8 px-3 rounded-lg text-xs font-bold transition-all",
+                            item.output_kind === opt.key ? opt.active : "text-zinc-500 hover:text-zinc-700"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                     <Input
                       type="number"
+                      min="0"
                       placeholder="0"
-                      className={cn("h-9 font-bold", "text-emerald-900 border-emerald-200")}
-                      value={item.quantity_out}
-                      onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
+                      className="h-10 font-bold max-w-xs"
+                      value={getOutputValue(item)}
+                      onChange={e => handleItemChange(item.id, outputKey, e.target.value)}
                     />
+                    <p className="text-[10px] text-zinc-400">Chỉ nhập một loại xuất cho mỗi phần.</p>
                   </div>
-                ) : (
-                  <div className="space-y-1.5 lg:col-span-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
-                        <Label className="text-[10px] font-bold uppercase text-blue-700">SL Xuất BP chính</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          className="h-9 font-bold text-blue-900 border-blue-200"
-                          value={item.quantity_out}
-                          max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
-                          disabled={!!item.accessory_quantity}
-                          onChange={e => handleItemChange(item.id, 'quantity_out', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-1 p-2 rounded-lg border bg-amber-50/50 border-amber-100">
-                        <Label className="text-[10px] font-bold uppercase text-amber-700">SL PK/Hàng lỗi</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          min="0"
-                          className="h-10 font-bold text-amber-900 border-amber-200"
-                          value={item.accessory_quantity}
-                          disabled={!!item.quantity_out}
-                          onChange={e => handleItemChange(item.id, 'accessory_quantity', e.target.value)}
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-zinc-500">
+                      <span>Tiến độ so với SL Order</span>
+                      <span>
+                        {orderQty > 0 ? `${fmtNum(outQty)} / ${fmtNum(orderQty)} · ${Math.round(ratio * 100)}%` : "Nhập SL Order để xem"}
+                      </span>
                     </div>
-                    <p className="text-[10px] text-zinc-400 font-medium">Chỉ nhập một trong hai ô: nhập ô này sẽ khóa ô còn lại.</p>
+                    <div className="relative h-2.5 rounded-full bg-zinc-200 overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-300", toneClass)}
+                        style={{ width: `${Math.min(ratio / QTY_TOLERANCE, 1) * 100}%` }}
+                      />
+                      {orderQty > 0 && (
+                        <div
+                          className="absolute top-0 bottom-0 w-px bg-zinc-700/60"
+                          style={{ left: `${(1 / QTY_TOLERANCE) * 100}%` }}
+                          title="Mức 100% SL Order"
+                        />
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Vạch đen = 100% SL Order, tối đa 103%.</p>
                   </div>
-                )}
+                </div>
               </div>
+            )}
 
-              {type !== 'PACKAGING' && (
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+            {/* Khối 3: Đóng gói & trọng lượng */}
+            {!isPackaging && (
+              <div>
+                <SectionLabel>Đóng gói & trọng lượng</SectionLabel>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
-                    <Input type="number" min="0" placeholder="0" className="h-10" value={item.package_count} onChange={e => handleItemChange(item.id, 'package_count', e.target.value)} />
+                    <Input type="number" min="0" placeholder="0" className="h-10" value={item.package_count} onChange={e => handleItemChange(item.id, "package_count", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (kg)</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, "gross_weight", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (kg)</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, "pallet_weight", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL tịnh (kg/cái)</Label>
-                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, 'unit_net_weight', e.target.value)} />
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, "unit_net_weight", e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
-                    <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-1">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (kg)</Label>
                     <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
                     <p className="text-[10px] text-zinc-400 font-medium">= Gross Weight − Pallet Weight</p>
                   </div>
                 </div>
+                <div className="mt-4 space-y-1.5">
+                  <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
+                  <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, "notes", e.target.value)} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderTable = () => {
+    const cellInput = "h-9 text-xs px-2";
+    return (
+      <div className="rounded-2xl border border-zinc-200 bg-white overflow-x-auto" onPaste={handlePasteRows}>
+        <Table className="min-w-[1100px] text-xs">
+          <TableHeader>
+            <TableRow className="bg-zinc-50 hover:bg-zinc-50">
+              <TableHead className="w-10 text-center">#</TableHead>
+              <TableHead className="min-w-[180px]">Đơn hàng *</TableHead>
+              <TableHead className="min-w-[160px]">Mã hàng *</TableHead>
+              <TableHead className="w-24">SL Order</TableHead>
+              {isPackaging ? (
+                <>
+                  <TableHead className="min-w-[140px]">Quy cách</TableHead>
+                  <TableHead className="w-28">SL Đóng gói *</TableHead>
+                </>
+              ) : (
+                <>
+                  <TableHead className="w-32">Loại hình</TableHead>
+                  <TableHead className="w-24">SL BP chính</TableHead>
+                  <TableHead className="w-24">SL PK/Lỗi</TableHead>
+                  <TableHead className="w-20">Kiện</TableHead>
+                  <TableHead className="w-24">Gross</TableHead>
+                  <TableHead className="w-24">Pallet</TableHead>
+                  <TableHead className="w-24">KL tịnh</TableHead>
+                  <TableHead className="w-24">Net</TableHead>
+                  <TableHead className="min-w-[140px]">Ghi chú</TableHead>
+                </>
               )}
+              <TableHead className="w-12" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item, index) => {
+              const invalid = invalidItemIds.includes(item.id);
+              const productOptions = item.order_id ? (findOrderById(orders, item.order_id)?.products || []) : products;
+              return (
+                <TableRow key={item.id} className={cn(invalid && "bg-red-50")}>
+                  <TableCell className="text-center font-bold text-zinc-400">{index + 1}</TableCell>
+                  <TableCell>
+                    <OrderSelect value={item.order_id} onChange={v => handleOrderChange(item, v)} orders={orders} />
+                  </TableCell>
+                  <TableCell>
+                    <ProductSelect value={item.product_id} onChange={v => handleProductChange(item, v)} products={productOptions} />
+                  </TableCell>
+                  <TableCell>
+                    <Input type="number" min="0" className={cellInput} value={item.order_quantity} onChange={e => handleItemChange(item.id, "order_quantity", e.target.value)} />
+                  </TableCell>
+                  {isPackaging ? (
+                    <>
+                      <TableCell>
+                        <Input className={cellInput} value={item.packing_specification || ""} onChange={e => handleItemChange(item.id, "packing_specification", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" className={cellInput} value={item.quantity_out} onChange={e => handleItemChange(item.id, "quantity_out", e.target.value)} />
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <Select value={item.processing_type || undefined} onValueChange={v => handleItemChange(item.id, "processing_type", v)}>
+                          <SelectTrigger className="h-9 text-xs w-full bg-white">
+                            <SelectValue placeholder="Chọn loại" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PROCESSING_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" className={cellInput} value={item.quantity_out} onChange={e => handleItemChange(item.id, "quantity_out", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" className={cellInput} value={item.accessory_quantity} onChange={e => handleItemChange(item.id, "accessory_quantity", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" className={cellInput} value={item.package_count} onChange={e => handleItemChange(item.id, "package_count", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" step="0.01" className={cellInput} value={item.gross_weight} onChange={e => handleItemChange(item.id, "gross_weight", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" step="0.01" className={cellInput} value={item.pallet_weight} onChange={e => handleItemChange(item.id, "pallet_weight", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" min="0" step="0.01" className={cellInput} value={item.unit_net_weight} onChange={e => handleItemChange(item.id, "unit_net_weight", e.target.value)} />
+                      </TableCell>
+                      <TableCell>
+                        <Input type="number" step="0.01" readOnly className={cn(cellInput, "bg-zinc-100/50 font-bold")} value={item.net_weight} />
+                      </TableCell>
+                      <TableCell>
+                        <Input className={cellInput} value={item.notes} onChange={e => handleItemChange(item.id, "notes", e.target.value)} />
+                      </TableCell>
+                    </>
+                  )}
+                  <TableCell>
+                    <Button type="button" variant="ghost" size="icon" title="Nhân bản phần" onClick={() => duplicateItem(item)} className="h-8 w-8 text-zinc-400 hover:text-indigo-600">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" title="Xóa phần" disabled={items.length <= 1} onClick={() => removeItem(item.id)} className="h-8 w-8 text-zinc-400 hover:text-red-500">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleFormKeyDown}>
+        {!isPackaging && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6 pb-6 border-b border-zinc-100">
+            <div className="space-y-2">
+              <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Nhà cung cấp <span className="text-red-500">*</span></Label>
+              <SupplierSelect
+                value={formData.supplier_id}
+                onChange={v => setFormData(f => ({ ...f, supplier_id: v }))}
+                suppliers={suppliers}
+              />
             </div>
-          ))}
+            <div className="space-y-2">
+              <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày xuất đi</Label>
+              <PremiumDatePicker
+                date={formData.dispatch_date}
+                onSelect={d => setFormData(f => ({ ...f, dispatch_date: d }))}
+                placeholder="Chọn ngày xuất"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Ngày dự kiến về <span className="text-red-500">*</span></Label>
+              <PremiumDatePicker
+                date={formData.expected_return_date}
+                onSelect={d => setFormData(f => ({ ...f, expected_return_date: d }))}
+                placeholder="Chọn ngày về"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="pt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Label className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+              <Package className="w-5 h-5 text-indigo-600" />
+              Danh sách hàng hóa
+            </Label>
+            <div className="inline-flex rounded-xl border border-zinc-200 bg-zinc-100 p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode("cards")}
+                className={cn(
+                  "h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all",
+                  viewMode === "cards" ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" /> Thẻ
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={cn(
+                  "h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all",
+                  viewMode === "table" ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                )}
+              >
+                <TableIcon className="w-3.5 h-3.5" /> Bảng
+              </button>
+            </div>
+          </div>
+
+          {viewMode === "table" && !isPackaging && (
+            <p className="text-[11px] text-zinc-400 font-medium flex items-center gap-1.5">
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              Bấm vào bảng rồi Ctrl+V để dán từ Excel. Thứ tự 11 cột: Đơn hàng, Mã hàng, SL Order, Loại hình, SL BP chính, SL PK, Kiện, Gross, Pallet, KL tịnh, Ghi chú.
+            </p>
+          )}
+
+          {viewMode === "cards"
+            ? items.map((item, index) => renderCard(item, index))
+            : renderTable()}
 
           <Button type="button" onClick={addItem} variant="outline" className="w-full gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold border-dashed">
             <Plus className="w-4 h-4" />
@@ -694,23 +1062,70 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           </Button>
         </div>
 
-        <div className="sticky bottom-0 z-40 mt-8 -mx-6 md:-mx-8 px-6 md:px-8 py-4 bg-white/95 backdrop-blur border-t border-zinc-100 flex items-center justify-between gap-4">
-          <p className="text-xs font-bold text-zinc-500">
-            {items.length} phần · Tổng SL {type === 'PACKAGING' ? 'đóng gói' : 'xuất'}:{" "}
-            <span className="text-zinc-950 font-black">
-              {items.reduce((s, i) => s + (parseFloat(i.quantity_out || i.accessory_quantity) || 0), 0)}
+        <div className="sticky bottom-0 z-40 mt-8 -mx-6 md:-mx-8 px-6 md:px-8 py-4 bg-white/95 backdrop-blur border-t border-zinc-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-bold text-zinc-500">
+            <span>{items.length} phần</span>
+            <span>
+              Tổng SL {isPackaging ? "đóng gói" : "xuất"}: <b className="text-zinc-950 font-black">{fmtNum(totalOut)}</b>
             </span>
-          </p>
-          <Button
-            type="submit"
-            disabled={loading}
-            className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 text-base shadow-lg shadow-blue-600/20"
-          >
-            <Plus className="w-5 h-5" />
-            {type === 'PACKAGING' ? 'Lưu SL đóng gói' : 'Tạo phiếu xuất gia công'}
-          </Button>
+            {!isPackaging && (
+              <>
+                <span>Kiện: <b className="text-zinc-950 font-black">{fmtNum(totalPackages)}</b></span>
+                <span>Gross: <b className="text-zinc-950 font-black">{fmtNum(totalGross)} kg</b></span>
+                <span>Net: <b className="text-zinc-950 font-black">{fmtNum(totalNet)} kg</b></span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isDirty && (
+              <Button type="button" variant="ghost" onClick={clearDraft} className="h-12 px-4 text-zinc-500 hover:text-red-600 font-bold gap-2">
+                <Trash2 className="w-4 h-4" />
+                Xóa nháp
+              </Button>
+            )}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2 text-base shadow-lg shadow-blue-600/20"
+            >
+              <Plus className="w-5 h-5" />
+              {isPackaging ? "Lưu SL đóng gói" : "Tạo phiếu xuất gia công"}
+            </Button>
+          </div>
         </div>
       </form>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Xác nhận {isPackaging ? "ghi nhận SL đóng gói" : "tạo phiếu đi"}</DialogTitle>
+            <DialogDescription>Kiểm tra lại thông tin trước khi gửi.</DialogDescription>
+          </DialogHeader>
+          <div className="text-sm">
+            {!isPackaging && (
+              <>
+                <SummaryRow label="Nhà cung cấp" value={supplierName} />
+                <SummaryRow label="Ngày xuất đi" value={fmtDateVN(formData.dispatch_date)} />
+                <SummaryRow label="Ngày dự kiến về" value={fmtDateVN(formData.expected_return_date)} />
+              </>
+            )}
+            <SummaryRow label="Số phần" value={items.length} />
+            <SummaryRow label={isPackaging ? "Tổng SL đóng gói" : "Tổng SL xuất"} value={fmtNum(totalOut)} />
+            {!isPackaging && (
+              <>
+                <SummaryRow label="Tổng kiện" value={fmtNum(totalPackages)} />
+                <SummaryRow label="Tổng Net (kg)" value={fmtNum(totalNet)} />
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>Quay lại</Button>
+            <Button type="button" onClick={createTicket} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
+              Xác nhận
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {createdTicket && (
         <div className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl relative overflow-hidden shadow-sm animate-in zoom-in-95 duration-300">
@@ -719,7 +1134,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
-            <h3 className="font-bold text-emerald-900 text-lg">{type === 'PACKAGING' ? 'Ghi nhận SL đóng gói thành công!' : 'Tạo phiếu thành công!'}</h3>
+            <h3 className="font-bold text-emerald-900 text-lg">{isPackaging ? "Ghi nhận SL đóng gói thành công!" : "Tạo phiếu thành công!"}</h3>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-xl border border-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] gap-4">
             <div>
@@ -746,6 +1161,32 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   );
 }
 
+const TICKET_STATUS_META = {
+  COMPLETED: { label: "Hoàn thành", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  PARTIAL: { label: "Nhập một phần", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  PENDING: { label: "Đang chờ", cls: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+};
+const getStatusMeta = (status) => TICKET_STATUS_META[status] || TICKET_STATUS_META.PENDING;
+
+function KpiTile({ label, value, tone = "text-zinc-950", hint }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{label}</p>
+      <p className={cn("mt-1 text-2xl font-black tabular-nums", tone)}>{value}</p>
+      {hint && <p className="mt-0.5 text-[11px] font-medium text-zinc-400">{hint}</p>}
+    </div>
+  );
+}
+
+function ProgressBar({ value, max, className }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200">
+      <div className={cn("h-full rounded-full transition-all duration-500", className)} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
 function InboundTicketForm({ type }) {
   const [searchCode, setSearchCode] = useState("");
   const [ticketData, setTicketData] = useState(null);
@@ -754,7 +1195,6 @@ function InboundTicketForm({ type }) {
   const [returnFormData, setReturnFormData] = useState({});
   const [loadingReturn, setLoadingReturn] = useState(false);
 
-  // Edit/Delete history state
   const [editingHistoryId, setEditingHistoryId] = useState(null);
   const [editingHistoryData, setEditingHistoryData] = useState({});
   const [showEditHistoryDialog, setShowEditHistoryDialog] = useState(false);
@@ -764,6 +1204,16 @@ function InboundTicketForm({ type }) {
   const [showDeleteHistoryDialog, setShowDeleteHistoryDialog] = useState(false);
   const [isDeletingHistory, setIsDeletingHistory] = useState(false);
 
+  const items = ticketData?.items || [];
+  const totalOut = parseFloat(ticketData?.quantity_out || 0);
+  const totalReturned = parseFloat(ticketData?.total_returned || 0);
+  const totalRemaining = Math.max(0, totalOut - totalReturned);
+  const totalAccessoryOut = items.reduce((s, i) => s + (parseFloat(i.accessory_quantity) || 0), 0);
+  const statusMeta = getStatusMeta(ticketData?.status);
+
+  const getItemRemaining = (item) =>
+    Math.max(0, parseFloat(item.quantity_out || 0) - parseFloat(item.total_returned || 0));
+
   const handleSearch = async () => {
     if (!searchCode.trim()) return;
     setLoadingSearch(true);
@@ -771,7 +1221,7 @@ function InboundTicketForm({ type }) {
     try {
       const res = await outsourcingService.getByCode(searchCode.trim());
       if (res.ticket.type !== type) {
-        toast.warning(`Chú ý: Mã phiếu này thuộc loại ${res.ticket.type === 'PLATING' ? 'Xi mạ' : 'Đóng gói'}`);
+        toast.warning(`Chú ý: Mã phiếu này thuộc loại ${res.ticket.type === "PLATING" ? "Xi mạ" : "Đóng gói"}`);
       }
       setTicketData(res.ticket);
       setHistory(res.history || []);
@@ -787,14 +1237,10 @@ function InboundTicketForm({ type }) {
     setReturnFormData(prev => {
       const existing = prev[itemId] || {};
       const updated = { ...existing, [field]: value };
-      if (field === 'gross_weight' || field === 'pallet_weight') {
+      if (field === "gross_weight" || field === "pallet_weight") {
         const g = parseFloat(updated.gross_weight || 0);
         const p = parseFloat(updated.pallet_weight || 0);
-        if (updated.gross_weight || updated.pallet_weight) {
-          updated.net_weight = (g - p).toFixed(2);
-        } else {
-          updated.net_weight = "";
-        }
+        updated.net_weight = updated.gross_weight || updated.pallet_weight ? (g - p).toFixed(2) : "";
       }
       return { ...prev, [itemId]: updated };
     });
@@ -808,7 +1254,6 @@ function InboundTicketForm({ type }) {
       toast.warning("Vui lòng nhập ít nhất một số lượng (BP chính hoặc PK/Hàng lỗi)");
       return;
     }
-
     setLoadingReturn(true);
     try {
       await outsourcingService.addReturn(ticketData.id, { ticket_item_id: itemId, ...data });
@@ -822,495 +1267,447 @@ function InboundTicketForm({ type }) {
     }
   };
 
+  const openEditHistory = (h) => {
+    setEditingHistoryId(h.id);
+    setEditingHistoryData({
+      quantity_returned: h.quantity_returned || "",
+      accessory_quantity_returned: h.accessory_quantity_returned || "",
+      gross_weight: h.gross_weight || "",
+      pallet_weight: h.pallet_weight || "",
+      net_weight: h.net_weight || "",
+      missing_weight: h.missing_weight || "",
+      notes: h.notes || "",
+    });
+    setShowEditHistoryDialog(true);
+  };
+
+  const refreshHistory = async () => {
+    const res = await outsourcingService.getByCode(searchCode.trim());
+    setHistory(res.history || []);
+  };
+
+  const handleSaveHistory = async () => {
+    if (!editingHistoryId) return;
+    if (!editingHistoryData.quantity_returned && !editingHistoryData.accessory_quantity_returned) {
+      toast.error("Vui lòng nhập ít nhất một số lượng (BP chính hoặc PK/Hàng lỗi)");
+      return;
+    }
+    setIsSavingHistory(true);
+    try {
+      await outsourcingService.updateReturn(editingHistoryId, {
+        quantity_returned: parseFloat(editingHistoryData.quantity_returned),
+        accessory_quantity_returned: editingHistoryData.accessory_quantity_returned ? parseFloat(editingHistoryData.accessory_quantity_returned) : 0,
+        gross_weight: editingHistoryData.gross_weight ? parseFloat(editingHistoryData.gross_weight) : null,
+        pallet_weight: editingHistoryData.pallet_weight ? parseFloat(editingHistoryData.pallet_weight) : null,
+        net_weight: editingHistoryData.net_weight ? parseFloat(editingHistoryData.net_weight) : null,
+        missing_weight: editingHistoryData.missing_weight ? parseFloat(editingHistoryData.missing_weight) : null,
+        notes: editingHistoryData.notes || "",
+      });
+      await refreshHistory();
+      toast.success("Cập nhật lịch sử nhập thành công!");
+      setShowEditHistoryDialog(false);
+      setEditingHistoryId(null);
+      setEditingHistoryData({});
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Lỗi khi cập nhật lịch sử");
+    } finally {
+      setIsSavingHistory(false);
+    }
+  };
+
+  const handleDeleteHistory = async () => {
+    if (!deleteHistoryId) return;
+    setIsDeletingHistory(true);
+    try {
+      await outsourcingService.deleteReturn(deleteHistoryId);
+      await refreshHistory();
+      toast.success("Xóa lịch sử nhập thành công!");
+      setShowDeleteHistoryDialog(false);
+      setDeleteHistoryId(null);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Lỗi khi xóa lịch sử");
+    } finally {
+      setIsDeletingHistory(false);
+    }
+  };
+
+  // Item card: totals, progress, and the return form grouped by quantity / weight
+  const renderReturnItem = (item, idx) => {
+    const draft = returnFormData[item.id] || {};
+    const out = parseFloat(item.quantity_out || 0);
+    const returned = parseFloat(item.total_returned || 0);
+    const remaining = getItemRemaining(item);
+    const done = out > 0 && remaining <= 0;
+    const overBp = parseFloat(draft.quantity_returned || 0) > remaining;
+
+    return (
+      <div key={item.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-zinc-100 p-5 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-black text-zinc-600">Phần {idx + 1}</span>
+              {item.processing_type && (
+                <span className="rounded-md border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">{item.processing_type}</span>
+              )}
+              {done && <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Đã đủ</span>}
+            </div>
+            <p className="truncate font-bold text-slate-800">
+              {item.product_name} <span className="mx-1 text-zinc-400">•</span> {item.order_name || item.order_code}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-zinc-500">
+              {item.package_count ? <span>Kiện: <b className="text-blue-600">{item.package_count}</b></span> : null}
+              {item.unit_net_weight ? <span>KL tịnh: <b className="text-amber-600">{item.unit_net_weight} kg/cái</b></span> : null}
+              {item.accessory_quantity > 0 && <span>Xuất PK: <b className="text-amber-600">{item.accessory_quantity}</b></span>}
+            </div>
+            {item.notes && (
+              <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs italic text-zinc-600">Ghi chú phiếu đi: {item.notes}</p>
+            )}
+          </div>
+          <div className="grid shrink-0 grid-cols-3 gap-6 text-right">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Xuất BP</p>
+              <p className="font-black tabular-nums text-slate-800">{out}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Đã về</p>
+              <p className="font-black tabular-nums text-indigo-600">{returned}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Còn lại</p>
+              <p className={cn("font-black tabular-nums", remaining > 0 ? "text-orange-600" : "text-emerald-600")}>{remaining}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <ProgressBar value={returned} max={out} className={done ? "bg-emerald-500" : "bg-indigo-600"} />
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-blue-700">Nhập BP chính</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={draft.quantity_returned || ""}
+                onChange={e => handleReturnFormChange(item.id, "quantity_returned", e.target.value)}
+                className={cn("h-10 font-bold border-blue-200 focus-visible:ring-blue-600", overBp && "border-red-400 text-red-600")}
+              />
+              {overBp && <p className="text-[10px] font-bold text-red-600">Vượt số còn lại ({remaining})</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-amber-700">Nhập PK/Hàng lỗi</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={draft.accessory_quantity_returned || ""}
+                onChange={e => handleReturnFormChange(item.id, "accessory_quantity_returned", e.target.value)}
+                className="h-10 font-bold border-amber-200 focus-visible:ring-amber-600"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-zinc-500">KG thiếu / thừa</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={draft.missing_weight || ""}
+                onChange={e => handleReturnFormChange(item.id, "missing_weight", e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-zinc-500">Gross (kg)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={draft.gross_weight || ""}
+                onChange={e => handleReturnFormChange(item.id, "gross_weight", e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-zinc-500">Pallet (kg)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={draft.pallet_weight || ""}
+                onChange={e => handleReturnFormChange(item.id, "pallet_weight", e.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-zinc-500">Net (kg)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                readOnly
+                value={draft.net_weight || ""}
+                className="h-10 bg-zinc-100/60 font-bold"
+              />
+              <p className="text-[10px] font-medium text-zinc-400">= Gross − Pallet</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <Input
+              placeholder="Ghi chú nhập về"
+              value={draft.notes || ""}
+              onChange={e => handleReturnFormChange(item.id, "notes", e.target.value)}
+              className="h-10 flex-1"
+            />
+            <Button
+              onClick={() => handleAddReturn(item.id)}
+              disabled={loadingReturn}
+              className="h-10 gap-2 bg-indigo-600 px-6 text-xs font-bold text-white hover:bg-indigo-700"
+            >
+              <Check className="h-4 w-4" /> Xác nhận nhập
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <div className="max-w-xl mx-auto space-y-3 bg-zinc-50 p-6 md:p-8 rounded-2xl border border-zinc-200 shadow-sm">
-        <Label className="text-sm font-black text-slate-700 uppercase tracking-widest block text-center mb-4">TRA CỨU PHIẾU ĐI</Label>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Input
-            placeholder="Mã phiếu (VD: PRO-ABC-20042026-001)"
-            value={searchCode}
-            onChange={e => setSearchCode(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            className="h-12 text-base bg-white border-zinc-300 font-['Outfit'] font-bold text-center sm:text-left focus-visible:ring-indigo-500"
-          />
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Tra cứu */}
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 md:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="flex-1 space-y-1.5">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Tra cứu phiếu đi</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <Input
+                placeholder="Nhập mã phiếu, VD: PRO-ABC-20042026-001"
+                value={searchCode}
+                onChange={e => setSearchCode(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSearch()}
+                className="h-11 bg-white pl-10 font-['Outfit'] font-bold"
+              />
+            </div>
+          </div>
           <Button
             onClick={handleSearch}
-            disabled={loadingSearch}
-            className="h-12 px-8 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold w-full sm:w-auto shadow-md"
+            disabled={loadingSearch || !searchCode.trim()}
+            className="h-11 gap-2 bg-indigo-600 px-8 font-bold text-white shadow-md hover:bg-indigo-700"
           >
-            <Search className="w-5 h-5" />
-            Tra cứu
+            <Search className="h-4 w-4" />
+            {loadingSearch ? "Đang tra cứu..." : "Tra cứu"}
           </Button>
         </div>
       </div>
 
       {ticketData && (
-        <div className="flex flex-col gap-10 animate-in slide-in-from-bottom-4 duration-500 pt-4">
-          {/* Main Info & Items */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="font-extrabold text-xl text-slate-800 tracking-tight flex items-center gap-3">
-                Thông tin chung
-                <span className="text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100 font-['Outfit']">{ticketData.ticket_code}</span>
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 text-sm bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nhà cung cấp</p>
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-zinc-400" />
-                  <p className="font-bold text-slate-800">{ticketData.supplier || "—"}</p>
-                </div>
+        <div className="flex flex-col gap-8 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Header phiếu */}
+          <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-['Outfit'] text-xl font-black text-indigo-600">{ticketData.ticket_code}</span>
+                <span className={cn("rounded-md border px-2.5 py-0.5 text-[11px] font-black uppercase tracking-widest", statusMeta.cls)}>
+                  {statusMeta.label}
+                </span>
               </div>
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Thời gian</p>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-zinc-400" />
-                  <p className="font-bold text-slate-800">
-                    {ticketData.dispatch_date && DateTime.fromISO(ticketData.dispatch_date).toFormat('dd/MM/yyyy')}
-                    <span className="text-zinc-400 mx-1">→</span>
-                    {ticketData.expected_return_date && DateTime.fromISO(ticketData.expected_return_date).toFormat('dd/MM/yyyy')}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tình trạng tổng</p>
-                <div className="flex items-center">
-                  <span className={cn(
-                    "px-3 py-1 rounded-md text-[11px] font-black uppercase tracking-widest",
-                    ticketData.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                      ticketData.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                        'bg-slate-100 text-slate-600 border border-slate-200'
-                  )}>
-                    {ticketData.status === 'COMPLETED' ? 'Hoàn thành' : ticketData.status === 'PARTIAL' ? 'Nhập một phần' : 'Đang chờ'}
-                  </span>
-                </div>
-              </div>
-              <div className="col-span-1 md:col-span-2 lg:col-span-3 pt-4 mt-2 border-t border-zinc-100">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Xuất đi</p>
-                    <p className="font-black text-2xl text-slate-800 tabular-nums">{ticketData.quantity_out}</p>
-                  </div>
-                  <div className="h-10 w-px bg-zinc-200"></div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tổng Đã Về</p>
-                    <p className="font-black text-2xl text-indigo-600 tabular-nums">{ticketData.total_returned}</p>
-                  </div>
-                </div>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-semibold text-zinc-600">
+                <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4 text-zinc-400" />{ticketData.supplier || "—"}</span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4 text-zinc-400" />
+                  {ticketData.dispatch_date && DateTime.fromISO(ticketData.dispatch_date).toFormat("dd/MM/yyyy")}
+                  <span className="text-zinc-400">→</span>
+                  {ticketData.expected_return_date && DateTime.fromISO(ticketData.expected_return_date).toFormat("dd/MM/yyyy")}
+                </span>
               </div>
             </div>
-
-            <div className="space-y-4">
-              <h4 className="font-bold text-slate-800 uppercase tracking-widest text-sm flex items-center gap-2">
-                <Settings className="w-4 h-4 text-zinc-400" />
-                Các phần cần nhập về
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ticketData.items && ticketData.items.map((item, idx) => {
-                  const percent = Math.min(100, (parseFloat(item.total_returned || 0) / parseFloat(item.quantity_out || 1)) * 100);
-                  return (
-                    <div key={item.id} className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-black bg-zinc-100 px-2 py-0.5 rounded text-zinc-600">Phần {idx + 1}</span>
-                          <p className="font-bold text-slate-800">{item.product_name} <span className="text-zinc-400 mx-1">•</span> {item.order_name || item.order_code}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {item.processing_type && <p className="text-xs font-semibold text-zinc-500">Gia công: {item.processing_type}</p>}
-                            {item.package_count && <p className="text-xs font-semibold text-blue-600">Kiện hàng: {item.package_count}</p>}
-                            {item.unit_net_weight && <p className="text-xs font-semibold text-amber-600">KL Tịnh: {item.unit_net_weight} kg/cái</p>}
-                          </div>
-                          {item.notes && (
-                            <div className="mt-2 p-2 bg-zinc-50 border border-zinc-200 rounded-lg">
-                              <p className="text-[10px] font-bold text-zinc-500 uppercase mb-0.5">Ghi chú phiếu đi</p>
-                              <p className="text-xs text-zinc-700 italic">{item.notes}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right space-y-0.5 whitespace-nowrap">
-                          <p className="text-xs font-bold text-zinc-500">Xuất BP chính: <span className="text-slate-800 font-extrabold">{item.quantity_out}</span></p>
-                          {item.accessory_quantity > 0 && <p className="text-xs font-bold text-amber-600">Xuất PK: <span className="font-extrabold">{item.accessory_quantity}</span></p>}
-                          <p className="text-xs font-bold text-indigo-600">Về BP chính: <span className="font-extrabold">{item.total_returned}</span></p>
-                        </div>
-                      </div>
-
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-indigo-600 h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${percent}%` }}></div>
-                      </div>
-
-                      <div className="flex flex-col gap-3 pt-2">
-                        <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
-                          <div className="space-y-1 p-2 rounded-lg border bg-blue-50/50 border-blue-100">
-                            <Label className="text-[10px] font-bold uppercase text-blue-700">SL Nhập BP chính</Label>
-                            <Input
-                              type="number"
-                              placeholder="0"
-                              value={returnFormData[item.id]?.quantity_returned || ""}
-                              onChange={e => handleReturnFormChange(item.id, 'quantity_returned', e.target.value)}
-                              className="h-9 font-bold text-blue-900 border-blue-200 focus-visible:ring-blue-600"
-                            />
-                          </div>
-                          <div className="space-y-1 p-2 rounded-lg border bg-amber-50/50 border-amber-100">
-                            <Label className="text-[10px] font-bold uppercase text-amber-700">SL Nhập PK/Hàng lỗi</Label>
-                            <Input
-                              type="number"
-                              placeholder="0"
-                              value={returnFormData[item.id]?.accessory_quantity_returned || ""}
-                              onChange={e => handleReturnFormChange(item.id, 'accessory_quantity_returned', e.target.value)}
-                              className="h-9 font-bold text-amber-900 border-amber-200 focus-visible:ring-amber-600"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Gross (KG)"
-                            value={returnFormData[item.id]?.gross_weight || ""}
-                            onChange={e => handleReturnFormChange(item.id, 'gross_weight', e.target.value)}
-                            className="text-sm font-medium"
-                          />
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Pallet (KG)"
-                            value={returnFormData[item.id]?.pallet_weight || ""}
-                            onChange={e => handleReturnFormChange(item.id, 'pallet_weight', e.target.value)}
-                            className="text-sm font-medium"
-                          />
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Net (KG)"
-                            readOnly
-                            value={returnFormData[item.id]?.net_weight || ""}
-                            className="text-sm font-bold bg-zinc-100"
-                          />
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="KG Thiếu thừa"
-                            value={returnFormData[item.id]?.missing_weight || ""}
-                            onChange={e => handleReturnFormChange(item.id, 'missing_weight', e.target.value)}
-                            className="text-sm font-medium"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 gap-2">
-                          <Input
-                            placeholder="Ghi chú nhập về"
-                            value={returnFormData[item.id]?.notes || ""}
-                            onChange={e => handleReturnFormChange(item.id, 'notes', e.target.value)}
-                            className="text-sm font-medium"
-                          />
-                        </div>
-                        <div className="flex justify-end">
-                          <Button
-                            onClick={() => handleAddReturn(item.id)}
-                            disabled={loadingReturn}
-                            className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold gap-2 text-xs w-full sm:w-auto"
-                          >
-                            <Check className="w-4 h-4" /> Xác nhận
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+            <div className="w-full md:w-64">
+              <div className="mb-1.5 flex items-center justify-between text-xs font-bold text-zinc-500">
+                <span>Tiến độ nhập về</span>
+                <span className="tabular-nums">{totalOut > 0 ? Math.round((totalReturned / totalOut) * 100) : 0}%</span>
               </div>
+              <ProgressBar value={totalReturned} max={totalOut} className={totalRemaining <= 0 && totalOut > 0 ? "bg-emerald-500" : "bg-indigo-600"} />
             </div>
           </div>
 
-          {/* History Section Below */}
-          <div className="space-y-4 pt-6 border-t border-zinc-100">
-            <h3 className="font-extrabold text-lg text-slate-800 flex items-center gap-2">
-              Lịch sử nhập
-              <span className="bg-zinc-100 text-zinc-600 text-xs px-2 py-0.5 rounded-full">{history.length}</span>
-            </h3>
+          {/* KPI */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <KpiTile label="Tổng xuất BP" value={fmtNum(totalOut)} hint={`${items.length} phần`} />
+            <KpiTile label="Đã về BP" value={fmtNum(totalReturned)} tone="text-indigo-600" />
+            <KpiTile label="Còn lại" value={fmtNum(totalRemaining)} tone={totalRemaining > 0 ? "text-orange-600" : "text-emerald-600"} hint={totalRemaining > 0 ? "Chưa nhập đủ" : "Đã nhập đủ"} />
+            <KpiTile label="Xuất PK / Lỗi" value={fmtNum(totalAccessoryOut)} tone="text-amber-600" />
+          </div>
+
+          {/* Danh sách phần */}
+          <div className="space-y-4">
+            <h4 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-800">
+              <Settings className="h-4 w-4 text-zinc-400" />
+              Các phần cần nhập về
+            </h4>
+            {items.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-zinc-300 p-8 text-center text-sm font-medium text-zinc-400">Phiếu này chưa có phần hàng nào.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+                {items.map((item, idx) => renderReturnItem(item, idx))}
+              </div>
+            )}
+          </div>
+
+          {/* Lịch sử nhập */}
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+              <h3 className="flex items-center gap-2 font-extrabold text-slate-800">
+                <HistoryIcon className="h-4 w-4 text-zinc-400" />
+                Lịch sử nhập
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">{history.length}</span>
+              </h3>
+            </div>
 
             {history.length === 0 ? (
-              <div className="bg-white border border-zinc-200 rounded-2xl p-16 flex flex-col items-center justify-center text-center shadow-sm">
-                <AlertCircle className="w-10 h-10 text-zinc-300 mb-3" />
-                <p className="text-zinc-500 font-medium text-sm">Chưa có bản ghi nào</p>
-                <p className="text-zinc-400 text-xs mt-1 max-w-[200px]">Bạn hãy nhập số lượng để ghi nhận lịch sử.</p>
+              <div className="flex flex-col items-center justify-center gap-2 p-12 text-center">
+                <AlertCircle className="h-9 w-9 text-zinc-300" />
+                <p className="text-sm font-medium text-zinc-500">Chưa có bản ghi nào</p>
+                <p className="max-w-xs text-xs text-zinc-400">Nhập số lượng ở các phần phía trên để ghi nhận lịch sử.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <ul className="divide-y divide-zinc-100">
                 {history.map((h, i) => (
-                  <div key={h.id} className="flex flex-col p-4 bg-white border border-zinc-200 hover:border-indigo-100 hover:bg-indigo-50/30 rounded-xl transition-all group shadow-sm relative">
-                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingHistoryId(h.id);
-                          setEditingHistoryData({
-                            quantity_returned: h.quantity_returned || "",
-                            accessory_quantity_returned: h.accessory_quantity_returned || "",
-                            gross_weight: h.gross_weight || "",
-                            pallet_weight: h.pallet_weight || "",
-                            net_weight: h.net_weight || "",
-                            missing_weight: h.missing_weight || "",
-                            notes: h.notes || ""
-                          });
-                          setShowEditHistoryDialog(true);
-                        }}
-                        className="p-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-indigo-600 transition-colors"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteHistoryId(h.id);
-                          setShowDeleteHistoryDialog(true);
-                        }}
-                        className="p-1.5 bg-red-50 hover:bg-red-100 rounded-lg text-red-600 transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                  <li key={h.id} className="flex items-center gap-4 px-5 py-3 transition-colors hover:bg-zinc-50/60">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-[11px] font-black text-emerald-700">
+                      #{history.length - i}
                     </div>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-xs shrink-0 shadow-sm border border-emerald-200">
-                          #{history.length - i}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-black text-lg text-emerald-600 tracking-tight leading-none">+{h.quantity_returned}</p>
-                            {h.accessory_quantity_returned > 0 && (
-                              <p className="text-xs font-bold text-amber-600">PK: +{h.accessory_quantity_returned}</p>
-                            )}
-                          </div>
-                          <p className="text-xs font-bold text-zinc-700 truncate max-w-[150px]">{h.product_name}</p>
-                        </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-baseline gap-x-3">
+                        <span className="text-lg font-black tabular-nums text-emerald-600">+{h.quantity_returned}</span>
+                        {h.accessory_quantity_returned > 0 && (
+                          <span className="text-xs font-bold text-amber-600">PK +{h.accessory_quantity_returned}</span>
+                        )}
+                        {h.net_weight ? <span className="text-xs font-semibold text-zinc-500">Net {h.net_weight} kg</span> : null}
                       </div>
+                      <p className="truncate text-xs font-semibold text-zinc-600">{h.product_name}</p>
+                      {h.notes && <p className="truncate text-[11px] italic text-zinc-400">{h.notes}</p>}
                     </div>
-                    <div className="flex justify-between items-end mt-2 pt-2 border-t border-zinc-100/50">
-                      <p className="text-[10px] font-bold text-zinc-400">{DateTime.fromISO(h.returned_at).setLocale('vi-VN').toFormat('dd/MM HH:mm')}</p>
-                      <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">
-                        {h.created_by_username || "Hệ thống"}
-                      </span>
+                    <div className="hidden shrink-0 text-right sm:block">
+                      <p className="text-[11px] font-bold text-zinc-500">{DateTime.fromISO(h.returned_at).setLocale("vi-VN").toFormat("dd/MM HH:mm")}</p>
+                      <p className="text-[10px] text-zinc-400">{h.created_by_username || "Hệ thống"}</p>
                     </div>
-                  </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" variant="ghost" size="icon" title="Chỉnh sửa" onClick={() => openEditHistory(h)} className="h-8 w-8 text-indigo-600 hover:bg-indigo-50">
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="Xóa"
+                        onClick={() => { setDeleteHistoryId(h.id); setShowDeleteHistoryDialog(true); }}
+                        className="h-8 w-8 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
         </div>
       )}
 
-      {/* Edit History Dialog */}
+      {/* Dialog sửa lịch sử */}
       <Dialog open={showEditHistoryDialog} onOpenChange={setShowEditHistoryDialog}>
-        <DialogContent className="sm:max-w-2xl bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="rounded-2xl border border-zinc-200 bg-white shadow-xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-slate-800">Chỉnh sửa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
-              Cập nhật thông tin lịch sử nhập hàng gia công
-            </DialogDescription>
+            <DialogDescription className="text-sm font-medium text-zinc-500">Cập nhật thông tin lịch sử nhập hàng gia công</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-blue-700 uppercase">SL Nhập BP chính</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0"
-                  value={editingHistoryData.quantity_returned || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, quantity_returned: e.target.value }))}
-                  className="h-11 font-medium border-blue-200"
-                />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-blue-700">SL nhập BP chính</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0" value={editingHistoryData.quantity_returned || ""}
+                  onChange={e => setEditingHistoryData(prev => ({ ...prev, quantity_returned: e.target.value }))}
+                  className="h-10 font-medium border-blue-200" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-amber-700 uppercase">SL Nhập PK/Hàng lỗi</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0"
-                  value={editingHistoryData.accessory_quantity_returned || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, accessory_quantity_returned: e.target.value }))}
-                  className="h-11 font-medium border-amber-200"
-                />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-amber-700">SL nhập PK/Hàng lỗi</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0" value={editingHistoryData.accessory_quantity_returned || ""}
+                  onChange={e => setEditingHistoryData(prev => ({ ...prev, accessory_quantity_returned: e.target.value }))}
+                  className="h-10 font-medium border-amber-200" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Gross (KG)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.gross_weight || ""}
-                  onChange={(e) => {
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-zinc-500">Gross (kg)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={editingHistoryData.gross_weight || ""}
+                  onChange={e => {
                     const gross = parseFloat(e.target.value) || 0;
                     const pallet = parseFloat(editingHistoryData.pallet_weight) || 0;
-                    setEditingHistoryData(prev => ({
-                      ...prev,
-                      gross_weight: e.target.value,
-                      net_weight: (gross - pallet).toFixed(2)
-                    }));
+                    setEditingHistoryData(prev => ({ ...prev, gross_weight: e.target.value, net_weight: (gross - pallet).toFixed(2) }));
                   }}
-                  className="h-11 font-medium"
-                />
+                  className="h-10 font-medium" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Pallet (KG)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.pallet_weight || ""}
-                  onChange={(e) => {
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-zinc-500">Pallet (kg)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={editingHistoryData.pallet_weight || ""}
+                  onChange={e => {
                     const pallet = parseFloat(e.target.value) || 0;
                     const gross = parseFloat(editingHistoryData.gross_weight) || 0;
-                    setEditingHistoryData(prev => ({
-                      ...prev,
-                      pallet_weight: e.target.value,
-                      net_weight: (gross - pallet).toFixed(2)
-                    }));
+                    setEditingHistoryData(prev => ({ ...prev, pallet_weight: e.target.value, net_weight: (gross - pallet).toFixed(2) }));
                   }}
-                  className="h-11 font-medium"
-                />
+                  className="h-10 font-medium" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">Net (KG)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.net_weight || ""}
-                  readOnly
-                  className="h-11 font-medium bg-zinc-100/50"
-                />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-zinc-500">Net (kg)</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={editingHistoryData.net_weight || ""} readOnly
+                  className="h-10 bg-zinc-100/60 font-medium" />
               </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-zinc-700 uppercase">KG Thiếu Thữa</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={editingHistoryData.missing_weight || ""}
-                  onChange={(e) => setEditingHistoryData(prev => ({ ...prev, missing_weight: e.target.value }))}
-                  className="h-11 font-medium"
-                />
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold uppercase text-zinc-500">KG thiếu / thừa</Label>
+                <Input type="number" step="0.01" min="0" placeholder="0.00" value={editingHistoryData.missing_weight || ""}
+                  onChange={e => setEditingHistoryData(prev => ({ ...prev, missing_weight: e.target.value }))}
+                  className="h-10 font-medium" />
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-bold text-zinc-700">Ghi chú</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-bold uppercase text-zinc-500">Ghi chú</Label>
               <textarea
                 placeholder="Thêm ghi chú nếu cần..."
                 value={editingHistoryData.notes || ""}
-                onChange={(e) => setEditingHistoryData(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full h-20 p-3 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium resize-none"
+                onChange={e => setEditingHistoryData(prev => ({ ...prev, notes: e.target.value }))}
+                className="h-20 w-full resize-none rounded-lg border border-zinc-200 p-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-4 border-t border-zinc-100">
-            <Button
-              variant="outline"
-              onClick={() => setShowEditHistoryDialog(false)}
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
-            >
+          <DialogFooter className="gap-2 border-t border-zinc-100 pt-4">
+            <Button variant="outline" onClick={() => setShowEditHistoryDialog(false)} className="border-zinc-200 font-bold text-zinc-700 hover:bg-zinc-50">
               Hủy
             </Button>
-            <Button
-              onClick={async () => {
-                if (!editingHistoryId) return;
-                if (!editingHistoryData.quantity_returned && !editingHistoryData.accessory_quantity_returned) {
-                  toast.error("Vui lòng nhập ít nhất một số lượng (BP chính hoặc PK/Hàng lỗi)");
-                  return;
-                }
-
-                setIsSavingHistory(true);
-                try {
-                  await outsourcingService.updateReturn(editingHistoryId, {
-                    quantity_returned: parseFloat(editingHistoryData.quantity_returned),
-                    accessory_quantity_returned: editingHistoryData.accessory_quantity_returned ? parseFloat(editingHistoryData.accessory_quantity_returned) : 0,
-                    gross_weight: editingHistoryData.gross_weight ? parseFloat(editingHistoryData.gross_weight) : null,
-                    pallet_weight: editingHistoryData.pallet_weight ? parseFloat(editingHistoryData.pallet_weight) : null,
-                    net_weight: editingHistoryData.net_weight ? parseFloat(editingHistoryData.net_weight) : null,
-                    missing_weight: editingHistoryData.missing_weight ? parseFloat(editingHistoryData.missing_weight) : null,
-                    notes: editingHistoryData.notes || ""
-                  });
-
-                  // Refetch ticket data
-                  const res = await outsourcingService.getByCode(searchCode.trim());
-                  setHistory(res.history || []);
-
-                  toast.success("Cập nhật lịch sử nhập thành công!");
-                  setShowEditHistoryDialog(false);
-                  setEditingHistoryId(null);
-                  setEditingHistoryData({});
-                } catch (error) {
-                  toast.error(error?.response?.data?.message || "Lỗi khi cập nhật lịch sử");
-                } finally {
-                  setIsSavingHistory(false);
-                }
-              }}
-              disabled={isSavingHistory}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
-            >
+            <Button onClick={handleSaveHistory} disabled={isSavingHistory} className="bg-indigo-600 font-bold text-white hover:bg-indigo-700">
               {isSavingHistory ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete History Dialog */}
+      {/* Dialog xóa lịch sử */}
       <Dialog open={showDeleteHistoryDialog} onOpenChange={setShowDeleteHistoryDialog}>
-        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="rounded-2xl border border-zinc-200 bg-white shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa lịch sử nhập</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+            <DialogDescription className="mt-2 text-sm font-medium text-zinc-600">
               Bạn có chắc chắn muốn xóa bản ghi lịch sử nhập này? Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
-
-          <DialogFooter className="gap-2 pt-6 border-t border-zinc-100">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteHistoryDialog(false)}
-              className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold"
-            >
+          <DialogFooter className="gap-2 border-t border-zinc-100 pt-6">
+            <Button variant="outline" onClick={() => setShowDeleteHistoryDialog(false)} className="border-zinc-200 font-bold text-zinc-700 hover:bg-zinc-50">
               Hủy
             </Button>
-            <Button
-              onClick={async () => {
-                if (!deleteHistoryId) return;
-
-                setIsDeletingHistory(true);
-                try {
-                  await outsourcingService.deleteReturn(deleteHistoryId);
-
-                  // Refetch ticket data
-                  const res = await outsourcingService.getByCode(searchCode.trim());
-                  setHistory(res.history || []);
-
-                  toast.success("Xóa lịch sử nhập thành công!");
-                  setShowDeleteHistoryDialog(false);
-                  setDeleteHistoryId(null);
-                } catch (error) {
-                  toast.error(error?.response?.data?.message || "Lỗi khi xóa lịch sử");
-                } finally {
-                  setIsDeletingHistory(false);
-                }
-              }}
-              disabled={isDeletingHistory}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold"
-            >
+            <Button onClick={handleDeleteHistory} disabled={isDeletingHistory} className="bg-red-600 font-bold text-white hover:bg-red-700">
               {isDeletingHistory ? "Đang xóa..." : "Xóa"}
             </Button>
           </DialogFooter>
@@ -2099,31 +2496,57 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
     ];
   }
 
+  const activeFilterCount = [filterDate, filterOrderId, filterProductId].filter(Boolean).length;
+  const clearFilters = () => {
+    setFilterDate("");
+    setFilterOrderId("");
+    setFilterProductId("");
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row items-center gap-3 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
-        <div className="flex-1 w-full md:w-auto">
-          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Ngày</Label>
-          <PremiumDatePicker
-            date={filterDate}
-            onSelect={setFilterDate}
-            placeholder="Chọn ngày"
-          />
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 md:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          {/* <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-500">
+            <Filter className="h-3.5 w-3.5" />
+            Bộ lọc
+            {activeFilterCount > 0 && (
+              <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] text-white">{activeFilterCount}</span>
+            )}
+          </div> */}
+          {activeFilterCount > 0 && (
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="h-8 gap-1.5 text-xs font-bold text-zinc-500 hover:text-red-600">
+              <RotateCcw className="h-3.5 w-3.5" /> Xóa lọc
+            </Button>
+          )}
         </div>
-        <div className="flex-1 w-full md:w-auto">
-          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo ĐH</Label>
-          <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
-        </div>
-        <div className="flex-1 w-full md:w-auto">
-          <Label className="text-[10px] font-bold text-zinc-500 uppercase block mb-1.5">Lọc theo MH</Label>
-          <ProductSelect value={filterProductId} onChange={setFilterProductId} products={filterOrderId ? (orders.find(o => String(o.id) === String(filterOrderId))?.products || []) : products} />
-        </div>
-        <div className="flex items-end h-full">
-          <Button onClick={handleExportExcel} variant="outline" className="h-11 mt-[22px] bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 font-bold gap-2 md:w-auto w-full">
-            <Download className="w-4 h-4" /> Xuất Excel
+        <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Ngày</Label>
+            <PremiumDatePicker date={filterDate} onSelect={setFilterDate} placeholder="Tất cả ngày" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Đơn hàng</Label>
+            <OrderSelect value={filterOrderId} onChange={setFilterOrderId} orders={orders} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Mã hàng</Label>
+            <ProductSelect
+              value={filterProductId}
+              onChange={setFilterProductId}
+              products={filterOrderId ? (orders.find(o => String(o.id) === String(filterOrderId))?.products || []) : products}
+            />
+          </div>
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            className="h-10 w-full gap-2 border-emerald-200 bg-emerald-50 font-bold text-emerald-700 hover:bg-emerald-100 md:w-auto"
+          >
+            <Download className="h-4 w-4" /> Xuất Excel
           </Button>
         </div>
       </div>
+
       <GenericTable
         data={tickets}
         columns={columns}
@@ -2157,22 +2580,18 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="bg-white border border-zinc-200 rounded-2xl shadow-xl">
+        <DialogContent className="rounded-2xl border border-zinc-200 bg-white shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-lg font-black text-red-600">Xác nhận xóa phiếu gia công</DialogTitle>
-            <DialogDescription className="text-sm font-medium text-zinc-600 mt-2">
+            <DialogDescription className="mt-2 text-sm font-medium text-zinc-600">
               Bạn có chắc chắn muốn xóa phiếu này? Hành động này không thể hoàn tác.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 pt-6">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-bold rounded-lg">
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="rounded-lg border-zinc-200 font-bold text-zinc-700 hover:bg-zinc-50">
               Hủy
             </Button>
-            <Button
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg"
-            >
+            <Button onClick={handleConfirmDelete} disabled={isDeleting} className="rounded-lg bg-red-600 font-bold text-white hover:bg-red-700">
               {isDeleting ? "Đang xóa..." : "Xóa"}
             </Button>
           </DialogFooter>
@@ -2181,3 +2600,4 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
     </div>
   );
 }
+
