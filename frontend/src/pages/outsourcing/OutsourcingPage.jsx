@@ -124,7 +124,7 @@ function OutsourcingContent({ type }) {
   };
 
   return (
-    <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white rounded-2xl">
+    <Card className="border-zinc-200 shadow-sm bg-white rounded-2xl overflow-visible">
       <CardHeader className="p-0 border-b border-zinc-100 bg-white">
         <div className="px-6 pt-6">
           <Tabs value={subTab} onValueChange={setSubTab} className="w-full">
@@ -188,7 +188,7 @@ function SupplierSelect({ value, onChange, suppliers }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
+            "w-full h-10 justify-between bg-white border-zinc-200 shadow-sm",
             !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
           )}
         >
@@ -239,7 +239,7 @@ function OrderSelect({ value, onChange, orders }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
+            "w-full h-10 justify-between bg-white border-zinc-200 shadow-sm",
             !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
           )}
         >
@@ -290,7 +290,7 @@ function ProductSelect({ value, onChange, products }) {
           variant="outline"
           role="combobox"
           className={cn(
-            "w-full h-11 justify-between bg-white border-zinc-200 shadow-sm",
+            "w-full h-10 justify-between bg-white border-zinc-200 shadow-sm",
             !value ? "text-zinc-500 font-medium" : "text-zinc-900 font-bold"
           )}
         >
@@ -328,6 +328,13 @@ function ProductSelect({ value, onChange, products }) {
   );
 }
 
+// Quantity of a product inside an order (same source as the SL Order auto-fill)
+const getProductOrderQty = (orders, orderId, productId) => {
+  const order = orders.find(o => String(o.id) === String(orderId));
+  const product = order?.products?.find(p => String(p.id) === String(productId));
+  return product?.quantity ? parseFloat(product.quantity) : null;
+};
+
 function OutboundTicketForm({ type, orders, products, suppliers }) {
   const [formData, setFormData] = useState({
     supplier_id: "",
@@ -342,6 +349,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   const [loading, setLoading] = useState(false);
   const [createdTicket, setCreatedTicket] = useState(null);
   const [remainingQuantities, setRemainingQuantities] = useState({});
+  const [invalidItemIds, setInvalidItemIds] = useState([]);
 
   const fetchRemainingQuantity = async (itemId, orderId, productId) => {
     if (!orderId || !productId) {
@@ -357,6 +365,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
   };
 
   const handleItemChange = (id, field, value) => {
+    setInvalidItemIds(prev => prev.filter(x => x !== id));
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         const newItem = { ...item, [field]: value };
@@ -402,13 +411,20 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       toast.error("Vui lòng chọn Nhà cung cấp");
       return;
     }
-    const invalidItem = items.find(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out && !i.accessory_quantity));
-    if (invalidItem) {
+    const badIds = items
+      .filter(i => !i.order_id || !i.product_id || (type !== 'PACKAGING' && !i.quantity_out && !i.accessory_quantity))
+      .map(i => i.id);
+    setInvalidItemIds(badIds);
+    if (badIds.length > 0) {
       toast.error("Vui lòng điền Đơn hàng, Mã hàng" + (type !== 'PACKAGING' ? " và SL Xuất (BP chính hoặc Phụ kiện)" : "") + " cho tất cả các phần!");
       return;
     }
     if (type !== 'PACKAGING' && !formData.expected_return_date) {
       toast.error("Vui lòng nhập Ngày dự kiến về");
+      return;
+    }
+    if (type !== 'PACKAGING' && formData.dispatch_date && formData.expected_return_date < formData.dispatch_date) {
+      toast.error("Ngày dự kiến về không được trước Ngày xuất đi");
       return;
     }
 
@@ -431,6 +447,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
       const resetId = Date.now();
       setItems([{ id: resetId, order_id: "", product_id: "", order_quantity: "", processing_type: "", quantity_out: "", accessory_quantity: "", gross_weight: "", pallet_weight: "", net_weight: "", notes: "", packing_specification: "", package_count: "", unit_net_weight: "" }]);
       setRemainingQuantities({ [resetId]: null });
+      setInvalidItemIds([]);
     } catch (error) {
       toast.error("Lỗi khi tạo phiếu đi");
     } finally {
@@ -483,7 +500,7 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           </div>
 
           {items.map((item, index) => (
-            <div key={item.id} className="relative p-5 bg-zinc-50/80 border border-zinc-200 rounded-2xl group">
+            <div key={item.id} className={cn("relative p-5 bg-zinc-50/80 border rounded-2xl group", invalidItemIds.includes(item.id) ? "border-red-400 ring-1 ring-red-200" : "border-zinc-200")}>
               {items.length > 1 && (
                 <button type="button" onClick={() => removeItem(item.id)} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 transition-colors">
                   <Trash2 className="w-5 h-5" />
@@ -532,7 +549,10 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-zinc-500 uppercase">SL Order</Label>
-                  <Input type="number" placeholder="0" className="h-11 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
+                  <Input type="number" min="0" placeholder="0" className="h-10 font-medium bg-white" value={item.order_quantity} onChange={e => handleItemChange(item.id, 'order_quantity', e.target.value)} />
+                  {item.order_id && item.product_id && getProductOrderQty(orders, item.order_id, item.product_id) != null && (
+                    <p className="text-[10px] text-zinc-400 font-medium">Tự lấy từ ĐH khi chọn MH, có thể sửa</p>
+                  )}
                 </div>
                 {item.order_id && item.product_id && remainingQuantities[item.id] != null && (
                   <div className={cn(
@@ -572,17 +592,19 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                 {type !== 'PACKAGING' && (
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Loại hình</Label>
-                    <select
-                      className="h-11 font-medium w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      value={item.processing_type}
-                      onChange={e => handleItemChange(item.id, 'processing_type', e.target.value)}
+                    <Select
+                      value={item.processing_type || undefined}
+                      onValueChange={v => handleItemChange(item.id, 'processing_type', v)}
                     >
-                      <option value="">Chọn loại</option>
-                      <option value="Xi">Xi</option>
-                      <option value="Mạ">Mạ</option>
-                      <option value="Sơn">Sơn</option>
-                      <option value="Ly tâm">Ly tâm</option>
-                    </select>
+                      <SelectTrigger className="h-10 font-medium w-full bg-white">
+                        <SelectValue placeholder="Chọn loại" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["Xi", "Mạ", "Sơn", "Ly tâm"].map(t => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
                 {type === 'PACKAGING' ? (
@@ -621,13 +643,15 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                         <Input
                           type="number"
                           placeholder="0"
-                          className="h-9 font-bold text-amber-900 border-amber-200"
+                          min="0"
+                          className="h-10 font-bold text-amber-900 border-amber-200"
                           value={item.accessory_quantity}
                           disabled={!!item.quantity_out}
                           onChange={e => handleItemChange(item.id, 'accessory_quantity', e.target.value)}
                         />
                       </div>
                     </div>
+                    <p className="text-[10px] text-zinc-400 font-medium">Chỉ nhập một trong hai ô: nhập ô này sẽ khóa ô còn lại.</p>
                   </div>
                 )}
               </div>
@@ -636,27 +660,28 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Kiện hàng</Label>
-                    <Input type="number" placeholder="0" className="h-10 border-indigo-100" value={item.package_count} onChange={e => handleItemChange(item.id, 'package_count', e.target.value)} />
+                    <Input type="number" min="0" placeholder="0" className="h-10" value={item.package_count} onChange={e => handleItemChange(item.id, 'package_count', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (KG)</Label>
-                    <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Gross Weight (kg)</Label>
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.gross_weight} onChange={e => handleItemChange(item.id, 'gross_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (KG)</Label>
-                    <Input type="number" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Pallet Weight (kg)</Label>
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.pallet_weight} onChange={e => handleItemChange(item.id, 'pallet_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL Tịnh (kg/cái)</Label>
-                    <Input type="number" step="0.01" placeholder="0.00" className="h-10 border-amber-100" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, 'unit_net_weight', e.target.value)} />
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">KL tịnh (kg/cái)</Label>
+                    <Input type="number" min="0" step="0.01" placeholder="0.00" className="h-10" value={item.unit_net_weight} onChange={e => handleItemChange(item.id, 'unit_net_weight', e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] font-bold text-zinc-500 uppercase">Ghi chú</Label>
                     <Input placeholder="Chi tiết..." className="h-10" value={item.notes} onChange={e => handleItemChange(item.id, 'notes', e.target.value)} />
                   </div>
                   <div className="space-y-1.5 md:col-span-1">
-                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (KG)</Label>
+                    <Label className="text-[10px] font-bold text-zinc-500 uppercase">Net Weight (kg)</Label>
                     <Input type="number" step="0.01" placeholder="0.00" className="h-10 bg-zinc-100/50 font-bold" readOnly value={item.net_weight} />
+                    <p className="text-[10px] text-zinc-400 font-medium">= Gross Weight − Pallet Weight</p>
                   </div>
                 </div>
               )}
@@ -669,7 +694,13 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
           </Button>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-zinc-100 flex justify-end">
+        <div className="sticky bottom-0 z-40 mt-8 -mx-6 md:-mx-8 px-6 md:px-8 py-4 bg-white/95 backdrop-blur border-t border-zinc-100 flex items-center justify-between gap-4">
+          <p className="text-xs font-bold text-zinc-500">
+            {items.length} phần · Tổng SL {type === 'PACKAGING' ? 'đóng gói' : 'xuất'}:{" "}
+            <span className="text-zinc-950 font-black">
+              {items.reduce((s, i) => s + (parseFloat(i.quantity_out || i.accessory_quantity) || 0), 0)}
+            </span>
+          </p>
           <Button
             type="submit"
             disabled={loading}
@@ -1689,7 +1720,8 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                         <Input
                           type="number"
                           placeholder="0"
-                          className={cn("h-9 font-bold", "text-emerald-900 border-emerald-200")}
+                      min="0"
+                      className={cn("h-10 font-bold", "text-emerald-900 border-emerald-200")}
                           value={item.quantity_out}
                           onChange={e => handleItemChange(item.localKey, "quantity_out", e.target.value)}
                         />
@@ -1702,7 +1734,8 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
                             <Input
                               type="number"
                               placeholder="0"
-                              className="h-9 font-bold text-blue-900 border-blue-200"
+                          min="0"
+                          className="h-10 font-bold text-blue-900 border-blue-200"
                               value={item.quantity_out}
                               max={item.order_quantity ? Math.floor(parseFloat(item.order_quantity) * 1.03) : undefined}
                               // disabled={!!item.accessory_quantity}
@@ -1789,7 +1822,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["outsourcing-tickets", type, page, pageSize, search, filterOrderId, filterProductId, filterDate],
     queryFn: () => outsourcingService.getAll({ type, page, limit: pageSize, search, order_id: filterOrderId, product_id: filterProductId, date: filterDate }),
     placeholderData: keepPreviousData
@@ -2095,6 +2128,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
         data={tickets}
         columns={columns}
         isLoading={isLoading}
+        isFetching={isFetching}
         isServerSide={true}
         totalItems={total}
         page={page}

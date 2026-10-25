@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '@/components/ui/table';
-import { Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight, RotateCcw, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, Search, ChevronLeft, ChevronRight, RotateCcw, X, Loader2 } from 'lucide-react';
 
 const TableSearchFilter = React.memo(({ onSearch, initialValue = "" }) => {
   const [val, setVal] = React.useState(initialValue);
@@ -67,6 +67,7 @@ export default function GenericTable({
   data = [],
   columns = [],
   isLoading,
+  isFetching = false,
   error,
   onAdd,
   onEdit,
@@ -211,7 +212,12 @@ export default function GenericTable({
       </div>
 
       {/* Table Container */}
-      <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-black-400 bg-white shadow-sm">
+      <div className="relative flex-1 min-h-0 flex flex-col rounded-2xl border border-black-400 bg-white shadow-sm">
+        {isFetching && !isLoading && (
+          <div className="absolute inset-0 z-[1100] flex items-center justify-center rounded-2xl bg-white/60 backdrop-blur-[1px]">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          </div>
+        )}
         <div
           className="flex-1 min-h-0 overflow-x-auto overflow-y-auto"
           style={{ maxHeight }}

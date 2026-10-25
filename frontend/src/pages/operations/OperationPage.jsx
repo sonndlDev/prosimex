@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { operationService } from "../../services/operation.service";
 import { toast } from "sonner";
 import GenericTable from "../../components/GenericTable";
@@ -54,6 +54,7 @@ export default function OperationPage() {
   const {
     data: operationsData,
     isLoading,
+    isFetching,
     error,
   } = useQuery({
     queryKey: ["operations", page, pageSize, search, selectedProductGroup],
@@ -65,6 +66,7 @@ export default function OperationPage() {
         product_group_id:
           selectedProductGroup !== "all" ? selectedProductGroup : undefined,
       }),
+    placeholderData: keepPreviousData,
   });
 
   const { data: productGroupsData } = useQuery({
@@ -192,6 +194,7 @@ export default function OperationPage() {
           data={operations}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onEdit={hasPermission("operations:update") ? handleOpen : undefined}
           onDelete={hasPermission("operations:delete") ? (op) => openDelete(op) : undefined}

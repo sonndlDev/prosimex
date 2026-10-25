@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "../../context/AuthContext";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { factoryService } from "../../services/factory.service";
 import GenericTable from "../../components/GenericTable";
 import { getAuditColumn } from "../../utils/audit";
@@ -34,9 +34,10 @@ export default function FactoryPage() {
     defaultValues: { name: "", is_active: true },
   });
 
-  const { data: factoriesData, isLoading, error } = useQuery({
+  const { data: factoriesData, isLoading, isFetching, error } = useQuery({
     queryKey: ["factories", page, pageSize, search],
     queryFn: () => factoryService.getAll({ page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const factories = factoriesData?.data || [];
@@ -102,6 +103,7 @@ export default function FactoryPage() {
           data={factories}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onEdit={hasPermission("factories:update") ? handleOpen : undefined}
           onDelete={hasPermission("factories:delete") ? handleDelete : undefined}

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -97,12 +97,13 @@ export default function DailyTicketPage() {
     };
   }, []);
 
-  const { data: ticketData, isLoading, error } = useQuery({
+  const { data: ticketData, isLoading, isFetching, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
     queryFn: () => dailyTicketService.getAll(buildTicketQueryParams(appliedFilters, {
       page,
       limit: pageSize,
     })),
+    placeholderData: keepPreviousData,
   });
 
   const tickets = ticketData?.data || [];
@@ -333,6 +334,7 @@ export default function DailyTicketPage() {
           data={tickets}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           isServerSide={true}
           totalItems={totalItems}

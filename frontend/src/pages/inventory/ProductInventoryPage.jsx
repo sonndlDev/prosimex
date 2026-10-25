@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useAuth } from "../../context/AuthContext";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
@@ -112,9 +112,10 @@ export default function ProductInventoryPage() {
         enabled: !!selectedProduct?.product_group_id
     });
 
-    const { data: inventoryData, isLoading: isLoadingHistory } = useQuery({
+    const { data: inventoryData, isLoading: isLoadingHistory, isFetching } = useQuery({
         queryKey: ["product-inventory", page, pageSize, appliedFilters],
-        queryFn: () => inventoryService.getAll({ page, limit: pageSize, ...appliedFilters })
+        queryFn: () => inventoryService.getAll({ page, limit: pageSize, ...appliedFilters }),
+        placeholderData: keepPreviousData,
     });
 
 
@@ -446,6 +447,7 @@ export default function ProductInventoryPage() {
                                 data={inventoryData?.data || []}
                                 columns={tableColumns}
                                 isLoading={isLoadingHistory}
+                                isFetching={isFetching}
                                 isServerSide={true}
                                 totalItems={inventoryData?.total || 0}
                                 page={page}

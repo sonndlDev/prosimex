@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
 import { customerService } from "../../services/customer.service";
 import { productService } from "../../services/product.service";
@@ -213,10 +213,12 @@ function OrderPageCore({
   const {
     data: ordersData,
     isLoading,
+    isFetching,
     error,
   } = useQuery({
     queryKey: ["orders", page, pageSize, appliedFilters],
-    queryFn: () => orderService.getAll({ page, limit: pageSize, ...appliedFilters })
+    queryFn: () => orderService.getAll({ page, limit: pageSize, ...appliedFilters }),
+    placeholderData: keepPreviousData,
   });
 
 
@@ -951,6 +953,7 @@ function OrderPageCore({
           data={orders}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onBulkDelete={handleBulkDelete}
           isServerSide={true}

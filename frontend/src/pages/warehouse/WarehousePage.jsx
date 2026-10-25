@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { orderService } from "../../services/order.service";
 import GenericTable from "../../components/GenericTable";
 import WarehouseDetailsDialog from "../orders/components/WarehouseDetailsDialog";
@@ -36,9 +36,10 @@ export default function WarehousePage() {
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);
   const [warehouseOrder, setWarehouseOrder] = useState(null);
 
-  const { data: ordersData, isLoading, error } = useQuery({
+  const { data: ordersData, isLoading, isFetching, error } = useQuery({
     queryKey: ["orders", page, pageSize, appliedSearch],
-    queryFn: () => orderService.getAll({ page, limit: pageSize, search: appliedSearch })
+    queryFn: () => orderService.getAll({ page, limit: pageSize, search: appliedSearch }),
+    placeholderData: keepPreviousData,
   });
 
 
@@ -87,6 +88,7 @@ export default function WarehousePage() {
           data={orders}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           isServerSide={true}
           totalItems={totalItems}

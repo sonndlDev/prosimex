@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
 import { factoryService } from "../../services/factory.service";
@@ -45,9 +45,10 @@ export default function ProductPage() {
   const { data: productGroupsData } = useQuery({ queryKey: ["productGroups"], queryFn: () => productGroupService.getAll({ limit: 1000 }) });
   const productGroups = productGroupsData?.data || [];
 
-  const { data: productsData, isLoading, error } = useQuery({
+  const { data: productsData, isLoading, isFetching, error } = useQuery({
     queryKey: ["products", filterFactoryId, page, pageSize, search],
     queryFn: () => productService.getAll({ factory_id: filterFactoryId, page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const products = productsData?.data || [];
@@ -172,6 +173,7 @@ export default function ProductPage() {
           data={products}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onEdit={hasPermission("products:update") ? handleOpen : undefined}
           onDelete={hasPermission("products:delete") ? handleDelete : undefined}

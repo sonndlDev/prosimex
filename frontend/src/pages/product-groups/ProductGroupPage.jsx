@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import * as XLSX from "xlsx";
 import { productGroupService } from "../../services/product-group.service";
@@ -73,9 +73,10 @@ export default function ProductGroupPage() {
   const { data: machinesListData } = useQuery({ queryKey: ["machines"], queryFn: () => machineService.getAll({ limit: 1000 }) });
   const machinesList = machinesListData?.data || [];
 
-  const { data: productGroupsData, isLoading, error } = useQuery({
+  const { data: productGroupsData, isLoading, isFetching, error } = useQuery({
     queryKey: ["productGroups", page, pageSize, search],
-    queryFn: () => productGroupService.getAll({ page, limit: pageSize, search })
+    queryFn: () => productGroupService.getAll({ page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const productGroups = productGroupsData?.data || [];
@@ -279,6 +280,7 @@ export default function ProductGroupPage() {
           data={productGroups}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onEdit={hasPermission("product_groups:update") ? handleOpen : undefined}
           onDelete={hasPermission("product_groups:delete") ? (g) => openDelete(g) : undefined}

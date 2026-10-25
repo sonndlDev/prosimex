@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { attendanceService } from '../../services/attendance.service';
 import { userService } from '../../services/user.service';
 import {
@@ -66,9 +66,10 @@ export default function AttendanceManagementPage() {
   });
   const users = usersData?.data || [];
 
-  const { data: attendanceData, isLoading: logsLoading } = useQuery({
+  const { data: attendanceData, isLoading: logsLoading, isFetching } = useQuery({
     queryKey: ['attendanceLogsAdmin', filters, page, pageSize],
-    queryFn: () => attendanceService.getLogs({ ...filters, page, limit: pageSize })
+    queryFn: () => attendanceService.getLogs({ ...filters, page, limit: pageSize }),
+    placeholderData: keepPreviousData
   });
   const logs = attendanceData?.data || [];
   const totalItems = attendanceData?.total || 0;
@@ -237,6 +238,7 @@ export default function AttendanceManagementPage() {
           data={logs}
           columns={columns}
           isLoading={logsLoading}
+          isFetching={isFetching}
           isServerSide={true}
           totalItems={totalItems}
           page={page}

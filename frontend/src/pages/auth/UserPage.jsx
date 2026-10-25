@@ -1,7 +1,7 @@
 import React, { useState } from "react"; import { toast } from "sonner";
 
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { userService } from "../../services/user.service";
 import { factoryService } from "../../services/factory.service";
 import { useAuth } from "../../context/AuthContext";
@@ -42,9 +42,10 @@ export default function UserPage() {
 
   const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
   const factories = factoriesData?.data || (Array.isArray(factoriesData) ? factoriesData : []);
-  const { data: usersData, isLoading: usersLoading, error: usersError } = useQuery({
+  const { data: usersData, isLoading: usersLoading, isFetching: usersFetching, error: usersError } = useQuery({
     queryKey: ["users", page, pageSize, search],
-    queryFn: () => userService.getAll({ page, limit: pageSize, search })
+    queryFn: () => userService.getAll({ page, limit: pageSize, search }),
+    placeholderData: keepPreviousData
   });
 
   const users = usersData?.data || [];
@@ -186,6 +187,7 @@ export default function UserPage() {
           data={users}
           columns={columns}
           isLoading={usersLoading || rolesLoading}
+          isFetching={usersFetching}
           error={usersError}
           onEdit={hasPermission("users:update") ? handleOpen : undefined}
           onDelete={hasPermission("users:delete") ? (u) => { if (window.confirm(`Xóa người dùng "${u.username}"?`)) deleteMutation.mutate(u.id); } : undefined}

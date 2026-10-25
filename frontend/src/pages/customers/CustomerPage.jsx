@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { customerService } from "../../services/customer.service";
 import GenericTable from "../../components/GenericTable";
 import { getAuditColumn } from "../../utils/audit";
@@ -29,9 +29,10 @@ export default function CustomerPage() {
     defaultValues: { code: "", name: "", contact_info: "" },
   });
 
-  const { data: customersData, isLoading, error } = useQuery({
+  const { data: customersData, isLoading, isFetching, error } = useQuery({
     queryKey: ["customers", page, pageSize, search],
     queryFn: () => customerService.getAll({ page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const customers = customersData?.data || [];
@@ -83,7 +84,7 @@ export default function CustomerPage() {
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
       <GenericTable
-        data={customers} columns={columns} isLoading={isLoading} error={error}
+        data={customers} columns={columns} isLoading={isLoading} isFetching={isFetching} error={error}
         onEdit={hasPermission("customers:update") ? handleOpen : undefined}
         onDelete={hasPermission("customers:delete") ? (c) => openDelete(c) : undefined}
         onBulkDelete={hasPermission("customers:delete") ? (ids) => openDelete(ids) : undefined}

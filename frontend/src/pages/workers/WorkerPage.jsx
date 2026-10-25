@@ -1,7 +1,7 @@
 import React, { useState } from "react"; import { toast } from "sonner";
 
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { workerService } from "../../services/worker.service";
 import GenericTable from "../../components/GenericTable";
 import { getAuditColumn } from "../../utils/audit";
@@ -31,9 +31,10 @@ export default function WorkerPage() {
     defaultValues: { code: "", name: "", phone: "", factory_id: "", is_active: true },
   });
 
-  const { data: workersData, isLoading, error } = useQuery({
+  const { data: workersData, isLoading, isFetching, error } = useQuery({
     queryKey: ["workers", page, pageSize, search],
     queryFn: () => workerService.getAll({ page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const workers = workersData?.data || [];
@@ -93,6 +94,7 @@ export default function WorkerPage() {
           onDelete={hasPermission("workers:delete") ? (row) => openDelete(row) : undefined}
           onBulkDelete={(ids) => openDelete(ids)}
           isLoading={isLoading}
+          isFetching={isFetching}
           isServerSide={true}
           totalItems={totalItems}
           page={page}

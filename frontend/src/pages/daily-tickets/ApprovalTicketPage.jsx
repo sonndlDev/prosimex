@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
@@ -62,7 +62,7 @@ export default function ApprovalTicketPage() {
     setAppliedFilters(initialFilters);
   }, [initialFilters, setAppliedFilters]);
 
-  const { data: ticketData, isLoading, error } = useQuery({
+  const { data: ticketData, isLoading, isFetching, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
     queryFn: async () => dailyTicketService.getAll({
       page,
@@ -71,6 +71,7 @@ export default function ApprovalTicketPage() {
       ticket_status: "PENDING_APPROVAL",
       status: "PENDING_APPROVAL"
     }),
+    placeholderData: keepPreviousData,
   });
 
   const tickets = ticketData?.data || [];
@@ -310,6 +311,7 @@ export default function ApprovalTicketPage() {
           data={tickets}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           isServerSide={true}
           totalItems={totalItems}

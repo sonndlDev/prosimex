@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 
 import { DateTime } from "luxon";
 
@@ -124,7 +124,7 @@ export default function OrderProductSnapshotPage() {
 
 
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
 
     queryKey: ["order-product-snapshots", page, pageSize, search, driftOnly, orderIdFilter],
 
@@ -143,9 +143,8 @@ export default function OrderProductSnapshotPage() {
         drift_only: driftOnly ? "true" : undefined,
 
         order_id: orderIdFilter.trim() || undefined,
-
       }),
-
+    placeholderData: keepPreviousData,
   });
 
 
@@ -499,6 +498,8 @@ export default function OrderProductSnapshotPage() {
           columns={columns}
 
           isLoading={isLoading}
+
+          isFetching={isFetching}
 
           error={error}
 

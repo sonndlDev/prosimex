@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { machineService } from "../../services/machine.service";
 import { factoryService } from "../../services/factory.service";
 import GenericTable from "../../components/GenericTable";
@@ -39,9 +39,10 @@ export default function MachinePage() {
 
   const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: () => factoryService.getAll({ limit: 1000 }) });
   const factories = factoriesData?.data || [];
-  const { data: machinesData, isLoading, error } = useQuery({
+  const { data: machinesData, isLoading, isFetching, error } = useQuery({
     queryKey: ["machines", filterFactoryId, page, pageSize, search],
     queryFn: () => machineService.getAll({ factory_id: filterFactoryId, page, limit: pageSize, search }),
+    placeholderData: keepPreviousData,
   });
 
   const machines = machinesData?.data || [];
@@ -183,6 +184,7 @@ export default function MachinePage() {
           data={machines}
           columns={columns}
           isLoading={isLoading}
+          isFetching={isFetching}
           error={error}
           onEdit={hasPermission("machines:update") ? handleOpen : undefined}
           onDelete={hasPermission("machines:delete") ? handleDelete : undefined}
