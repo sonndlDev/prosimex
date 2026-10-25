@@ -86,8 +86,12 @@ export const SQL_PRODUCTION_PROGRESS = `
 
 export const SQL_RECENT_ACTIVITIES = `
   SELECT
+    al.id,
     al.action,
     al.entity,
+    al.entity_id,
+    al.before_data,
+    al.after_data,
     al.created_at,
     COALESCE(u.full_name, u.username, 'Hệ thống') AS user_name
   FROM audit_logs al

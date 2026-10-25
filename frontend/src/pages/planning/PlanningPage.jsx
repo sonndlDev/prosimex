@@ -59,6 +59,7 @@ import PlanningTableRow from "./components/PlanningTableRow";
 import PlanningFormDialog from "./components/PlanningFormDialog";
 import DeleteConfirmDialog from "./components/DeleteConfirmDialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 function ResizeHandle({ onMouseDown }) {
   return (
@@ -88,6 +89,21 @@ const formatMachineFilterLabel = (machine) => {
   return code || name || `#${machine?.id}`;
 };
 
+/**
+ * Numeric id-list filter stored in the URL. The URL hook returns strings, so ids are
+ * converted to numbers for callers (DB ids are SERIAL integers) and written back as strings.
+ */
+function useUrlIdFilter(key) {
+  const [rawIds, setRawIds] = useUrlState(key, []);
+  const ids = rawIds.map(Number);
+  const setIds = (next) =>
+    setRawIds((prev) => {
+      const resolved = typeof next === "function" ? next(prev.map(Number)) : next;
+      return resolved.map(String);
+    });
+  return [ids, setIds];
+}
+
 export default function PlanningPage() {
   const queryClient = useQueryClient();
 
@@ -100,17 +116,17 @@ export default function PlanningPage() {
   // Pagination & Filter
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
-  const [selectedProductIds, setSelectedProductIds] = useState([]);
-  const [selectedMachineIds, setSelectedMachineIds] = useState([]);
-  const [selectedOperationIds, setSelectedOperationIds] = useState([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useUrlIdFilter("selectedOrderIds");
+  const [selectedProductIds, setSelectedProductIds] = useUrlIdFilter("selectedProductIds");
+  const [selectedMachineIds, setSelectedMachineIds] = useUrlIdFilter("selectedMachineIds");
+  const [selectedOperationIds, setSelectedOperationIds] = useUrlIdFilter("selectedOperationIds");
   const [openFilter, setOpenFilter] = useState(false);
   const [openProductFilter, setOpenProductFilter] = useState(false);
   const [openMachineFilter, setOpenMachineFilter] = useState(false);
   const [openOperationFilter, setOpenOperationFilter] = useState(false);
-  const [showPastDays, setShowPastDays] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [showPastDays, setShowPastDays] = useUrlState("showPastDays", false);
+  const [startDate, setStartDate] = useUrlState("startDate", "");
+  const [endDate, setEndDate] = useUrlState("endDate", "");
 
   const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
   const [dateColWidth, setDateColWidth] = useState(54);

@@ -6,6 +6,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Thu nho toan bo giao dien (~80%). Tailwind dung rem nen moi kich thuoc co theo,
+   con don vi vh giữ nguyên nên layout chieu cao khong bi lech. */
+html {
+  font-size: 80%;
+}
+
 @layer base {
   :root {
     --background: 220 33% 98%;

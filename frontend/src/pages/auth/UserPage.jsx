@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Shield, Trash2, AlertTriangle, User, Key, Mail, Phone, Home, Check, ChevronsUpDown, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ACTION_LABELS, PERMISSION_GROUPS } from "../../constants/permissions";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function UserPage() {
   const { hasPermission } = useAuth();
@@ -37,7 +38,7 @@ export default function UserPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { data: factoriesData } = useQuery({ queryKey: ["factories"], queryFn: factoryService.getAll });
   const factories = factoriesData?.data || (Array.isArray(factoriesData) ? factoriesData : []);
@@ -195,6 +196,7 @@ export default function UserPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

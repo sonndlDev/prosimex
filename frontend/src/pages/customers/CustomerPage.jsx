@@ -13,6 +13,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function CustomerPage() {
   const queryClient = useQueryClient();
@@ -22,7 +23,7 @@ export default function CustomerPage() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { code: "", name: "", contact_info: "" },
@@ -92,6 +93,7 @@ export default function CustomerPage() {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+        initialSearch={search}
         onSearchChange={setSearch}
       />
       </div>

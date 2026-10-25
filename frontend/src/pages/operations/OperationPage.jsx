@@ -20,6 +20,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 import {
   Select,
@@ -39,8 +40,8 @@ export default function OperationPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [selectedProductGroup, setSelectedProductGroup] = useState("all");
+  const [search, setSearch] = useUrlState("search", "");
+  const [selectedProductGroup, setSelectedProductGroup] = useUrlState("selectedProductGroup", "all");
 
   const {
     control,
@@ -201,6 +202,7 @@ export default function OperationPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

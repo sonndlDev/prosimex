@@ -80,6 +80,7 @@ export default function GenericTable({
   onPageChange,
   onPageSizeChange,
   onSearchChange,
+  initialSearch = '',
   renderActions,
   maxHeight = "calc(100vh - 320px)",
   // Added selection props
@@ -88,7 +89,7 @@ export default function GenericTable({
   // Added sticky props
   freezeFirstCols = false,
 }) {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [internalSelected, setInternalSelected] = useState([]);
 
   const isControlledSelection = selectedRows !== undefined && onSelectionChange !== undefined;
@@ -144,11 +145,8 @@ export default function GenericTable({
 
   const handleSearch = (val) => {
     setSearchTerm(val);
-    if (isServerSide) {
-      if (onSearchChange) onSearchChange(val);
-    } else {
-      setClientPage(1);
-    }
+    if (onSearchChange) onSearchChange(val);
+    if (!isServerSide) setClientPage(1);
   };
 
   const handlePageChange = (newPage) => {
@@ -189,7 +187,7 @@ export default function GenericTable({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {(onSearchChange !== undefined || !isServerSide) && (
-            <TableSearchFilter onSearch={handleSearch} initialValue={searchTerm} />
+            <TableSearchFilter onSearch={handleSearch} initialValue={initialSearch} />
           )}
           {onBulkDelete && selected.length > 0 && (
             <Button

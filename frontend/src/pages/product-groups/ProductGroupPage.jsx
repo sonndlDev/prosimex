@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function ProductGroupPage() {
   const queryClient = useQueryClient();
@@ -43,7 +44,7 @@ export default function ProductGroupPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { control: groupControl, handleSubmit: handleGroupFormSubmit, reset: resetGroup } = useForm({ defaultValues: { name: "" } });
   const opInitial = { operation_id: "", machine_ids: [], sequence_order: "", dinh_muc: "" };
@@ -287,6 +288,7 @@ export default function ProductGroupPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

@@ -15,6 +15,8 @@ export const SQL_ACTIVITIES_LIST = `
     al.action,
     al.entity,
     al.entity_id,
+    al.before_data,
+    al.after_data,
     al.created_at,
     COALESCE(u.full_name, u.username, 'Hệ thống') AS user_name
   FROM audit_logs al

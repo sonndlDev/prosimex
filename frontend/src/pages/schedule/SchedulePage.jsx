@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scheduleService } from '../../services/schedule.service';
 import { planningService } from '../../services/planning.service';
@@ -45,19 +45,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomSchedule from './components/CustomSchedule';
+import { useUrlState } from '@/hooks/useUrlFilters';
+
+// rangeStart is stored in the URL as 'YYYY-MM-DD'; convert to a Luxon DateTime where used
+const parseRangeStart = (value) => {
+    const parsed = DateTime.fromISO(value);
+    return parsed.isValid ? parsed.startOf('day') : DateTime.now().startOf('day');
+};
 
 export default function SchedulePage() {
     const queryClient = useQueryClient();
-    const [factoryId, setFactoryId] = useState('all');
-    const [activeTab, setActiveTab] = useState('assigned'); // assigned, unassigned
-    const [rangeStart, setRangeStart] = useState(() => DateTime.now().startOf('day'));
+    const [factoryId, setFactoryId] = useUrlState('factoryId', 'all');
+    const [activeTab, setActiveTab] = useUrlState('activeTab', 'assigned'); // assigned, unassigned
+    const [rangeStart, setRangeStart] = useUrlState('rangeStart', DateTime.now().startOf('day').toISODate());
 
     const { data: factories } = useQuery({ queryKey: ['factories'], queryFn: factoryService.getAll });
     const factoriesArray = Array.isArray(factories) ? factories : [];
 
     const dateRange = useMemo(() => {
         const today = DateTime.now().startOf('day');
-        const start = rangeStart < today ? today : rangeStart;
+        const rangeStartDate = parseRangeStart(rangeStart);
+        const start = rangeStartDate < today ? today : rangeStartDate;
         const end = start.plus({ months: 1 });
         return { start: start.toISODate(), end: end.toISODate() };
     }, [rangeStart]);
@@ -88,20 +96,20 @@ export default function SchedulePage() {
     const handlePrev = () => {
         const today = DateTime.now().startOf('day');
         setRangeStart((prev) => {
-            const next = prev.minus({ months: 1 });
-            return next < today ? today : next;
+            const next = parseRangeStart(prev).minus({ months: 1 });
+            return (next < today ? today : next).toISODate();
         });
     };
 
     const handleNext = () => {
-        setRangeStart((prev) => prev.plus({ months: 1 }));
+        setRangeStart((prev) => parseRangeStart(prev).plus({ months: 1 }).toISODate());
     };
 
-    const handleToday = () => setRangeStart(DateTime.now().startOf('day'));
+    const handleToday = () => setRangeStart(DateTime.now().startOf('day').toISODate());
 
     const canGoPrev = useMemo(() => {
         const today = DateTime.now().startOf('day');
-        return rangeStart > today;
+        return parseRangeStart(rangeStart) > today;
     }, [rangeStart]);
 
     const title = useMemo(() => {

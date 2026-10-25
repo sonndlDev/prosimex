@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 export default function ProductInventoryPage() {
     const queryClient = useQueryClient();
@@ -70,18 +71,18 @@ export default function ProductInventoryPage() {
         completed: "false"
     };
 
-    const [tempFilters, setTempFilters] = useState(initialFilters);
-    const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+    const [appliedFilters, setAppliedFilters] = useUrlFilters(initialFilters);
+    const [tempFilters, setTempFilters] = useState(appliedFilters);
 
     const handleSearch = useCallback((filters) => {
         setPage(1);
         setAppliedFilters(filters);
-    }, []);
+    }, [setAppliedFilters]);
 
     const handleReset = useCallback(() => {
         setPage(1);
         setAppliedFilters(initialFilters);
-    }, [initialFilters]);
+    }, [initialFilters, setAppliedFilters]);
 
 
     // Form states
@@ -435,6 +436,7 @@ export default function ProductInventoryPage() {
 
                         <InventoryFilterBar
                             initialFilters={initialFilters}
+                            appliedFilters={appliedFilters}
                             onSearch={handleSearch}
                             onReset={handleReset}
                         />
@@ -883,8 +885,8 @@ export default function ProductInventoryPage() {
     );
 }
 
-const InventoryFilterBar = memo(({ initialFilters, onSearch, onReset }) => {
-    const [tempFilters, setTempFilters] = useState(initialFilters);
+const InventoryFilterBar = memo(({ initialFilters, appliedFilters, onSearch, onReset }) => {
+    const [tempFilters, setTempFilters] = useState(appliedFilters);
 
     const handleSubmit = (e) => {
         e.preventDefault();

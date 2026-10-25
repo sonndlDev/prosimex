@@ -39,6 +39,8 @@ import { Camera, AlertTriangle, ArrowRight, RotateCcw, Eye, Loader2 } from "luci
 
 import { cn } from "@/lib/utils";
 
+import { useUrlState } from "@/hooks/useUrlFilters";
+
 
 
 function DriftCell({ snapshot, current, changed }) {
@@ -110,11 +112,11 @@ export default function OrderProductSnapshotPage() {
 
   const [pageSize, setPageSize] = useState(20);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
-  const [driftOnly, setDriftOnly] = useState(false);
+  const [driftOnly, setDriftOnly] = useUrlState("driftOnly", false);
 
-  const [orderIdFilter, setOrderIdFilter] = useState("");
+  const [orderIdFilter, setOrderIdFilter] = useUrlState("orderIdFilter", "");
 
   const [detailOrder, setDetailOrder] = useState(null);
 
@@ -511,6 +513,8 @@ export default function OrderProductSnapshotPage() {
           onPageChange={setPage}
 
           onPageSizeChange={setPageSize}
+
+          initialSearch={search}
 
           onSearchChange={(v) => {
 

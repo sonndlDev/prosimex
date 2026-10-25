@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function FactoryPage() {
   const { hasPermission } = useAuth();
@@ -27,7 +28,7 @@ export default function FactoryPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { name: "", is_active: true },
@@ -111,6 +112,7 @@ export default function FactoryPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

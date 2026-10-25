@@ -7,8 +7,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
   ShoppingCart, CalendarDays, Wrench, Users, Clock, Bell, X,
-  ChevronLeft, ChevronRight, Activity, AlertTriangle, UserCheck, TrendingUp
+  ChevronLeft, ChevronRight, Activity, AlertTriangle, UserCheck, TrendingUp, Eye
 } from 'lucide-react';
 import { DateTime } from 'luxon';
 
@@ -89,7 +92,7 @@ const SectionCard = ({ icon: Icon, title, action, onAction, children }) => (
   </Card>
 );
 
-const ActivityRow = ({ act }) => (
+const ActivityRow = ({ act, onView }) => (
   <div className="flex items-center gap-3 py-3 border-b border-zinc-100 last:border-0">
     <div className={`w-2 h-2 rounded-full shrink-0 ${actionDot(act.action)}`} />
     <div className="flex-1 min-w-0">
@@ -103,11 +106,103 @@ const ActivityRow = ({ act }) => (
       </p>
       <p className="text-xs text-zinc-400 mt-0.5">{DateTime.fromISO(act.created_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}</p>
     </div>
+    {onView && (
+      <button
+        onClick={() => onView(act)}
+        className="shrink-0 flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 rounded-lg px-2.5 py-1.5 transition-colors"
+      >
+        <Eye className="w-3.5 h-3.5" />
+        Chi tiết
+      </button>
+    )}
   </div>
 );
 
+// ─── Activity Detail Dialog (before / after) ─────────────
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const sameValue = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const formatValue = (v) => {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
+// Build per-field comparison rows from before/after snapshots
+function buildDiffRows(before, after) {
+  if (before == null && after == null) return [];
+  if (!(isPlainObject(before) || before == null) || !(isPlainObject(after) || after == null)) {
+    return [{ key: '(dữ liệu)', before, after, changed: !sameValue(before, after) }];
+  }
+  const b = before ?? {};
+  const a = after ?? {};
+  const keys = Array.from(new Set([...Object.keys(b), ...Object.keys(a)]));
+  return keys.map((key) => ({
+    key,
+    before: b[key],
+    after: a[key],
+    changed: !sameValue(b[key], a[key]),
+  }));
+}
+
+function ActivityDetailDialog({ act, onClose }) {
+  const rows = act ? buildDiffRows(act.before_data, act.after_data) : [];
+  const changedCount = rows.filter((r) => r.changed).length;
+
+  return (
+    <Dialog open={!!act} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl">
+        {act && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Chi tiết hoạt động</DialogTitle>
+              <DialogDescription>
+                {act.user_name} · {actionText(act.action)} · {entityLabel(act.entity)}
+                {act.entity_id && ` #${act.entity_id}`} · {DateTime.fromISO(act.created_at).setLocale('vi-VN').toFormat('dd/MM/yyyy HH:mm:ss')}
+                {rows.length > 0 && ` · ${changedCount} trường thay đổi`}
+              </DialogDescription>
+            </DialogHeader>
+            {rows.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-200 py-10 text-center text-xs text-zinc-400">
+                Không có dữ liệu
+              </div>
+            ) : (
+              <div className="max-h-[60vh] overflow-auto rounded-lg border border-zinc-200">
+                <table className="w-full text-xs table-fixed">
+                  <thead className="sticky top-0 bg-zinc-50 text-zinc-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-bold w-[28%]">Trường</th>
+                      <th className="px-3 py-2 text-left font-bold text-rose-600 w-[36%]">Trước khi thay đổi</th>
+                      <th className="px-3 py-2 text-left font-bold text-emerald-600 w-[36%]">Sau khi thay đổi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.key} className={`border-t border-zinc-100 ${r.changed ? 'bg-amber-50/60' : ''}`}>
+                        <td className="px-3 py-2 align-top font-semibold text-zinc-700 break-all">
+                          {r.key}
+                          {r.changed && <span className="ml-1.5 inline-block text-[9px] font-bold px-1 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">đổi</span>}
+                        </td>
+                        <td className={`px-3 py-2 align-top font-mono break-all ${r.changed ? 'bg-rose-50 text-rose-700' : 'text-zinc-400'}`}>
+                          {formatValue(r.before)}
+                        </td>
+                        <td className={`px-3 py-2 align-top font-mono break-all ${r.changed ? 'bg-emerald-50 text-emerald-700' : 'text-zinc-400'}`}>
+                          {formatValue(r.after)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Activities Modal ─────────────────────────────────────
-function ActivitiesModal({ open, onClose }) {
+function ActivitiesModal({ open, onClose, onView }) {
   const [page, setPage] = useState(1);
   const LIMIT = 15;
 
@@ -153,7 +248,7 @@ function ActivitiesModal({ open, onClose }) {
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-11 w-full rounded-lg mb-2" />)
             : data?.data?.length > 0
-              ? data.data.map((act, idx) => <ActivityRow key={act.id ?? idx} act={act} />)
+              ? data.data.map((act, idx) => <ActivityRow key={act.id ?? idx} act={act} onView={onView} />)
               : <div className="py-16 text-center text-zinc-400 text-sm">Không có hoạt động nào.</div>
           }
         </div>
@@ -354,6 +449,7 @@ function AttendancePanel({ data, myAttendance, loading }) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const [showModal, setShowModal] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   const { data: metrics, isLoading } = useQuery({
     queryKey: ['dashboardMetrics'],
@@ -361,12 +457,10 @@ export default function DashboardPage() {
     refetchInterval: 15000,
   });
 
-  const today = DateTime.now().setLocale('vi-VN').toFormat('cccc, dd MMMM');
-  const urgentCount = metrics?.urgentOrders?.length ?? 0;
-
   return (
     <div className="space-y-5">
-      <ActivitiesModal open={showModal} onClose={() => setShowModal(false)} />
+      <ActivitiesModal open={showModal} onClose={() => setShowModal(false)} onView={setSelectedActivity} />
+      <ActivityDetailDialog act={selectedActivity} onClose={() => setSelectedActivity(null)} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -377,11 +471,6 @@ export default function DashboardPage() {
           <p className="text-zinc-500 text-sm mt-0.5">Chào mừng bạn quay trở lại. Chúc bạn một ngày làm việc hiệu quả!</p>
         </div>
       </div>
-
-
-      <SectionCard icon={UserCheck} title="Điểm danh hôm nay">
-        <AttendancePanel data={metrics?.todayAttendance} myAttendance={metrics?.myAttendance} loading={isLoading} />
-      </SectionCard>
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -419,7 +508,7 @@ export default function DashboardPage() {
           {isLoading
             ? [1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-11 w-full rounded-md mb-2" />)
             : metrics?.activities?.length > 0
-              ? metrics.activities.map((act, idx) => <ActivityRow key={idx} act={act} />)
+              ? metrics.activities.map((act, idx) => <ActivityRow key={act.id ?? idx} act={act} onView={setSelectedActivity} />)
               : <p className="text-sm text-zinc-400 text-center py-8">Hiện không có hoạt động nào gần đây.</p>
           }
         </div>

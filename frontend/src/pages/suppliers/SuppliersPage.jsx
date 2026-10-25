@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function SuppliersPage() {
   const queryClient = useQueryClient();
@@ -18,7 +19,7 @@ export default function SuppliersPage() {
   const [openModal, setOpenModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
   // Pagination if needed later
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -98,6 +99,7 @@ export default function SuppliersPage() {
         onDelete={hasPermission("suppliers:delete") ? (c) => { if (window.confirm(`Xóa nhà cung cấp "${c.name}"?`)) deleteMutation.mutate(c.id); } : undefined}
         onBulkDelete={hasPermission("suppliers:delete") ? (ids) => { if (window.confirm(`Xóa ${ids.length} NCC?`)) ids.forEach(id => deleteMutation.mutate(id)); } : undefined}
         isServerSide={false}
+        initialSearch={search}
         onSearchChange={setSearch}
       />
       </div>

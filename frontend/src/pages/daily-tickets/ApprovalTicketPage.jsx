@@ -23,6 +23,7 @@ import { getAuditColumn } from "@/utils/audit";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import {
   Select,
   SelectContent,
@@ -42,24 +43,24 @@ export default function ApprovalTicketPage() {
   const [isPrintOpen, setIsPrintOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  // ticket_status is fixed to PENDING_APPROVAL on this page, so it stays out of the URL
   const initialFilters = {
     startDate: "",
     endDate: "",
-    ticket_status: "PENDING_APPROVAL",
     search: "",
   };
 
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useUrlFilters(initialFilters);
 
   const handleSearch = useCallback((newFilters) => {
     setPage(1);
     setAppliedFilters(newFilters);
-  }, []);
+  }, [setAppliedFilters]);
 
   const handleReset = useCallback(() => {
     setPage(1);
     setAppliedFilters(initialFilters);
-  }, [initialFilters]);
+  }, [initialFilters, setAppliedFilters]);
 
   const { data: ticketData, isLoading, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
@@ -67,6 +68,7 @@ export default function ApprovalTicketPage() {
       page,
       limit: pageSize,
       ...appliedFilters,
+      ticket_status: "PENDING_APPROVAL",
       status: "PENDING_APPROVAL"
     }),
   });
@@ -134,6 +136,7 @@ export default function ApprovalTicketPage() {
     try {
       const params = {
         ...appliedFilters,
+        ticket_status: "PENDING_APPROVAL",
       };
       if (selectedIds.length > 0) {
         params.ids = selectedIds.join(',');
@@ -297,6 +300,7 @@ export default function ApprovalTicketPage() {
           onSearch={handleSearch}
           onReset={handleReset}
           initialFilters={initialFilters}
+          appliedFilters={appliedFilters}
         />
       </div>
 
@@ -407,8 +411,8 @@ export default function ApprovalTicketPage() {
   );
 }
 
-const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters }) => {
-  const [tempFilters, setTempFilters] = useState(initialFilters);
+const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedFilters }) => {
+  const [tempFilters, setTempFilters] = useState(appliedFilters);
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -10,6 +10,7 @@ import { Pencil, Search, X } from "lucide-react";
 import { getAuditColumn } from "../../utils/audit";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 
 export default function WarehousePage() {
@@ -17,19 +18,19 @@ export default function WarehousePage() {
   const { hasPermission } = useAuth();
   const [pageSize, setPageSize] = useState(10);
 
-  const [tempSearch, setTempSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useUrlState("search", "");
+  const [tempSearch, setTempSearch] = useState(appliedSearch);
 
   const handleSearch = useCallback((val) => {
     setPage(1);
     setAppliedSearch(val);
-  }, []);
+  }, [setAppliedSearch]);
 
   const handleReset = useCallback(() => {
     setPage(1);
     setTempSearch("");
     setAppliedSearch("");
-  }, []);
+  }, [setAppliedSearch]);
 
 
   const [openWarehouseDialog, setOpenWarehouseDialog] = useState(false);

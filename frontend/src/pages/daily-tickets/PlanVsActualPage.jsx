@@ -6,6 +6,7 @@ import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
 import { operationService } from "../../services/operation.service";
 import { cn } from "@/lib/utils";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import {
   Popover,
   PopoverContent,
@@ -237,13 +238,16 @@ function ResizeHandle({ onMouseDown }) {
 }
 
 // ─── Filter Bar ───────────────────────────────────────────────────────────────
+const splitIds = (value) => (value ? String(value).split(",") : []);
+
 const FilterBar = memo(
-  ({ onSearch, onReset, orders, operations, products }) => {
-    const [search, setSearch] = useState("");
-    const [selectedOrderIds, setSelectedOrderIds] = useState([]);
-    const [selectedProductIds, setSelectedProductIds] = useState([]);
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+  ({ onSearch, onReset, orders, operations, products, appliedFilters }) => {
+    // Draft state is initialized from the applied (URL-backed) filters so F5 keeps the form in sync
+    const [search, setSearch] = useState(appliedFilters.search);
+    const [selectedOrderIds, setSelectedOrderIds] = useState(() => splitIds(appliedFilters.order_id));
+    const [selectedProductIds, setSelectedProductIds] = useState(() => splitIds(appliedFilters.product_id));
+    const [startDate, setStartDate] = useState(appliedFilters.startDate);
+    const [endDate, setEndDate] = useState(appliedFilters.endDate);
     const [openOrder, setOpenOrder] = useState(false);
     const [openProduct, setOpenProduct] = useState(false);
 
@@ -673,7 +677,17 @@ function Pagination({
 export default function PlanVsActualPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useUrlFilters({
+    search: "",
+    order_id: "",
+    product_id: "",
+    startDate: "",
+    endDate: "",
+  });
+  // Empty filter values are dropped so the request only carries active filters
+  const activeFilters = Object.fromEntries(
+    Object.entries(filters).filter(([, value]) => value !== ""),
+  );
   const [sort, setSort] = useState({ sortBy: "order_code", direction: "DESC" });
 
   // ── Column resize ──────────────────────────────────────────────────────────
@@ -772,23 +786,23 @@ export default function PlanVsActualPage() {
   const handleSearch = useCallback((params) => {
     setPage(1);
     setFilters(params);
-  }, []);
+  }, [setFilters]);
   const handleReset = useCallback(() => {
     setPage(1);
     setFilters({});
-  }, []);
+  }, [setFilters]);
 
   const {
     data: response,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["report-plan-vs-actual-page", page, limit, filters, sort],
+    queryKey: ["report-plan-vs-actual-page", page, limit, activeFilters, sort],
     queryFn: () =>
       dailyTicketService.getPlanVsActualReport({
         page,
         limit,
-        ...filters,
+        ...activeFilters,
         sortBy: sort.sortBy,
         sortDirection: sort.direction,
       }),
@@ -911,6 +925,7 @@ export default function PlanVsActualPage() {
       <FilterBar
         onSearch={handleSearch}
         onReset={handleReset}
+        appliedFilters={filters}
         orders={ordersResp?.data || ordersResp}
         operations={operationsResp?.data || operationsResp}
         products={productsResp?.data || productsResp}
@@ -975,7 +990,7 @@ export default function PlanVsActualPage() {
               </Badge>
             )}
           </div>
-          {Object.keys(filters).length > 0 && (
+          {Object.keys(activeFilters).length > 0 && (
             <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px] h-5 px-2 gap-1">
               <Filter className="w-2.5 h-2.5" /> Đang lọc
             </Badge>

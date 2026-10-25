@@ -38,10 +38,11 @@ import { DateTime } from "luxon";
 
 import ExcelJS from 'exceljs';
 import { useAuth } from "../../context/AuthContext";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 
 export default function OutsourcingPage() {
-  const [activeTab, setActiveTab] = useState("plating");
+  const [activeTab, setActiveTab] = useUrlState("activeTab", "plating");
   const { hasPermission } = useAuth();
 
   return (
@@ -97,7 +98,8 @@ export default function OutsourcingPage() {
 }
 
 function OutsourcingContent({ type }) {
-  const [subTab, setSubTab] = useState("history");
+  // Keyed per type: PLATING has an "in" sub-tab that PACKAGING does not, so a shared key could leave an invalid tab after switching
+  const [subTab, setSubTab] = useUrlState(`${type.toLowerCase()}SubTab`, "history");
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -478,10 +480,6 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               <Package className="w-5 h-5 text-indigo-600" />
               Danh sách hàng hóa
             </Label>
-            <Button type="button" onClick={addItem} variant="outline" className="gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold">
-              <Plus className="w-4 h-4" />
-              Thêm phần
-            </Button>
           </div>
 
           {items.map((item, index) => (
@@ -664,6 +662,11 @@ function OutboundTicketForm({ type, orders, products, suppliers }) {
               )}
             </div>
           ))}
+
+          <Button type="button" onClick={addItem} variant="outline" className="w-full gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold border-dashed">
+            <Plus className="w-4 h-4" />
+            Thêm phần
+          </Button>
         </div>
 
         <div className="mt-8 pt-6 border-t border-zinc-100 flex justify-end">
@@ -1776,10 +1779,10 @@ function EditOutsourcingTicketDialog({ open, onOpenChange, ticketCode, type, ord
 function OutsourcingHistory({ type, orders, products, suppliers }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
-  const [filterOrderId, setFilterOrderId] = useState("");
-  const [filterProductId, setFilterProductId] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
+  const [filterOrderId, setFilterOrderId] = useUrlState("filterOrderId", "");
+  const [filterProductId, setFilterProductId] = useUrlState("filterProductId", "");
+  const [filterDate, setFilterDate] = useUrlState("filterDate", "");
   const [editTicketCode, setEditTicketCode] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [deleteTicketId, setDeleteTicketId] = useState(null);
@@ -2098,6 +2101,7 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+        initialSearch={search}
         onSearchChange={setSearch}
         onEdit={handleEdit}
         onDelete={handleDelete}

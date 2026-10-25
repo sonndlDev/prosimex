@@ -87,6 +87,7 @@ import {
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as XLSX from "xlsx";
@@ -127,17 +128,19 @@ function OrderPageCore({
     search: "",
   };
 
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [urlFilters, setAppliedFilters] = useUrlFilters(initialFilters);
+  // Embedded dialog instances keep the defaults so they never read or write the host page's URL filters
+  const appliedFilters = isEmbed ? initialFilters : urlFilters;
 
   const handleSearch = useCallback((newFilters) => {
     setPage(1);
     setAppliedFilters(newFilters);
-  }, []);
+  }, [setAppliedFilters]);
 
   const handleReset = useCallback(() => {
     setPage(1);
     setAppliedFilters(initialFilters);
-  }, [initialFilters]);
+  }, [initialFilters, setAppliedFilters]);
 
 
   const [openCompletionReport, setOpenCompletionReport] = useState(false);
@@ -939,6 +942,7 @@ function OrderPageCore({
           onSearch={handleSearch}
           onReset={handleReset}
           initialFilters={initialFilters}
+          appliedFilters={appliedFilters}
         />
       </div>
 
@@ -1827,8 +1831,8 @@ export default function OrderPage() {
   return <OrderPageCore mode="page" />;
 }
 
-const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFilters }) => {
-  const [tempFilters, setTempFilters] = useState(initialFilters);
+const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFilters, appliedFilters }) => {
+  const [tempFilters, setTempFilters] = useState(appliedFilters);
 
   const handleSubmit = (e) => {
     e.preventDefault();

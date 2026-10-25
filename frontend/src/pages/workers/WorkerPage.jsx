@@ -14,6 +14,7 @@ import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function WorkerPage() {
   const queryClient = useQueryClient();
@@ -24,7 +25,7 @@ export default function WorkerPage() {
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { control, handleSubmit: rhfHandleSubmit, reset } = useForm({
     defaultValues: { code: "", name: "", phone: "", factory_id: "", is_active: true },
@@ -98,6 +99,7 @@ export default function WorkerPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

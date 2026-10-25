@@ -35,6 +35,7 @@ import { getAuditColumn } from "@/utils/audit";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 const TICKET_STATUS_OPTIONS = [
   { value: "ALL", label: "Tất cả phiếu" },
   { value: "DRAFT", label: "Nháp" },
@@ -66,17 +67,17 @@ export default function DailyTicketPage() {
     operation_name: "",
   };
 
-  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useUrlFilters(initialFilters);
 
   const handleSearch = useCallback((newFilters) => {
     setPage(1);
     setAppliedFilters(newFilters);
-  }, []);
+  }, [setAppliedFilters]);
 
   const handleReset = useCallback(() => {
     setPage(1);
     setAppliedFilters(initialFilters);
-  }, [initialFilters]);
+  }, [initialFilters, setAppliedFilters]);
 
   const { data: usersData } = useQuery({
     queryKey: ["users", "daily-ticket-filter"],
@@ -321,6 +322,7 @@ export default function DailyTicketPage() {
           onSearch={handleSearch}
           onReset={handleReset}
           initialFilters={initialFilters}
+          appliedFilters={appliedFilters}
           users={users}
         />
       </div>
@@ -430,8 +432,8 @@ export default function DailyTicketPage() {
   );
 }
 
-const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, users = [] }) => {
-  const [tempFilters, setTempFilters] = useState(initialFilters);
+const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedFilters, users = [] }) => {
+  const [tempFilters, setTempFilters] = useState(appliedFilters);
 
   const selectedStatusLabel =
     TICKET_STATUS_OPTIONS.find((o) => o.value === tempFilters.ticket_status)?.label || "Tất cả phiếu";

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DateTime } from "luxon";
 import { dailyTicketService } from "../../services/daily-ticket.service";
@@ -11,6 +11,7 @@ import { operationService } from "../../services/operation.service";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { useUrlState } from "@/hooks/useUrlFilters";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PremiumDatePicker } from "@/components/PremiumDatePicker";
+import TimePicker from "@/components/TimePicker";
 import { Separator } from "@/components/ui/separator";
 import {
   Popover,
@@ -58,15 +60,20 @@ const BREAK_PERIODS_FE = [
   { start: 16 * 60 + 30, end: 17 * 60 },
 ];
 
-function calcValidWorkMinutesFE(startTime, endTime, ticketDate) {
-  if (!startTime || !endTime || !ticketDate) return null;
-  const start = new Date(`${ticketDate}T${startTime}:00`);
-  const end = new Date(`${ticketDate}T${endTime}:00`);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
-  const totalMin = (end - start) / 60000;
+// Tính phút làm việc hợp lệ từ chuỗi "HH:mm" (không phụ thuộc múi giờ/Date).
+// Cùng công thức với backend: labor-calculation.util.js
+function parseHHmm(value) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(value || ""));
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+function calcValidWorkMinutesFE(startTime, endTime) {
+  const startMin = parseHHmm(startTime);
+  const endMin = parseHHmm(endTime);
+  if (startMin === null || endMin === null) return null;
+  const totalMin = endMin - startMin;
   if (totalMin <= 0) return null;
-  const startMin = start.getHours() * 60 + start.getMinutes();
-  const endMin = end.getHours() * 60 + end.getMinutes();
   const breakMin = BREAK_PERIODS_FE.reduce((sum, bp) => (
     sum + Math.max(0, Math.min(endMin, bp.end) - Math.max(startMin, bp.start))
   ), 0);
@@ -169,6 +176,10 @@ function Combobox({
   );
 }
 
+// Lưới dùng chung cho header và dòng nhập thủ công (8 cột)
+const MANUAL_GRID =
+  "grid grid-cols-[minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1.2fr)_80px_130px_130px_minmax(0,1.6fr)_36px] gap-2 items-center";
+
 // ─── Row nhập thủ công ──────────────────────────────────────────────────────
 function ManualRow({
   index,
@@ -176,6 +187,7 @@ function ManualRow({
   setValue,
   remove,
   watchItems,
+  manualDate,
   allOrders,
   allProducts,
   allOperations,
@@ -301,214 +313,205 @@ function ManualRow({
     return null;
   }, [selectedPgo, selectedProduct, isNoOperation]);
 
+  const laborValue = (() => {
+    const item = watchItems[index] || {};
+    const mins = calcValidWorkMinutesFE(item.start_time, item.end_time, manualDate);
+    return calcActualLaborFE(mins, parseInt(item.worker_count));
+  })();
+
   return (
-    <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_90px_90px_60px_80px_36px] gap-2 items-center">
-      {/* Đơn hàng */}
-      <Controller
-        name={`items.${index}.order_id`}
-        control={control}
-        render={({ field }) => (
-          <Combobox
-            value={field.value}
-            onChange={(v) => {
-              field.onChange(v);
-              setValue(`items.${index}.product_id`, "");
-              setValue(`items.${index}.product_group_operation_id`, "");
-              setValue(`items.${index}.operation_name`, "");
-            }}
-            options={orderOptions}
-            placeholder="Đơn hàng"
-            icon={ShoppingCart}
-          />
-        )}
-      />
-
-      {/* Mã hàng */}
-      <Controller
-        name={`items.${index}.product_id`}
-        control={control}
-        render={({ field }) => (
-          <Combobox
-            value={field.value}
-            onChange={(v) => {
-              field.onChange(v);
-              setValue(`items.${index}.product_group_operation_id`, "");
-              setValue(`items.${index}.operation_name`, "");
-            }}
-            options={productOptions}
-            placeholder={row.order_id ? "Mã hàng" : "Chọn đơn hàng trước"}
-            disabled={!row.order_id}
-            icon={Package}
-          />
-        )}
-      />
-
-      {/* Công đoạn */}
-      <Controller
-        name={`items.${index}.product_group_operation_id`}
-        control={control}
-        render={({ field }) => (
-          <Combobox
-            value={field.value || (isNoOperation ? "__no_operation__" : "")}
-            onChange={(v) => {
-              if (v === "__no_operation__") {
-                field.onChange("");
-                setValue(`items.${index}.operation_name`, "Không công đoạn");
-              } else {
+    <div className="flex flex-col gap-1.5 pb-3 border-b border-zinc-100 last:border-0">
+      <div className={MANUAL_GRID}>
+        <Controller
+          name={`items.${index}.order_id`}
+          control={control}
+          render={({ field }) => (
+            <Combobox
+              value={field.value}
+              onChange={(v) => {
                 field.onChange(v);
-                const found = operationOptions.find(
-                  (o) => String(o.id) === String(v),
-                );
-                if (found)
-                  setValue(`items.${index}.operation_name`, found.name);
+                setValue(`items.${index}.product_id`, "");
+                setValue(`items.${index}.product_group_operation_id`, "");
+                setValue(`items.${index}.operation_name`, "");
+              }}
+              options={orderOptions}
+              placeholder="Đơn hàng"
+              icon={ShoppingCart}
+            />
+          )}
+        />
+        <Controller
+          name={`items.${index}.product_id`}
+          control={control}
+          render={({ field }) => (
+            <Combobox
+              value={field.value}
+              onChange={(v) => {
+                field.onChange(v);
+                setValue(`items.${index}.product_group_operation_id`, "");
+                setValue(`items.${index}.operation_name`, "");
+              }}
+              options={productOptions}
+              placeholder={row.order_id ? "Mã hàng" : "Chọn đơn hàng trước"}
+              disabled={!row.order_id}
+              icon={Package}
+            />
+          )}
+        />
+        <Controller
+          name={`items.${index}.product_group_operation_id`}
+          control={control}
+          render={({ field }) => (
+            <Combobox
+              value={field.value || (isNoOperation ? "__no_operation__" : "")}
+              onChange={(v) => {
+                if (v === "__no_operation__") {
+                  field.onChange("");
+                  setValue(`items.${index}.operation_name`, "Không công đoạn");
+                } else {
+                  field.onChange(v);
+                  const found = operationOptions.find(
+                    (o) => String(o.id) === String(v),
+                  );
+                  if (found)
+                    setValue(`items.${index}.operation_name`, found.name);
+                }
+              }}
+              disabled={!row.product_id || isLoadingPgo}
+              options={operationOptions}
+              placeholder={
+                !row.product_id
+                  ? "Chọn mã hàng trước"
+                  : isLoadingPgo
+                    ? "Đang tải..."
+                    : "Công đoạn"
               }
-            }}
-            disabled={!row.product_id || isLoadingPgo}
-            options={operationOptions}
-            placeholder={
-              !row.product_id
-                ? "Chọn mã hàng trước"
-                : isLoadingPgo
-                  ? "Đang tải..."
-                  : "Công đoạn"
-            }
-            icon={Settings}
-          />
-        )}
-      />
-
-      {/* Còn thiếu */}
-      <div className="flex justify-center">
-        {remainingQuantity !== null ? (
-          <span
-            className={cn(
-              "text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm",
-              remainingQuantity > 0
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200",
-            )}
+              icon={Settings}
+            />
+          )}
+        />
+        <div className="flex justify-center">
+          {remainingQuantity !== null ? (
+            <span
+              className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded-full border shadow-sm",
+                remainingQuantity > 0
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : "bg-emerald-50 text-emerald-700 border-emerald-200",
+              )}
+            >
+              {remainingQuantity}
+            </span>
+          ) : (
+            <span className="text-zinc-300 font-bold text-xs">-</span>
+          )}
+        </div>
+        <Controller
+          name={`items.${index}.planned_quantity`}
+          control={control}
+          render={({ field }) => (
+            <Input
+              {...field}
+              type="number"
+              placeholder="SL KH"
+              className="h-9 text-sm text-right"
+              min={0}
+              step={0.01}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+              }}
+            />
+          )}
+        />
+        <Controller
+          name={`items.${index}.actual_quantity`}
+          control={control}
+          render={({ field }) => (
+            <Input
+              {...field}
+              type="number"
+              placeholder="SL TT"
+              className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500"
+              min={0}
+              step={0.01}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+              }}
+            />
+          )}
+        />
+        <Controller
+          name={`items.${index}.notes`}
+          control={control}
+          render={({ field }) => (
+            <Input
+              {...field}
+              placeholder="Ghi chú..."
+              className="h-9 text-xs border-zinc-300"
+            />
+          )}
+        />
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => remove(index)}
+            className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
           >
-            {remainingQuantity}
-          </span>
-        ) : (
-          <span className="text-zinc-300 font-bold text-xs">-</span>
-        )}
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* SL kế hoạch (tùy chọn) */}
-      <Controller
-        name={`items.${index}.planned_quantity`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            type="number"
-            placeholder="SL KH"
-            className="h-9 text-sm text-right"
-            min={0}
-
-            step={0.01}
-            onKeyDown={(e) => {
-              if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-            }}
+      {/* Hàng 2: thời gian, SNC, công TT — nằm dưới các cột SL KH → Xóa */}
+      <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-2 items-end">
+        <div className="space-y-0.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Bắt đầu</label>
+          <Controller
+            name={`items.${index}.start_time`}
+            control={control}
+            render={({ field }) => (
+              <TimePicker value={field.value} onChange={field.onChange} />
+            )}
           />
-        )}
-      />
-
-      {/* SL thực tế */}
-      <Controller
-        name={`items.${index}.actual_quantity`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            type="number"
-            placeholder="SL TT"
-            className="h-9 text-sm text-right font-bold text-blue-600 border-blue-200 focus-visible:ring-blue-500"
-            min={0}
-
-            step={0.01}
-            onKeyDown={(e) => {
-              if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-            }}
+        </div>
+        <div className="space-y-0.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Kết thúc</label>
+          <Controller
+            name={`items.${index}.end_time`}
+            control={control}
+            render={({ field }) => (
+              <TimePicker value={field.value} onChange={field.onChange} />
+            )}
           />
-        )}
-      />
-
-      {/* Ghi chú */}
-      <Controller
-        name={`items.${index}.notes`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            placeholder="Ghi chú..."
-            className="h-9 text-xs border-zinc-300"
+        </div>
+        <div className="space-y-0.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Số nhân công</label>
+          <Controller
+            name={`items.${index}.worker_count`}
+            control={control}
+            render={({ field }) => (
+              <Input
+                {...field}
+                type="number"
+                min="1"
+                step="1"
+                placeholder="SNC"
+                className="h-10 text-sm text-center border-zinc-300"
+              />
+            )}
           />
-        )}
-      />
-
-      {/* Bắt đầu */}
-      <Controller
-        name={`items.${index}.start_time`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            type="time"
-            className="h-9 text-xs border-zinc-300"
-          />
-        )}
-      />
-
-      {/* Kết thúc */}
-      <Controller
-        name={`items.${index}.end_time`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            type="time"
-            className="h-9 text-xs border-zinc-300"
-          />
-        )}
-      />
-
-      {/* Số nhân công */}
-      <Controller
-        name={`items.${index}.worker_count`}
-        control={control}
-        render={({ field }) => (
-          <Input
-            {...field}
-            type="number"
-            min="1"
-            step="1"
-            placeholder="SNC"
-            className="h-9 text-xs text-center border-zinc-300"
-          />
-        )}
-      />
-
-      {/* Công TT auto-computed */}
-      <div className="text-right text-xs tabular-nums font-medium text-blue-700">
-        {(() => {
-          const item = watchItems[index] || {};
-          const mins = calcValidWorkMinutesFE(item.start_time, item.end_time, null);
-          const labor = calcActualLaborFE(mins, parseInt(item.worker_count));
-          if (labor === null) return <span className="text-zinc-400">—</span>;
-          return labor.toFixed(3);
-        })()}
+        </div>
+        <div className="space-y-0.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Công TT</label>
+          <div className="text-right text-sm tabular-nums font-black px-3 h-10 rounded-md bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-end">
+            {laborValue === null ? (
+              <span className="text-zinc-400 font-medium">—</span>
+            ) : (
+              laborValue.toFixed(3)
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Xóa */}
-      <button
-        type="button"
-        onClick={() => remove(index)}
-        className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
     </div>
   );
 }
@@ -534,13 +537,14 @@ export default function ProductionOutputPage() {
   const { user } = useAuth();
 
   // Chế độ (nhập theo phiếu / nhập thủ công)
-  const [isManualMode, setIsManualMode] = useState(false);
+  const [isManualMode, setIsManualMode] = useUrlState("isManualMode", false);
 
   // ── Chế độ THEO PHIẾU ────────────────────────────────────────────────────
-  const [searchDate, setSearchDate] = useState(
+  const [searchDate, setSearchDate] = useUrlState(
+    "searchDate",
     DateTime.now().toFormat("yyyy-MM-dd"),
   );
-  const [searchTicketId, setSearchTicketId] = useState("");
+  const [searchTicketId, setSearchTicketId] = useUrlState("searchTicketId", "");
   const [activeTicketId, setActiveTicketId] = useState(null);
 
   const {
@@ -566,6 +570,7 @@ export default function ProductionOutputPage() {
     control: ticketControl,
     name: "items",
   });
+  const ticketWatchItems = useWatch({ control: ticketControl, name: "items" });
 
   React.useEffect(() => {
     if (ticket) {
@@ -588,6 +593,23 @@ export default function ProductionOutputPage() {
             actual_quantity: parseFloat(item.actual_quantity) || "",
             notes: item.notes || "",
             actual_notes: item.actual_notes || "",
+            start_time: item.start_time
+              ? DateTime.fromISO(item.start_time).toFormat("HH:mm")
+              : "",
+            end_time: item.end_time
+              ? DateTime.fromISO(item.end_time).toFormat("HH:mm")
+              : "",
+            worker_count: item.worker_count ? String(item.worker_count) : "",
+            // Giá trị công đã lưu trên server (nguồn của completion-report)
+            saved_labor:
+              item.actual_labor !== null && item.actual_labor !== undefined
+                ? parseFloat(item.actual_labor)
+                : null,
+            saved_key: [
+              item.start_time ? DateTime.fromISO(item.start_time).toFormat("HH:mm") : "",
+              item.end_time ? DateTime.fromISO(item.end_time).toFormat("HH:mm") : "",
+              item.worker_count ? String(item.worker_count) : "",
+            ].join("|"),
           })),
         );
       }
@@ -641,10 +663,16 @@ export default function ProductionOutputPage() {
   });
 
   const onTicketSubmit = (data) => {
+    const ticketDate = ticket?.ticket_date
+      ? DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd")
+      : null;
     const payload = data.items.map((item) => ({
       id: item.id,
       actual_quantity: parseFloat(item.actual_quantity) || 0,
       actual_notes: item.actual_notes || null,
+      start_time: item.start_time && ticketDate ? `${ticketDate}T${item.start_time}:00` : null,
+      end_time: item.end_time && ticketDate ? `${ticketDate}T${item.end_time}:00` : null,
+      worker_count: item.worker_count ? parseInt(item.worker_count) : null,
     }));
     updateMutation.mutate(payload);
   };
@@ -652,10 +680,11 @@ export default function ProductionOutputPage() {
   const isCompleted = ticket?.status === "COMPLETED";
 
   // ── Chế độ THỦ CÔNG ──────────────────────────────────────────────────────
-  const [manualDate, setManualDate] = useState(
+  const [manualDate, setManualDate] = useUrlState(
+    "manualDate",
     DateTime.now().toFormat("yyyy-MM-dd"),
   );
-  const [showAllManualTickets, setShowAllManualTickets] = useState(false);
+  const [showAllManualTickets, setShowAllManualTickets] = useUrlState("showAllManualTickets", false);
   const [editingManualTicket, setEditingManualTicket] = useState(null);
   const [manualSearchCode, setManualSearchCode] = useState("");
 
@@ -990,77 +1019,156 @@ export default function ProductionOutputPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-zinc-50 hover:bg-zinc-50">
-                      <TableHead className="w-[80px]">STT</TableHead>
+                      <TableHead className="w-[50px]">STT</TableHead>
                       <TableHead>Đơn hàng</TableHead>
                       <TableHead>Mã hàng</TableHead>
                       <TableHead>Công đoạn</TableHead>
-                      <TableHead className="text-right">SL Kế Hoạch</TableHead>
-                      <TableHead className="text-right w-[180px]">
-                        SL Thực Tế
-                      </TableHead>
-                      <TableHead className="w-[200px]">Ghi chú TT</TableHead>
+                      <TableHead className="text-right">SL KH</TableHead>
+                      <TableHead className="text-right w-[140px]">SL Thực Tế</TableHead>
+                      <TableHead className="w-[130px]">Bắt đầu</TableHead>
+                      <TableHead className="w-[130px]">Kết thúc</TableHead>
+                      <TableHead className="w-[70px] text-center">SNC</TableHead>
+                      <TableHead className="w-[100px] text-right">Công TT</TableHead>
+                      <TableHead className="w-[160px]">Ghi chú TT</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {ticketFields.map((field, index) => (
-                      <TableRow key={field.id} className="cursor-default">
-                        <TableCell className="font-medium text-zinc-500">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell>{field.order_code || "N/A"}</TableCell>
-                        <TableCell>{field.product_name || "N/A"}</TableCell>
-                        <TableCell className="font-semibold text-zinc-700">
-                          {field.operation_name}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-zinc-900">
-                          {field.planned_quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Controller
-                            name={`items.${index}.actual_quantity`}
-                            control={ticketControl}
-                            render={({ field: inputField }) => (
-                              <Input
-                                {...inputField}
-                                type="number"
-                                disabled={
-                                  (isCompleted && user?.role !== "ADMIN") ||
-                                  updateMutation.isPending
-                                }
-                                className={`text-right font-bold w-full ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
-                                min={0}
-
-                                step={0.01}
-                                onKeyDown={(e) => {
-                                  if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
-                                }}
+                    {(() => {
+                      const ticketDateStr = ticket?.ticket_date
+                        ? DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd")
+                        : null;
+                      return ticketFields.map((field, index) => {
+                        const item = ticketWatchItems?.[index] || {};
+                        const currentKey = [
+                          item.start_time || "",
+                          item.end_time || "",
+                          item.worker_count || "",
+                        ].join("|");
+                        // Chưa sửa gì so với server → hiển thị đúng giá trị đã lưu (khớp completion-report)
+                        // Đã sửa → tính lại theo công thức backend (calculateValidWorkMinutes / calculateActualLabor)
+                        const labor =
+                          currentKey === field.saved_key && field.saved_labor !== null
+                            ? field.saved_labor
+                            : calcActualLaborFE(
+                                calcValidWorkMinutesFE(item.start_time, item.end_time, ticketDateStr),
+                                parseInt(item.worker_count),
+                              );
+                        return (
+                          <TableRow key={field.id} className="cursor-default">
+                            <TableCell className="font-medium text-zinc-500">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell className="text-xs font-medium">{field.order_code || "N/A"}</TableCell>
+                            <TableCell className="text-xs font-medium">{field.product_name || "N/A"}</TableCell>
+                            <TableCell className="font-semibold text-zinc-700 text-xs">
+                              {field.operation_name}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-zinc-900 text-xs">
+                              {field.planned_quantity}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Controller
+                                name={`items.${index}.actual_quantity`}
+                                control={ticketControl}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    {...inputField}
+                                    type="number"
+                                    disabled={
+                                      (isCompleted && user?.role !== "ADMIN") ||
+                                      updateMutation.isPending
+                                    }
+                                    className={`text-right font-bold w-full text-xs ${!(isCompleted && user?.role !== "ADMIN") ? "text-blue-600 focus-visible:ring-blue-500 border-zinc-300" : ""}`}
+                                    min={0}
+                                    step={0.01}
+                                    onKeyDown={(e) => {
+                                      if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                                    }}
+                                  />
+                                )}
                               />
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Controller
-                            name={`items.${index}.actual_notes`}
-                            control={ticketControl}
-                            render={({ field: inputField }) => (
-                              <Input
-                                {...inputField}
-                                placeholder="Ghi chú TT..."
-                                disabled={
-                                  (isCompleted && user?.role !== "ADMIN") ||
-                                  updateMutation.isPending
-                                }
-                                className="text-xs h-9 border-zinc-300"
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                 name={`items.${index}.start_time`}
+                                control={ticketControl}
+                                render={({ field: inputField }) => (
+                                  <TimePicker
+                                    value={inputField.value}
+                                    onChange={inputField.onChange}
+                                    disabled={
+                                      (isCompleted && user?.role !== "ADMIN") ||
+                                      updateMutation.isPending
+                                    }
+                                  />
+                                )}
                               />
-                            )}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                 name={`items.${index}.end_time`}
+                                control={ticketControl}
+                                render={({ field: inputField }) => (
+                                  <TimePicker
+                                    value={inputField.value}
+                                    onChange={inputField.onChange}
+                                    disabled={
+                                      (isCompleted && user?.role !== "ADMIN") ||
+                                      updateMutation.isPending
+                                    }
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                name={`items.${index}.worker_count`}
+                                control={ticketControl}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    {...inputField}
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    disabled={
+                                      (isCompleted && user?.role !== "ADMIN") ||
+                                      updateMutation.isPending
+                                    }
+                                    className="h-9 text-xs text-center border-zinc-300"
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="text-xs tabular-nums font-black px-2 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
+                                {labor !== null ? labor.toFixed(3) : <span className="text-zinc-400 font-medium">—</span>}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Controller
+                                name={`items.${index}.actual_notes`}
+                                control={ticketControl}
+                                render={({ field: inputField }) => (
+                                  <Input
+                                    {...inputField}
+                                    placeholder="Ghi chú TT..."
+                                    disabled={
+                                      (isCompleted && user?.role !== "ADMIN") ||
+                                      updateMutation.isPending
+                                    }
+                                    className="text-xs h-9 border-zinc-300"
+                                  />
+                                )}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
                     {ticketFields.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={11}
                           className="h-24 text-center text-zinc-500 font-medium"
                         >
                           Không có sản phẩm nào
@@ -1198,41 +1306,15 @@ export default function ProductionOutputPage() {
           </div> */}
 
           <div className="p-6 space-y-3">
-            {/* Column headers */}
-            <div className="grid grid-cols-[1.5fr_1.5fr_1.2fr_100px_110px_110px_180px_90px_90px_60px_80px_36px] gap-2 px-0 mb-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Đơn hàng
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Mã hàng
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Công đoạn
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center font-black">
-                Còn thiếu
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">
-                SL Kế Hoạch
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">
-                SL Thực Tế
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Ghi chú
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Bắt đầu
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                Kết thúc
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-center">
-                SNC
-              </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">
-                Công TT
-              </p>
+            {/* Column headers — cùng lưới với ManualRow */}
+            <div className={cn(MANUAL_GRID, "mb-1")}>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Đơn hàng</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Mã hàng</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Công đoạn</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-red-500 text-center">Còn thiếu</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 text-right">SL KH</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-blue-500 text-right">SL TT</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Ghi chú</p>
               <div />
             </div>
 
@@ -1247,6 +1329,7 @@ export default function ProductionOutputPage() {
                   setValue={manualSetValue}
                   remove={manualRemove}
                   watchItems={manualWatchItems}
+                  manualDate={manualDate}
                   allOrders={allOrdersResp?.data}
                   allProducts={allProductsResp?.data}
                   allOperations={allOperationsResp?.data}

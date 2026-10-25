@@ -19,18 +19,19 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function ProductPage() {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [filterFactoryId, setFilterFactoryId] = useState("");
+  const [filterFactoryId, setFilterFactoryId] = useUrlState("filterFactoryId", "");
 
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const { control, handleSubmit: rhfHandleSubmit, reset, watch } = useForm({
     defaultValues: { name: "", product_group_id: "", is_active: true },
@@ -181,6 +182,7 @@ export default function ProductPage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>

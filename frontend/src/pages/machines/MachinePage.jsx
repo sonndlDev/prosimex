@@ -20,18 +20,19 @@ import { toast } from "sonner";
 import { useAuth } from "../../context/AuthContext";
 import DeleteImpactDialog from "../../components/DeleteImpactDialog";
 import { useDeleteWithImpact } from "../../hooks/useDeleteWithImpact";
+import { useUrlState } from "../../hooks/useUrlFilters";
 
 export default function MachinePage() {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const [openModal, setOpenModal] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState(null);
-  const [filterFactoryId, setFilterFactoryId] = useState("");
+  const [filterFactoryId, setFilterFactoryId] = useUrlState("filterFactoryId", "");
 
   // Pagination & Filter State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState("search", "");
 
   const initialForm = { code: "", name: "", factory_id: "", capacity_per_day: "", is_active: true, sort_order: 0, type: "", color: "#4f46e5" };
   const { control, handleSubmit: rhfHandleSubmit, reset, setValue, watch } = useForm({ defaultValues: initialForm });
@@ -192,6 +193,7 @@ export default function MachinePage() {
           pageSize={pageSize}
           onPageChange={setPage}
           onPageSizeChange={setPageSize}
+          initialSearch={search}
           onSearchChange={setSearch}
         />
       </div>
