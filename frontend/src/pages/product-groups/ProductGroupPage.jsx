@@ -318,7 +318,7 @@ export default function ProductGroupPage() {
 
       {/* Operations Routing Dialog */}
       <Dialog open={manageOpsModal} onOpenChange={(v) => { if (!v) setManageOpsModal(false); }}>
-        <DialogContent className="sm:max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden border-zinc-200">
+        <DialogContent className="h-[90vh] p-0 flex flex-col overflow-hidden border-zinc-200 w-[80vw]">
           <DialogHeader className="px-6 py-4 border-b border-zinc-100 bg-white shrink-0">
             <DialogTitle className="text-xl font-black tracking-tight">
               Quy trình sản xuất: <span className="text-indigo-600">{selectedGroup?.name}</span>
