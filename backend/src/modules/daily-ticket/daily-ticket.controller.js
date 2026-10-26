@@ -28,12 +28,13 @@ export const getTickets = async (req, res) => {
       ticket_code,
       operation_name,
       exclude_pending,
+      factory_id,
     } = req.query;
     const pageInt = parseInt(page);
     const limitInt = parseInt(limit);
 
     const { total, rows } = await dailyTicketService.getTickets(
-      { startDate, endDate, search, status, is_manual, created_by, ticket_code, operation_name, exclude_pending },
+      { startDate, endDate, search, status, is_manual, created_by, ticket_code, operation_name, exclude_pending, factory_id },
       { limit: limitInt, offset: (pageInt - 1) * limitInt }
     );
 

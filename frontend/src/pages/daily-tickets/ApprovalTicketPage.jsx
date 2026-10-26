@@ -24,6 +24,8 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, formatDateRange, useFilterDraft } from "@/utils/filterChips";
 import {
   Select,
   SelectContent,
@@ -61,6 +63,16 @@ export default function ApprovalTicketPage() {
     setPage(1);
     setAppliedFilters(initialFilters);
   }, [initialFilters, setAppliedFilters]);
+
+  const approvalFilterChips = buildFilterChips(
+    appliedFilters,
+    initialFilters,
+    [
+      { keys: ["search"], label: "Tìm", format: (v) => v },
+      { keys: ["startDate", "endDate"], label: "Ngày", format: (s, e) => formatDateRange(s, e) },
+    ],
+    handleSearch,
+  );
 
   const { data: ticketData, isLoading, isFetching, error } = useQuery({
     queryKey: ["daily-tickets", page, pageSize, appliedFilters],
@@ -303,6 +315,9 @@ export default function ApprovalTicketPage() {
           initialFilters={initialFilters}
           appliedFilters={appliedFilters}
         />
+        <div className="mt-3">
+          <ActiveFilterChips chips={approvalFilterChips} onClearAll={handleReset} />
+        </div>
       </div>
 
       {/* Table with GenericTable */}
@@ -414,7 +429,7 @@ export default function ApprovalTicketPage() {
 }
 
 const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedFilters }) => {
-  const [tempFilters, setTempFilters] = useState(appliedFilters);
+  const [tempFilters, setTempFilters] = useFilterDraft(appliedFilters);
 
   const handleSubmit = (e) => {
     e.preventDefault();

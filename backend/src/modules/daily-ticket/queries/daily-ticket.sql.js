@@ -44,6 +44,7 @@ export const SQL_TICKETS_LIST = `
     dt.created_by,
     dt.created_at,
     m.name as machine_name,
+    f.name as factory_name,
     STRING_AGG(DISTINCT o.name, ', ') as order_name,
     STRING_AGG(DISTINCT o.po_customer, ', ') as po_customer,
     STRING_AGG(DISTINCT p.name, ', ') as product_name,
@@ -66,6 +67,7 @@ export const SQL_TICKETS_LIST = `
   LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
   LEFT JOIN operations op ON pgo.operation_id = op.id
   LEFT JOIN machines m ON dt.machine_id = m.id
+  LEFT JOIN factories f ON m.factory_id = f.id
   LEFT JOIN production_plans pp ON pp.id = COALESCE(
     dti.production_plan_id,
     (SELECT id FROM production_plans
@@ -82,7 +84,7 @@ export const SQL_TICKETS_LIST = `
 /** GROUP BY + ORDER BY clause appended after the WHERE clause in the list query. */
 export const SQL_TICKETS_LIST_GROUP_ORDER = `
   GROUP BY
-    dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_by, dt.created_at, m.name,
+    dt.id, dt.status, dt.ticket_date, dt.is_manual, dt.created_by, dt.created_at, m.name, f.name,
     cu.full_name, cu.username, mu.full_name, mu.username
   ORDER BY dt.ticket_date DESC, dt.id DESC
 `;

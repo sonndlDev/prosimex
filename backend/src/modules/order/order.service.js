@@ -59,7 +59,7 @@ function buildOrdersWhereClause(filters) {
   let whereClause = 'WHERE o.deleted_at IS NULL';
   const params = [];
 
-  if (factory_id) {
+  if (factory_id && factory_id !== 'ALL') {
     params.push(factory_id);
     whereClause += ` AND o.factory_id = $${params.length}`;
   }

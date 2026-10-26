@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
 import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit, ChevronDown, ChevronUp, LayoutGrid, ClipboardPaste, Table as TableIcon, Truck, PackageCheck, ListChecks, History as HistoryIcon, Scale, RotateCcw, Filter } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -2497,6 +2498,26 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   }
 
   const activeFilterCount = [filterDate, filterOrderId, filterProductId].filter(Boolean).length;
+  const outsourcingFilterChips = [
+    filterDate && {
+      key: "date",
+      label: "Ngày",
+      value: DateTime.fromISO(filterDate).toFormat("dd/MM/yyyy"),
+      onRemove: () => setFilterDate(""),
+    },
+    filterOrderId && {
+      key: "order",
+      label: "Đơn hàng",
+      value: orders.find((o) => String(o.id) === String(filterOrderId))?.name || filterOrderId,
+      onRemove: () => setFilterOrderId(""),
+    },
+    filterProductId && {
+      key: "product",
+      label: "Mã hàng",
+      value: products.find((p) => String(p.id) === String(filterProductId))?.name || filterProductId,
+      onRemove: () => setFilterProductId(""),
+    },
+  ].filter(Boolean);
   const clearFilters = () => {
     setFilterDate("");
     setFilterOrderId("");
@@ -2544,6 +2565,12 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
           >
             <Download className="h-4 w-4" /> Xuất Excel
           </Button>
+        </div>
+        <div className="mt-3">
+          <ActiveFilterChips
+            chips={outsourcingFilterChips}
+            onClearAll={clearFilters}
+          />
         </div>
       </div>
 

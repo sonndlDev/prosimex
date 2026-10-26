@@ -11,6 +11,7 @@ import { getAuditColumn } from "../../utils/audit";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
 import { useUrlState } from "../../hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
 
 
 export default function WarehousePage() {
@@ -74,12 +75,16 @@ export default function WarehousePage() {
         </div>
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 space-y-3">
         <WarehouseFilterBar
           value={tempSearch}
           onChange={setTempSearch}
           onSearch={() => handleSearch(tempSearch)}
           onReset={handleReset}
+        />
+        <ActiveFilterChips
+          chips={appliedSearch ? [{ key: "search", label: "Tìm", value: appliedSearch, onRemove: handleReset }] : []}
+          onClearAll={handleReset}
         />
       </div>
 

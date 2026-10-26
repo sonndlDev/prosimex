@@ -931,7 +931,7 @@ export const manualOutputEntry = async (req, res) => {
 // GET /api/daily-tickets/export/detailed
 export const exportDetailedTickets = async (req, res) => {
   try {
-    const { startDate, endDate, search, ticket_status, ids, created_by } = req.query;
+    const { startDate, endDate, search, ticket_status, ids, created_by, factory_id } = req.query;
 
     let whereClause = "WHERE dt.deleted_at IS NULL AND (o.id IS NULL OR o.deleted_at IS NULL) AND (p.id IS NULL OR p.deleted_at IS NULL)";
     const queryParams = [];
@@ -960,6 +960,10 @@ export const exportDetailedTickets = async (req, res) => {
       if (created_by) {
         queryParams.push(parseInt(created_by, 10));
         whereClause += ` AND dt.created_by = $${queryParams.length}`;
+      }
+      if (factory_id) {
+        queryParams.push(parseInt(factory_id, 10));
+        whereClause += ` AND dt.machine_id IN (SELECT id FROM machines WHERE factory_id = $${queryParams.length})`;
       }
     }
 

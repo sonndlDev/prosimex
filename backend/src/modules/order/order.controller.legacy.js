@@ -33,7 +33,8 @@ export const updateOrder = async (req, res) => {
       accessory_status,
       expected_material_date,
       actual_material_date,
-      customer_id
+      customer_id,
+      factory_id
     } = req.body;
 
     // Get Before Data for Audit Log
@@ -127,7 +128,8 @@ export const updateOrder = async (req, res) => {
                  updated_at = CURRENT_TIMESTAMP,
                  modified_by = $12,
                  modified_time = CURRENT_TIMESTAMP,
-                 customer_id = COALESCE($13, customer_id)
+                 customer_id = COALESCE($13, customer_id),
+                 factory_id = CASE WHEN $14::boolean THEN $15::int ELSE factory_id END
              WHERE id = $11 AND deleted_at IS NULL RETURNING *`,
       [
         name,
@@ -142,7 +144,9 @@ export const updateOrder = async (req, res) => {
         status,
         id,
         req.user.id,
-        customer_id
+        customer_id,
+        'factory_id' in req.body,
+        factory_id || null
       ],
     );
 

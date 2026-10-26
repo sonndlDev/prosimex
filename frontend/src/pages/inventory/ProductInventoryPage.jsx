@@ -59,6 +59,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, useFilterDraft } from "@/utils/filterChips";
 
 export default function ProductInventoryPage() {
     const queryClient = useQueryClient();
@@ -85,6 +87,25 @@ export default function ProductInventoryPage() {
         setAppliedFilters(initialFilters);
     }, [initialFilters, setAppliedFilters]);
 
+
+    const inventoryFilterChips = buildFilterChips(
+        appliedFilters,
+        initialFilters,
+        [
+            { keys: ["search"], label: "Tìm", format: (v) => v },
+            {
+                keys: ["inventory_type"],
+                label: "Loại",
+                format: (v) => ({ BTP: "Bán thành phẩm (BTP)", TP: "Thành phẩm (TP)" })[v] || v,
+            },
+            {
+                keys: ["completed"],
+                label: "Hoàn thành",
+                format: (v) => ({ true: "Đã hoàn thành", false: "Chưa hoàn thành", ALL: "Tất cả" })[v] || v,
+            },
+        ],
+        handleSearch,
+    );
 
     // Form states
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -472,6 +493,9 @@ export default function ProductInventoryPage() {
                             onSearch={handleSearch}
                             onReset={handleReset}
                         />
+                        <div className="px-4 pb-3">
+                            <ActiveFilterChips chips={inventoryFilterChips} onClearAll={handleReset} />
+                        </div>
 
                         <CardContent className="p-0 flex-1 flex flex-col">
                             <GenericTable
@@ -999,7 +1023,7 @@ export default function ProductInventoryPage() {
 }
 
 const InventoryFilterBar = memo(({ initialFilters, appliedFilters, onSearch, onReset }) => {
-    const [tempFilters, setTempFilters] = useState(appliedFilters);
+    const [tempFilters, setTempFilters] = useFilterDraft(appliedFilters);
 
     const handleSubmit = (e) => {
         e.preventDefault();

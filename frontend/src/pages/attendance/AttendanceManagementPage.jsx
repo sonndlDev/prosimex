@@ -48,17 +48,20 @@ import GenericTable from '@/components/GenericTable';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from "../../context/AuthContext";
 import { useUrlFilters } from "../../hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, formatDateRange } from "@/utils/filterChips";
 
 export default function AttendanceManagementPage() {
   // Pagination State
   const [page, setPage] = useState(1);
   const { hasPermission } = useAuth();
   const [pageSize, setPageSize] = useState(10);
-  const [filters, setFilters] = useUrlFilters({
+  const attendanceDefaults = {
     targetUserId: '',
     startDate: DateTime.now().startOf('month').toISODate(),
     endDate: DateTime.now().toISODate()
-  });
+  };
+  const [filters, setFilters] = useUrlFilters(attendanceDefaults);
 
   const { data: usersData } = useQuery({
     queryKey: ['users'],
@@ -78,6 +81,20 @@ export default function AttendanceManagementPage() {
     setFilters(prev => ({ ...prev, [field]: value }));
     setPage(1); // Reset to first page on filter change
   };
+
+  const attendanceFilterChips = buildFilterChips(
+    filters,
+    attendanceDefaults,
+    [
+      {
+        keys: ['targetUserId'],
+        label: 'Nhân viên',
+        format: (v) => (v === 'ALL_USERS' ? '' : users.find(u => String(u.id) === String(v))?.username || v),
+      },
+      { keys: ['startDate', 'endDate'], label: 'Ngày', format: (s, e) => formatDateRange(s, e) },
+    ],
+    (next) => { setFilters(next); setPage(1); },
+  );
 
   const resetFilters = () => {
     setFilters({
@@ -229,6 +246,9 @@ export default function AttendanceManagementPage() {
               Lọc kết quả
             </Button>
           </div>
+        </div>
+        <div className="mt-3">
+          <ActiveFilterChips chips={attendanceFilterChips} onClearAll={resetFilters} />
         </div>
       </div>
 

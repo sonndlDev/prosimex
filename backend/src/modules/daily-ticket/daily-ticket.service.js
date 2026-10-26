@@ -48,6 +48,7 @@ function buildWhereClause(filters) {
     operation_name,
     search,
     exclude_pending,
+    factory_id,
   } = filters;
 
   let clause =
@@ -61,6 +62,11 @@ function buildWhereClause(filters) {
   if (endDate) {
     params.push(endDate);
     clause += ` AND dt.ticket_date <= $${params.length}`;
+  }
+  if (factory_id) {
+    // Phiếu thuộc nhà máy nếu máy của phiếu thuộc nhà máy đó (subquery, không cần JOIN thêm vào COUNT)
+    params.push(parseInt(factory_id, 10));
+    clause += ` AND dt.machine_id IN (SELECT id FROM machines WHERE factory_id = $${params.length})`;
   }
   if (status && status !== 'ALL') {
     params.push(status);

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback, memo, startTransition } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DateTime } from "luxon";
+import { toast } from "sonner";
+import ExcelJS from "exceljs";
 import { dailyTicketService } from "../../services/daily-ticket.service";
 import { orderService } from "../../services/order.service";
 import { productService } from "../../services/product.service";
@@ -25,6 +27,8 @@ import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, formatDateRange } from "@/utils/filterChips";
 import { Skeleton } from "@/components/ui/skeleton";
 import AppPagination from "@/components/AppPagination";
 import {
@@ -50,6 +54,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   FileSpreadsheet,
+  Download,
   Search,
   X,
   ChevronLeft,
@@ -596,6 +601,63 @@ function Pagination({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+// Tính các số liệu hiển thị cho từng kế hoạch (dùng chung cho bảng và Xuất Excel)
+function buildReportRows(reportData) {
+  return (reportData || []).map((row) => {
+    let totalActual = 0;
+    const actualByDate = {};
+    (row.actual_tickets || []).forEach((t) => {
+      if (t && t.ticket_date) {
+        const dateStr = DateTime.fromISO(t.ticket_date).toFormat("yyyy-MM-dd");
+        const qty = parseFloat(t.actual_quantity) || 0;
+        actualByDate[dateStr] = (actualByDate[dateStr] || 0) + qty;
+        totalActual += qty;
+      }
+    });
+
+    const planByDate = {};
+    (row.plan_days || []).forEach((d) => {
+      if (d && d.working_date) {
+        const dateStr = DateTime.fromISO(d.working_date).toFormat("yyyy-MM-dd");
+        const hours = parseFloat(d.planned_quantity) / 8 || 0;
+        const dm = parseFloat(d.dinh_muc) ?? parseFloat(row.dinh_muc) ?? 0;
+        planByDate[dateStr] = (planByDate[dateStr] || 0) + hours * dm;
+      }
+    });
+
+    const planQty = parseFloat(row.plan_quantity) || 0;
+    const inventory = parseFloat(row.inventory_input) || 0;
+    const qtyToProduce = Math.max(0, planQty - inventory);
+    const remaining = Math.max(0, qtyToProduce - totalActual);
+    const percentage =
+      planQty > 0 ? ((inventory + totalActual) / planQty) * 100 : 0;
+
+    return {
+      ...row,
+      planQty,
+      inventory,
+      qtyToProduce,
+      totalActual,
+      remaining,
+      percentage,
+      planByDate,
+      actualByDate,
+    };
+  });
+}
+
+// Danh sách các ngày xuất hiện trong kế hoạch/thực tế, sắp xếp tăng dần
+function buildDateColumns(rows) {
+  const datesSet = new Set();
+  rows.forEach((r) => {
+    Object.keys(r.planByDate).forEach((d) => datesSet.add(d));
+    Object.keys(r.actualByDate).forEach((d) => datesSet.add(d));
+  });
+  return Array.from(datesSet)
+    .sort()
+    .map((d) => ({ key: d, label: DateTime.fromISO(d).toFormat("dd-MM") }));
+}
+
 export default function PlanVsActualPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -744,68 +806,206 @@ export default function PlanVsActualPage() {
     queryFn: () => productService.getAll({ limit: 1000 }),
   });
 
+  const planVsActualOrders = ordersResp?.data || ordersResp || [];
+  const planVsActualProducts = productsResp?.data || productsResp || [];
+  const planVsActualFilterChips = buildFilterChips(
+    filters,
+    { search: "", order_id: "", product_id: "", startDate: "", endDate: "" },
+    [
+      { keys: ["search"], label: "Tìm", format: (v) => v },
+      {
+        keys: ["order_id"],
+        label: "Đơn hàng",
+        format: (v) =>
+          splitIds(v)
+            .map((id) => planVsActualOrders.find((o) => String(o.id) === id)?.name || id)
+            .join(", "),
+      },
+      {
+        keys: ["product_id"],
+        label: "Mã hàng",
+        format: (v) =>
+          splitIds(v)
+            .map((id) => planVsActualProducts.find((p) => String(p.id) === id)?.name || id)
+            .join(", "),
+      },
+      { keys: ["startDate", "endDate"], label: "Ngày", format: (s, e) => formatDateRange(s, e) },
+    ],
+    handleSearch,
+  );
+
   const reportData = response?.data || [];
   const total = response?.total || 0;
   const totalPages = response?.totalPages || 1;
 
-  const rows = useMemo(() => {
-    return reportData.map((row) => {
-      let totalActual = 0;
-      const actualByDate = {};
-      (row.actual_tickets || []).forEach((t) => {
-        if (t && t.ticket_date) {
-          const dateStr = DateTime.fromISO(t.ticket_date).toFormat(
-            "yyyy-MM-dd",
-          );
-          const qty = parseFloat(t.actual_quantity) || 0;
-          actualByDate[dateStr] = (actualByDate[dateStr] || 0) + qty;
-          totalActual += qty;
-        }
+  const rows = useMemo(() => buildReportRows(reportData), [reportData]);
+
+  const dateColumns = useMemo(() => buildDateColumns(rows), [rows]);
+
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (total === 0) {
+      toast.info("Không có dữ liệu để xuất");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      // Lấy toàn bộ kế hoạch khớp bộ lọc (không chỉ trang hiện tại), cùng thứ tự sắp xếp với bảng
+      const allResp = await dailyTicketService.getPlanVsActualReport({
+        page: 1,
+        limit: total,
+        ...activeFilters,
+        sortBy: sort.sortBy,
+        sortDirection: sort.direction,
+      });
+      const allRows = buildReportRows(allResp?.data || []);
+      if (allRows.length === 0) {
+        toast.info("Không có dữ liệu để xuất");
+        return;
+      }
+      // Sheet 1: Tổng hợp - mỗi kế hoạch một dòng, không có cột theo ngày (gọn, dễ lọc)
+      const summaryRecords = allRows.map((row, idx) => {
+        const dinhMuc = parseFloat(row.dinh_muc) || 0;
+        return {
+          "STT": idx + 1,
+          "TT": row.sequence_order || "",
+          "Mã hàng": row.product_name || "",
+          "Đơn hàng": row.order_code || row.order_name || "",
+          "PO": row.po_customer || "",
+          "Công đoạn": row.operation_name || "",
+          "Máy": row.machine_name || "",
+          "SL Đơn": row.planQty,
+          "Tồn kho": row.inventory,
+          "Cần SX": row.qtyToProduce,
+          "Định mức": dinhMuc ? Math.round(dinhMuc) : "",
+          "Thực tế": row.totalActual,
+          "Còn lại": row.remaining,
+          "Tỉ lệ (%)": Math.round(row.percentage * 10) / 10,
+        };
       });
 
-      const planByDate = {};
-      (row.plan_days || []).forEach((d) => {
-        if (d && d.working_date) {
-          const dateStr = DateTime.fromISO(d.working_date).toFormat(
-            "yyyy-MM-dd",
-          );
-          const hours = parseFloat(d.planned_quantity) / 8 || 0;
-          const dm = parseFloat(d.dinh_muc) ?? parseFloat(row.dinh_muc) ?? 0;
-          planByDate[dateStr] = (planByDate[dateStr] || 0) + hours * dm;
-        }
+      // Sheet 2: Theo ngày - gom các dòng cùng ngày, ô Ngày được merge theo nhóm
+      const pairs = [];
+      allRows.forEach((row, idx) => {
+        const dateKeys = Array.from(
+          new Set([...Object.keys(row.planByDate), ...Object.keys(row.actualByDate)]),
+        );
+        dateKeys.forEach((key) => pairs.push({ key, row, idx }));
       });
+      pairs.sort((a, b) => a.key.localeCompare(b.key) || a.idx - b.idx);
 
-      const planQty = parseFloat(row.plan_quantity) || 0;
-      const inventory = parseFloat(row.inventory_input) || 0;
-      const qtyToProduce = Math.max(0, planQty - inventory);
-      const remaining = Math.max(0, qtyToProduce - totalActual);
-      const percentage =
-        planQty > 0 ? ((inventory + totalActual) / planQty) * 100 : 0;
+      const dailyRecords = pairs.map(({ key, row, idx }, i) => ({
+        "Ngày": i === 0 || pairs[i - 1].key !== key
+          ? DateTime.fromISO(key).toFormat("dd/MM/yyyy")
+          : "",
+        "STT": idx + 1,
+        "Mã hàng": row.product_name || "",
+        "Đơn hàng": row.order_code || row.order_name || "",
+        "Công đoạn": row.operation_name || "",
+        "KH (ngày)": row.planByDate[key] ? Math.round(row.planByDate[key] * 100) / 100 : 0,
+        "TT (ngày)": row.actualByDate[key] || 0,
+      }));
 
-      return {
-        ...row,
-        planQty,
-        inventory,
-        qtyToProduce,
-        totalActual,
-        remaining,
-        percentage,
-        planByDate,
-        actualByDate,
+      // Tính vùng merge cho cột Ngày (cột 0): mỗi nhóm cùng ngày là một ô gộp dọc
+      const dailyMerges = [];
+      let groupStart = 0;
+      for (let i = 1; i <= pairs.length; i++) {
+        if (i === pairs.length || pairs[i].key !== pairs[groupStart].key) {
+          if (i - 1 > groupStart) {
+            dailyMerges.push({
+              s: { r: groupStart + 1, c: 0 }, // +1 vì dòng 0 là tiêu đề
+              e: { r: i, c: 0 },
+            });
+          }
+          groupStart = i;
+        }
+      }
+
+      // Màu nền theo ý nghĩa cột: đỏ = cần làm / còn lại, xanh lá = thực tế, cam = kế hoạch ngày
+      const FILL = {
+        red: "FFFFC7CE",
+        green: "FFC6EFCE",
+        orange: "FFFFD8A8",
+        header: "FFE4E4E7",
       };
-    });
-  }, [reportData]);
 
-  const dateColumns = useMemo(() => {
-    const datesSet = new Set();
-    rows.forEach((r) => {
-      Object.keys(r.planByDate).forEach((d) => datesSet.add(d));
-      Object.keys(r.actualByDate).forEach((d) => datesSet.add(d));
-    });
-    return Array.from(datesSet)
-      .sort()
-      .map((d) => ({ key: d, label: DateTime.fromISO(d).toFormat("dd-MM") }));
-  }, [rows]);
+      const writeStyledSheet = (ws, headers, records, widths, fillByHeader, merges = []) => {
+        ws.columns = headers.map((h, i) => ({ header: h, key: h, width: widths[i] }));
+        records.forEach((rec) => ws.addRow(rec));
+
+        const header = ws.getRow(1);
+        header.font = { bold: true };
+        header.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+        header.eachCell((cell) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: FILL.header } };
+        });
+
+        const lastRow = records.length + 1;
+        headers.forEach((h, i) => {
+          const color = fillByHeader[h];
+          if (!color) return;
+          for (let r = 2; r <= lastRow; r++) {
+            ws.getCell(r, i + 1).fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: color },
+            };
+          }
+        });
+
+        merges.forEach((m) => {
+          ws.mergeCells(m.s.r + 1, m.s.c + 1, m.e.r + 1, m.e.c + 1);
+          ws.getCell(m.s.r + 1, m.s.c + 1).alignment = { vertical: "middle", horizontal: "center" };
+        });
+
+        ws.autoFilter = {
+          from: { row: 1, column: 1 },
+          to: { row: 1, column: headers.length },
+        };
+        ws.views = [{ state: "frozen", ySplit: 1 }];
+      };
+
+      const summaryHeaders = [
+        "STT", "TT", "Mã hàng", "Đơn hàng", "PO", "Công đoạn", "Máy",
+        "SL Đơn", "Tồn kho", "Cần SX", "Định mức", "Thực tế", "Còn lại", "Tỉ lệ (%)",
+      ];
+      const summaryWidths = [6, 6, 22, 18, 16, 18, 16, 10, 10, 10, 10, 10, 10, 10];
+      const dailyHeaders = ["Ngày", "STT", "Mã hàng", "Đơn hàng", "Công đoạn", "KH (ngày)", "TT (ngày)"];
+      const dailyWidths = [12, 6, 22, 18, 18, 12, 12];
+
+      const workbook = new ExcelJS.Workbook();
+      const summaryWs = workbook.addWorksheet("Tổng hợp");
+      writeStyledSheet(summaryWs, summaryHeaders, summaryRecords, summaryWidths, {
+        "Cần SX": FILL.red,
+        "Còn lại": FILL.red,
+        "Thực tế": FILL.green,
+      });
+
+      const dailyWs = workbook.addWorksheet("Theo ngày");
+      writeStyledSheet(dailyWs, dailyHeaders, dailyRecords, dailyWidths, {
+        "KH (ngày)": FILL.orange,
+        "TT (ngày)": FILL.green,
+      }, dailyMerges);
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `BaoCao_KeHoach_ThucTe_${DateTime.now().toFormat("yyyyMMdd_HHmm")}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Đã xuất file Excel!");
+    } catch (error) {
+      console.error("Export plan vs actual error:", error);
+      toast.error("Lỗi khi xuất file Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const stats = useMemo(() => {
     if (rows.length === 0) return null;
@@ -844,7 +1044,9 @@ export default function PlanVsActualPage() {
       </div>
 
       {/* Filter bar */}
+      {/* key remounts the draft form whenever applied filters change (e.g. chip removal) */}
       <FilterBar
+        key={JSON.stringify(filters)}
         onSearch={handleSearch}
         onReset={handleReset}
         appliedFilters={filters}
@@ -852,6 +1054,7 @@ export default function PlanVsActualPage() {
         operations={operationsResp?.data || operationsResp}
         products={productsResp?.data || productsResp}
       />
+      <ActiveFilterChips chips={planVsActualFilterChips} onClearAll={handleReset} />
 
       {/* Stats */}
       {!isLoading && stats && (
@@ -912,11 +1115,26 @@ export default function PlanVsActualPage() {
               </Badge>
             )}
           </div>
-          {Object.keys(activeFilters).length > 0 && (
-            <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px] h-5 px-2 gap-1">
-              <Filter className="w-2.5 h-2.5" /> Đang lọc
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            {Object.keys(activeFilters).length > 0 && (
+              <Badge className="bg-amber-50 text-amber-700 border border-amber-200 font-bold text-[10px] h-5 px-2 gap-1">
+                <Filter className="w-2.5 h-2.5" /> Đang lọc
+              </Badge>
+            )}
+            <Button
+              onClick={handleExportExcel}
+              disabled={isExporting || total === 0}
+              variant="outline"
+              className="h-9 px-4 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold gap-2"
+            >
+              {isExporting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Xuất Excel
+            </Button>
+          </div>
         </div>
 
         {isLoading && (

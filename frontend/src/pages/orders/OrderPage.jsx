@@ -6,6 +6,7 @@ import { orderService } from "../../services/order.service";
 import { customerService } from "../../services/customer.service";
 import { productService } from "../../services/product.service";
 import { productGroupService } from "../../services/product-group.service";
+import { factoryService } from "../../services/factory.service";
 import GenericTable from "../../components/GenericTable";
 import { toast } from "sonner";
 import CompletionReportDialog from "./components/CompletionReportDialog";
@@ -88,6 +89,8 @@ import {
 import { DateTime } from "luxon";
 import { DateRangeFilter } from "@/components/DateRangeFilter";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, formatDateRange, useFilterDraft } from "@/utils/filterChips";
 import { PremiumDatePicker } from "../../components/PremiumDatePicker";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as XLSX from "xlsx";
@@ -123,6 +126,7 @@ function OrderPageCore({
     status: "INCOMPLETE",
     customer_id: "ALL",
     product_id: "ALL",
+    factory_id: "ALL",
     person_in_charge: "",
     location: "",
     search: "",
@@ -210,6 +214,12 @@ function OrderPageCore({
   });
   const productGroups = productGroupsData?.data || [];
 
+  const { data: factoriesData } = useQuery({
+    queryKey: ["factories", "order-filter"],
+    queryFn: () => factoryService.getAll({ limit: 1000 }),
+  });
+  const factories = factoriesData?.data || [];
+
   const {
     data: ordersData,
     isLoading,
@@ -217,7 +227,15 @@ function OrderPageCore({
     error,
   } = useQuery({
     queryKey: ["orders", page, pageSize, appliedFilters],
-    queryFn: () => orderService.getAll({ page, limit: pageSize, ...appliedFilters }),
+    queryFn: () => {
+      const { factory_id, ...rest } = appliedFilters;
+      return orderService.getAll({
+        page,
+        limit: pageSize,
+        ...rest,
+        ...(factory_id && factory_id !== "ALL" ? { factory_id } : {}),
+      });
+    },
     placeholderData: keepPreviousData,
   });
 
@@ -655,6 +673,8 @@ function OrderPageCore({
       delete payload.product_items;
     }
 
+    payload.factory_id = data.factory_id ? data.factory_id : null;
+
     if (activeOrder) updateMutation.mutate({ id: activeOrder.id, payload });
     else createMutation.mutate(payload);
   };
@@ -904,6 +924,34 @@ function OrderPageCore({
     }
   };
 
+  const orderFilterChips = buildFilterChips(
+    appliedFilters,
+    initialFilters,
+    [
+      { keys: ["search"], label: "Tìm", format: (v) => v },
+      {
+        keys: ["customer_id"],
+        label: "Khách",
+        format: (v) => customers.find((c) => String(c.id) === String(v))?.name || v,
+      },
+      {
+        keys: ["factory_id"],
+        label: "Nhà máy",
+        format: (v) => factories.find((f) => String(f.id) === String(v))?.name || v,
+      },
+      {
+        keys: ["product_id"],
+        label: "Mã hàng",
+        format: (v) => products.find((p) => String(p.id) === String(v))?.name || v,
+      },
+      { keys: ["status"], label: "Trạng thái", format: (v) => ORDER_STATUS_LABELS[v] || v },
+      { keys: ["person_in_charge"], label: "Phụ trách", format: (v) => v },
+      { keys: ["location"], label: "Địa điểm", format: (v) => v },
+      { keys: ["startDate", "endDate"], label: "Ngày nhận", format: (s, e) => formatDateRange(s, e) },
+    ],
+    handleSearch,
+  );
+
   const pageContent = !isEmbed ? (
     <div className="h-[calc(100vh-140px)] flex flex-col overflow-hidden gap-4">
       <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex-shrink-0">
@@ -941,11 +989,15 @@ function OrderPageCore({
         <OrderFilterBar
           customers={customers}
           products={products}
+          factories={factories}
           onSearch={handleSearch}
           onReset={handleReset}
           initialFilters={initialFilters}
           appliedFilters={appliedFilters}
         />
+        <div className="mt-3">
+          <ActiveFilterChips chips={orderFilterChips} onClearAll={handleReset} />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
@@ -1196,6 +1248,33 @@ function OrderPageCore({
                                 placeholder="Ghi chú địa điểm"
                               />
                             </div>
+                          )}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold">Nhà máy / Xưởng</Label>
+                        <Controller
+                          name="factory_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select
+                              value={field.value ? String(field.value) : "__none__"}
+                              onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                            >
+                              <SelectTrigger className="bg-white border-zinc-200 h-10 font-bold rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                                <span className={cn("truncate", !field.value && "text-zinc-400 font-medium")}>
+                                  {field.value
+                                    ? factories.find((f) => String(f.id) === String(field.value))?.name || "Chọn nhà máy"
+                                    : "Chọn nhà máy"}
+                                </span>
+                              </SelectTrigger>
+                              <SelectContent className="border-indigo-50 shadow-2xl rounded-xl p-1 bg-white/95 backdrop-blur-sm z-[200]">
+                                <SelectItem value="__none__" className="text-zinc-400 italic">Chưa gán nhà máy</SelectItem>
+                                {factories.map((f) => (
+                                  <SelectItem key={f.id} value={String(f.id)}>{f.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
                         />
                       </div>
@@ -1834,8 +1913,18 @@ export default function OrderPage() {
   return <OrderPageCore mode="page" />;
 }
 
-const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFilters, appliedFilters }) => {
-  const [tempFilters, setTempFilters] = useState(appliedFilters);
+const ORDER_STATUS_LABELS = {
+  ALL: "Tất cả",
+  INCOMPLETE: "Chưa hoàn thành",
+  NOT_STARTED: "Chưa sản xuất",
+  IN_PROGRESS: "Đang sản xuất",
+  DONE: "Hoàn thành",
+  PARTIAL_SHIPPED: "Đã xuất 1 phần",
+  WAITING_CONTAINER: "Chờ xuất cont",
+};
+
+const OrderFilterBar = memo(({ customers, products, factories = [], onSearch, onReset, initialFilters, appliedFilters }) => {
+  const [tempFilters, setTempFilters] = useFilterDraft(appliedFilters);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1867,7 +1956,58 @@ const OrderFilterBar = memo(({ customers, products, onSearch, onReset, initialFi
         </div>
 
         {/* Filters Row - Sử dụng flex-1 để co giãn tự nhiên */}
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-3">
+          {/* Factory / Workshop */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Nhà máy:</span>
+                  <span className="truncate text-[11px]">
+                    {tempFilters.factory_id === 'ALL' || !tempFilters.factory_id
+                      ? "Tất cả"
+                      : factories.find(f => String(f.id) === String(tempFilters.factory_id))?.name}
+                  </span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm nhà máy..." />
+                <CommandList className="max-h-[300px] p-1">
+                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Không thấy nhà máy</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="ALL"
+                      onSelect={() => setTempFilters(prev => ({ ...prev, factory_id: 'ALL' }))}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                    >
+                      <span className="text-[11px] font-bold">Tất cả nhà máy</span>
+                      <Check className={cn("h-4 w-4 text-indigo-600", (tempFilters.factory_id === 'ALL' || !tempFilters.factory_id) ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                    {factories.map((f) => (
+                      <CommandItem
+                        key={f.id}
+                        value={f.name}
+                        onSelect={() => setTempFilters(prev => ({ ...prev, factory_id: String(f.id) }))}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                      >
+                        <span className="text-[11px] font-bold">{f.name}</span>
+                        <Check className={cn("h-4 w-4 text-indigo-600", String(tempFilters.factory_id) === String(f.id) ? "opacity-100" : "opacity-0")} />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
           {/* Customer */}
           <Popover>
             <PopoverTrigger asChild>

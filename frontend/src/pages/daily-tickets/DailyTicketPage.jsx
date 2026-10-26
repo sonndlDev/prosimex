@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { dailyTicketService } from "../../services/daily-ticket.service";
 import { userService } from "../../services/user.service";
+import { factoryService } from "../../services/factory.service";
 import * as XLSX from 'xlsx';
 import { Download } from "lucide-react";
 
@@ -36,6 +37,8 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "../../context/AuthContext";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ActiveFilterChips } from "@/components/ActiveFilterChips";
+import { buildFilterChips, formatDateRange, useFilterDraft } from "@/utils/filterChips";
 const TICKET_STATUS_OPTIONS = [
   { value: "ALL", label: "Tất cả phiếu" },
   { value: "DRAFT", label: "Nháp" },
@@ -62,6 +65,7 @@ export default function DailyTicketPage() {
     endDate: "",
     ticket_status: "ALL",
     created_by: "ALL",
+    factory_id: "ALL",
     search: "",
     ticket_code: "",
     operation_name: "",
@@ -85,8 +89,41 @@ export default function DailyTicketPage() {
   });
   const users = usersData?.data || [];
 
+  const { data: factoriesData } = useQuery({
+    queryKey: ["factories", "daily-ticket-filter"],
+    queryFn: () => factoryService.getAll({ limit: 1000 }),
+  });
+  const factories = factoriesData?.data || [];
+
+  const ticketFilterChips = buildFilterChips(
+    appliedFilters,
+    initialFilters,
+    [
+      { keys: ["search"], label: "Tìm", format: (v) => v },
+      { keys: ["ticket_code"], label: "Mã phiếu", format: (v) => v },
+      { keys: ["operation_name"], label: "Công đoạn", format: (v) => v },
+      {
+        keys: ["ticket_status"],
+        label: "Trạng thái",
+        format: (v) => TICKET_STATUS_OPTIONS.find((o) => o.value === v)?.label || v,
+      },
+      {
+        keys: ["created_by"],
+        label: "Người tạo",
+        format: (v) => getUserDisplayName(users.find((u) => String(u.id) === String(v))) || v,
+      },
+      {
+        keys: ["factory_id"],
+        label: "Nhà máy",
+        format: (v) => factories.find((f) => String(f.id) === String(v))?.name || v,
+      },
+      { keys: ["startDate", "endDate"], label: "Ngày", format: (s, e) => formatDateRange(s, e) },
+    ],
+    handleSearch,
+  );
+
   const buildTicketQueryParams = useCallback((filters, extra = {}, { forExport = false } = {}) => {
-    const { ticket_status, created_by, ...rest } = filters;
+    const { ticket_status, created_by, factory_id, ...rest } = filters;
     return {
       ...rest,
       ...extra,
@@ -94,6 +131,7 @@ export default function DailyTicketPage() {
         ? { ticket_status }
         : { status: ticket_status, exclude_pending: true }),
       ...(created_by && created_by !== "ALL" ? { created_by } : {}),
+      ...(factory_id && factory_id !== "ALL" ? { factory_id } : {}),
     };
   }, []);
 
@@ -212,6 +250,12 @@ export default function DailyTicketPage() {
       format: (val) => DateTime.fromISO(val).toFormat("dd/MM")
     },
     {
+      id: "factory_name",
+      label: "Nhà máy",
+      className: "font-semibold text-zinc-700 whitespace-nowrap",
+      format: (val) => val || "—"
+    },
+    {
       id: "machine_name",
       label: "Máy",
       className: "font-bold text-indigo-600 italic",
@@ -327,7 +371,11 @@ export default function DailyTicketPage() {
           initialFilters={initialFilters}
           appliedFilters={appliedFilters}
           users={users}
+          factories={factories}
         />
+        <div className="mt-3">
+          <ActiveFilterChips chips={ticketFilterChips} onClearAll={handleReset} />
+        </div>
       </div>
 
       {/* Table with GenericTable */}
@@ -436,8 +484,14 @@ export default function DailyTicketPage() {
   );
 }
 
-const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedFilters, users = [] }) => {
-  const [tempFilters, setTempFilters] = useState(appliedFilters);
+const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedFilters, users = [], factories = [] }) => {
+  const [tempFilters, setTempFilters] = useFilterDraft(appliedFilters);
+
+  const selectedFactoryId = tempFilters.factory_id || "ALL";
+  const selectedFactoryLabel =
+    selectedFactoryId === "ALL"
+      ? "Tất cả"
+      : factories.find((f) => String(f.id) === String(selectedFactoryId))?.name || "Tất cả";
 
   const selectedStatusLabel =
     TICKET_STATUS_OPTIONS.find((o) => o.value === tempFilters.ticket_status)?.label || "Tất cả phiếu";
@@ -497,7 +551,7 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedF
         </div>
 
         {/* Filters Grid */}
-        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Trạng thái */}
           <Popover>
             <PopoverTrigger asChild>
@@ -596,6 +650,55 @@ const DailyTicketFilterBar = memo(({ onSearch, onReset, initialFilters, appliedF
                         </CommandItem>
                       );
                     })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Nhà máy / xưởng */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                className="w-full h-10 justify-between bg-zinc-50/50 border-zinc-200/80 rounded-xl font-bold hover:bg-white transition-all shadow-sm"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">Nhà máy:</span>
+                  <span className="truncate text-[11px] text-zinc-900">{selectedFactoryLabel}</span>
+                </div>
+                <ChevronsUpDown className="ml-2 h-3.5 w-3.5 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-2xl border-indigo-50 rounded-xl overflow-hidden" align="start">
+              <Command className="w-full">
+                <CommandInput placeholder="Tìm nhà máy..." />
+                <CommandList className="max-h-[300px] p-1">
+                  <CommandEmpty className="py-4 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                    Không thấy nhà máy
+                  </CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="tat-ca-nha-may"
+                      onSelect={() => setTempFilters((prev) => ({ ...prev, factory_id: "ALL" }))}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                    >
+                      <span className="text-[11px] font-bold">Tất cả</span>
+                      <Check className={cn("h-4 w-4 text-indigo-600", selectedFactoryId === "ALL" ? "opacity-100" : "opacity-0")} />
+                    </CommandItem>
+                    {factories.map((f) => (
+                      <CommandItem
+                        key={f.id}
+                        value={f.name}
+                        onSelect={() => setTempFilters((prev) => ({ ...prev, factory_id: String(f.id) }))}
+                        className="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer aria-selected:bg-indigo-50 aria-selected:text-indigo-700 transition-colors mb-0.5"
+                      >
+                        <span className="text-[11px] font-bold">{f.name}</span>
+                        <Check className={cn("h-4 w-4 text-indigo-600", String(selectedFactoryId) === String(f.id) ? "opacity-100" : "opacity-0")} />
+                      </CommandItem>
+                    ))}
                   </CommandGroup>
                 </CommandList>
               </Command>
