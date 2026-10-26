@@ -162,6 +162,8 @@ export default function DailyTicketPage() {
           "Mã đơn (PO)": item.order_code || item.po_customer || "",
           "Mã SP": item.product_name || "",
           "Công đoạn": item.operation_name || "",
+          "Thời gian bắt đầu": item.start_time ? DateTime.fromISO(item.start_time).toFormat("dd/MM/yyyy HH:mm") : "",
+          "Thời gian kết thúc": item.end_time ? DateTime.fromISO(item.end_time).toFormat("dd/MM/yyyy HH:mm") : "",
           "Định mức": dinhMuc || "",
           "SL Kế hoạch": plannedQty,
           "Số công (KH)": dinhMuc > 0 ? Math.round((plannedQty / dinhMuc) * 100) / 100 : "",
@@ -182,7 +184,7 @@ export default function DailyTicketPage() {
 
       const wscols = [
         { wch: 5 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 10 }, { wch: 12 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 12 },
         { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
         { wch: 12 }, { wch: 15 }, { wch: 20 },
       ];

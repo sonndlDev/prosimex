@@ -38,8 +38,11 @@ function TablePagination({ page, totalItems, onPageChange }) {
   );
 }
 
+const TIME_HEADER_START = "Thời gian bắt đầu";
+const TIME_HEADER_END = "Thời gian kết thúc";
+
 function downloadTemplate() {
-  const headers = ["Mã Phiếu", "Mã SP", "Công đoạn", "SL Thực tế", "Ghi chú TT"];
+  const headers = ["Mã Phiếu", "Mã SP", "Công đoạn", "SL Thực tế", "Ghi chú TT", TIME_HEADER_START, TIME_HEADER_END];
   const examples = [
     {
       "Mã Phiếu": "2025100812",
@@ -47,6 +50,8 @@ function downloadTemplate() {
       "Công đoạn": "Cắt phôi",
       "SL Thực tế": 480,
       "Ghi chú TT": "",
+      [TIME_HEADER_START]: "12/10/2025 07:00",
+      [TIME_HEADER_END]: "12/10/2025 11:30",
     },
     {
       "Mã Phiếu": "2025100812",
@@ -54,6 +59,8 @@ function downloadTemplate() {
       "Công đoạn": "Hàn",
       "SL Thực tế": 460,
       "Ghi chú TT": "Máy hàn bị chậm",
+      [TIME_HEADER_START]: "12/10/2025 13:00",
+      [TIME_HEADER_END]: "12/10/2025 17:00",
     },
     {
       "Mã Phiếu": "2025100834",
@@ -61,6 +68,8 @@ function downloadTemplate() {
       "Công đoạn": "Cắt phôi",
       "SL Thực tế": 200,
       "Ghi chú TT": "",
+      [TIME_HEADER_START]: "",
+      [TIME_HEADER_END]: "",
     },
   ];
 
@@ -107,11 +116,13 @@ function downloadTemplate() {
     if (ws[cellRef]) ws[cellRef].s = headerStyle;
   });
 
-  // Đánh dấu cột "SL Thực tế" và "Ghi chú TT" là cần điền
+  // Đánh dấu cột "SL Thực tế", "Ghi chú TT" và thời gian là cần điền
   const slCol = headers.indexOf("SL Thực tế");
   const noteCol = headers.indexOf("Ghi chú TT");
+  const startCol = headers.indexOf(TIME_HEADER_START);
+  const endCol = headers.indexOf(TIME_HEADER_END);
   examples.forEach((_, ri) => {
-    [slCol, noteCol].forEach((ci) => {
+    [slCol, noteCol, startCol, endCol].forEach((ci) => {
       const ref = XLSX.utils.encode_cell({ r: ri + 1, c: ci });
       if (ws[ref]) ws[ref].s = noteStyle;
     });
@@ -124,6 +135,8 @@ function downloadTemplate() {
     { wch: 22 }, // Công đoạn
     { wch: 14 }, // SL Thực tế
     { wch: 28 }, // Ghi chú TT
+    { wch: 20 }, // Thời gian bắt đầu
+    { wch: 20 }, // Thời gian kết thúc
   ];
 
   // Sheet ghi chú hướng dẫn
@@ -136,12 +149,16 @@ function downloadTemplate() {
     ["Công đoạn", "Tên công đoạn (phải khớp chính xác với hệ thống)", "Có"],
     ["SL Thực tế", "Số lượng thực tế sản xuất được — CỘT CẦN ĐIỀN", "Có"],
     ["Ghi chú TT", "Ghi chú thực tế (tuỳ chọn)", "Không"],
+    ["Thời gian bắt đầu", "Định dạng dd/MM/yyyy HH:mm (VD: 12/10/2025 07:00). Có thể chỉ nhập HH:mm, khi đó lấy ngày của phiếu", "Không"],
+    ["Thời gian kết thúc", "Định dạng dd/MM/yyyy HH:mm (VD: 12/10/2025 11:30). Có thể chỉ nhập HH:mm, khi đó lấy ngày của phiếu", "Không"],
     [""],
     ["Lưu ý:"],
     ["- Không xoá hay đổi tên các cột tiêu đề"],
     ["- Mã Phiếu gồm 8 chữ số ngày (yyyyMMdd) + ID phiếu, ví dụ: 2025100812"],
     ["- Một phiếu có thể có nhiều dòng (mỗi dòng là một mã hàng / công đoạn)"],
     ["- Phiếu đã chốt (COMPLETED) sẽ bị bỏ qua"],
+    ["- Ô thời gian để trống thì giữ nguyên giá trị đang có trên hệ thống"],
+    ["- Thời gian kết thúc phải sau thời gian bắt đầu"],
   ];
   const wsGuide = XLSX.utils.aoa_to_sheet(guide);
   wsGuide["!cols"] = [{ wch: 20 }, { wch: 50 }, { wch: 12 }];
@@ -154,12 +171,30 @@ function downloadTemplate() {
 }
 
 const COLUMN_MAP = [
-  { key: "ma_phieu",   labels: ["Mã Phiếu", "Ma Phieu"] },
-  { key: "ma_sp",      labels: ["Mã SP", "Ma SP"] },
-  { key: "cong_doan",  labels: ["Công đoạn", "Cong doan", "Công Đoạn"] },
-  { key: "sl_thuc_te", labels: ["SL Thực tế", "SL Thuc te", "SL TT"] },
-  { key: "ghi_chu_tt", labels: ["Ghi chú TT", "Ghi Chu TT"] },
+  { key: "ma_phieu",    labels: ["Mã Phiếu", "Ma Phieu"] },
+  { key: "ma_sp",       labels: ["Mã SP", "Ma SP"] },
+  { key: "cong_doan",   labels: ["Công đoạn", "Cong doan", "Công Đoạn"] },
+  { key: "sl_thuc_te",  labels: ["SL Thực tế", "SL Thuc te", "SL TT"] },
+  { key: "ghi_chu_tt",  labels: ["Ghi chú TT", "Ghi Chu TT"] },
+  { key: "tg_bat_dau",  labels: [TIME_HEADER_START, "Thoi gian bat dau", "TG bắt đầu"] },
+  { key: "tg_ket_thuc", labels: [TIME_HEADER_END, "Thoi gian ket thuc", "TG kết thúc"] },
 ];
+
+const OPTIONAL_COLUMN_KEYS = ["ghi_chu_tt", "tg_bat_dau", "tg_ket_thuc"];
+const TIME_COLUMN_KEYS = ["tg_bat_dau", "tg_ket_thuc"];
+
+// Excel lưu ngày giờ dạng số serial nếu ô có định dạng ngày -> đổi sang dd/MM/yyyy HH:mm
+function formatExcelSerialDateTime(serial) {
+  const pad = (n) => String(n).padStart(2, "0");
+  // Ô chỉ có giờ (serial < 1) -> HH:mm, backend sẽ lấy ngày của phiếu
+  if (serial < 1) {
+    const totalMinutes = Math.round(serial * 24 * 60);
+    return `${pad(Math.floor(totalMinutes / 60) % 24)}:${pad(totalMinutes % 60)}`;
+  }
+  const dc = XLSX.SSF.parse_date_code(serial);
+  if (!dc) return String(serial);
+  return `${pad(dc.d)}/${pad(dc.m)}/${dc.y} ${pad(dc.H)}:${pad(dc.M)}`;
+}
 
 function parseExcel(file) {
   return new Promise((resolve, reject) => {
@@ -179,7 +214,7 @@ function parseExcel(file) {
           );
         });
 
-        const required = COLUMN_MAP.filter((c) => c.key !== "ghi_chu_tt");
+        const required = COLUMN_MAP.filter((c) => !OPTIONAL_COLUMN_KEYS.includes(c.key));
         const missing = required.filter((c) => idxMap[c.key] === -1).map((c) => c.labels[0]);
         if (missing.length > 0) {
           reject(new Error(`File thiếu cột bắt buộc: ${missing.join(", ")}`));
@@ -196,6 +231,10 @@ function parseExcel(file) {
               const val = idx >= 0 ? r[idx] : undefined;
               if (val === null || val === undefined || String(val).trim() === "") {
                 obj[col.key] = null;
+                return;
+              }
+              if (TIME_COLUMN_KEYS.includes(col.key) && typeof val === "number") {
+                obj[col.key] = formatExcelSerialDateTime(val);
                 return;
               }
               if (col.key === "ma_phieu") {

@@ -6,6 +6,35 @@ import { calculateValidWorkMinutes, calculateActualLabor } from '../../utils/lab
 
 const toIntOrNull = (v) => (v === null || v === undefined || v === "null" || v === "") ? null : parseInt(v);
 
+// Parse thời gian từ file Excel import.
+// Chấp nhận: "dd/MM/yyyy HH:mm", "yyyy-MM-dd HH:mm" (hoặc có 'T'), "HH:mm" (lấy ngày từ fallbackDate yyyy-MM-dd).
+// Trả về: chuỗi "yyyy-MM-dd HH:mm:00" | null (ô trống) | undefined (không hợp lệ)
+const parseImportDateTime = (value, fallbackDate) => {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const str = String(value).trim();
+  const pad = (n) => String(n).padStart(2, "0");
+
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
+  if (m) {
+    const [, d, mo, y, h, mi] = m;
+    return `${y}-${pad(mo)}-${pad(d)} ${pad(h)}:${mi}:00`;
+  }
+
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[T\s](\d{1,2}):(\d{2})/);
+  if (m) {
+    const [, y, mo, d, h, mi] = m;
+    return `${y}-${pad(mo)}-${pad(d)} ${pad(h)}:${mi}:00`;
+  }
+
+  m = str.match(/^(\d{1,2}):(\d{2})$/);
+  if (m && fallbackDate) {
+    const [, h, mi] = m;
+    return `${fallbackDate} ${pad(h)}:${mi}:00`;
+  }
+
+  return undefined;
+};
+
 // POST /api/daily-tickets
 export const createTicket = async (req, res) => {
   const client = await pool.connect();
@@ -277,7 +306,7 @@ export const importResults = async (req, res) => {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       const rowNum = i + 1;
-      const { ma_phieu, ma_sp, cong_doan, sl_thuc_te, ghi_chu_tt } = row;
+      const { ma_phieu, ma_sp, cong_doan, sl_thuc_te, ghi_chu_tt, tg_bat_dau, tg_ket_thuc } = row;
 
       if (!ma_phieu || String(ma_phieu).trim().length <= 8) {
         results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Mã Phiếu không hợp lệ" });
@@ -296,6 +325,20 @@ export const importResults = async (req, res) => {
         continue;
       }
 
+      // Ngày phiếu lấy từ 8 chữ số đầu của Mã Phiếu (yyyyMMdd)
+      const ticketDateStr = String(ma_phieu).trim().slice(0, 8);
+      const ticketDateIso = `${ticketDateStr.slice(0, 4)}-${ticketDateStr.slice(4, 6)}-${ticketDateStr.slice(6, 8)}`;
+      const startTimeInput = parseImportDateTime(tg_bat_dau, ticketDateIso);
+      const endTimeInput = parseImportDateTime(tg_ket_thuc, ticketDateIso);
+      if (startTimeInput === undefined || endTimeInput === undefined) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Thời gian bắt đầu/kết thúc không hợp lệ (dùng dd/MM/yyyy HH:mm)" });
+        continue;
+      }
+      if (startTimeInput && endTimeInput && endTimeInput <= startTimeInput) {
+        results.push({ row: rowNum, ma_phieu, ma_sp, cong_doan, sl_thuc_te, success: false, error: "Thời gian kết thúc phải sau thời gian bắt đầu" });
+        continue;
+      }
+
       const ticketRes = await client.query(
         "SELECT id, status FROM daily_production_tickets WHERE id = $1 AND deleted_at IS NULL",
         [ticketId]
@@ -311,7 +354,7 @@ export const importResults = async (req, res) => {
 
       // Tìm item theo tên mã hàng + tên công đoạn
       const itemRes = await client.query(
-        `SELECT dti.id
+        `SELECT dti.id, dti.start_time, dti.end_time, dti.worker_count
          FROM daily_production_ticket_items dti
          LEFT JOIN products p ON dti.product_id = p.id
          LEFT JOIN product_group_operations pgo ON dti.product_group_operation_id = pgo.id
@@ -328,11 +371,29 @@ export const importResults = async (req, res) => {
         continue;
       }
 
+      const existingItem = itemRes.rows[0];
+      // Ô thời gian trống -> giữ nguyên giá trị hiện có
+      const startTime = startTimeInput ?? existingItem.start_time;
+      const endTime = endTimeInput ?? existingItem.end_time;
+      // Tính lại công thực tế theo giờ mới (buildLaborFields chỉ trả về số công khi đủ dữ liệu)
+      const labor = buildLaborFields({ start_time: startTime, end_time: endTime, worker_count: existingItem.worker_count });
+
       await client.query(
         `UPDATE daily_production_ticket_items
-         SET actual_quantity = $1, actual_notes = $2, updated_at = CURRENT_TIMESTAMP
+         SET actual_quantity = $1, actual_notes = $2,
+             start_time = $4, end_time = $5,
+             valid_work_minutes = $6, actual_labor = $7,
+             updated_at = CURRENT_TIMESTAMP
          WHERE id = $3`,
-        [actualQty, ghi_chu_tt ? String(ghi_chu_tt) : null, itemRes.rows[0].id]
+        [
+          actualQty,
+          ghi_chu_tt ? String(ghi_chu_tt) : null,
+          existingItem.id,
+          startTime || null,
+          endTime || null,
+          labor.validWorkMinutes,
+          labor.actualLabor,
+        ]
       );
 
       updatedTicketIds.add(ticketId);
@@ -919,6 +980,8 @@ export const exportDetailedTickets = async (req, res) => {
                 dti.actual_quantity,
                 dti.notes,
                 dti.actual_notes,
+                dti.start_time,
+                dti.end_time,
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 dt.created_at
