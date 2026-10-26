@@ -284,10 +284,10 @@ export const exportInventory = async (req, res) => {
 
     const exportNote = note ? `Xuất kho: ${note}` : 'Xuất kho'
     const insertResult = await client.query(
-      `INSERT INTO product_inventory (product_id, operation_id, quantity, note, recorded_by, inventory_type, completed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+      `INSERT INTO product_inventory (product_id, operation_id, quantity, note, recorded_by, inventory_type, completed_at, source_inventory_id)
+       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
        RETURNING *`,
-      [currentData.product_id, currentData.operation_id, exportQty, exportNote, userId, currentData.inventory_type]
+      [currentData.product_id, currentData.operation_id, exportQty, exportNote, userId, currentData.inventory_type, id]
     )
 
     await client.query(

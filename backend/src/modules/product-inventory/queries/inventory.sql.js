@@ -28,19 +28,19 @@ export const SQL_INVENTORY_DATA_BASE = `
     p.name as product_name,
     o.name as operation_name,
     COALESCE(u.full_name, u.username) as recorder_name,
-    COALESCE(
-      (SELECT SUM(pi2.quantity) FROM product_inventory pi2
-       WHERE pi2.product_id = pi.product_id
-          AND pi2.operation_id IS NOT DISTINCT FROM pi.operation_id
-          AND pi2.inventory_type = pi.inventory_type
-          AND pi2.completed_at IS NOT NULL
-          AND pi2.deleted_at IS NULL
-          AND pi2.recorded_at >= pi.recorded_at
-          AND pi2.id != pi.id),
-      0
-    )::numeric as used_quantity
+    (pi.quantity + ex.exported_quantity)::numeric as import_quantity,
+    ex.exported_quantity::numeric as exported_quantity,
+    ex.last_exported_at
   FROM product_inventory pi
   JOIN products p ON pi.product_id = p.id AND p.deleted_at IS NULL
   LEFT JOIN operations o ON pi.operation_id = o.id AND o.deleted_at IS NULL
   LEFT JOIN users u ON pi.recorded_by = u.id
+  LEFT JOIN LATERAL (
+    SELECT
+      COALESCE(SUM(e.quantity), 0) as exported_quantity,
+      MAX(e.completed_at) as last_exported_at
+    FROM product_inventory e
+    WHERE e.source_inventory_id = pi.id
+      AND e.deleted_at IS NULL
+  ) ex ON TRUE
 `;

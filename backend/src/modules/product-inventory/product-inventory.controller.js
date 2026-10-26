@@ -22,6 +22,16 @@ export const getInventory = async (req, res) => {
   }
 };
 
+export const getExportHistory = async (req, res) => {
+  try {
+    const rows = await productInventoryService.getExportHistory(req.params.id);
+    res.json({ data: rows });
+  } catch (error) {
+    console.error('Get Export History Error:', error);
+    res.status(500).json({ message: 'Error retrieving export history', error: error.message });
+  }
+};
+
 // ── Mutations re-exported from legacy (Type D) ────────────────────────────────
 
 export {

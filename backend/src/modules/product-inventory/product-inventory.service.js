@@ -23,7 +23,8 @@ import {
  * @returns {{ where: string, params: any[] }}
  */
 function buildWhere({ search, inventory_type, completed } = {}) {
-  let where = 'WHERE pi.deleted_at IS NULL';
+  // Dong xuat kho (co source_inventory_id) khong hien o bang chinh; xem qua getExportHistory
+  let where = 'WHERE pi.deleted_at IS NULL AND pi.source_inventory_id IS NULL';
   const params = [];
 
   if (search) {
@@ -75,6 +76,31 @@ async function getInventory(filters = {}, { page = 1, limit = 10 } = {}) {
   };
 }
 
+/**
+ * Lich su xuat kho cua mot lo nhap.
+ *
+ * @param {number|string} inventoryId - ID cua lo nhap goc
+ * @returns {Promise<object[]>}
+ */
+async function getExportHistory(inventoryId) {
+  const result = await db.query(
+    `SELECT
+       e.id,
+       e.quantity,
+       e.note,
+       e.completed_at as exported_at,
+       COALESCE(u.full_name, u.username) as exporter_name
+     FROM product_inventory e
+     LEFT JOIN users u ON e.recorded_by = u.id
+     WHERE e.source_inventory_id = $1
+       AND e.deleted_at IS NULL
+     ORDER BY e.completed_at DESC`,
+    [inventoryId]
+  );
+  return result.rows;
+}
+
 export const productInventoryService = {
   getInventory,
+  getExportHistory,
 };

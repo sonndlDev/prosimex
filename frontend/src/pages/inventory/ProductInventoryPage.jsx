@@ -53,6 +53,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,6 +99,7 @@ export default function ProductInventoryPage() {
     const [exportQuantity, setExportQuantity] = useState("");
     const [exportNote, setExportNote] = useState("");
     const [noOpForm, setNoOpForm] = useState({ quantity: "", note: "", inventory_type: "BTP" });
+    const [historyRecord, setHistoryRecord] = useState(null);
 
     // Fetch data
     const { data: productsData } = useQuery({
@@ -160,11 +162,18 @@ export default function ProductInventoryPage() {
         onError: (err) => toast.error(err.response?.data?.message || "Lỗi khi hoàn thành tồn kho")
     });
 
+    const { data: exportHistory, isLoading: isLoadingExports } = useQuery({
+        queryKey: ["product-inventory-exports", historyRecord?.id],
+        queryFn: () => inventoryService.getExports(historyRecord.id),
+        enabled: !!historyRecord
+    });
+
     const exportMutation = useMutation({
         mutationFn: ({ id, payload }) => inventoryService.exportInventory(id, payload),
         onSuccess: () => {
             toast.success("Đã xuất kho thành công");
             queryClient.invalidateQueries({ queryKey: ["product-inventory"] });
+            queryClient.invalidateQueries({ queryKey: ["product-inventory-exports"] });
             setExportRecord(null);
             setExportQuantity("");
             setExportNote("");
@@ -327,16 +336,22 @@ export default function ProductInventoryPage() {
             )
         },
         {
-            id: "quantity",
-            label: "Số lượng",
-            className: "font-black text-right",
-            format: (v) => <span className="text-blue-600">{Number(v).toLocaleString()}</span>
+            id: "import_quantity",
+            label: "Nhập",
+            className: "font-bold text-right",
+            format: (v) => <span className="text-zinc-700">{Number(v).toLocaleString()}</span>
         },
         {
-            id: "used_quantity",
+            id: "exported_quantity",
             label: "Đã xuất",
             className: "font-bold text-right",
             format: (v) => <span className="text-amber-600">{Number(v || 0).toLocaleString()}</span>
+        },
+        {
+            id: "quantity",
+            label: "Còn lại",
+            className: "font-black text-right",
+            format: (v) => <span className="text-blue-600">{Number(v).toLocaleString()}</span>
         },
         { id: "note", label: "Ghi chú", className: "text-zinc-500 italic text-xs max-w-[200px] truncate" },
         { id: "recorder_name", label: "Người nhập", className: "font-medium text-xs" },
@@ -346,11 +361,27 @@ export default function ProductInventoryPage() {
             format: (v) => DateTime.fromISO(v).toFormat("dd/MM/yyyy HH:mm")
         },
         {
+            id: "last_exported_at",
+            label: "Xuất gần nhất",
+            format: (v) => v ? DateTime.fromISO(v).toFormat("dd/MM/yyyy HH:mm") : "---"
+        },
+        {
             id: "actions",
             label: "Thao tác",
             className: "text-center",
             format: (v, row) => (
                 <div className="flex items-center justify-center gap-2">
+                    {hasPermission('product_inventory:read') && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800"
+                            onClick={() => setHistoryRecord(row)}
+                            title="Lịch sử xuất"
+                        >
+                            <History className="w-4 h-4" />
+                        </Button>
+                    )}
                     {hasPermission('product_inventory:update') && !row.completed_at && (
                         <Button
                             size="sm"
@@ -879,6 +910,86 @@ export default function ProductInventoryPage() {
                             {exportMutation.isPending ? "Đang xuất..." : (
                                 <><Truck className="w-4 h-4 mr-2" /> Xác nhận xuất</>
                             )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Export History Modal */}
+            <Dialog open={!!historyRecord} onOpenChange={(open) => !open && setHistoryRecord(null)}>
+                <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="bg-zinc-50 border-b border-zinc-200 p-6">
+                        <DialogTitle className="text-lg font-black uppercase tracking-tight text-zinc-800 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-zinc-700 rounded-xl text-white flex items-center justify-center shadow-lg">
+                                <History className="w-5 h-5" />
+                            </div>
+                            Lịch sử xuất kho
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-6 space-y-4">
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Mã hàng</p>
+                                <p className="text-sm font-black text-indigo-600 truncate">{historyRecord?.product_name}</p>
+                            </div>
+                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Nhập</p>
+                                <p className="text-sm font-black text-zinc-700">{Number(historyRecord?.import_quantity || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Đã xuất</p>
+                                <p className="text-sm font-black text-amber-600">{Number(historyRecord?.exported_quantity || 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-200">
+                                <p className="text-[10px] font-bold text-zinc-500 uppercase">Còn lại</p>
+                                <p className="text-sm font-black text-blue-600">{Number(historyRecord?.quantity || 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="border border-zinc-200 rounded-lg overflow-hidden">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-zinc-50">
+                                        <TableHead className="w-12 text-center">STT</TableHead>
+                                        <TableHead>Ngày xuất</TableHead>
+                                        <TableHead className="text-right">SL xuất</TableHead>
+                                        <TableHead>Người xuất</TableHead>
+                                        <TableHead>Ghi chú</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoadingExports && (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center text-zinc-400 text-sm">Đang tải...</TableCell>
+                                        </TableRow>
+                                    )}
+                                    {!isLoadingExports && (exportHistory?.data || []).length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center text-zinc-400 text-sm">Chưa có lần xuất kho nào</TableCell>
+                                        </TableRow>
+                                    )}
+                                    {(exportHistory?.data || []).map((item, idx) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="text-center text-zinc-500">{idx + 1}</TableCell>
+                                            <TableCell className="font-medium">{DateTime.fromISO(item.exported_at).toFormat("dd/MM/yyyy HH:mm")}</TableCell>
+                                            <TableCell className="text-right font-black text-amber-600">{Number(item.quantity).toLocaleString()}</TableCell>
+                                            <TableCell className="text-xs font-medium">{item.exporter_name}</TableCell>
+                                            <TableCell className="text-xs italic text-zinc-500">{item.note}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="bg-zinc-50 border-t border-zinc-100 p-4">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setHistoryRecord(null)}
+                            className="font-bold text-zinc-500 hover:text-zinc-700"
+                        >
+                            Đóng
                         </Button>
                     </DialogFooter>
                 </DialogContent>
