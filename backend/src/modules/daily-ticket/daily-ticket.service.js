@@ -64,9 +64,9 @@ function buildWhereClause(filters) {
     clause += ` AND dt.ticket_date <= $${params.length}`;
   }
   if (factory_id) {
-    // Phiếu thuộc nhà máy nếu máy của phiếu thuộc nhà máy đó (subquery, không cần JOIN thêm vào COUNT)
+    // Phiếu thuộc nhà máy nếu có item thuộc đơn hàng của nhà máy đó (subquery, không ảnh hưởng GROUP BY/aggregate)
     params.push(parseInt(factory_id, 10));
-    clause += ` AND dt.machine_id IN (SELECT id FROM machines WHERE factory_id = $${params.length})`;
+    clause += ` AND dt.id IN (SELECT dti_f.ticket_id FROM daily_production_ticket_items dti_f JOIN orders o_f ON dti_f.order_id = o_f.id WHERE o_f.factory_id = $${params.length})`;
   }
   if (status && status !== 'ALL') {
     params.push(status);
