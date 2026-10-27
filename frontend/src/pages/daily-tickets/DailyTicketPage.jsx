@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
-import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check, ChevronsUpDown, Upload } from "lucide-react";
+import { Plus, Printer, PencilLine, Trash2, BarChart2, Eye, LayoutGrid, Search, X, RotateCcw, FileSpreadsheet, Check, ChevronsUpDown, Upload, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -241,7 +241,30 @@ export default function DailyTicketPage() {
       id: "id",
       label: "Mã số phiếu",
       className: "font-bold text-zinc-950",
-      format: (val, row) => `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${row.master_id}`
+      format: (val, row) => {
+        const code = `${DateTime.fromISO(row.ticket_date).toFormat("yyyyMMdd")}${row.master_id}`;
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <span title={code}>{row.master_id}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-zinc-400 hover:text-indigo-600"
+              title="Copy mã số phiếu"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard
+                  .writeText(code)
+                  .then(() => toast.success(`Đã copy mã phiếu ${code}`))
+                  .catch(() => toast.error("Không thể copy mã phiếu"));
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </span>
+        );
+      }
     },
     {
       id: "ticket_date",
