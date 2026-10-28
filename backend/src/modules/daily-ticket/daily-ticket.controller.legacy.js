@@ -963,7 +963,8 @@ export const exportDetailedTickets = async (req, res) => {
       }
       if (factory_id) {
         queryParams.push(parseInt(factory_id, 10));
-        whereClause += ` AND dt.machine_id IN (SELECT id FROM machines WHERE factory_id = $${queryParams.length})`;
+        // Đồng bộ với danh sách phiếu: phiếu thuộc nhà máy nếu có item thuộc đơn hàng của nhà máy đó
+        whereClause += ` AND dt.id IN (SELECT dti_f.ticket_id FROM daily_production_ticket_items dti_f JOIN orders o_f ON dti_f.order_id = o_f.id WHERE o_f.factory_id = $${queryParams.length})`;
       }
     }
 
