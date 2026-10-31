@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { generateDailyTickets } from "./dailyTicketWorker.js";
+import { runAutoTicketGeneration } from "./dailyTicketWorker.js";
 import { createTestOperation } from "./testJob.js";
 
 /**
@@ -15,32 +15,22 @@ import { createTestOperation } from "./testJob.js";
  */
 export function startScheduler() {
   // const CRON_EXPRESSION = "0 15 * * *";
-  const CRON_EXPRESSION = "0 17 * * *";
+  const CRON_EXPRESSION = "0 15 * * *";
 
   cron.schedule(
     CRON_EXPRESSION,
     async () => {
-      // Derive today's date in Vietnam timezone (YYYY-MM-DD)
-      // const targetDate = new Date().toLocaleDateString("en-CA", {
-      //   timeZone: "Asia/Ho_Chi_Minh",
-      // });
-      const targetDate = new Date(
-        Date.now() + 24 * 60 * 60 * 1000 
-      ).toLocaleDateString("en-CA", {
-        timeZone: "Asia/Ho_Chi_Minh",
-      });
-
-      console.log(targetDate);
-
       console.log(
-        `[Scheduler] Triggered at ${new Date().toISOString()} — generating tickets for ${targetDate}`
+        `[Scheduler] Triggered at ${new Date().toISOString()} — auto-generating tickets`
       );
 
       try {
-        const result = await generateDailyTickets(targetDate);
-        console.log(
-          `[Scheduler] Completed: created=${result.created}, skipped=${result.skipped}, ids=${result.ticketIds}`
-        );
+        const results = await runAutoTicketGeneration();
+        for (const result of results) {
+          console.log(
+            `[Scheduler] Completed ${result.targetDate}: created=${result.created}, skipped=${result.skipped}, ids=${result.ticketIds}`
+          );
+        }
       } catch (error) {
         console.error("[Scheduler] Auto-generation FAILED:", error);
       }

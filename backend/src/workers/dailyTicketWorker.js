@@ -169,3 +169,59 @@ export async function generateDailyTickets(targetDate) {
     client.release();
   }
 }
+
+const VN_TIMEZONE = "Asia/Ho_Chi_Minh";
+
+function getVietnamDateParts(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: VN_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return {
+    year: parseInt(map.year, 10),
+    month: parseInt(map.month, 10),
+    day: parseInt(map.day, 10),
+    hour: parseInt(map.hour, 10),
+  };
+}
+
+/**
+ * Xác định các ngày cần tạo lịch tại thời điểm `now` (múi giờ Asia/Ho_Chi_Minh).
+ * - Chủ nhật: không tạo (trả về []).
+ * - Thứ 7 buổi chiều (>= 12h): tạo cho Chủ nhật và Thứ 2.
+ * - Các ngày khác: tạo cho ngày mai.
+ */
+export function getAutoTicketTargetDates(now = new Date()) {
+  const { year, month, day, hour } = getVietnamDateParts(now);
+  const baseMs = Date.UTC(year, month - 1, day);
+  const dayOfWeek = new Date(baseMs).getUTCDay(); // 0 = CN, 6 = T7
+  const addDays = (n) => new Date(baseMs + n * 86400000).toISOString().slice(0, 10);
+
+  if (dayOfWeek === 0) return [];
+  if (dayOfWeek === 6 && hour >= 12) return [addDays(1), addDays(2)];
+  return [addDays(1)];
+}
+
+/**
+ * Entry point cho scheduler: chạy generateDailyTickets cho các ngày mục tiêu.
+ */
+export async function runAutoTicketGeneration(now = new Date()) {
+  const targetDates = getAutoTicketTargetDates(now);
+
+  if (targetDates.length === 0) {
+    console.log(`[AutoTicket] Chủ nhật — bỏ qua job tạo phiếu.`);
+    return [];
+  }
+
+  const results = [];
+  for (const targetDate of targetDates) {
+    const summary = await generateDailyTickets(targetDate);
+    results.push({ targetDate, ...summary });
+  }
+  return results;
+}
