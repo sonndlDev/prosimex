@@ -53,6 +53,7 @@ import {
   Settings,
   ClipboardList,
   Pencil,
+  Layers,
 } from "lucide-react";
 
 const BREAK_PERIODS_FE = [
@@ -83,6 +84,169 @@ function calcValidWorkMinutesFE(startTime, endTime) {
 function calcActualLaborFE(validWorkMinutes, workerCount) {
   if (!validWorkMinutes || !workerCount || workerCount <= 0) return null;
   return (validWorkMinutes * workerCount) / 480;
+}
+
+// ─── Nhiều khoảng làm việc (work_periods) ───────────────────────────────────
+// 1 công đoạn nhiều người làm lệch giờ: [{start:"HH:mm", end:"HH:mm", workers}]
+function normalizePeriodsFE(periods) {
+  if (!Array.isArray(periods)) return [];
+  return periods
+    .map((p) => ({
+      start: p?.start || "",
+      end: p?.end || "",
+      workers:
+        p?.workers === "" || p?.workers === null || p?.workers === undefined
+          ? ""
+          : String(p.workers),
+    }))
+    .filter((p) => p.start && p.end && parseInt(p.workers, 10) > 0);
+}
+
+// Cùng công thức với backend: calculatePeriodsLabor (labor-calculation.util.js)
+function calcPeriodsLaborFE(periods) {
+  const valid = normalizePeriodsFE(periods);
+  if (valid.length === 0) return null;
+  let weighted = 0;
+  for (const p of valid) {
+    const mins = calcValidWorkMinutesFE(p.start, p.end);
+    if (mins !== null) weighted += mins * parseInt(p.workers, 10);
+  }
+  return weighted / 480;
+}
+
+function periodsBounds(periods) {
+  const valid = normalizePeriodsFE(periods);
+  if (valid.length === 0) return null;
+  const toMin = (hhmm) => {
+    const parts = String(hhmm).split(":");
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  };
+  let minStart = valid[0].start;
+  let maxEnd = valid[0].end;
+  for (const p of valid) {
+    if (toMin(p.start) < toMin(minStart)) minStart = p.start;
+    if (toMin(p.end) > toMin(maxEnd)) maxEnd = p.end;
+  }
+  return { minStart, maxEnd };
+}
+
+function mapServerPeriods(raw) {
+  return Array.isArray(raw)
+    ? raw.map((p) => ({
+        start: p?.start || "",
+        end: p?.end || "",
+        workers: p?.workers !== null && p?.workers !== undefined ? String(p.workers) : "",
+      }))
+    : [];
+}
+
+function WorkPeriodsEditor({ periods, onChange, disabled = false }) {
+  const list = Array.isArray(periods) ? periods : [];
+  const labor = calcPeriodsLaborFE(list);
+
+  const updateRow = (idx, patch) =>
+    onChange(list.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          title="Bấm để chỉnh các khoảng làm việc lệch giờ"
+          className="w-full h-9 justify-between gap-1.5 text-xs font-bold bg-violet-50 border-violet-300 text-violet-800 hover:bg-violet-100"
+        >
+          <div className="flex items-center gap-1.5 truncate">
+            <Layers className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+            <span className="truncate">
+              {list.length > 0
+                ? `${list.length} khoảng lệch giờ${labor !== null ? ` · ${labor.toFixed(3)} công` : ""}`
+                : "Nhập các khoảng lệch giờ"}
+            </span>
+          </div>
+          <Pencil className="h-3 w-3 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[430px] p-3 shadow-2xl border-violet-100 rounded-xl"
+        align="start"
+      >
+        <div className="mb-2">
+          <span className="text-[10px] font-black uppercase tracking-wider text-violet-600">
+            Các khoảng làm việc — mỗi khoảng 1 nhóm người
+          </span>
+          <p className="text-[10px] text-zinc-400 mt-0.5">
+            VD: A làm 08:00–12:00 (×1), B làm 10:00–16:00 (×1) — công TT = tổng từng khoảng, tự trừ giờ nghỉ.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {list.map((p, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-[1fr_1fr_56px_32px] gap-1.5 items-center"
+            >
+              <TimePicker
+                value={p.start || ""}
+                onChange={(v) => updateRow(idx, { start: v })}
+                disabled={disabled}
+              />
+              <TimePicker
+                value={p.end || ""}
+                onChange={(v) => updateRow(idx, { end: v })}
+                disabled={disabled}
+              />
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                value={p.workers ?? ""}
+                onChange={(e) => updateRow(idx, { workers: e.target.value })}
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-"].includes(e.key)) e.preventDefault();
+                }}
+                disabled={disabled}
+                placeholder="SNC"
+                className="h-10 text-xs text-center border-zinc-300"
+              />
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(list.filter((_, i) => i !== idx))}
+                className="p-1.5 rounded-md text-zinc-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between items-center mt-3 pt-2 border-t border-zinc-100">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            className="gap-1.5 text-xs font-bold border-violet-200 text-violet-700 hover:bg-violet-50"
+            onClick={() =>
+              onChange([...list, { start: "", end: "", workers: "" }])
+            }
+          >
+            <Plus className="w-3.5 h-3.5" /> Thêm khoảng
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={disabled}
+            className="text-xs font-bold text-zinc-500 hover:text-red-600"
+            onClick={() => onChange([])}
+          >
+            Quay lại 1 khoảng thường
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ─── Combobox helper ────────────────────────────────────────────────────────
@@ -315,6 +479,9 @@ function ManualRow({
 
   const laborValue = (() => {
     const item = watchItems[index] || {};
+    if (normalizePeriodsFE(item.work_periods).length > 0) {
+      return calcPeriodsLaborFE(item.work_periods);
+    }
     const mins = calcValidWorkMinutesFE(item.start_time, item.end_time, manualDate);
     return calcActualLaborFE(mins, parseInt(item.worker_count));
   })();
@@ -464,43 +631,79 @@ function ManualRow({
 
       {/* Hàng 2: thời gian, SNC, công TT — nằm dưới các cột SL KH → Xóa */}
       <div className="grid grid-cols-[1fr_1fr_1fr_1fr] gap-2 items-end">
-        <div className="space-y-0.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Bắt đầu</label>
-          <Controller
-            name={`items.${index}.start_time`}
-            control={control}
-            render={({ field }) => (
-              <TimePicker value={field.value} onChange={field.onChange} />
-            )}
-          />
-        </div>
-        <div className="space-y-0.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Kết thúc</label>
-          <Controller
-            name={`items.${index}.end_time`}
-            control={control}
-            render={({ field }) => (
-              <TimePicker value={field.value} onChange={field.onChange} />
-            )}
-          />
-        </div>
-        <div className="space-y-0.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Số nhân công</label>
-          <Controller
-            name={`items.${index}.worker_count`}
-            control={control}
-            render={({ field }) => (
-              <Input
-                {...field}
-                type="number"
-                min="1"
-                step="1"
-                placeholder="SNC"
-                className="h-10 text-sm text-center border-zinc-300"
+        {(row.work_periods || []).length > 0 ? (
+          <div className="col-span-3 space-y-0.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-violet-500">
+              Nhiều khoảng làm việc (lệch giờ nhau)
+            </label>
+            <Controller
+              name={`items.${index}.work_periods`}
+              control={control}
+              render={({ field }) => (
+                <WorkPeriodsEditor
+                  periods={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="space-y-0.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Bắt đầu</label>
+              <Controller
+                name={`items.${index}.start_time`}
+                control={control}
+                render={({ field }) => (
+                  <TimePicker value={field.value} onChange={field.onChange} />
+                )}
               />
-            )}
-          />
-        </div>
+            </div>
+            <div className="space-y-0.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">Kết thúc</label>
+              <Controller
+                name={`items.${index}.end_time`}
+                control={control}
+                render={({ field }) => (
+                  <TimePicker value={field.value} onChange={field.onChange} />
+                )}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Số nhân công</label>
+              <Controller
+                name={`items.${index}.worker_count`}
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="SNC"
+                    className="h-10 text-sm text-center border-zinc-300"
+                  />
+                )}
+              />
+              <button
+                type="button"
+                title="Nhiều người làm lệch giờ nhau — nhập từng khoảng giờ + số người"
+                onClick={() =>
+                  setValue(`items.${index}.work_periods`, [
+                    {
+                      start: row.start_time || "",
+                      end: row.end_time || "",
+                      workers: row.worker_count || "",
+                    },
+                  ])
+                }
+                className="w-full h-6 px-1 rounded-md border border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 hover:border-violet-500 transition-colors text-[10px] font-bold flex items-center justify-center gap-1"
+              >
+                <Layers className="w-3 h-3" /> Lệch giờ
+              </button>
+            </div>
+          </>
+        )}
         <div className="space-y-0.5">
           <label className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Công TT</label>
           <div className="text-right text-sm tabular-nums font-black px-3 h-10 rounded-md bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-end">
@@ -563,6 +766,7 @@ export default function ProductionOutputPage() {
     control: ticketControl,
     handleSubmit: ticketHandleSubmit,
     reset: ticketReset,
+    setValue: ticketSetValue,
   } = useForm({
     defaultValues: { items: [] },
   });
@@ -584,33 +788,38 @@ export default function ProductionOutputPage() {
       }
       if (ticket.items) {
         ticketReplace(
-          ticket.items.map((item) => ({
-            id: item.id,
-            order_code: item.order_code || item.order_name,
-            product_name: item.product_name,
-            operation_name: item.operation_name || item.pgo_operation_name,
-            planned_quantity: parseFloat(item.planned_quantity),
-            actual_quantity: parseFloat(item.actual_quantity) || "",
-            notes: item.notes || "",
-            actual_notes: item.actual_notes || "",
-            start_time: item.start_time
-              ? DateTime.fromISO(item.start_time).toFormat("HH:mm")
-              : "",
-            end_time: item.end_time
-              ? DateTime.fromISO(item.end_time).toFormat("HH:mm")
-              : "",
-            worker_count: item.worker_count ? String(item.worker_count) : "",
-            // Giá trị công đã lưu trên server (nguồn của completion-report)
-            saved_labor:
-              item.actual_labor !== null && item.actual_labor !== undefined
-                ? parseFloat(item.actual_labor)
-                : null,
-            saved_key: [
-              item.start_time ? DateTime.fromISO(item.start_time).toFormat("HH:mm") : "",
-              item.end_time ? DateTime.fromISO(item.end_time).toFormat("HH:mm") : "",
-              item.worker_count ? String(item.worker_count) : "",
-            ].join("|"),
-          })),
+          ticket.items.map((item) => {
+            const workPeriods = mapServerPeriods(item.work_periods);
+            return {
+              id: item.id,
+              order_code: item.order_code || item.order_name,
+              product_name: item.product_name,
+              operation_name: item.operation_name || item.pgo_operation_name,
+              planned_quantity: parseFloat(item.planned_quantity),
+              actual_quantity: parseFloat(item.actual_quantity) || "",
+              notes: item.notes || "",
+              actual_notes: item.actual_notes || "",
+              start_time: item.start_time
+                ? DateTime.fromISO(item.start_time).toFormat("HH:mm")
+                : "",
+              end_time: item.end_time
+                ? DateTime.fromISO(item.end_time).toFormat("HH:mm")
+                : "",
+              worker_count: item.worker_count ? String(item.worker_count) : "",
+              work_periods: workPeriods,
+              // Giá trị công đã lưu trên server (nguồn của completion-report)
+              saved_labor:
+                item.actual_labor !== null && item.actual_labor !== undefined
+                  ? parseFloat(item.actual_labor)
+                  : null,
+              saved_key: [
+                item.start_time ? DateTime.fromISO(item.start_time).toFormat("HH:mm") : "",
+                item.end_time ? DateTime.fromISO(item.end_time).toFormat("HH:mm") : "",
+                item.worker_count ? String(item.worker_count) : "",
+                JSON.stringify(workPeriods),
+              ].join("|"),
+            };
+          }),
         );
       }
     }
@@ -666,14 +875,26 @@ export default function ProductionOutputPage() {
     const ticketDate = ticket?.ticket_date
       ? DateTime.fromISO(ticket.ticket_date).toFormat("yyyy-MM-dd")
       : null;
-    const payload = data.items.map((item) => ({
-      id: item.id,
-      actual_quantity: parseFloat(item.actual_quantity) || 0,
-      actual_notes: item.actual_notes || null,
-      start_time: item.start_time && ticketDate ? `${ticketDate}T${item.start_time}:00` : null,
-      end_time: item.end_time && ticketDate ? `${ticketDate}T${item.end_time}:00` : null,
-      worker_count: item.worker_count ? parseInt(item.worker_count) : null,
-    }));
+    const payload = data.items.map((item) => {
+      const periods = normalizePeriodsFE(item.work_periods);
+      const bounds = periodsBounds(periods);
+      const effStart = bounds ? bounds.minStart : item.start_time;
+      const effEnd = bounds ? bounds.maxEnd : item.end_time;
+      return {
+        id: item.id,
+        actual_quantity: parseFloat(item.actual_quantity) || 0,
+        actual_notes: item.actual_notes || null,
+        start_time: effStart && ticketDate ? `${ticketDate}T${effStart}:00` : null,
+        end_time: effEnd && ticketDate ? `${ticketDate}T${effEnd}:00` : null,
+        worker_count:
+          periods.length > 0
+            ? null
+            : item.worker_count
+              ? parseInt(item.worker_count)
+              : null,
+        work_periods: periods.length > 0 ? periods : null,
+      };
+    });
     updateMutation.mutate(payload);
   };
 
@@ -764,6 +985,7 @@ export default function ProductionOutputPage() {
             ? DateTime.fromISO(item.end_time).toFormat("HH:mm")
             : "",
           worker_count: item.worker_count ? String(item.worker_count) : "",
+          work_periods: mapServerPeriods(item.work_periods),
         })),
       });
       toast.success(
@@ -812,18 +1034,26 @@ export default function ProductionOutputPage() {
       toast.error(err.response?.data?.message || "Lỗi khi cập nhật!"),
   });
 
-  const mapManualItemPayload = (i) => ({
-    order_id: i.order_id || null,
-    product_id: i.product_id || null,
-    product_group_operation_id: i.product_group_operation_id || null,
-    operation_name: i.operation_name || null,
-    planned_quantity: parseFloat(i.planned_quantity) || 0,
-    actual_quantity: parseFloat(i.actual_quantity) || 0,
-    notes: i.notes || null,
-    start_time: i.start_time ? `${manualDate}T${i.start_time}:00` : null,
-    end_time: i.end_time ? `${manualDate}T${i.end_time}:00` : null,
-    worker_count: i.worker_count ? parseInt(i.worker_count) : null,
-  });
+  const mapManualItemPayload = (i) => {
+    const periods = normalizePeriodsFE(i.work_periods);
+    const bounds = periodsBounds(periods);
+    const effStart = bounds ? bounds.minStart : i.start_time;
+    const effEnd = bounds ? bounds.maxEnd : i.end_time;
+    return {
+      order_id: i.order_id || null,
+      product_id: i.product_id || null,
+      product_group_operation_id: i.product_group_operation_id || null,
+      operation_name: i.operation_name || null,
+      planned_quantity: parseFloat(i.planned_quantity) || 0,
+      actual_quantity: parseFloat(i.actual_quantity) || 0,
+      notes: i.notes || null,
+      start_time: effStart ? `${manualDate}T${effStart}:00` : null,
+      end_time: effEnd ? `${manualDate}T${effEnd}:00` : null,
+      worker_count:
+        periods.length > 0 ? null : i.worker_count ? parseInt(i.worker_count) : null,
+      work_periods: periods.length > 0 ? periods : null,
+    };
+  };
 
   const onManualSubmit = async (data) => {
     if (data.items.length === 0) {
@@ -837,14 +1067,22 @@ export default function ProductionOutputPage() {
     if (editingManualTicket?.id && existingRows.length > 0) {
       await manualUpdateMutation.mutateAsync({
         ticketId: editingManualTicket.id,
-        items: existingRows.map((i) => ({
-          id: i.id,
-          actual_quantity: parseFloat(i.actual_quantity) || 0,
-          notes: i.notes || null,
-          start_time: i.start_time ? `${manualDate}T${i.start_time}:00` : null,
-          end_time: i.end_time ? `${manualDate}T${i.end_time}:00` : null,
-          worker_count: i.worker_count ? parseInt(i.worker_count) : null,
-        })),
+        items: existingRows.map((i) => {
+          const periods = normalizePeriodsFE(i.work_periods);
+          const bounds = periodsBounds(periods);
+          const effStart = bounds ? bounds.minStart : i.start_time;
+          const effEnd = bounds ? bounds.maxEnd : i.end_time;
+          return {
+            id: i.id,
+            actual_quantity: parseFloat(i.actual_quantity) || 0,
+            notes: i.notes || null,
+            start_time: effStart ? `${manualDate}T${effStart}:00` : null,
+            end_time: effEnd ? `${manualDate}T${effEnd}:00` : null,
+            worker_count:
+              periods.length > 0 ? null : i.worker_count ? parseInt(i.worker_count) : null,
+            work_periods: periods.length > 0 ? periods : null,
+          };
+        }),
       });
     }
 
@@ -1039,20 +1277,25 @@ export default function ProductionOutputPage() {
                         : null;
                       return ticketFields.map((field, index) => {
                         const item = ticketWatchItems?.[index] || {};
+                        const periods = item.work_periods || [];
+                        const hasPeriods = periods.length > 0;
                         const currentKey = [
                           item.start_time || "",
                           item.end_time || "",
                           item.worker_count || "",
+                          JSON.stringify(periods),
                         ].join("|");
                         // Chưa sửa gì so với server → hiển thị đúng giá trị đã lưu (khớp completion-report)
-                        // Đã sửa → tính lại theo công thức backend (calculateValidWorkMinutes / calculateActualLabor)
+                        // Đã sửa → tính lại theo công thức backend (calculateValidWorkMinutes / calculateActualLabor / calculatePeriodsLabor)
                         const labor =
                           currentKey === field.saved_key && field.saved_labor !== null
                             ? field.saved_labor
-                            : calcActualLaborFE(
-                                calcValidWorkMinutesFE(item.start_time, item.end_time, ticketDateStr),
-                                parseInt(item.worker_count),
-                              );
+                            : hasPeriods
+                              ? calcPeriodsLaborFE(periods)
+                              : calcActualLaborFE(
+                                  calcValidWorkMinutesFE(item.start_time, item.end_time, ticketDateStr),
+                                  parseInt(item.worker_count),
+                                );
                         return (
                           <TableRow key={field.id} className="cursor-default">
                             <TableCell className="font-medium text-zinc-500">
@@ -1088,57 +1331,100 @@ export default function ProductionOutputPage() {
                                 )}
                               />
                             </TableCell>
-                            <TableCell>
-                              <Controller
-                                 name={`items.${index}.start_time`}
-                                control={ticketControl}
-                                render={({ field: inputField }) => (
-                                  <TimePicker
-                                    value={inputField.value}
-                                    onChange={inputField.onChange}
-                                    disabled={
-                                      (isCompleted && user?.role !== "ADMIN") ||
-                                      updateMutation.isPending
-                                    }
+                            {hasPeriods ? (
+                              <TableCell colSpan={3}>
+                                <Controller
+                                  name={`items.${index}.work_periods`}
+                                  control={ticketControl}
+                                  render={({ field: inputField }) => (
+                                    <WorkPeriodsEditor
+                                      periods={inputField.value}
+                                      onChange={inputField.onChange}
+                                      disabled={
+                                        (isCompleted && user?.role !== "ADMIN") ||
+                                        updateMutation.isPending
+                                      }
+                                    />
+                                  )}
+                                />
+                              </TableCell>
+                            ) : (
+                              <>
+                                <TableCell>
+                                  <Controller
+                                     name={`items.${index}.start_time`}
+                                    control={ticketControl}
+                                    render={({ field: inputField }) => (
+                                      <TimePicker
+                                        value={inputField.value}
+                                        onChange={inputField.onChange}
+                                        disabled={
+                                          (isCompleted && user?.role !== "ADMIN") ||
+                                          updateMutation.isPending
+                                        }
+                                      />
+                                    )}
                                   />
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Controller
-                                 name={`items.${index}.end_time`}
-                                control={ticketControl}
-                                render={({ field: inputField }) => (
-                                  <TimePicker
-                                    value={inputField.value}
-                                    onChange={inputField.onChange}
-                                    disabled={
-                                      (isCompleted && user?.role !== "ADMIN") ||
-                                      updateMutation.isPending
-                                    }
+                                </TableCell>
+                                <TableCell>
+                                  <Controller
+                                     name={`items.${index}.end_time`}
+                                    control={ticketControl}
+                                    render={({ field: inputField }) => (
+                                      <TimePicker
+                                        value={inputField.value}
+                                        onChange={inputField.onChange}
+                                        disabled={
+                                          (isCompleted && user?.role !== "ADMIN") ||
+                                          updateMutation.isPending
+                                        }
+                                      />
+                                    )}
                                   />
-                                )}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Controller
-                                name={`items.${index}.worker_count`}
-                                control={ticketControl}
-                                render={({ field: inputField }) => (
-                                  <Input
-                                    {...inputField}
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    disabled={
-                                      (isCompleted && user?.role !== "ADMIN") ||
-                                      updateMutation.isPending
-                                    }
-                                    className="h-9 text-xs text-center border-zinc-300"
-                                  />
-                                )}
-                              />
-                            </TableCell>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <Controller
+                                      name={`items.${index}.worker_count`}
+                                      control={ticketControl}
+                                      render={({ field: inputField }) => (
+                                        <Input
+                                          {...inputField}
+                                          type="number"
+                                          min="1"
+                                          step="1"
+                                          disabled={
+                                            (isCompleted && user?.role !== "ADMIN") ||
+                                            updateMutation.isPending
+                                          }
+                                          className="h-9 text-xs text-center border-zinc-300"
+                                        />
+                                      )}
+                                    />
+                                    <button
+                                      type="button"
+                                      title="Nhiều người làm lệch giờ nhau — nhập từng khoảng giờ + số người"
+                                      disabled={
+                                        (isCompleted && user?.role !== "ADMIN") ||
+                                        updateMutation.isPending
+                                      }
+                                      onClick={() =>
+                                        ticketSetValue(`items.${index}.work_periods`, [
+                                          {
+                                            start: item.start_time || "",
+                                            end: item.end_time || "",
+                                            workers: item.worker_count || "",
+                                          },
+                                        ])
+                                      }
+                                      className="h-6 px-1 rounded-md border border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 hover:border-violet-500 transition-colors text-[10px] font-bold flex items-center justify-center gap-1 disabled:opacity-40"
+                                    >
+                                      <Layers className="w-3 h-3" /> Lệch giờ
+                                    </button>
+                                  </div>
+                                </TableCell>
+                              </>
+                            )}
                             <TableCell className="text-right">
                               <div className="text-xs tabular-nums font-black px-2 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700">
                                 {labor !== null ? labor.toFixed(3) : <span className="text-zinc-400 font-medium">—</span>}
@@ -1359,6 +1645,7 @@ export default function ProductionOutputPage() {
                   start_time: "",
                   end_time: "",
                   worker_count: "",
+                  work_periods: [],
                 })
               }
             >

@@ -2,7 +2,7 @@
 import pool from '../../config/db.js';
 import { generateDailyTickets } from '../../workers/dailyTicketWorker.js';
 import { getIo } from '../../sockets/index.js';
-import { calculateValidWorkMinutes, calculateActualLabor } from '../../utils/labor-calculation.util.js';
+import { calculateValidWorkMinutes, calculateActualLabor, calculatePeriodsLabor, parseHHmmToMinutes } from '../../utils/labor-calculation.util.js';
 
 const toIntOrNull = (v) => (v === null || v === undefined || v === "null" || v === "") ? null : parseInt(v);
 
@@ -208,6 +208,7 @@ export const updateTicketResults = async (req, res) => {
       const workerCounts     = laborData.map(l => l.workerCount);
       const validWorkMins    = laborData.map(l => l.validWorkMinutes);
       const actualLabors     = laborData.map(l => l.actualLabor);
+      const workPeriodsArr   = laborData.map(l => (l.workPeriods ? JSON.stringify(l.workPeriods) : null));
 
       await client.query(
         `UPDATE daily_production_ticket_items AS dti
@@ -219,6 +220,7 @@ export const updateTicketResults = async (req, res) => {
            worker_count       = v.worker_count,
            valid_work_minutes = v.valid_work_minutes,
            actual_labor       = v.actual_labor,
+           work_periods       = v.work_periods_json::jsonb,
            updated_at         = CURRENT_TIMESTAMP
          FROM (
            SELECT
@@ -229,10 +231,11 @@ export const updateTicketResults = async (req, res) => {
              unnest($6::timestamp[]) AS end_time,
              unnest($7::int[])       AS worker_count,
              unnest($8::numeric[])   AS valid_work_minutes,
-             unnest($9::numeric[])   AS actual_labor
+             unnest($9::numeric[])   AS actual_labor,
+             unnest($10::text[])     AS work_periods_json
          ) AS v
          WHERE dti.id = v.id AND dti.ticket_id = $3`,
-        [itemIds, actualQtys, id, actualNotesArr, startTimes, endTimes, workerCounts, validWorkMins, actualLabors],
+        [itemIds, actualQtys, id, actualNotesArr, startTimes, endTimes, workerCounts, validWorkMins, actualLabors, workPeriodsArr],
       );
     }
 
@@ -382,28 +385,39 @@ export const importResults = async (req, res) => {
       }
 
       const existingItem = itemRes.rows[0];
-      // Ô thời gian trống -> giữ nguyên giá trị hiện có
+      const hasTimeInput = !!(startTimeInput || endTimeInput);
+      // Ô thời gian trống -> giữ nguyên giá trị hiện có (không đụng work_periods/actual_labor)
       const startTime = startTimeInput ?? existingItem.start_time;
       const endTime = endTimeInput ?? existingItem.end_time;
-      // Tính lại công thực tế theo giờ mới (buildLaborFields chỉ trả về số công khi đủ dữ liệu)
-      const labor = buildLaborFields({ start_time: startTime, end_time: endTime, worker_count: existingItem.worker_count });
+      // Excel chỉ có 1 khoảng giờ: nếu nhập giờ mới thì bỏ work_periods, tính lại theo SNC cũ
+      const labor = hasTimeInput
+        ? buildLaborFields({ start_time: startTime, end_time: endTime, worker_count: existingItem.worker_count })
+        : null;
 
       await client.query(
-        `UPDATE daily_production_ticket_items
-         SET actual_quantity = $1, actual_notes = $2,
-             start_time = $4, end_time = $5,
-             valid_work_minutes = $6, actual_labor = $7,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3`,
-        [
-          actualQty,
-          ghi_chu_tt ? String(ghi_chu_tt) : null,
-          existingItem.id,
-          startTime || null,
-          endTime || null,
-          labor.validWorkMinutes,
-          labor.actualLabor,
-        ]
+        hasTimeInput
+          ? `UPDATE daily_production_ticket_items
+             SET actual_quantity = $1, actual_notes = $2,
+                 start_time = $4, end_time = $5,
+                 valid_work_minutes = $6, actual_labor = $7,
+                 work_periods = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`
+          : `UPDATE daily_production_ticket_items
+             SET actual_quantity = $1, actual_notes = $2,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+        hasTimeInput
+          ? [
+              actualQty,
+              ghi_chu_tt ? String(ghi_chu_tt) : null,
+              existingItem.id,
+              startTime || null,
+              endTime || null,
+              labor.validWorkMinutes,
+              labor.actualLabor,
+            ]
+          : [actualQty, ghi_chu_tt ? String(ghi_chu_tt) : null, existingItem.id]
       );
 
       updatedTicketIds.add(ticketId);
@@ -777,11 +791,40 @@ export const triggerAutoGenerate = async (req, res) => {
   }
 };
 
+// Chuan hoa work_periods tu payload: [{start:"HH:mm", end:"HH:mm", workers:int}]
+// Tra ve null neu khong co/khong hop le (item dung che do start/end/worker_count don gian).
+function normalizeWorkPeriods(raw) {
+  let periods = raw;
+  if (typeof periods === 'string') {
+    try { periods = JSON.parse(periods); } catch { return null; }
+  }
+  if (!Array.isArray(periods) || periods.length === 0) return null;
+  const cleaned = [];
+  for (const p of periods) {
+    if (!p || typeof p !== 'object') return null;
+    const start = String(p.start || '').trim();
+    const end = String(p.end || '').trim();
+    const workers = parseInt(p.workers, 10);
+    if (parseHHmmToMinutes(start) === null || parseHHmmToMinutes(end) === null) return null;
+    if (!workers || workers <= 0) return null;
+    cleaned.push({ start, end, workers });
+  }
+  return cleaned;
+}
+
 function buildLaborFields(item) {
   const startTime = item.start_time || null;
   const endTime = item.end_time || null;
   const workerCount = item.worker_count ? parseInt(item.worker_count) : null;
   const validWorkerCount = workerCount && workerCount > 0 ? workerCount : null;
+
+  // Che do nhieu khoang (work_periods): 1 cong doan nhieu nguoi lam lech gio nhau.
+  // start_time/end_time luu khoang bao ngoai (FE gui len), worker_count khong dung.
+  const workPeriods = normalizeWorkPeriods(item.work_periods);
+  if (workPeriods) {
+    const { validWorkMinutes, actualLabor } = calculatePeriodsLabor(workPeriods);
+    return { startTime, endTime, workerCount: null, validWorkMinutes, actualLabor, workPeriods };
+  }
 
   // Gio bat dau/ket thuc duoc luu doc lap voi so nhan cong.
   // Thieu SNC -> chua tinh duoc cong (actualLabor = null), khong xoa gio da nhap.
@@ -792,7 +835,7 @@ function buildLaborFields(item) {
       ? calculateActualLabor(validWorkMinutes, validWorkerCount)
       : null;
 
-  return { startTime, endTime, workerCount: validWorkerCount, validWorkMinutes, actualLabor };
+  return { startTime, endTime, workerCount: validWorkerCount, validWorkMinutes, actualLabor, workPeriods: null };
 }
 
 // POST /api/daily-tickets/manual-output
@@ -849,12 +892,13 @@ export const manualOutputEntry = async (req, res) => {
 
     // Chèn items vào phiếu
     if (items.length > 0) {
-      // Mo rong tu 8 len 13 tham so moi item (them: start_time, end_time, worker_count, valid_work_minutes, actual_labor)
+      // Mo rong tu 8 len 14 tham so moi item (them: start_time, end_time, worker_count, valid_work_minutes, actual_labor, work_periods)
       const itemValues = items
         .map((_, i) =>
-          `($1, $${i * 13 + 2}, $${i * 13 + 3}, $${i * 13 + 4}, $${i * 13 + 5}, ` +
-          `$${i * 13 + 6}, $${i * 13 + 7}, $${i * 13 + 8}, $${i * 13 + 9}, ` +
-          `$${i * 13 + 10}, $${i * 13 + 11}, $${i * 13 + 12}, $${i * 13 + 13}, $${i * 13 + 14})`
+          `($1, $${i * 14 + 2}, $${i * 14 + 3}, $${i * 14 + 4}, $${i * 14 + 5}, ` +
+          `$${i * 14 + 6}, $${i * 14 + 7}, $${i * 14 + 8}, $${i * 14 + 9}, ` +
+          `$${i * 14 + 10}, $${i * 14 + 11}, $${i * 14 + 12}, $${i * 14 + 13}, ` +
+          `$${i * 14 + 14}, $${i * 14 + 15})`
         )
         .join(', ');
 
@@ -876,6 +920,7 @@ export const manualOutputEntry = async (req, res) => {
             labor.workerCount,
             labor.validWorkMinutes,
             labor.actualLabor,
+            labor.workPeriods ? JSON.stringify(labor.workPeriods) : null,
           ];
         }),
       ];
@@ -884,7 +929,7 @@ export const manualOutputEntry = async (req, res) => {
         `INSERT INTO daily_production_ticket_items
            (ticket_id, order_id, product_id, product_group_operation_id, operation_name,
             planned_quantity, actual_quantity, notes, production_plan_id,
-            start_time, end_time, worker_count, valid_work_minutes, actual_labor)
+            start_time, end_time, worker_count, valid_work_minutes, actual_labor, work_periods)
          VALUES ${itemValues}`,
         itemParams,
       );
@@ -997,6 +1042,9 @@ export const exportDetailedTickets = async (req, res) => {
                 dti.actual_notes,
                 dti.start_time,
                 dti.end_time,
+                dti.worker_count,
+                dti.actual_labor,
+                dti.work_periods,
                 COALESCE(pp.dinh_muc, pgo.dinh_muc) as dinh_muc,
                 COALESCE(cu.full_name, cu.username, 'Hệ thống') as creator_name,
                 dt.created_at
