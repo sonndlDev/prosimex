@@ -186,7 +186,17 @@ export const updateTicketResults = async (req, res) => {
     }
 
     // Bulk UPDATE actual_quantity dùng unnest — 1 query thay vì N queries
+    let beforeItems = [];
     if (items && items.length > 0) {
+      const beforeRes = await client.query(
+        `SELECT id, actual_quantity, actual_notes, start_time, end_time,
+                worker_count, valid_work_minutes, actual_labor
+         FROM daily_production_ticket_items
+         WHERE ticket_id = $1`,
+        [id]
+      );
+      beforeItems = beforeRes.rows;
+
       const itemIds          = items.map(i => parseInt(i.id));
       const actualQtys       = items.map(i => parseFloat(i.actual_quantity) || 0);
       const actualNotesArr   = items.map(i => i.actual_notes ? String(i.actual_notes) : null);
@@ -233,9 +243,9 @@ export const updateTicketResults = async (req, res) => {
     );
 
     await client.query(
-      `INSERT INTO audit_logs (user_id, action, entity, entity_id)
-       VALUES ($1, 'UPDATE_RESULTS', 'DailyProductionTicket', $2)`,
-      [user_id, id]
+      `INSERT INTO audit_logs (user_id, action, entity, entity_id, before_data, after_data)
+       VALUES ($1, 'UPDATE_RESULTS', 'DailyProductionTicket', $2, $3, $4)`,
+      [user_id, id, JSON.stringify({ items: beforeItems }), JSON.stringify({ items: items || [] })]
     );
 
     await client.query("COMMIT");
@@ -771,18 +781,18 @@ function buildLaborFields(item) {
   const startTime = item.start_time || null;
   const endTime = item.end_time || null;
   const workerCount = item.worker_count ? parseInt(item.worker_count) : null;
+  const validWorkerCount = workerCount && workerCount > 0 ? workerCount : null;
 
-  if (!startTime || !endTime || !workerCount || workerCount <= 0) {
-    return { startTime: null, endTime: null, workerCount: null, validWorkMinutes: null, actualLabor: null };
-  }
+  // Gio bat dau/ket thuc duoc luu doc lap voi so nhan cong.
+  // Thieu SNC -> chua tinh duoc cong (actualLabor = null), khong xoa gio da nhap.
+  const validWorkMinutes =
+    startTime && endTime ? calculateValidWorkMinutes(startTime, endTime) : null;
+  const actualLabor =
+    validWorkMinutes !== null && validWorkerCount
+      ? calculateActualLabor(validWorkMinutes, validWorkerCount)
+      : null;
 
-  const validWorkMinutes = calculateValidWorkMinutes(startTime, endTime);
-  if (validWorkMinutes <= 0) {
-    return { startTime, endTime, workerCount, validWorkMinutes: 0, actualLabor: 0 };
-  }
-
-  const actualLabor = calculateActualLabor(validWorkMinutes, workerCount);
-  return { startTime, endTime, workerCount, validWorkMinutes, actualLabor };
+  return { startTime, endTime, workerCount: validWorkerCount, validWorkMinutes, actualLabor };
 }
 
 // POST /api/daily-tickets/manual-output
