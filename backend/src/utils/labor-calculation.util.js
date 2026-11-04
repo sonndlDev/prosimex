@@ -46,3 +46,51 @@ export function calculateActualLabor(validWorkMinutes, workerCount) {
   if (!validWorkMinutes || !workerCount || workerCount <= 0) return 0;
   return (validWorkMinutes * workerCount) / 480;
 }
+
+/**
+ * Parse chuoi "HH:mm" thanh so phut tu nua dem. Tra ve null neu khong hop le.
+ * @param {string} value
+ * @returns {number|null}
+ */
+export function parseHHmmToMinutes(value) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(value || '').trim());
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Tinh so phut lam viec hop le tu so phut trong ngay (khong phu thuoc timezone).
+ * @param {number} startMin so phut tu nua dem
+ * @param {number} endMin so phut tu nua dem
+ * @returns {number} so phut hop le
+ */
+export function calculateValidWorkMinutesFromMinutes(startMin, endMin) {
+  if (startMin === null || endMin === null || startMin === undefined || endMin === undefined) return 0;
+  const totalMinutes = endMin - startMin;
+  if (totalMinutes <= 0) return 0;
+  return Math.max(0, totalMinutes - calcBreakOverlap(startMin, endMin));
+}
+
+/**
+ * Tinh cong cho nhieu khoang lam viec lech nhau (work_periods).
+ * Moi khoang: {start:"HH:mm", end:"HH:mm", workers:int}.
+ * @param {Array} periods
+ * @returns {{validWorkMinutes: number, actualLabor: number}}
+ */
+export function calculatePeriodsLabor(periods) {
+  let totalMinutes = 0;
+  let weightedMinutes = 0;
+  for (const p of periods || []) {
+    const startMin = parseHHmmToMinutes(p && p.start);
+    const endMin = parseHHmmToMinutes(p && p.end);
+    const workers = parseInt(p && p.workers, 10);
+    if (startMin === null || endMin === null || !workers || workers <= 0) continue;
+    const mins = calculateValidWorkMinutesFromMinutes(startMin, endMin);
+    totalMinutes += mins;
+    weightedMinutes += mins * workers;
+  }
+  return { validWorkMinutes: totalMinutes, actualLabor: weightedMinutes / 480 };
+}

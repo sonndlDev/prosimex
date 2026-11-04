@@ -187,10 +187,19 @@ export default function DailyTicketPage() {
         return;
       }
 
+      const formatPeriods = (raw) => {
+        if (!Array.isArray(raw) || raw.length === 0) return "";
+        return raw
+          .filter((p) => p && p.start && p.end)
+          .map((p) => `${p.start}–${p.end} ×${p.workers ?? 1}`)
+          .join("; ");
+      };
+
       const formattedData = data.map((item, index) => {
         const dinhMuc = parseFloat(item.dinh_muc) || 0;
         const plannedQty = parseFloat(item.planned_quantity) || 0;
         const actualQty = parseFloat(item.actual_quantity) || 0;
+        const periods = formatPeriods(item.work_periods);
         return {
           "STT": index + 1,
           "Mã Phiếu": `${DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}${item.master_id}`,
@@ -202,6 +211,11 @@ export default function DailyTicketPage() {
           "Công đoạn": item.operation_name || "",
           "Thời gian bắt đầu": item.start_time ? DateTime.fromISO(item.start_time).toFormat("dd/MM/yyyy HH:mm") : "",
           "Thời gian kết thúc": item.end_time ? DateTime.fromISO(item.end_time).toFormat("dd/MM/yyyy HH:mm") : "",
+          "SNC": periods ? "" : (item.worker_count || ""),
+          "Chi tiết khoảng": periods,
+          "Công TT (giờ)": item.actual_labor !== null && item.actual_labor !== undefined
+            ? Math.round(parseFloat(item.actual_labor) * 1000) / 1000
+            : "",
           "Định mức": dinhMuc || "",
           "SL Kế hoạch": plannedQty,
           "Số công (KH)": dinhMuc > 0 ? Math.round((plannedQty / dinhMuc) * 100) / 100 : "",
@@ -222,7 +236,9 @@ export default function DailyTicketPage() {
 
       const wscols = [
         { wch: 5 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 },
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 12 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 18 },
+        { wch: 6 }, { wch: 32 }, { wch: 13 },
+        { wch: 10 }, { wch: 12 },
         { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
         { wch: 12 }, { wch: 15 }, { wch: 20 },
       ];
