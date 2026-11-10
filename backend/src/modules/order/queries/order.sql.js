@@ -354,7 +354,7 @@ export const SQL_COMPLETION_REPORT_DONE = `
     COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
     COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
     COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
-    (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2
+    (SELECT COALESCE(MAX(pp2.inventory_input), 0) FROM production_plans pp2
      WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL
      AND (ps.final_pgo_id IS NULL OR pp2.product_group_operation_id = ps.final_pgo_id)) as inventory_input,
     (
@@ -457,7 +457,7 @@ export const SQL_COMPLETION_REPORT_LIVE = `
     COALESCE(pt.total_plating_out, 0) as plating_out_quantity,
     COALESCE(pr.total_plating_returned, 0) as plating_returned_quantity,
     COALESCE(pkt.total_packaging_out, 0) as packaging_out_quantity,
-    (SELECT COALESCE(SUM(pp2.inventory_input), 0) FROM production_plans pp2
+    (SELECT COALESCE(MAX(pp2.inventory_input), 0) FROM production_plans pp2
      WHERE pp2.order_id = $1 AND pp2.product_id = p.id AND pp2.deleted_at IS NULL
      AND (ps.final_pgo_id IS NULL OR pp2.product_group_operation_id = ps.final_pgo_id)) as inventory_input,
     (
