@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GenericTable from "@/components/GenericTable";
 import { getAuditColumn } from "@/utils/audit";
 import { Badge } from "@/components/ui/badge";
 import { ActiveFilterChips } from "@/components/ActiveFilterChips";
-import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit, ChevronDown, ChevronUp, LayoutGrid, ClipboardPaste, Table as TableIcon, Truck, PackageCheck, ListChecks, History as HistoryIcon, Scale, RotateCcw, Filter } from "lucide-react";
+import { Copy, Plus, Search, Calendar, Package, Tag, Hash, Building2, CheckCircle2, ShoppingCart, PaintBucket, ChevronsUpDown, Check, AlertCircle, Trash2, Settings, Download, X, Edit, ChevronDown, ChevronUp, LayoutGrid, ClipboardPaste, Table as TableIcon, Truck, PackageCheck, ListChecks, History as HistoryIcon, Scale, RotateCcw, Filter, Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Dialog,
@@ -2421,6 +2423,84 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
     }
   };
 
+  // Phiếu giao hàng đi gia công: mở xem trước rồi in trực tiếp (không xuất file)
+  const [slipOpen, setSlipOpen] = useState(false);
+  const [slipData, setSlipData] = useState(null);
+
+  // kind: "out" = Phiếu đi (xuất sang NCC), "in" = Phiếu về (nhận hàng từ NCC),
+  // "workshop" = Phiếu xuống xưởng (xuất hàng đã nhận về cho xưởng sản xuất)
+  const handleOpenSlip = async (ticketRow, kind) => {
+    try {
+      const res = await outsourcingService.getByCode(ticketRow.ticket_code);
+      const ticket = res.ticket;
+      if (!ticket?.items?.length) {
+        toast.info("Phiếu này chưa có hàng để in");
+        return;
+      }
+      const history = res.history || [];
+      if (kind !== "out" && history.length === 0) {
+        toast.info("Phiếu này chưa có hàng về để in");
+        return;
+      }
+      setSlipData({
+        kind,
+        ticket,
+        history,
+        supplier: suppliers.find(s => String(s.id) === String(ticket.supplier_id)) || null,
+      });
+      setSlipOpen(true);
+    } catch (err) {
+      console.error("Open slip error:", err);
+      toast.error("Lỗi khi tải phiếu để in");
+    }
+  };
+
+  const renderRowActions = (row) => {
+    const btn = "p-2 rounded-xl text-zinc-400 transition-all active:scale-95 border border-transparent hover:bg-white hover:shadow-md";
+    return (
+      <>
+        {type === "PLATING" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              title="In phiếu"
+              onClick={e => e.stopPropagation()}
+              className={cn(btn, "hover:text-emerald-600 hover:border-emerald-100")}
+            >
+              <Printer className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" onClick={e => e.stopPropagation()} className="min-w-[140px]">
+              <DropdownMenuItem onClick={() => handleOpenSlip(row, "out")} className="font-bold cursor-pointer">
+                Phiếu xuất kho đi
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenSlip(row, "in")} className="font-bold cursor-pointer">
+                Phiếu nhập kho về
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleOpenSlip(row, "workshop")} className="font-bold cursor-pointer">
+                Phiếu xuống xưởng
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        <button
+          type="button"
+          title="Chỉnh sửa"
+          onClick={e => { e.stopPropagation(); handleEdit(row); }}
+          className={cn(btn, "hover:text-indigo-600 hover:border-indigo-100")}
+        >
+          <Edit className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          title="Xóa bản ghi"
+          onClick={e => { e.stopPropagation(); handleDelete(row); }}
+          className={cn(btn, "hover:text-red-600 hover:border-red-100")}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </>
+    );
+  };
+
   let columns = [
     {
       id: "ticket_code",
@@ -2589,7 +2669,10 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
         onSearchChange={setSearch}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        renderActions={renderRowActions}
       />
+
+      <OutsourcingSlipDialog open={slipOpen} onOpenChange={setSlipOpen} data={slipData} />
 
       <EditOutsourcingTicketDialog
         open={showEditDialog}
@@ -2628,3 +2711,248 @@ function OutsourcingHistory({ type, orders, products, suppliers }) {
   );
 }
 
+const fmtSlipNum = (v, digits = 2) => {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  return Number.isNaN(n) ? "" : n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+};
+const fmtSlipDate = (iso) => (iso ? DateTime.fromISO(iso).toFormat("dd/MM/yyyy") : "");
+const SLIP_MIN_ROWS = 12;
+const SLIP_HEADERS = ["STT", "NGÀY GIAO", "ĐƠN HÀNG", "TÊN SP", "KIỆN", "PCS", "KG/AL", "SL KG theo PO", "KG/PL", "TỔNG KG"];
+
+// Nội dung phiếu gia công (dùng chung cho xem trước và bản in)
+function SlipSheet({ data }) {
+  const { ticket, supplier } = data;
+  const items = ticket.items || [];
+  const rowCount = Math.max(SLIP_MIN_ROWS, items.length);
+  const now = DateTime.now();
+  const cell = "border border-black px-1.5 py-1";
+
+  return (
+    <div className="bg-white text-black text-[12px] leading-snug" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+      <div>
+        <p className="font-bold">Công ty CP gia công cơ khí Prosimex</p>
+        <p>Địa chỉ: 22B Nguyễn Thị Chiên, ấp Cây Sộp, Tân An Hội, Củ Chi, TP.HCM</p>
+        <p>SĐT: 02.837.355.357</p>
+        <p>MST: 0318979193</p>
+      </div>
+
+      <p className="mt-4 text-center text-base font-bold uppercase">PHIẾU XUẤT KHO ĐI GIA CÔNG</p>
+      <p className="text-center italic">Ngày {fmtSlipDate(ticket.dispatch_date) || now.toFormat("dd/MM/yyyy")}</p>
+
+      <div className="mt-4">
+        <p className="font-bold">Công ty: {supplier?.name || ticket.supplier || "—"}</p>
+        <p>Địa chỉ: {supplier?.address || ""}</p>
+        <p>SĐT: {supplier?.phone || ""}</p>
+      </div>
+
+      <div className="mt-4 space-y-0.5">
+        <p className="text-sm font-bold">PO: {ticket.ticket_code}</p>
+        <p>Lý do xuất: Xuất hàng đi gia công</p>
+        <p>Ngày trả hàng: {fmtSlipDate(ticket.expected_return_date) || "—"}</p>
+      </div>
+
+      <table className="mt-4 w-full border-collapse text-[11px]">
+        <thead>
+          <tr>
+            {SLIP_HEADERS.map(h => (
+              <th key={h} className={cn(cell, "text-center font-bold")}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rowCount }, (_, i) => {
+            const it = items[i];
+            const qty = it ? (parseFloat(it.quantity_out) || parseFloat(it.accessory_quantity) || null) : null;
+            return (
+              <tr key={i} className="h-6">
+                <td className={cn(cell, "text-center")}>{i + 1}</td>
+                <td className={cn(cell, "text-center")}>{it ? fmtSlipDate(ticket.dispatch_date) : ""}</td>
+                <td className={cell}>{it ? [it.order_code, it.order_name].filter(Boolean).join(" - ") : ""}</td>
+                <td className={cell}>{it?.product_name || ""}</td>
+                <td className={cn(cell, "text-right")}>{it ? fmtSlipNum(it.package_count, 0) : ""}</td>
+                <td className={cn(cell, "text-right")}>{fmtSlipNum(qty, 0)}</td>
+                <td className={cn(cell, "text-right")}>{it ? fmtSlipNum(it.unit_net_weight) : ""}</td>
+                <td className={cn(cell, "text-right")}>{it ? fmtSlipNum(it.gross_weight) : ""}</td>
+                <td className={cn(cell, "text-right")}>{it ? fmtSlipNum(it.pallet_weight) : ""}</td>
+                <td className={cn(cell, "text-right")}>{it ? fmtSlipNum(it.net_weight) : ""}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <p className="mt-3 text-right italic">
+        TP HCM, NGÀY {now.toFormat("dd")} THÁNG {now.toFormat("MM")} NĂM {now.toFormat("yyyy")}
+      </p>
+      <div className="mt-2 flex justify-between text-center font-bold">
+        <div className="w-1/3">
+          <p>Thủ kho</p>
+          <div className="h-20" />
+        </div>
+        <div className="w-1/3">
+          <p>Người nhận hàng</p>
+          <div className="h-20" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Dòng hàng của Phiếu về: mỗi lần nhận về tách BP chính và PK/Lỗi thành dòng riêng
+function buildReturnRows(data) {
+  const items = data.ticket.items || [];
+  const history = [...(data.history || [])].sort((a, b) => new Date(a.returned_at) - new Date(b.returned_at));
+  const rows = [];
+  history.forEach(r => {
+    const it = items.find(i => String(i.id) === String(r.ticket_item_id));
+    const order = it ? [it.order_code, it.order_name].filter(Boolean).join(" - ") : "";
+    const name = it?.product_name || r.product_name || "";
+    const main = parseFloat(r.quantity_returned) || 0;
+    const acc = parseFloat(r.accessory_quantity_returned) || 0;
+    if (main > 0) rows.push({ order, name, qty: main });
+    if (acc > 0) rows.push({ order, name: `${name} (PK/Lỗi)`, qty: acc });
+  });
+  return rows;
+}
+
+// Phiếu nhập hàng mạ, sơn về và Phiếu xuất xuống xưởng (cùng bảng hàng, khác tiêu đề và thông tin đầu phiếu)
+function ReturnSlipSheet({ data }) {
+  const { ticket, supplier, history } = data;
+  const isWorkshop = data.kind === "workshop";
+  const rows = buildReturnRows(data);
+  const rowCount = Math.max(SLIP_MIN_ROWS, rows.length);
+  const latest = history.reduce((acc, r) => (!acc || new Date(r.returned_at) > new Date(acc) ? r.returned_at : acc), null);
+  const day = latest ? DateTime.fromISO(latest) : DateTime.now();
+  const cell = "border border-black px-1.5 py-1";
+
+  return (
+    <div className="bg-white text-black text-[12px] leading-snug" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
+      <div className="flex justify-between gap-6">
+        <div>
+          <p className="font-bold">Công ty CP gia công cơ khí Prosimex</p>
+          <p>22B, Nguyễn Thị Chiên, ấp Cây Sộp, Tân An Hội, Củ Chi, TP.HCM</p>
+          <p>MST: 0318979193</p>
+        </div>
+        <div className="text-right text-[10px] italic">
+          <p>Mẫu số 02 - VT</p>
+          <p>Ban hành theo QĐ số 15/2006/QĐ-BTC</p>
+          <p>ngày 20/03/2006 của BT BTC</p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-center text-base font-bold uppercase">
+        {isWorkshop ? "Phiếu xuất hàng mạ, sơn, xuống xưởng" : "Phiếu nhập hàng mạ, sơn về"}
+      </p>
+      <p className="text-center italic">Ngày {day.toFormat("dd")} / {day.toFormat("MM")} / {day.toFormat("yyyy")}</p>
+
+      <div className="mt-4 space-y-0.5">
+        {isWorkshop ? (
+          <>
+            <p>Người nhận hàng: </p>
+            <p>Bộ phận: ĐÓNG GÓI</p>
+            <p>Lý do xuất kho: Xuất cho xưởng sản xuất</p>
+            <p>Xuất tại kho: 22B Nguyễn Thị Chiên, ấp Cây Sộp, Tân An Hội, Củ Chi, TP.HCM</p>
+          </>
+        ) : (
+          <>
+            <p>Người xuất hàng: {supplier?.name || ticket.supplier || "—"}</p>
+            <p>Bộ phận: KHO TỔNG</p>
+            <p>Lý do xuất kho: Nhập kho Cty PROSIMEX</p>
+            <p>Nhập kho tại: 22B Nguyễn Thị Chiên, ấp Cây Sộp, Tân An Hội, Củ Chi, TP.HCM</p>
+          </>
+        )}
+        <p className="font-bold">PO: {ticket.ticket_code}</p>
+      </div>
+
+      <table className="mt-3 w-full border-collapse text-[11px]">
+        <thead>
+          <tr>
+            {["STT", "ĐƠN HÀNG VÀ PO", "TÊN HÀNG", "ĐVT", "SỐ LƯỢNG", "SỐ PCS"].map(h => (
+              <th key={h} className={cn(cell, "text-center font-bold")}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: rowCount }, (_, i) => {
+            const r = rows[i];
+            return (
+              <tr key={i} className="h-6">
+                <td className={cn(cell, "text-center")}>{i + 1}</td>
+                <td className={cell}>
+                  {r && (
+                    <>
+                      <span>{r.order}</span>
+                      {r.order && <br />}
+                      <span>PO: {ticket.ticket_code}</span>
+                    </>
+                  )}
+                </td>
+                <td className={cell}>{r?.name || ""}</td>
+                <td className={cn(cell, "text-center")}>{r ? "cái" : ""}</td>
+                <td className={cn(cell, "text-right")}>{r ? fmtSlipNum(r.qty, 0) : ""}</td>
+                <td className={cell}></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="mt-6 flex justify-between text-center font-bold">
+        <div className="w-1/3">
+          <p>Thủ kho</p>
+          <div className="h-20" />
+        </div>
+        <div className="w-1/3">
+          <p>Người nhận hàng</p>
+          <div className="h-20" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Hộp thoại xem trước phiếu và in. Khi in, chỉ bản phiếu ở body được hiển thị.
+function OutsourcingSlipDialog({ open, onOpenChange, data }) {
+  const titles = { out: "Phiếu xuất kho đi", in: "Phiếu nhập kho về", workshop: "Phiếu xuống xưởng" };
+  const isReturnSheet = data?.kind === "in" || data?.kind === "workshop";
+  const body = data && (isReturnSheet ? <ReturnSlipSheet data={data} /> : <SlipSheet data={data} />);
+  const title = `${titles[data?.kind] || "Phiếu"} ${data?.ticket?.ticket_code || ""}`;
+  return (
+    <>
+      <style>{`
+        @media print {
+          body > * { display: none !important; }
+          body > #outsourcing-slip-print { display: block !important; }
+          @page { size: A4; margin: 12mm; }
+        }
+      `}</style>
+      {data && createPortal(
+        <div id="outsourcing-slip-print" className="hidden">
+          {body}
+        </div>,
+        document.body
+      )}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[90vw] max-w-[90vw] max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-zinc-900">
+              {title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="rounded-xl border border-zinc-200 p-6">
+            {body}
+          </div>
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-lg border-zinc-200 font-bold text-zinc-700 hover:bg-zinc-50">
+              Đóng
+            </Button>
+            <Button onClick={() => window.print()} className="gap-2 rounded-lg bg-indigo-600 font-bold text-white hover:bg-indigo-700">
+              <Printer className="h-4 w-4" /> In phiếu
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
