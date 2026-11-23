@@ -207,30 +207,51 @@ export function expandDateRange(start, end) {
   return dates;
 }
 
+/** Ngày YYYY-MM-DD liền trước dateStr. */
+export function previousDay(dateStr) {
+  return new Date(Date.parse(`${dateStr}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+}
+
+/**
+ * Đọc cấu hình từ các quy tắc ACTIVE:
+ * - offRunDates:       ngày job bị TẮT hoàn toàn (quy tắc "Không chạy job", hoặc ngày không chạy khai báo thủ công).
+ * - extraTargets:      { 'ngày chạy': [ngày tạo phiếu, ...] } cho quy tắc "Tạo thêm phiếu".
+ * - skipDefaultDates:  ngày mà job KHÔNG tạo phiếu mặc định (D+1). Được suy ra tự động:
+ *                      với mỗi ngày tạo phiếu T của quy tắc, nếu T-1 không phải ngày chạy thì
+ *                      job T-1 bỏ qua phần tạo phiếu mặc định (vì T đã được tạo từ ngày chạy).
+ *                      Ví dụ: chạy 23/11, tạo cho 24/11 và 25/11 => tự bỏ qua 24/11.
+ */
 export async function loadAutoTicketConfig(db = pool) {
   const { rows } = await db.query(
     `SELECT rule_type,
-            to_char(run_date, 'YYYY-MM-DD')                AS run_date,
-            to_char(run_date_end, 'YYYY-MM-DD')            AS run_date_end,
-            to_char(target_date, 'YYYY-MM-DD')             AS target_date,
-            to_char(target_date_end, 'YYYY-MM-DD')         AS target_date_end,
-            to_char(skip_run_date, 'YYYY-MM-DD')           AS skip_run_date,
-            to_char(skip_run_date_end, 'YYYY-MM-DD')       AS skip_run_date_end
+            to_char(run_date, 'YYYY-MM-DD')          AS run_date,
+            to_char(run_date_end, 'YYYY-MM-DD')      AS run_date_end,
+            ARRAY(
+              SELECT to_char(d, 'YYYY-MM-DD')
+                FROM unnest(target_dates) AS d
+               ORDER BY d
+            )                                        AS target_dates,
+            to_char(skip_run_date, 'YYYY-MM-DD')     AS skip_run_date,
+            to_char(skip_run_date_end, 'YYYY-MM-DD') AS skip_run_date_end
        FROM auto_ticket_schedule_rules
       WHERE deleted_at IS NULL
         AND status = 'ACTIVE'`
   );
-  const config = { offRunDates: [], extraTargets: {} };
+  const config = { offRunDates: [], extraTargets: {}, skipDefaultDates: [] };
   for (const r of rows) {
     const runDays = expandDateRange(r.run_date, r.run_date_end);
     if (r.rule_type === "OFF_RUN") {
       config.offRunDates.push(...runDays);
     } else if (r.rule_type === "EXTRA_TARGET") {
-      const targetDays = expandDateRange(r.target_date, r.target_date_end);
+      const targetDays = r.target_dates || [];
       for (const runDay of runDays) {
         (config.extraTargets[runDay] ||= []).push(...targetDays);
       }
-      // Ngày không chạy job khai báo ngay trong quy tắc này
+      for (const t of targetDays) {
+        const d = previousDay(t);
+        if (!runDays.includes(d)) config.skipDefaultDates.push(d);
+      }
+      // Ngày không chạy job khai báo thủ công (dữ liệu cũ)
       if (r.skip_run_date) {
         config.offRunDates.push(...expandDateRange(r.skip_run_date, r.skip_run_date_end));
       }
@@ -260,6 +281,9 @@ export function getAutoTicketTargetDates(now = new Date(), config = null) {
   if (dayOfWeek === 0) targets = [];
   else if (dayOfWeek === 6 && hour >= 12) targets = [addDays(1), addDays(2)];
   else targets = [addDays(1)];
+
+  // Tự bỏ qua phần tạo phiếu mặc định (không ảnh hưởng quy tắc khác)
+  if (config?.skipDefaultDates?.includes(today)) targets = [];
 
   const extra = config?.extraTargets?.[today] || [];
   return [...new Set([...targets, ...extra])].sort();

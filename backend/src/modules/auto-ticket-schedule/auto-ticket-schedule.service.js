@@ -18,6 +18,7 @@ const RULE_COLUMNS = `
   to_char(run_date_end, 'YYYY-MM-DD')    AS run_date_end,
   to_char(target_date, 'YYYY-MM-DD')     AS target_date,
   to_char(target_date_end, 'YYYY-MM-DD') AS target_date_end,
+  ARRAY(SELECT to_char(d, 'YYYY-MM-DD') FROM unnest(target_dates) AS d ORDER BY d) AS target_dates,
   to_char(skip_run_date, 'YYYY-MM-DD')     AS skip_run_date,
   to_char(skip_run_date_end, 'YYYY-MM-DD') AS skip_run_date_end,
   note,
@@ -41,6 +42,20 @@ const normalizeRange = (start, end, label) => {
   return end === start ? null : end
 }
 
+const MAX_TARGET_DATES = 60
+
+/** Danh sách ngày tạo job: bất kỳ, không cần liền nhau. Không được trùng ngày chạy job. */
+const normalizeTargetDates = (list, runStart, runEnd) => {
+  if (!Array.isArray(list) || list.length === 0) throw httpError(400, 'Vui lòng chọn ít nhất một ngày tạo job')
+  const unique = [...new Set(list)]
+  if (unique.length > MAX_TARGET_DATES) throw httpError(400, `Tối đa ${MAX_TARGET_DATES} ngày tạo job`)
+  for (const d of unique) {
+    if (!isValidDate(d)) throw httpError(400, 'Ngày tạo job phải có dạng YYYY-MM-DD')
+    if (d >= runStart && d <= runEnd) throw httpError(400, 'Ngày tạo job không được trùng ngày chạy job')
+  }
+  return unique.sort()
+}
+
 export async function listRules() {
   const { rows } = await pool.query(
     `SELECT ${RULE_COLUMNS}
@@ -54,50 +69,30 @@ export async function listRules() {
 export async function createRule(body, userId) {
   const ruleType = body?.rule_type
   const runDate = body?.run_date
-  const targetDate = ruleType === 'EXTRA_TARGET' ? body?.target_date : null
   const note = typeof body?.note === 'string' ? body.note.trim() || null : null
 
   if (!RULE_TYPES.includes(ruleType)) throw httpError(400, 'rule_type không hợp lệ')
   if (!isValidDate(runDate)) throw httpError(400, 'run_date phải có dạng YYYY-MM-DD')
   const runDateEnd = normalizeRange(runDate, body?.run_date_end, 'run_date')
+  const runEnd = runDateEnd || runDate
 
-  let targetDateEnd = null
-  let skipRunDate = null
-  let skipRunDateEnd = null
+  let targetDates = null
   if (ruleType === 'EXTRA_TARGET') {
-    if (!isValidDate(targetDate)) throw httpError(400, 'target_date phải có dạng YYYY-MM-DD')
-    targetDateEnd = normalizeRange(targetDate, body?.target_date_end, 'target_date')
-
-    const runStart = runDate
-    const runEnd = runDateEnd || runDate
-    const targetStart = targetDate
-    const targetEnd = targetDateEnd || targetDate
-    if (targetStart <= runEnd && targetEnd >= runStart) {
-      throw httpError(400, 'Khoảng ngày tạo phiếu không được trùng khoảng ngày chạy job')
-    }
-
-    // Ngày không chạy job (tùy chọn): không được trùng ngày chạy job của chính quy tắc này
-    if (body?.skip_run_date) {
-      if (!isValidDate(body.skip_run_date)) throw httpError(400, 'skip_run_date phải có dạng YYYY-MM-DD')
-      skipRunDate = body.skip_run_date
-      skipRunDateEnd = normalizeRange(skipRunDate, body?.skip_run_date_end, 'skip_run_date')
-      const skipEnd = skipRunDateEnd || skipRunDate
-      if (skipRunDate <= runEnd && skipEnd >= runStart) {
-        throw httpError(400, 'Ngày không chạy job không được trùng ngày chạy job')
-      }
-    }
+    targetDates = normalizeTargetDates(body?.target_dates, runDate, runEnd)
   }
+
+  // target_date giữ ngày đầu tiên để tương thích với index chống trùng
+  const targetDate = targetDates ? targetDates[0] : null
 
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
     const { rows } = await client.query(
       `INSERT INTO auto_ticket_schedule_rules
-         (rule_type, run_date, run_date_end, target_date, target_date_end,
-          skip_run_date, skip_run_date_end, note, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (rule_type, run_date, run_date_end, target_date, target_dates, note, created_by)
+       VALUES ($1, $2, $3, $4, $5::date[], $6, $7)
        RETURNING ${RULE_COLUMNS}`,
-      [ruleType, runDate, runDateEnd, targetDate, targetDateEnd, skipRunDate, skipRunDateEnd, note, userId]
+      [ruleType, runDate, runDateEnd, targetDate, targetDates, note, userId]
     )
     const created = rows[0]
     await client.query(
