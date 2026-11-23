@@ -5,7 +5,13 @@ import { getRules, createRule, updateRuleStatus, deleteRule } from './auto-ticke
 
 const router = express.Router()
 
-router.use(verifyToken)
+// Chỉ tài khoản có username "admin" được truy cập module này, không phụ thuộc quyền được cấp
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role_name === 'ADMIN' && req.user?.username === 'admin') return next()
+  return res.status(403).json({ message: 'Chỉ tài khoản admin mới được truy cập' })
+}
+
+router.use(verifyToken, requireAdmin)
 
 router.get('/', authorize([], 'auto_ticket_schedule:read'), getRules)
 router.post('/', authorize([], 'auto_ticket_schedule:create'), createRule)

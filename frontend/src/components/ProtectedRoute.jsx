@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { canAccessPage } from '../constants/permissions';
 
-export default function ProtectedRoute({ allowedRoles, requiredPermission }) {
+export default function ProtectedRoute({ allowedRoles, allowedUsernames, requiredPermission }) {
     const { user, isAuthenticated, authReady } = useAuth();
     const location = useLocation();
 
@@ -17,6 +17,11 @@ export default function ProtectedRoute({ allowedRoles, requiredPermission }) {
                 Đang tải quyền truy cập...
             </div>
         );
+    }
+
+    // Giới hạn theo tên đăng nhập (áp dụng cả với ADMIN)
+    if (allowedUsernames && !allowedUsernames.includes(user.username)) {
+        return <Navigate to="/unauthorized" replace />;
     }
 
     // Admins bypass all role/permission checks

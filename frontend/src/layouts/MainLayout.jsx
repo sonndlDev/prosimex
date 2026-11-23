@@ -30,7 +30,7 @@ const menuItems = [
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
   { text: "Duyệt phiếu SX", icon: CheckSquare, path: "/daily-tickets/approval", permission: "daily_tickets" },
-  { text: "Lịch tạo phiếu tự động", icon: CalendarDays, path: "/auto-ticket-schedule", permission: "auto_ticket_schedule" },
+  { text: "Lịch tạo phiếu tự động", icon: CalendarDays, path: "/auto-ticket-schedule", permission: "auto_ticket_schedule", adminOnly: true },
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },
@@ -225,14 +225,20 @@ export default function MainLayout() {
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
+  // adminOnly: chỉ tài khoản có username "admin" thấy mục menu này, bất kể quyền được cấp
+  const isMenuVisible = (item) => {
+    if (item.adminOnly && user?.username !== "admin") return false;
+    return canShowMenu(user, item.menuPermission || item.permission);
+  };
+
   const allowedMenus = menuItems.filter((item, index) => {
     if (item.type === "subheader") {
       const nextItems = menuItems.slice(index + 1);
       const firstSubheader = nextItems.findIndex((i) => i.type === "subheader");
       const itemsInSection = firstSubheader === -1 ? nextItems : nextItems.slice(0, firstSubheader);
-      return itemsInSection.some((i) => canShowMenu(user, i.menuPermission || i.permission));
+      return itemsInSection.some((i) => isMenuVisible(i));
     }
-    return canShowMenu(user, item.menuPermission || item.permission);
+    return isMenuVisible(item);
   });
 
   const sidebarWidth = isCollapsed ? 72 : 260;

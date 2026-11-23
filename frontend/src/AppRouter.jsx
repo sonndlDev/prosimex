@@ -188,7 +188,7 @@ export default function AppRouter() {
               <Route element={<ProtectedRoute requiredPermission="workers:read" />}>
                 <Route path="/workers" element={<WorkerPage />} />
               </Route>
-              <Route element={<ProtectedRoute requiredPermission="auto_ticket_schedule:read" />}>
+              <Route element={<ProtectedRoute allowedUsernames={["admin"]} />}>
                 <Route path="/auto-ticket-schedule" element={<AutoTicketSchedulePage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
