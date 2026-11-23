@@ -22,6 +22,9 @@ const ProductGroupPage = React.lazy(
 const ProductPage = React.lazy(() => import("./pages/products/ProductPage"));
 const UserPage = React.lazy(() => import("./pages/auth/UserPage"));
 const CustomerPage = React.lazy(() => import("./pages/customers/CustomerPage"));
+const AutoTicketSchedulePage = React.lazy(
+  () => import("./pages/auto-ticket-schedule/AutoTicketSchedulePage"),
+);
 const OrderPage = React.lazy(() => import("./pages/orders/OrderPage"));
 const OrderProductSnapshotPage = React.lazy(() => import("./pages/orders/OrderProductSnapshotPage"));
 const WarehousePage = React.lazy(() => import("./pages/warehouse/WarehousePage"));
@@ -184,6 +187,9 @@ export default function AppRouter() {
               </Route>
               <Route element={<ProtectedRoute requiredPermission="workers:read" />}>
                 <Route path="/workers" element={<WorkerPage />} />
+              </Route>
+              <Route element={<ProtectedRoute requiredPermission="auto_ticket_schedule:read" />}>
+                <Route path="/auto-ticket-schedule" element={<AutoTicketSchedulePage />} />
               </Route>
               <Route element={<ProtectedRoute requiredPermission="settings:read" />}>
                 <Route

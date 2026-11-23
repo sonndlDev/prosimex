@@ -30,6 +30,7 @@ const menuItems = [
   { text: "Timeline", icon: GanttChartSquare, path: "/schedule", permission: "schedule" },
   { text: "Phiếu SX hàng ngày", icon: ClipboardList, path: "/daily-tickets", permission: "daily_tickets" },
   { text: "Duyệt phiếu SX", icon: CheckSquare, path: "/daily-tickets/approval", permission: "daily_tickets" },
+  { text: "Lịch tạo phiếu tự động", icon: CalendarDays, path: "/auto-ticket-schedule", permission: "auto_ticket_schedule" },
   { text: "Nhập sản lượng", icon: ClipboardCheck, path: "/production-output", permission: "production_output" },
   { text: "Phiếu gia công ", icon: Package, path: "/outsourcing", permission: "outsourcing" },
   { text: "Thông tin Kho", icon: Warehouse, path: "/warehouse", permission: "warehouse" },

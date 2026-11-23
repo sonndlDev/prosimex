@@ -24,6 +24,7 @@ export const PERMISSION_GROUPS = [
       { key: "orders", label: "Đơn hàng", actions: withMenu(["read", "create", "update", "delete"]) },
       { key: "warehouse", label: "Thông tin kho", actions: withMenu(["read", "create", "update", "delete"]) },
       { key: "product_inventory", label: "Tồn kho BTP & TP", actions: withMenu(["read"]) },
+      { key: "auto_ticket_schedule", label: "Lịch tạo phiếu tự động", actions: withMenu(["read", "create", "update", "delete"]) },
       { key: "plan_vs_actual", label: "Báo cáo KH vs TT", actions: withMenu(["read"]) },
     ],
   },

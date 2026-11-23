@@ -191,37 +191,153 @@ function getVietnamDateParts(date) {
 }
 
 /**
+ * Đọc cấu hình lịch tạo phiếu từ bảng auto_ticket_schedule_rules (chỉ quy tắc chưa xóa).
+ * - offRunDates:  các ngày KHÔNG chạy job.
+ * - extraTargets: { 'ngày chạy': ['ngày target thêm', ...] }
+ */
+/** Liệt kê các ngày YYYY-MM-DD từ start đến end (bao gồm hai đầu). end null = chỉ start. */
+export function expandDateRange(start, end) {
+  const endDate = end || start;
+  const startMs = Date.parse(`${start}T00:00:00Z`);
+  const endMs = Date.parse(`${endDate}T00:00:00Z`);
+  const dates = [];
+  for (let ms = startMs; ms <= endMs; ms += 86400000) {
+    dates.push(new Date(ms).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+export async function loadAutoTicketConfig(db = pool) {
+  const { rows } = await db.query(
+    `SELECT rule_type,
+            to_char(run_date, 'YYYY-MM-DD')                AS run_date,
+            to_char(run_date_end, 'YYYY-MM-DD')            AS run_date_end,
+            to_char(target_date, 'YYYY-MM-DD')             AS target_date,
+            to_char(target_date_end, 'YYYY-MM-DD')         AS target_date_end,
+            to_char(skip_run_date, 'YYYY-MM-DD')           AS skip_run_date,
+            to_char(skip_run_date_end, 'YYYY-MM-DD')       AS skip_run_date_end
+       FROM auto_ticket_schedule_rules
+      WHERE deleted_at IS NULL
+        AND status = 'ACTIVE'`
+  );
+  const config = { offRunDates: [], extraTargets: {} };
+  for (const r of rows) {
+    const runDays = expandDateRange(r.run_date, r.run_date_end);
+    if (r.rule_type === "OFF_RUN") {
+      config.offRunDates.push(...runDays);
+    } else if (r.rule_type === "EXTRA_TARGET") {
+      const targetDays = expandDateRange(r.target_date, r.target_date_end);
+      for (const runDay of runDays) {
+        (config.extraTargets[runDay] ||= []).push(...targetDays);
+      }
+      // Ngày không chạy job khai báo ngay trong quy tắc này
+      if (r.skip_run_date) {
+        config.offRunDates.push(...expandDateRange(r.skip_run_date, r.skip_run_date_end));
+      }
+    }
+  }
+  return config;
+}
+
+/**
  * Xác định các ngày cần tạo lịch tại thời điểm `now` (múi giờ Asia/Ho_Chi_Minh).
- * - Chủ nhật: không tạo (trả về []).
+ * Quy tắc mặc định:
+ * - Chủ nhật: không tạo.
  * - Thứ 7 buổi chiều (>= 12h): tạo cho Chủ nhật và Thứ 2.
  * - Các ngày khác: tạo cho ngày mai.
+ * Sau đó áp dụng config: thêm extraTargets của hôm nay, hoặc trả về [] nếu hôm nay nằm trong offRunDates.
  */
-export function getAutoTicketTargetDates(now = new Date()) {
+export function getAutoTicketTargetDates(now = new Date(), config = null) {
   const { year, month, day, hour } = getVietnamDateParts(now);
   const baseMs = Date.UTC(year, month - 1, day);
   const dayOfWeek = new Date(baseMs).getUTCDay(); // 0 = CN, 6 = T7
   const addDays = (n) => new Date(baseMs + n * 86400000).toISOString().slice(0, 10);
+  const today = addDays(0);
 
-  if (dayOfWeek === 0) return [];
-  if (dayOfWeek === 6 && hour >= 12) return [addDays(1), addDays(2)];
-  return [addDays(1)];
+  if (config?.offRunDates?.includes(today)) return [];
+
+  let targets = [];
+  if (dayOfWeek === 0) targets = [];
+  else if (dayOfWeek === 6 && hour >= 12) targets = [addDays(1), addDays(2)];
+  else targets = [addDays(1)];
+
+  const extra = config?.extraTargets?.[today] || [];
+  return [...new Set([...targets, ...extra])].sort();
+}
+
+/**
+ * Cập nhật job_status của các quy tắc ACTIVE có run_date = runDate.
+ * Chỉ chuyển khi trạng thái hiện tại khớp fromStatus.
+ */
+const COVERS_DAY_SQL = `
+        AND status = 'ACTIVE'
+        AND deleted_at IS NULL
+        AND run_date <= $1
+        AND COALESCE(run_date_end, run_date) >= $1`;
+
+/** Job bắt đầu chạy trong ngày: các quy tắc phủ ngày này chuyển PENDING -> RUNNING. */
+async function markRulesRunning(day) {
+  await pool.query(
+    `UPDATE auto_ticket_schedule_rules
+        SET job_status = 'RUNNING'
+      WHERE job_status = 'PENDING' ${COVERS_DAY_SQL}`,
+    [day]
+  );
+}
+
+/**
+ * Job của ngày xong: RUNNING -> DONE nếu đây là ngày cuối của khoảng,
+ * ngược lại quay về PENDING (còn các ngày sau trong khoảng).
+ */
+async function markRulesFinished(day) {
+  await pool.query(
+    `UPDATE auto_ticket_schedule_rules
+        SET job_status = CASE WHEN COALESCE(run_date_end, run_date) = $1 THEN 'DONE' ELSE 'PENDING' END,
+            last_run_at = CURRENT_TIMESTAMP
+      WHERE job_status = 'RUNNING' ${COVERS_DAY_SQL}`,
+    [day]
+  );
+}
+
+/** Job lỗi: RUNNING -> PENDING để lần sau chạy lại. */
+async function markRulesFailed(day) {
+  await pool.query(
+    `UPDATE auto_ticket_schedule_rules
+        SET job_status = 'PENDING'
+      WHERE job_status = 'RUNNING' ${COVERS_DAY_SQL}`,
+    [day]
+  );
 }
 
 /**
  * Entry point cho scheduler: chạy generateDailyTickets cho các ngày mục tiêu.
+ * Khi không truyền config (chạy theo lịch), đọc cấu hình từ DB và cập nhật job_status
+ * của các quy tắc có run_date = hôm nay: PENDING -> RUNNING -> DONE (lỗi thì trả về PENDING).
  */
-export async function runAutoTicketGeneration(now = new Date()) {
-  const targetDates = getAutoTicketTargetDates(now);
+export async function runAutoTicketGeneration(now = new Date(), config = null) {
+  const fromDb = !config;
+  const { year, month, day } = getVietnamDateParts(now);
+  const todayVn = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-  if (targetDates.length === 0) {
-    console.log(`[AutoTicket] Chủ nhật — bỏ qua job tạo phiếu.`);
-    return [];
-  }
+  if (fromDb) await markRulesRunning(todayVn);
 
-  const results = [];
-  for (const targetDate of targetDates) {
-    const summary = await generateDailyTickets(targetDate);
-    results.push({ targetDate, ...summary });
+  try {
+    const effectiveConfig = config || (await loadAutoTicketConfig());
+    const targetDates = getAutoTicketTargetDates(now, effectiveConfig);
+
+    const results = [];
+    if (targetDates.length === 0) {
+      console.log(`[AutoTicket] Không có ngày target nào cần tạo phiếu (chủ nhật hoặc ngày off).`);
+    }
+    for (const targetDate of targetDates) {
+      const summary = await generateDailyTickets(targetDate);
+      results.push({ targetDate, ...summary });
+    }
+
+    if (fromDb) await markRulesFinished(todayVn);
+    return results;
+  } catch (error) {
+    if (fromDb) await markRulesFailed(todayVn);
+    throw error;
   }
-  return results;
 }
