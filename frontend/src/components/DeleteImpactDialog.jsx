@@ -24,7 +24,7 @@ const DeleteImpactDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !isPending && onClose()}>
-      <DialogContent className="sm:max-w-[480px] border-zinc-200">
+      <DialogContent className="max-w-[640px] border-zinc-200">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 bg-red-50 rounded-full text-red-600">

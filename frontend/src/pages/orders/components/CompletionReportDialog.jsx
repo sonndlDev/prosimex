@@ -259,7 +259,7 @@ export default function CompletionReportDialog({ products, orderId, open, onClos
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[1000px] max-h-[90vh] p-0 flex flex-col border-zinc-200 shadow-2xl">
+      <DialogContent className="max-w-[1400px] max-h-[90vh] p-0 flex flex-col border-zinc-200 shadow-2xl">
 
         {/* Header */}
         <DialogHeader className="px-6 py-4 bg-zinc-950 text-white flex flex-row items-center justify-between space-y-0">

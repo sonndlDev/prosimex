@@ -24,7 +24,7 @@ const WorkerAssignmentDialog = React.memo(
     onSave,
   }) => (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-[420px] border-zinc-200 shadow-xl p-0">
+      <DialogContent className="max-w-[600px] border-zinc-200 shadow-xl p-0">
         <DialogHeader className="px-6 pt-6 pb-2">
           <div className="flex items-center gap-2.5 mb-1">
             <div className="p-2 bg-blue-50 rounded-lg text-blue-600">

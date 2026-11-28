@@ -66,7 +66,7 @@ export default function WarehouseDetailsDialog({ open, onClose, order }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="max-w-[640px]">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader className="mb-4 text-left">
             <div className="flex items-center gap-2">

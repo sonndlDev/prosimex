@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { DateTime } from "luxon";
 import { cn } from "@/lib/utils";
 import { isMachineDayOverCapacity } from "../../planning/components/shared";
@@ -33,34 +33,41 @@ export default function CustomSchedule({
   isStopping,
 }) {
   const [hoveredEvent, setHoveredEvent] = useState(null);
-  const [leaveTimeout, setLeaveTimeout] = useState(null);
+  const leaveTimeoutRef = useRef(null);
 
-  const handleMouseEnter = (event, layout, left, width, isStopped) => {
-    if (leaveTimeout) {
-      clearTimeout(leaveTimeout);
-      setLeaveTimeout(null);
+  const cancelLeave = () => {
+    if (leaveTimeoutRef.current) {
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
     }
+  };
+
+  const handleMouseEnter = (event, layout, left, width, isStopped, e) => {
+    cancelLeave();
     setHoveredEvent({
       ...event,
       layoutTop: layout.top,
       left,
       width,
       isStopped,
+      clientX: e.clientX,
+      clientY: e.clientY,
     });
   };
 
+  const handleMouseMove = (e) => {
+    setHoveredEvent((prev) => prev ? { ...prev, clientX: e.clientX, clientY: e.clientY } : null);
+  };
+
   const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
+    leaveTimeoutRef.current = setTimeout(() => {
       setHoveredEvent(null);
-    }, 100); // 100ms buffer
-    setLeaveTimeout(timeout);
+      leaveTimeoutRef.current = null;
+    }, 250);
   };
 
   const handleTooltipMouseEnter = () => {
-    if (leaveTimeout) {
-      clearTimeout(leaveTimeout);
-      setLeaveTimeout(null);
-    }
+    cancelLeave();
   };
   const start = useMemo(
     () => DateTime.fromISO(dateRange.start),
@@ -432,9 +439,10 @@ export default function CustomSchedule({
                       backgroundColor: bgColor,
                     }}
                     className="absolute flex flex-col items-center justify-center px-1 text-white text-[10px] font-black shadow-sm border border-white/20 cursor-pointer overflow-hidden z-10 hover:shadow-lg transition-shadow"
-                    onMouseEnter={() =>
-                      handleMouseEnter(event, layout, left, width, isStopped)
+                    onMouseEnter={(e) =>
+                      handleMouseEnter(event, layout, left, width, isStopped, e)
                     }
+                    onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                   >
                     <span className="text-[12px] leading-tight font-black">
@@ -454,92 +462,75 @@ export default function CustomSchedule({
             {/* Custom Stable Tooltip */}
             {hoveredEvent &&
               (() => {
-                const eventTop =
-                  hoveredEvent.layoutTop + hoveredEvent.laneIndex * ROW_HEIGHT;
-                // If the event is too close to the top (within 150px), show tooltip BELOW it.
-                const showBelow = eventTop < 150;
+                const TOOLTIP_W = 240;
+                const MARGIN = 8;
+                const rawLeft = (hoveredEvent.clientX ?? 0) - TOOLTIP_W / 2;
+                const tooltipLeft = Math.max(MARGIN, Math.min((typeof window !== "undefined" ? window.innerWidth : 1200) - TOOLTIP_W - MARGIN, rawLeft));
+                const clientY = hoveredEvent.clientY ?? 0;
+                const showBelow = clientY < 220;
 
                 return (
                   <div
                     style={{
-                      top: showBelow
-                        ? eventTop + (ROW_HEIGHT - 4) + 10 // Below the block
-                        : eventTop - 10, // Above the block
-                      left: hoveredEvent.left + hoveredEvent.width / 2,
-                      transform: showBelow
-                        ? "translate(-50%, 0)"
-                        : "translate(-50%, -100%)",
+                      position: "fixed",
+                      top: showBelow ? clientY + 20 : clientY - 10,
+                      left: tooltipLeft,
+                      transform: showBelow ? "none" : "translateY(-100%)",
+                      zIndex: 9999,
                     }}
-                    className="absolute z-[100]"
                     onMouseEnter={handleTooltipMouseEnter}
                     onMouseLeave={handleMouseLeave}
                   >
-                    <div className="bg-white p-3 shadow-2xl rounded-xl min-w-[220px] border border-black-800 space-y-3 relative text-black">
+                    <div className="bg-white shadow-2xl rounded-xl w-[280px] border border-zinc-200 overflow-hidden text-black relative">
                       {!showBelow && (
-                        <div className="absolute bottom-[-6px] left-1/2 translate-x-[-50%] w-3 h-3 bg-zinc-950 border-r border-b border-zinc-800 rotate-45" />
+                        <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-zinc-200 rotate-45 z-10" />
                       )}
                       {showBelow && (
-                        <div className="absolute top-[-6px] left-1/2 translate-x-[-50%] w-3 h-3 bg-zinc-950 border-l border-t border-zinc-800 rotate-45" />
+                        <div className="absolute top-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-blue-600 border-l border-t border-blue-500 rotate-45 z-10" />
                       )}
 
-                      <div>
-                        <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
+                      {/* Header – operation name, wraps up to 2 lines */}
+                      <div className="bg-blue-600 px-3 py-2.5">
+                        <p className="text-[7px] font-black text-blue-200 uppercase tracking-widest mb-1">
                           Công đoạn
                         </p>
-                        <p className="font-black text-blue-400 uppercase tracking-tight leading-tight text-[11px]">
+                        <p
+                          className="font-black text-white text-[11px] leading-snug line-clamp-2 uppercase"
+                          title={hoveredEvent.operation_name || "N/A"}
+                        >
                           {hoveredEvent.operation_name || "N/A"}
                         </p>
                       </div>
 
-                      <div className="border-t border-zinc-800/50 pt-3">
-                        <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
-                          Đơn hàng
-                        </p>
-                        <p className="text-[10px] font-black text-black uppercase truncate">
-                          {hoveredEvent.order_code || "N/A"}
-                        </p>
+                      {/* Info rows */}
+                      <div className="px-3 py-2 space-y-1.5">
+                        {[
+                          { label: "Đơn hàng", value: hoveredEvent.order_code, wrap: true },
+                          { label: "Mã hàng", value: hoveredEvent.product_name || hoveredEvent.title, wrap: true },
+                          { label: "PO", value: hoveredEvent.po_customer },
+                          { label: "Ngày", value: DateTime.fromISO(hoveredEvent.start).toFormat("dd/MM/yyyy") },
+                        ].map(({ label, value, wrap }) => (
+                          <div key={label} className="flex items-start gap-2 min-w-0">
+                            <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest shrink-0 w-[58px] pt-px">
+                              {label}
+                            </span>
+                            <span
+                              className={`text-[10px] font-bold text-zinc-800 uppercase leading-snug ${wrap ? "break-words" : "truncate"}`}
+                              title={!wrap ? (value || "N/A") : undefined}
+                            >
+                              {value || "N/A"}
+                            </span>
+                          </div>
+                        ))}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 border-t border-zinc-800/50 pt-3">
-                        <div>
-                          <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
-                            Mã hàng
-                          </p>
-                          <p className="text-[10px] font-black text-black uppercase truncate">
-                            {hoveredEvent.product_name ||
-                              hoveredEvent.title ||
-                              "N/A"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
-                            PO
-                          </p>
-                          <p className="text-[10px] font-black text-black uppercase truncate">
-                            {hoveredEvent.po_customer || "N/A"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-zinc-800/50 pt-3">
-                        <p className="text-[8px] font-black text-black uppercase tracking-widest mb-1">
-                          Thời gian
-                        </p>
-                        <p className="text-[10px] font-black text-black">
-                          {DateTime.fromISO(hoveredEvent.start).toFormat(
-                            "dd/MM/yyyy",
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="bg-blue-600 p-2 rounded-lg flex justify-between items-center shadow-lg shadow-blue-500/20">
-                        <span className="text-[8px] font-black text-blue-100 uppercase">
-                          SỐ CÔNG
+                      {/* Số công */}
+                      <div className="mx-3 mb-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 flex items-center justify-between">
+                        <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest">
+                          Số công
                         </span>
-                        <span className="text-sm font-black text-white">
-                          {Number(
-                            hoveredEvent.planned_work_quantity,
-                          ).toLocaleString("en-US", {
+                        <span className="text-sm font-black text-blue-700">
+                          {Number(hoveredEvent.planned_work_quantity).toLocaleString("en-US", {
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 1,
                           })}
@@ -547,6 +538,7 @@ export default function CustomSchedule({
                       </div>
 
                       {!hoveredEvent.stopped_at && onStop && (
+                        <div className="px-3 pb-3">
                         <button
                           className="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 transition-colors active:scale-95 disabled:opacity-50"
                           disabled={isStopping}
@@ -566,9 +558,10 @@ export default function CustomSchedule({
                           )}
                           DỪNG LẠI
                         </button>
+                        </div>
                       )}
                       {hoveredEvent.stopped_at && (
-                        <div className="w-full bg-zinc-800 text-zinc-400 py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 border border-zinc-700">
+                        <div className="mx-3 mb-3 bg-zinc-800 text-zinc-400 py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-2 border border-zinc-700">
                           <SquareStop className="w-3 h-3" />
                           ĐÃ DỪNG TỪ{" "}
                           {DateTime.fromISO(hoveredEvent.stopped_at).toFormat(

@@ -200,6 +200,9 @@ export default function DailyTicketPage() {
         const plannedQty = parseFloat(item.planned_quantity) || 0;
         const actualQty = parseFloat(item.actual_quantity) || 0;
         const periods = formatPeriods(item.work_periods);
+        const totalWorkers = Array.isArray(item.work_periods) && item.work_periods.length > 0
+          ? item.work_periods.filter((p) => p && p.start && p.end).reduce((sum, p) => sum + (p.workers ?? 1), 0)
+          : (item.worker_count || "");
         return {
           "STT": index + 1,
           "Mã Phiếu": `${DateTime.fromISO(item.ticket_date).toFormat("yyyyMMdd")}${item.master_id}`,
@@ -211,7 +214,7 @@ export default function DailyTicketPage() {
           "Công đoạn": item.operation_name || "",
           "Thời gian bắt đầu": item.start_time ? DateTime.fromISO(item.start_time).toFormat("dd/MM/yyyy HH:mm") : "",
           "Thời gian kết thúc": item.end_time ? DateTime.fromISO(item.end_time).toFormat("dd/MM/yyyy HH:mm") : "",
-          "SNC": periods ? "" : (item.worker_count || ""),
+          "SNC": totalWorkers,
           "Chi tiết khoảng": periods,
           "Công TT (giờ)": item.actual_labor !== null && item.actual_labor !== undefined
             ? Math.round(parseFloat(item.actual_labor) * 1000) / 1000
@@ -297,7 +300,7 @@ export default function DailyTicketPage() {
     {
       id: "machine_name",
       label: "Máy",
-      className: "font-bold text-indigo-600 italic",
+      className: "font-bold text-indigo-600 italic max-w-[130px] truncate",
     },
     {
       id: "order_name",

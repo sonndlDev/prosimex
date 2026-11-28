@@ -335,7 +335,7 @@ export default function DailyTicketFormDialog({ open, ticketId, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-[95vw] w-[1000px] max-h-[92vh] flex flex-col p-0 border-zinc-200 shadow-2xl" showCloseButton={false}>
+      <DialogContent className="max-w-[95vw] w-[1400px] max-h-[92vh] flex flex-col p-0 border-zinc-200 shadow-2xl" showCloseButton={false}>
 
         {/* ── HEADER ── */}
         <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-200 shrink-0">

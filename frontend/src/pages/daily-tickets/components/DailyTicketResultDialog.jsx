@@ -85,7 +85,7 @@ export default function DailyTicketResultDialog({ open, ticketId, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             Nhập Kết Quả Sản Xuất - Phiếu #{ticket?.id}

@@ -343,7 +343,7 @@ export default function GenericTable({
                         </td>
                       )}
                       <td
-                        className={cn("text-center font-medium px-4 py-4", freezeFirstCols && "sticky left-[40px] z-20 border-r border-black-700 border-b border-black-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
+                        className={cn("text-center font-medium px-4 py-3", freezeFirstCols && "sticky left-[40px] z-20 border-r border-black-700 border-b border-black-700 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]")}
                         style={{
                           ...(freezeFirstCols ? { width: '60px', minWidth: '60px', maxWidth: '60px', left: '40px' } : {}),
                           backgroundColor: isSelected ? '#eef2ff' : '#FFF',
@@ -367,7 +367,7 @@ export default function GenericTable({
                               <TooltipTrigger asChild>
                                 <td
                                   className={cn(
-                                    "text-[13px] font-semibold text-zinc-700 px-4 py-4 border-r border-black-700",
+                                    "text-xs font-semibold text-zinc-700 px-4 py-3 border-r border-black-700",
                                     col.className,
                                     col.isSticky && "sticky z-20",
                                     col.isLastSticky && "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.05)]",

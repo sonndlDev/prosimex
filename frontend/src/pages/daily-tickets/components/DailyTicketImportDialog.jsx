@@ -336,7 +336,7 @@ export default function DailyTicketImportDialog({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="max-w-5xl w-full max-h-[90vh] flex flex-col p-0 border-zinc-200 shadow-2xl">
+      <DialogContent className="max-w-7xl w-full max-h-[90vh] flex flex-col p-0 border-zinc-200 shadow-2xl">
 
         {/* Header */}
         <DialogHeader className="px-6 py-4 bg-white border-b border-zinc-100 shrink-0">

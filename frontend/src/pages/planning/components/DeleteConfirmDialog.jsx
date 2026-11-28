@@ -13,7 +13,7 @@ import { Loader2, AlertTriangle } from "lucide-react";
 const DeleteConfirmDialog = React.memo(
   ({ open, isPending, onClose, onConfirm }) => (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="sm:max-w-[400px] border-zinc-200">
+      <DialogContent className="max-w-[520px] border-zinc-200">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 bg-red-50 rounded-full text-red-600">
