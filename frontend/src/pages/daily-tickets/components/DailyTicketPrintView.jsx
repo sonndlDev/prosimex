@@ -75,7 +75,7 @@ ${printContent.innerHTML}
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-7xl max-h-[85vh] p-0 !flex flex-col !overflow-hidden bg-zinc-100 border-zinc-200 gap-0">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] p-0 !flex flex-col !overflow-hidden bg-zinc-100 border-zinc-200 gap-0">
         <div className="flex-1 overflow-auto bg-zinc-500/10 p-4 md:p-8">
           <div className="flex justify-start min-w-max">
             {/* Printable Area */}
